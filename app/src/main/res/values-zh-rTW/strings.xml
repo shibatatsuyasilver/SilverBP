@@ -1,0 +1,98 @@
+<resources>
+    <string name="app_name">SilverBP</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">首頁</string>
+    <string name="tab_history">紀錄</string>
+    <string name="tab_insights">分析</string>
+    <string name="tab_report">報告</string>
+    <string name="tab_settings">設定</string>
+
+    <!-- Today -->
+    <string name="latest_reading">最新讀數</string>
+    <string name="no_readings">尚無讀數</string>
+    <string name="capture_cta">點右上角的 + 開始記錄</string>
+
+    <!-- Reading -->
+    <string name="systolic">收縮壓</string>
+    <string name="diastolic">舒張壓</string>
+    <string name="pulse">脈搏</string>
+    <string name="systolic_full">收縮壓</string>
+    <string name="diastolic_full">舒張壓</string>
+    <string name="mmhg">mmHg</string>
+    <string name="bpm">bpm</string>
+    <string name="part_morning">早晨</string>
+    <string name="part_evening">傍晚</string>
+    <string name="arm_left">左臂</string>
+    <string name="arm_right">右臂</string>
+    <string name="posture_sitting">坐姿</string>
+    <string name="posture_supine">仰臥</string>
+    <string name="posture_standing">站姿</string>
+    <string name="before_medication">服藥前</string>
+    <string name="irregular_heartbeat">心律不整</string>
+    <string name="note">備註</string>
+    <string name="confidence">信心度</string>
+
+    <!-- History filters -->
+    <string name="range_all">全部</string>
+    <string name="range_today">今天</string>
+    <string name="range_this_week">本週</string>
+    <string name="range_this_month">本月</string>
+    <string name="range_last_30">過去 30 天</string>
+    <string name="range_last_90">過去 90 天</string>
+    <string name="sort_newest">最新優先</string>
+    <string name="sort_oldest">最舊優先</string>
+    <string name="delete">刪除</string>
+    <string name="cancel">取消</string>
+    <string name="save">儲存</string>
+    <string name="confirm">確認</string>
+    <string name="retry">重試</string>
+
+    <!-- Settings -->
+    <string name="guideline_section">高血壓指引</string>
+    <string name="guideline_taiwan2022">台灣 2022</string>
+    <string name="guideline_acc_aha_2017">ACC/AHA 2017</string>
+    <string name="guideline_esh_2023">ESH 2023</string>
+    <string name="guideline_jnc_8">JNC 8</string>
+    <string name="integration_section">整合</string>
+    <string name="health_connect">Health Connect</string>
+    <string name="cloud_sync">雲端同步</string>
+    <string name="cloud_sync_unavailable">(尚未實作)</string>
+    <string name="about_section">關於</string>
+    <string name="about_model">本 App 使用 Gemma 4 E4B 視覺模型,依 Apache License 2.0 授權。</string>
+    <string name="not_medical_device">⚠️ 本 App 並非醫療裝置;資訊僅供個人健康參考。</string>
+
+    <!-- Capture / Recognition -->
+    <string name="capture_button">拍攝</string>
+    <string name="pick_from_library">從相簿選</string>
+    <string name="manual_entry">手動輸入</string>
+    <string name="recognizing">辨識中…</string>
+    <string name="recognition_low_confidence">辨識信心度過低 (%1$d%%),請重拍或手動輸入</string>
+    <string name="recognition_failed">辨識失敗:%1$s</string>
+    <string name="camera_permission_title">需要相機權限</string>
+    <string name="camera_permission_body">請至設定開啟相機權限以使用此功能。</string>
+    <string name="open_settings">開啟設定</string>
+
+    <!-- Model load -->
+    <string name="model_idle">尚未載入模型</string>
+    <string name="model_downloading">下載模型中 %1$d%%</string>
+    <string name="model_loading">載入模型中…</string>
+    <string name="model_ready">模型就緒</string>
+    <string name="model_failed">模型載入失敗:%1$s</string>
+
+    <!-- Insights -->
+    <string name="trend_title">血壓趨勢</string>
+    <string name="scatter_title">收縮壓 × 舒張壓</string>
+    <string name="distribution_title">分級分布</string>
+    <string name="heatmap_title">週/時段 熱圖</string>
+    <string name="morning_surge">晨間升幅</string>
+    <string name="variability">變異</string>
+    <string name="arv">ARV</string>
+    <string name="sd">SD</string>
+
+    <!-- Report -->
+    <string name="report_title">居家血壓記錄報告</string>
+    <string name="report_subject">血壓報告</string>
+    <string name="generate_report">產生報告</string>
+    <string name="share">分享</string>
+</resources>

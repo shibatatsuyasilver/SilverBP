@@ -1,0 +1,98 @@
+<resources>
+    <string name="app_name">SilverBP</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">Today</string>
+    <string name="tab_history">History</string>
+    <string name="tab_insights">Insights</string>
+    <string name="tab_report">Report</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Today -->
+    <string name="latest_reading">Latest reading</string>
+    <string name="no_readings">No readings yet</string>
+    <string name="capture_cta">Tap + to record your first reading</string>
+
+    <!-- Reading -->
+    <string name="systolic">SYS</string>
+    <string name="diastolic">DIA</string>
+    <string name="pulse">Pulse</string>
+    <string name="systolic_full">Systolic</string>
+    <string name="diastolic_full">Diastolic</string>
+    <string name="mmhg">mmHg</string>
+    <string name="bpm">bpm</string>
+    <string name="part_morning">Morning</string>
+    <string name="part_evening">Evening</string>
+    <string name="arm_left">Left arm</string>
+    <string name="arm_right">Right arm</string>
+    <string name="posture_sitting">Sitting</string>
+    <string name="posture_supine">Supine</string>
+    <string name="posture_standing">Standing</string>
+    <string name="before_medication">Before medication</string>
+    <string name="irregular_heartbeat">Irregular heartbeat</string>
+    <string name="note">Note</string>
+    <string name="confidence">Confidence</string>
+
+    <!-- History filters -->
+    <string name="range_all">All</string>
+    <string name="range_today">Today</string>
+    <string name="range_this_week">This week</string>
+    <string name="range_this_month">This month</string>
+    <string name="range_last_30">Last 30 days</string>
+    <string name="range_last_90">Last 90 days</string>
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="confirm">Confirm</string>
+    <string name="retry">Retry</string>
+
+    <!-- Settings -->
+    <string name="guideline_section">Hypertension guideline</string>
+    <string name="guideline_taiwan2022">Taiwan 2022</string>
+    <string name="guideline_acc_aha_2017">ACC/AHA 2017</string>
+    <string name="guideline_esh_2023">ESH 2023</string>
+    <string name="guideline_jnc_8">JNC 8</string>
+    <string name="integration_section">Integrations</string>
+    <string name="health_connect">Health Connect</string>
+    <string name="cloud_sync">Cloud sync</string>
+    <string name="cloud_sync_unavailable">(Coming soon)</string>
+    <string name="about_section">About</string>
+    <string name="about_model">This app uses Gemma 4 E4B vision model under Apache License 2.0.</string>
+    <string name="not_medical_device">⚠️ This app is not a medical device. Information is for personal health reference only.</string>
+
+    <!-- Capture / Recognition -->
+    <string name="capture_button">Capture</string>
+    <string name="pick_from_library">From library</string>
+    <string name="manual_entry">Manual entry</string>
+    <string name="recognizing">Recognizing…</string>
+    <string name="recognition_low_confidence">Recognition confidence too low (%1$d%%). Re-capture or enter manually.</string>
+    <string name="recognition_failed">Recognition failed: %1$s</string>
+    <string name="camera_permission_title">Camera permission required</string>
+    <string name="camera_permission_body">Open Settings to allow SilverBP to access the camera.</string>
+    <string name="open_settings">Open Settings</string>
+
+    <!-- Model load -->
+    <string name="model_idle">Model not loaded</string>
+    <string name="model_downloading">Downloading model %1$d%%</string>
+    <string name="model_loading">Loading model…</string>
+    <string name="model_ready">Model ready</string>
+    <string name="model_failed">Model failed: %1$s</string>
+
+    <!-- Insights -->
+    <string name="trend_title">Trend</string>
+    <string name="scatter_title">SBP × DBP</string>
+    <string name="distribution_title">Distribution</string>
+    <string name="heatmap_title">Weekday × Hour</string>
+    <string name="morning_surge">Morning surge</string>
+    <string name="variability">Variability</string>
+    <string name="arv">ARV</string>
+    <string name="sd">SD</string>
+
+    <!-- Report -->
+    <string name="report_title">Home BP Report</string>
+    <string name="report_subject">Blood pressure report</string>
+    <string name="generate_report">Generate report</string>
+    <string name="share">Share</string>
+</resources>
