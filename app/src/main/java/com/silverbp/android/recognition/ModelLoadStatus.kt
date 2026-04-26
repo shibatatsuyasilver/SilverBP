@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /** Mirrors iOS ModelLoadStatus.Phase 1:1 */
 sealed class ModelLoadPhase {
     data object Idle : ModelLoadPhase()
-    data class Downloading(val fraction: Float) : ModelLoadPhase()
+    data class Downloading(val fraction: Float, val variantId: String? = null) : ModelLoadPhase()
     data object Loading : ModelLoadPhase()
     data object Ready : ModelLoadPhase()
     data class Failed(val message: String) : ModelLoadPhase()

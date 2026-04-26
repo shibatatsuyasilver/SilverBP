@@ -7,6 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Background lifecycle for the user-selected local model variant.
@@ -48,9 +50,9 @@ object ModelBootstrap {
         val status = ServiceLocator.modelLoadStatus
         scope.launch {
             try {
-                status.set(ModelLoadPhase.Downloading(0f))
+                status.set(ModelLoadPhase.Downloading(0f, variant.id))
                 downloader.download(variant, sha256, hfToken).collect { p ->
-                    status.set(ModelLoadPhase.Downloading(p.fraction))
+                    status.set(ModelLoadPhase.Downloading(p.fraction, variant.id))
                 }
                 preload(context.applicationContext, variant)
                 ServiceLocator.userSettings.setModelDownloaded(true)
@@ -70,6 +72,21 @@ object ModelBootstrap {
             } else {
                 ServiceLocator.modelLoadStatus.set(ModelLoadPhase.Idle)
             }
+        }
+    }
+
+    /**
+     * Release the native LiteRT engine and its OpenCL GPU context. Called from
+     * [MainActivity.onDestroy] when the user exits the app — without this, the
+     * leaked GPU context can wedge the device's GPU driver until reboot.
+     *
+     * Runs the suspending [GemmaBpService.tearDown] under a timeout so a stuck
+     * native cleanup can't block the UI thread indefinitely. Best-effort: if
+     * the timeout fires, we let the OS reclaim the process.
+     */
+    fun shutdown() {
+        runBlocking {
+            withTimeoutOrNull(2_000) { GemmaBpService.tearDown() }
         }
     }
 

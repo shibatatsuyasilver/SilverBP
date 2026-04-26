@@ -123,6 +123,13 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                     ModelCatalog.variants.forEach { variant ->
                         val isSelected = state.selectedModelId == variant.id
                         val isDownloaded = downloader.isDownloaded(variant)
+                        // Surface progress on the row whose variant is actually downloading,
+                        // not just the currently-selected one (user often taps 下載 on a
+                        // non-selected variant first).
+                        val rowDownloadFraction = (modelPhase as? ModelLoadPhase.Downloading)
+                            ?.takeIf { it.variantId == variant.id || (it.variantId == null && isSelected) }
+                            ?.fraction
+                        val rowLoading = modelPhase is ModelLoadPhase.Loading && isSelected
                         ModelVariantRow(
                             variant = variant,
                             isSelected = isSelected,
@@ -134,26 +141,21 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                             onDownload = {
                                 ModelBootstrap.downloadAndPreload(context, variant, hfToken.takeIf { it.isNotBlank() })
                             },
-                            inProgress = (modelPhase is ModelLoadPhase.Downloading
-                                || modelPhase is ModelLoadPhase.Loading) && isSelected,
+                            inProgress = rowDownloadFraction != null || rowLoading,
+                            downloadFraction = rowDownloadFraction,
                         )
                         HorizontalDivider()
                     }
 
-                    Spacer(Modifier.size(6.dp))
-                    Text(stringResource(R.string.tab_settings).let { "下載狀態" }, style = MaterialTheme.typography.labelMedium)
-                    val statusText = when (val p = modelPhase) {
-                        ModelLoadPhase.Idle -> stringResource(R.string.model_idle)
-                        is ModelLoadPhase.Downloading -> stringResource(R.string.model_downloading, (p.fraction * 100).toInt())
-                        ModelLoadPhase.Loading -> stringResource(R.string.model_loading)
-                        ModelLoadPhase.Ready -> stringResource(R.string.model_ready)
-                        is ModelLoadPhase.Failed -> stringResource(R.string.model_failed, p.message)
-                    }
-                    Text(statusText, style = MaterialTheme.typography.bodyMedium)
-                    if (modelPhase is ModelLoadPhase.Downloading) {
-                        LinearProgressIndicator(
-                            progress = { (modelPhase as ModelLoadPhase.Downloading).fraction },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    // Failure surfaces inline so the user knows why a load broke,
+                    // but routine status (Idle/Loading/Ready) is conveyed by the row's
+                    // own "已下載"/"下載中…" + per-row progress bar.
+                    (modelPhase as? ModelLoadPhase.Failed)?.let { failed ->
+                        Spacer(Modifier.size(6.dp))
+                        Text(
+                            stringResource(R.string.model_failed, failed.message),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
 
@@ -226,31 +228,47 @@ private fun ModelVariantRow(
     onSelect: () -> Unit,
     onDownload: () -> Unit,
     inProgress: Boolean,
+    downloadFraction: Float? = null,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = isSelected, onClick = onSelect, enabled = isDownloaded)
-        Spacer(Modifier.size(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(variant.displayName, fontWeight = FontWeight.Medium)
-            Text(
-                "%.2f GB · %s".format(variant.approxSizeGB, variant.notes),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (isDownloaded) {
-                AssistChip(
-                    onClick = {},
-                    label = { Text("已下載", style = MaterialTheme.typography.labelSmall) },
-                    colors = AssistChipDefaults.assistChipColors(),
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = isSelected, onClick = onSelect, enabled = isDownloaded)
+            Spacer(Modifier.size(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(variant.displayName, fontWeight = FontWeight.Medium)
+                Text(
+                    "%.2f GB · %s".format(variant.approxSizeGB, variant.notes),
+                    style = MaterialTheme.typography.bodySmall,
                 )
+                if (isDownloaded) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("已下載", style = MaterialTheme.typography.labelSmall) },
+                        colors = AssistChipDefaults.assistChipColors(),
+                    )
+                }
+            }
+            if (!isDownloaded) {
+                TextButton(onClick = onDownload, enabled = !inProgress) {
+                    Text(if (inProgress) "下載中…" else "下載")
+                }
             }
         }
-        if (!isDownloaded) {
-            TextButton(onClick = onDownload, enabled = !inProgress) {
-                Text(if (inProgress) "下載中…" else "下載")
-            }
+        if (downloadFraction != null) {
+            val pct = (downloadFraction * 100f).toInt().coerceIn(0, 100)
+            Spacer(Modifier.size(4.dp))
+            LinearProgressIndicator(
+                progress = { downloadFraction },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                "下載進度 $pct%",
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        } else if (inProgress) {
+            Spacer(Modifier.size(4.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }

@@ -96,7 +96,18 @@ class GeminiCloudRecognizer(
 
     companion object {
         const val DEFAULT_MODEL = "gemini-2.5-flash"
-        val SUPPORTED_MODELS = listOf("gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite")
+        val SUPPORTED_MODELS = listOf(
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-pro",
+            "gemma-3-27b-it",
+            "gemma-3-12b-it",
+            "gemma-3-4b-it",
+            "gemma-4-31b-it",
+            "gemma-4-26b-a4b-it",
+            "gemma-4-e4b-it",
+            "gemma-4-e2b-it",
+        )
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 }

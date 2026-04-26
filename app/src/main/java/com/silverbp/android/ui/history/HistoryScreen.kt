@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -100,11 +101,12 @@ private fun RangeChips(current: DateRange, onSelect: (DateRange) -> Unit) {
         DateRange.Last30 to R.string.range_last_30,
         DateRange.Last90 to R.string.range_last_90,
     )
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        chips.forEach { (range, labelRes) ->
+        items(chips, key = { it.first.name }) { (range, labelRes) ->
             FilterChip(
                 selected = current == range,
                 onClick = { onSelect(range) },

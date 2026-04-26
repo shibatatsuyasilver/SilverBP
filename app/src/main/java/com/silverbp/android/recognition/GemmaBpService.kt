@@ -36,16 +36,22 @@ object GemmaBpService {
         require(modelFile.exists()) { "Model file missing at ${modelFile.absolutePath}" }
         ctx = context.applicationContext
         withContext(Dispatchers.Default) {
-            // GPU backend (OpenCL) is required for Gemma 4 .litertlm — the model
-            // ships GPU subgraphs only. CPU backend crashes inside nativeCreateEngine
-            // because there are no CPU prefill/decode subgraphs. Real phones
-            // (Adreno/Mali) ship OpenCL drivers; emulator doesn't, so on emulator
-            // sendMessage will fail with "Can not find OpenCL library on this device".
-            // Use :cli on macOS or a real device for actual recognition testing.
+            // Vision encoder allocates an internal {12, 1, 2520, 1, 2520} float32
+            // attention buffer ≈ 290 MiB regardless of maxNumTokens, which exceeds
+            // the Adreno 7xx Vulkan maxStorageBufferRange of 128 MiB. The 2520
+            // dimension is hardcoded by the vision-transformer architecture, not
+            // configurable from EngineConfig. Workaround: run the vision encoder
+            // on CPU (no per-buffer limit, slower but works) while keeping the
+            // language model on GPU. maxNumTokens=1280 is still useful for the
+            // LLM's KV cache (BP-OCR uses image ~256 + prompt ~500 + output ~100).
+            // GpuArtisan (OpenCL) was tried but the litert-community .litertlm
+            // doesn't ship gpu_artisan subgraphs — "Unsupported backend: 2".
             val cfg = EngineConfig(
                 modelPath = modelFile.absolutePath,
                 backend = Backend.GPU(),
-                visionBackend = Backend.GPU(),
+                visionBackend = Backend.CPU(),
+                maxNumTokens = 1280,
+                maxNumImages = 1,
             )
             engine = Engine(cfg).also { it.initialize() }
         }
