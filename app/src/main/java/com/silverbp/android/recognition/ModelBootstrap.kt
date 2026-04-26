@@ -76,6 +76,25 @@ object ModelBootstrap {
     }
 
     /**
+     * Tear down the running engine and re-preload the currently-selected variant.
+     * Used by Settings when the user changes a tunable (e.g. maxNumTokens) that
+     * is only read at engine init time.
+     */
+    fun reloadCurrentVariant(context: Context) {
+        val downloader = ModelDownloader(context.applicationContext)
+        scope.launch {
+            val variantId = ServiceLocator.userSettings.flow.first().selectedModelId
+            val variant = ModelCatalog.byId(variantId)
+            GemmaBpService.tearDown()
+            if (downloader.isDownloaded(variant)) {
+                preload(context.applicationContext, variant)
+            } else {
+                ServiceLocator.modelLoadStatus.set(ModelLoadPhase.Idle)
+            }
+        }
+    }
+
+    /**
      * Release the native LiteRT engine and its OpenCL GPU context. Called from
      * [MainActivity.onDestroy] when the user exits the app — without this, the
      * leaked GPU context can wedge the device's GPU driver until reboot.
@@ -93,9 +112,10 @@ object ModelBootstrap {
     private suspend fun preload(context: Context, variant: ModelVariant) {
         val status = ServiceLocator.modelLoadStatus
         val downloader = ModelDownloader(context)
+        val maxTokens = ServiceLocator.userSettings.flow.first().maxNumTokens
         status.set(ModelLoadPhase.Loading)
         try {
-            GemmaBpService.preload(context, downloader.targetFile(variant))
+            GemmaBpService.preload(context, downloader.targetFile(variant), maxTokens)
             status.set(ModelLoadPhase.Ready)
         } catch (e: Throwable) {
             status.set(ModelLoadPhase.Failed(e.message ?: "preload failed"))

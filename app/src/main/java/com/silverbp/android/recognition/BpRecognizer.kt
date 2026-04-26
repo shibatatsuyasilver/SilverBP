@@ -30,3 +30,19 @@ enum class RecognitionBackend(val raw: String) {
             entries.firstOrNull { it.raw == s } ?: Local
     }
 }
+
+/**
+ * Power-user override for the LiteRT-LM vision encoder backend. [Auto] consults
+ * [DeviceCapabilities.recommendedVisionBackend] and falls back GPU→CPU if init
+ * throws; the explicit choices skip detection and disable the fallback.
+ */
+enum class VisionBackendOverride(val raw: String) {
+    Auto("auto"),
+    ForceGPU("force_gpu"),
+    ForceCPU("force_cpu");
+
+    companion object {
+        fun fromRaw(s: String): VisionBackendOverride =
+            entries.firstOrNull { it.raw == s } ?: Auto
+    }
+}

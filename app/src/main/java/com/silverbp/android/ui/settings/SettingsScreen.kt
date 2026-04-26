@@ -43,6 +43,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.recognition.BpPrompt
+import com.silverbp.android.recognition.DeviceCapabilities
 import com.silverbp.android.recognition.GeminiCloudRecognizer
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelCatalog
@@ -50,6 +52,7 @@ import com.silverbp.android.recognition.ModelDownloader
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.ModelVariant
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.recognition.VisionBackendOverride
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -172,6 +175,64 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
+
+                SectionCard("進階設定") {
+                    Text("Max tokens (KV cache)", fontWeight = FontWeight.Medium)
+                    Text(
+                        "影響 GPU 記憶體用量與輸出長度。改值後請按下方按鈕重新載入模型。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    MaxTokensDropdown(
+                        selected = state.maxNumTokens,
+                        onSelect = { vm.setMaxNumTokens(it) },
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Button(
+                        onClick = { ModelBootstrap.reloadCurrentVariant(context) },
+                        enabled = !ServiceLocator.modelLoadStatus.isBusy,
+                    ) { Text("套用並重新載入模型") }
+
+                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+
+                    Text("Vision encoder backend", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Auto = 依 SoC 自動選擇 (Adreno 7xx → CPU,其餘 → GPU + 失敗自動 fallback)。" +
+                            "改值後請按上方「套用並重新載入模型」。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    val socHint = remember { DeviceCapabilities.currentSocModel() }
+                    VisionBackendDropdown(
+                        selected = state.visionBackendOverride,
+                        socHint = socHint,
+                        onSelect = { vm.setVisionBackendOverride(it) },
+                    )
+
+                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "OCR system prompt",
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { vm.setSystemPrompt("") }) { Text("重置") }
+                    }
+                    Text(
+                        "留空 = 使用內建預設 prompt。下一張照片即套用,不需重新載入模型。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    OutlinedTextField(
+                        value = state.systemPrompt,
+                        onValueChange = { vm.setSystemPrompt(it) },
+                        placeholder = { Text(BpPrompt.defaultSystem.take(120) + "…") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 6,
+                        maxLines = 14,
+                    )
+                }
             }
 
             // ===== Cloud (Gemini) configuration =====
@@ -292,6 +353,73 @@ private fun GeminiModelDropdown(selected: String, onSelect: (String) -> Unit) {
                 DropdownMenuItem(
                     text = { Text(id) },
                     onClick = { onSelect(id); expanded = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MaxTokensDropdown(selected: Int, onSelect: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val options = listOf(1024, 1536, 2048, 3072, 4096)
+    Column {
+        OutlinedTextField(
+            value = selected.toString(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Max tokens") },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }
+            },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { v ->
+                DropdownMenuItem(
+                    text = { Text(v.toString()) },
+                    onClick = { onSelect(v); expanded = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VisionBackendDropdown(
+    selected: VisionBackendOverride,
+    socHint: String,
+    onSelect: (VisionBackendOverride) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val display = when (selected) {
+        VisionBackendOverride.Auto ->
+            if (socHint.isNotEmpty()) "Auto (SoC=$socHint)" else "Auto"
+        VisionBackendOverride.ForceGPU -> "Force GPU"
+        VisionBackendOverride.ForceCPU -> "Force CPU"
+    }
+    Column {
+        OutlinedTextField(
+            value = display,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Vision backend") },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }
+            },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            VisionBackendOverride.entries.forEach { v ->
+                val label = when (v) {
+                    VisionBackendOverride.Auto ->
+                        if (socHint.isNotEmpty()) "Auto (SoC=$socHint)" else "Auto"
+                    VisionBackendOverride.ForceGPU -> "Force GPU"
+                    VisionBackendOverride.ForceCPU -> "Force CPU"
+                }
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { onSelect(v); expanded = false },
                 )
             }
         }

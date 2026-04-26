@@ -4,6 +4,7 @@ import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
 import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.recognition.VisionBackendOverride
 
 data class UserSettings(
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
@@ -21,4 +22,17 @@ data class UserSettings(
     val geminiApiKey: String = "",
     /** Gemini model id (e.g. "gemini-2.5-flash"). */
     val geminiModel: String = GeminiCloudRecognizer.DEFAULT_MODEL,
+
+    /** LiteRT-LM KV-cache budget. Discrete options exposed in Settings: 1024 / 1536 / 2048 / 3072 / 4096. */
+    val maxNumTokens: Int = 2048,
+    /** User-edited OCR system prompt; blank → fall back to [com.silverbp.android.recognition.BpPrompt.defaultSystem]. */
+    val systemPrompt: String = "",
+
+    /**
+     * Advanced override for which backend the LiteRT-LM vision encoder runs on.
+     * [VisionBackendOverride.Auto] (default) defers to
+     * [com.silverbp.android.recognition.DeviceCapabilities.recommendedVisionBackend]
+     * and retries CPU if GPU init fails. Explicit values skip auto-detect.
+     */
+    val visionBackendOverride: VisionBackendOverride = VisionBackendOverride.Auto,
 )

@@ -3,12 +3,14 @@ package com.silverbp.android.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
 import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.recognition.VisionBackendOverride
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -26,6 +28,9 @@ class UserSettingsRepository(private val context: Context) {
         val MODEL_ID = stringPreferencesKey("selected_model_id")
         val GEMINI_KEY = stringPreferencesKey("gemini_api_key")
         val GEMINI_MODEL = stringPreferencesKey("gemini_model")
+        val MAX_NUM_TOKENS = intPreferencesKey("max_num_tokens")
+        val SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
+        val VISION_OVERRIDE = stringPreferencesKey("vision_backend_override")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -43,6 +48,11 @@ class UserSettingsRepository(private val context: Context) {
             selectedModelId = prefs[Keys.MODEL_ID] ?: ModelCatalog.default.id,
             geminiApiKey = prefs[Keys.GEMINI_KEY] ?: "",
             geminiModel = prefs[Keys.GEMINI_MODEL] ?: GeminiCloudRecognizer.DEFAULT_MODEL,
+            maxNumTokens = prefs[Keys.MAX_NUM_TOKENS] ?: 2048,
+            systemPrompt = prefs[Keys.SYSTEM_PROMPT] ?: "",
+            visionBackendOverride = prefs[Keys.VISION_OVERRIDE]
+                ?.let { VisionBackendOverride.fromRaw(it) }
+                ?: VisionBackendOverride.Auto,
         )
     }
 
@@ -72,5 +82,14 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setGeminiModel(id: String) {
         context.dataStore.edit { it[Keys.GEMINI_MODEL] = id }
+    }
+    suspend fun setMaxNumTokens(v: Int) {
+        context.dataStore.edit { it[Keys.MAX_NUM_TOKENS] = v }
+    }
+    suspend fun setSystemPrompt(v: String) {
+        context.dataStore.edit { it[Keys.SYSTEM_PROMPT] = v }
+    }
+    suspend fun setVisionBackendOverride(v: VisionBackendOverride) {
+        context.dataStore.edit { it[Keys.VISION_OVERRIDE] = v.raw }
     }
 }

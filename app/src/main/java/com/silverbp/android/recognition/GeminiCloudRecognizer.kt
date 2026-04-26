@@ -2,7 +2,9 @@ package com.silverbp.android.recognition
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -43,6 +45,7 @@ class GeminiCloudRecognizer(
 
     override suspend fun extract(bitmap: Bitmap): ExtractedReading = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "Gemini API key not set" }
+        val systemOverride = ServiceLocator.userSettings.flow.first().systemPrompt
         val processed = bitmap.preprocessForOcr()
         val jpegBytes = ByteArrayOutputStream().use { os ->
             processed.compress(Bitmap.CompressFormat.JPEG, 90, os)
@@ -54,7 +57,7 @@ class GeminiCloudRecognizer(
             contents = listOf(
                 GeminiContent(parts = listOf(
                     GeminiPart(inlineData = GeminiInlineData(mimeType = "image/jpeg", data = base64)),
-                    GeminiPart(text = BpPrompt.systemAndExtract()),
+                    GeminiPart(text = BpPrompt.systemAndExtract(systemOverride)),
                 )),
             ),
             generationConfig = GeminiGenConfig(

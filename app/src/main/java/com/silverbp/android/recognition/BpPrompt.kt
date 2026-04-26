@@ -7,7 +7,8 @@ package com.silverbp.android.recognition
  */
 object BpPrompt {
 
-    private val system = """
+    /** Canonical default OCR system prompt. Public so Settings can show / restore it. */
+    val defaultSystem: String = """
         You are an OCR specialist for home blood pressure monitors.
         Read the digital LCD display in the photo and return ONLY a JSON object.
 
@@ -45,5 +46,9 @@ object BpPrompt {
         Now READ the photo. Output ONLY the JSON object — no commentary, no Markdown fences.
     """.trimIndent()
 
-    fun systemAndExtract(): String = system + "\n\n" + extractInstruction
+    /** [systemOverride] = blank/null → use [defaultSystem]. */
+    fun systemAndExtract(systemOverride: String? = null): String {
+        val sys = systemOverride?.takeIf { it.isNotBlank() } ?: defaultSystem
+        return sys + "\n\n" + extractInstruction
+    }
 }

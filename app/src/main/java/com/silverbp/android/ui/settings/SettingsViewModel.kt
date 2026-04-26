@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,5 +36,14 @@ class SettingsViewModel(
     }
     fun setGeminiModel(id: String) {
         viewModelScope.launch { repo.setGeminiModel(id) }
+    }
+    fun setMaxNumTokens(v: Int) {
+        viewModelScope.launch { repo.setMaxNumTokens(v) }
+    }
+    fun setSystemPrompt(v: String) {
+        viewModelScope.launch { repo.setSystemPrompt(v) }
+    }
+    fun setVisionBackendOverride(v: VisionBackendOverride) {
+        viewModelScope.launch { repo.setVisionBackendOverride(v) }
     }
 }
