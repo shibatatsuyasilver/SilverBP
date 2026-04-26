@@ -23,7 +23,14 @@ interface BpRecognizer {
  */
 enum class RecognitionBackend(val raw: String) {
     Local("local"),
-    Cloud("cloud");
+    Cloud("cloud"),
+
+    /**
+     * Gemini Nano via AICore (ML Kit GenAI Prompt API). Pixel 9/10 series only.
+     * Different model bits than [Local]: AICore-managed Gemini Nano (Gemma-derived,
+     * Tensor TPU-accelerated) instead of LiteRT-LM Gemma 4 E2B/E4B on GPU/CPU.
+     */
+    AICore("aicore");
 
     companion object {
         fun fromRaw(s: String): RecognitionBackend =

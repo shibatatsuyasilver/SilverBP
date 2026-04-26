@@ -29,14 +29,45 @@ object ModelBootstrap {
         val status = ServiceLocator.modelLoadStatus
         scope.launch {
             val settings = ServiceLocator.userSettings.flow.first()
-            if (settings.recognitionBackend == RecognitionBackend.Cloud) {
-                status.set(ModelLoadPhase.Ready)  // Cloud route doesn't need local preload
-                return@launch
+            when (settings.recognitionBackend) {
+                RecognitionBackend.Cloud -> {
+                    status.set(ModelLoadPhase.Ready)  // Cloud route doesn't need local preload
+                }
+                RecognitionBackend.AICore -> {
+                    // AICore manages its own model bytes; warm it (and trigger
+                    // download if needed) so the first capture isn't the slow path.
+                    runCatching { AICoreBpService.preload(context.applicationContext) }
+                        .onFailure { e ->
+                            android.util.Log.w(
+                                "ModelBootstrap",
+                                "AICore preload at start failed: ${e.message}",
+                            )
+                        }
+                }
+                RecognitionBackend.Local -> {
+                    val variant = ModelCatalog.byId(settings.selectedModelId)
+                    if (downloader.isDownloaded(variant)) {
+                        preload(context.applicationContext, variant)
+                    }
+                }
             }
-            val variant = ModelCatalog.byId(settings.selectedModelId)
-            if (downloader.isDownloaded(variant)) {
-                preload(context.applicationContext, variant)
-            }
+        }
+    }
+
+    /**
+     * Settings-triggered "preload AICore (Gemini Nano)" — checks status,
+     * downloads if needed, warms the engine. Mirrors [downloadAndPreload]
+     * for the LiteRT-LM path. Errors surface through [ModelLoadStatus].
+     */
+    fun preloadAICore(context: Context) {
+        val ctx = context.applicationContext
+        scope.launch {
+            // Tear down any running LiteRT-LM engine so we don't double-occupy GPU/RAM.
+            GemmaBpService.tearDown()
+            runCatching { AICoreBpService.preload(ctx) }
+                .onFailure { e ->
+                    android.util.Log.w("ModelBootstrap", "AICore preload failed: ${e.message}")
+                }
         }
     }
 
@@ -105,7 +136,10 @@ object ModelBootstrap {
      */
     fun shutdown() {
         runBlocking {
-            withTimeoutOrNull(2_000) { GemmaBpService.tearDown() }
+            withTimeoutOrNull(2_000) {
+                GemmaBpService.tearDown()
+                AICoreBpService.tearDown()
+            }
         }
     }
 

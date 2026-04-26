@@ -117,6 +117,26 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                         Text("不佔本機 RAM,需 API key + 網路", style = MaterialTheme.typography.bodySmall)
                     }
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = state.recognitionBackend == RecognitionBackend.AICore,
+                        onClick = { vm.setRecognitionBackend(RecognitionBackend.AICore) },
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Column {
+                        Text(
+                            "AICore (Gemini Nano,Pixel 9/10 only)",
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            "系統內建 Gemini Nano + Tensor TPU 加速。模型由 Android 管理,APK 不增重。",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
             }
 
             // ===== Local model picker (when Local backend active) =====
@@ -254,6 +274,79 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                     Text(
                         "至 https://aistudio.google.com/app/apikey 取得 API key。\n" +
                             "Flash 適合大多數情況,Pro 用於模糊或反光的照片。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+
+            // ===== AICore (Gemini Nano) configuration =====
+            if (state.recognitionBackend == RecognitionBackend.AICore) {
+                SectionCard("AICore (Gemini Nano)") {
+                    Text(
+                        "在 Pixel 9/10 系列上由 Android 系統服務 (AICore) 載入 Gemini Nano,使用 Tensor TPU 加速。" +
+                            "首次載入可能需從 Play 服務下載模型。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    val socHint = remember { DeviceCapabilities.currentSocModel() }
+                    if (socHint.isNotEmpty()) {
+                        Text(
+                            "本機 SoC: $socHint",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                    Spacer(Modifier.size(6.dp))
+                    when (val phase = modelPhase) {
+                        is ModelLoadPhase.Downloading -> {
+                            val pct = (phase.fraction * 100f).toInt().coerceIn(0, 100)
+                            LinearProgressIndicator(
+                                progress = { phase.fraction },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                "Gemini Nano 下載中… $pct%",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                        is ModelLoadPhase.Loading -> {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Text(
+                                "正在 warm up…",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                        is ModelLoadPhase.Ready -> {
+                            Text(
+                                "已載入,可用。",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                        is ModelLoadPhase.Failed -> {
+                            Text(
+                                "載入失敗:${phase.message}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        ModelLoadPhase.Idle -> {
+                            Text(
+                                "尚未載入。按下方按鈕檢查並下載 Gemini Nano。",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.size(8.dp))
+                    Button(
+                        onClick = { ModelBootstrap.preloadAICore(context) },
+                        enabled = !ServiceLocator.modelLoadStatus.isBusy,
+                    ) { Text("檢查 / 下載 Gemini Nano") }
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        "若顯示「unavailable」表示這台裝置或 Play 服務還沒提供 Gemini Nano。" +
+                            "請在系統設定 → 系統 → 開發人員選項 → AICore Settings 確認模型已啟用," +
+                            "並把帳號加入 aicore-experimental Google Group + Play Store tester 計畫。",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }

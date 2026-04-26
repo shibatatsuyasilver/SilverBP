@@ -17,6 +17,7 @@ object RecognizerFactory {
                 modelId = s.geminiModel.ifBlank { GeminiCloudRecognizer.DEFAULT_MODEL },
             )
             RecognitionBackend.Local -> GemmaLocalRecognizer()
+            RecognitionBackend.AICore -> AICoreBpRecognizer()
         }
     }
 }

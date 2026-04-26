@@ -89,6 +89,9 @@ dependencies {
     // tasks-vision still pulled in for MPImage / future MLKit rectangle detection
     implementation(libs.mediapipe.tasks.vision)
     implementation(libs.mlkit.objectDetection)
+    // ML Kit GenAI Prompt API — Gemini Nano via AICore (Pixel 9/10 series).
+    // Used by AICoreBpRecognizer; gracefully unavailable on non-Pixel devices.
+    implementation(libs.mlkit.genai.prompt)
     implementation(libs.androidx.health.connect.client)
 
     implementation(libs.vico.compose.m3)
