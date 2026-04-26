@@ -25,6 +25,8 @@ import java.util.UUID
  *
  * The model file is downloaded by [ModelDownloader] on first launch.
  */
+private const val TAG = "GemmaBpService"
+
 object GemmaBpService {
 
     private val mutex = Mutex()
@@ -42,18 +44,32 @@ object GemmaBpService {
             // dimension is hardcoded by the vision-transformer architecture, not
             // configurable from EngineConfig. Workaround: run the vision encoder
             // on CPU (no per-buffer limit, slower but works) while keeping the
-            // language model on GPU. maxNumTokens=1280 is still useful for the
-            // LLM's KV cache (BP-OCR uses image ~256 + prompt ~500 + output ~100).
+            // language model on GPU.
             // GpuArtisan (OpenCL) was tried but the litert-community .litertlm
             // doesn't ship gpu_artisan subgraphs — "Unsupported backend: 2".
             val cfg = EngineConfig(
                 modelPath = modelFile.absolutePath,
                 backend = Backend.GPU(),
                 visionBackend = Backend.CPU(),
-                maxNumTokens = 1280,
+                maxNumTokens = 2048,  // generous KV cache so vision tokens + ~500 prompt + output all fit with margin
                 maxNumImages = 1,
             )
-            engine = Engine(cfg).also { it.initialize() }
+            try {
+                engine = Engine(cfg).also { it.initialize() }
+                android.util.Log.i(
+                    TAG,
+                    "LiteRT-LM engine initialized on GPU (model=${modelFile.name}, maxTokens=${cfg.maxNumTokens})",
+                )
+            } catch (t: Throwable) {
+                android.util.Log.e(
+                    TAG,
+                    "GPU initialize failed for ${modelFile.name}. " +
+                        "Likely GPU OOM — try a smaller variant (E2B) or lower maxNumTokens. " +
+                        "Native error: ${t.javaClass.simpleName}: ${t.message}",
+                    t,
+                )
+                throw t
+            }
         }
     }
 
@@ -83,7 +99,14 @@ object GemmaBpService {
                         Content.Text(BpPrompt.systemAndExtract()),
                     )
                 )
-                BpResponseParser.parse(response.toString())
+                val raw = response.toString()
+                android.util.Log.d(TAG, "Gemma raw response (${raw.length} chars): $raw")
+                try {
+                    BpResponseParser.parse(raw)
+                } catch (e: BpExtractionError) {
+                    android.util.Log.w(TAG, "Parse failed (${e.message}); raw was: ${raw.take(500)}")
+                    throw e
+                }
             }
         } finally {
             tmp.delete()

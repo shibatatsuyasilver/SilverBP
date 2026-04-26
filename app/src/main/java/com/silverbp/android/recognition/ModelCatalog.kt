@@ -23,22 +23,22 @@ data class ModelVariant(
 object ModelCatalog {
     val variants: List<ModelVariant> = listOf(
         ModelVariant(
-            id = "gemma-4-E4B-it",
-            displayName = "Gemma 4 E4B (旗艦,最佳精度)",
-            filename = "gemma-4-E4B-it.litertlm",
-            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm",
-            approxSizeBytes = 3_654_467_584L,  // 3.65 GB measured
-            supportsVision = true,
-            notes = "推薦給 8 GB+ RAM 旗艦機 (Pixel 8 Pro / S23+)。",
-        ),
-        ModelVariant(
             id = "gemma-4-E2B-it",
-            displayName = "Gemma 4 E2B (中階機)",
+            displayName = "Gemma 4 E2B (推薦)",
             filename = "gemma-4-E2B-it.litertlm",
             downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
             approxSizeBytes = 2_147_483_648L,  // ~2 GB
             supportsVision = true,
-            notes = "適合 6 GB RAM。精度略低於 E4B,但 30-40% 快。",
+            notes = "推薦給多數裝置 (約 0.7 GB GPU 記憶體)。",
+        ),
+        ModelVariant(
+            id = "gemma-4-E4B-it",
+            displayName = "Gemma 4 E4B (高精度)",
+            filename = "gemma-4-E4B-it.litertlm",
+            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm",
+            approxSizeBytes = 3_654_467_584L,  // 3.65 GB measured
+            supportsVision = true,
+            notes = "需 GPU 記憶體較多 (旗艦機如 S24 Ultra)。",
         ),
         ModelVariant(
             id = "gemma-3n-E4B-it",
