@@ -19,3 +19,8 @@ val CategoryHypotension = Color(0xFF007AFF)    // blue
 val SbpLine = Color(0xFFFF3B30)
 val DbpLine = Color(0xFF007AFF)
 val NormalZone = Color(0xFF34C759)
+
+// Stable BP-value tint used by the Today large-reading card. Distinct from
+// MaterialTheme.colorScheme.error so dynamic-color (Material You) on Pixel
+// devices doesn't shift the SBP hue away from iOS's red.
+val BpRedSbp = Color(0xFFE5484D)

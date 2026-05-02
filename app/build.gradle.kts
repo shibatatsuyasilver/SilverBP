@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,9 +7,14 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val mapsApiKey: String = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}.getProperty("MAPS_API_KEY") ?: ""
+
 android {
     namespace = "com.silverbp.android"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.silverbp.android"
@@ -18,6 +25,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         androidResources.localeFilters += listOf("en", "zh-rTW")
+
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
@@ -80,6 +89,8 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
 
+    implementation(libs.androidx.work.runtime.ktx)
+
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
@@ -93,6 +104,11 @@ dependencies {
     // Used by AICoreBpRecognizer; gracefully unavailable on non-Pixel devices.
     implementation(libs.mlkit.genai.prompt)
     implementation(libs.androidx.health.connect.client)
+
+    implementation(libs.maps.compose)
+    implementation(libs.maps.compose.utils)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
 
     implementation(libs.vico.compose.m3)
     implementation(libs.vico.core)

@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-
-    <path
-        android:pathData="M22,54 L38,54 L44,44 L50,70 L58,26 L66,70 L72,48 L86,54"
-        android:strokeColor="#000000"
-        android:strokeWidth="7"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-</vector>
+<!-- Themed-icon (Material You) monochrome layer.
+     The full iOS art has gradient + figure detail that doesn't tint cleanly
+     to a single color, so use the silverbp_fg PNG as the source — Android
+     will desaturate + tint it to match the user's wallpaper-derived theme. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/silverbp_fg"
+    android:gravity="fill"
+    android:antialias="true"
+    android:tint="#000000" />
