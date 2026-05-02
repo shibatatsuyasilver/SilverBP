@@ -8,29 +8,39 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +57,17 @@ import com.silverbp.android.R
 import com.silverbp.android.core.Arm
 import com.silverbp.android.core.PartOfDay
 import com.silverbp.android.core.Posture
+import com.silverbp.android.core.Source
+import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.theme.BpRedSbp
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,22 +80,49 @@ fun ConfirmReadingScreen(
     LaunchedEffect(readingIdArg) { vm.initWith(readingIdArg) }
     val draft by vm.draft.collectAsStateWithLifecycle()
 
+    val isEditing = remember(readingIdArg) {
+        readingIdArg != null && readingIdArg != "new" && readingIdArg != "draft" &&
+            runCatching { UUID.fromString(readingIdArg) }.isSuccess
+    }
+    val titleText = if (isEditing) "編輯讀數" else "確認讀數"
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.confirm)) },
+                title = { Text(titleText) },
                 navigationIcon = {
-                    IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, null) }
-                }
+                    TextButton(onClick = onCancel) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+                actions = {
+                    TextButton(
+                        enabled = draft.isValid,
+                        onClick = { vm.save(onSaved) },
+                    ) {
+                        Text(
+                            stringResource(R.string.save),
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                },
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             draft.photo?.let { bmp ->
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                ) {
                     androidx.compose.foundation.Image(
                         bitmap = bmp.asImageBitmap(),
                         contentDescription = null,
@@ -84,49 +132,92 @@ fun ConfirmReadingScreen(
                 }
             }
 
-            ConfidenceBar(draft.confidence)
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField(stringResource(R.string.systolic_full), draft.systolic.toString(),
-                    onAccept = { v -> vm.update { it.copy(systolic = v) } }, modifier = Modifier.weight(1f))
-                NumberField(stringResource(R.string.diastolic_full), draft.diastolic.toString(),
-                    onAccept = { v -> vm.update { it.copy(diastolic = v) } }, modifier = Modifier.weight(1f))
-                NumberField(stringResource(R.string.pulse), (draft.pulse ?: 0).toString(),
-                    onAccept = { v -> vm.update { it.copy(pulse = v.takeIf { it > 0 }) } }, modifier = Modifier.weight(1f))
+            SectionCard("讀數") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumberField(
+                        label = stringResource(R.string.systolic_full),
+                        value = draft.systolic,
+                        emphasizedColor = BpRedSbp,
+                        onChange = { v -> vm.update { it.copy(systolic = v) } },
+                    )
+                    HorizontalDivider()
+                    NumberField(
+                        label = stringResource(R.string.diastolic_full),
+                        value = draft.diastolic,
+                        emphasizedColor = MaterialTheme.colorScheme.onSurface,
+                        onChange = { v -> vm.update { it.copy(diastolic = v) } },
+                    )
+                    HorizontalDivider()
+                    NumberField(
+                        label = stringResource(R.string.pulse) + " (bpm)",
+                        value = draft.pulse ?: 0,
+                        emphasizedColor = MaterialTheme.colorScheme.onSurface,
+                        onChange = { v -> vm.update { it.copy(pulse = v.takeIf { x -> x > 0 }) } },
+                    )
+                    HorizontalDivider()
+                    TimestampRow(
+                        timestamp = draft.timestamp,
+                        onSetTimestamp = { newTs -> vm.update { it.copy(timestamp = newTs) } },
+                    )
+                    if (draft.source == Source.CameraGemma) {
+                        HorizontalDivider()
+                        ConfidenceRow(draft.confidence)
+                    }
+                }
             }
 
-            ChipRow("時段", listOf(
-                PartOfDay.Morning to stringResource(R.string.part_morning),
-                PartOfDay.Evening to stringResource(R.string.part_evening),
-            ), draft.partOfDay) { p -> vm.update { it.copy(partOfDay = p) } }
+            SectionCard("標記") {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SegmentedRow(
+                        title = "時段",
+                        options = listOf(
+                            PartOfDay.Morning to stringResource(R.string.part_morning),
+                            PartOfDay.Evening to stringResource(R.string.part_evening),
+                        ),
+                        selected = draft.partOfDay,
+                        onSelect = { v -> vm.update { it.copy(partOfDay = v) } },
+                    )
+                    SegmentedRow(
+                        title = "手臂",
+                        options = listOf(
+                            Arm.Left to stringResource(R.string.arm_left),
+                            Arm.Right to stringResource(R.string.arm_right),
+                        ),
+                        selected = draft.arm,
+                        onSelect = { v -> vm.update { it.copy(arm = v) } },
+                    )
+                    SegmentedRow(
+                        title = "姿勢",
+                        options = listOf(
+                            Posture.Sitting to stringResource(R.string.posture_sitting),
+                            Posture.Supine to stringResource(R.string.posture_supine),
+                            Posture.Standing to stringResource(R.string.posture_standing),
+                        ),
+                        selected = draft.posture,
+                        onSelect = { v -> vm.update { it.copy(posture = v) } },
+                    )
+                    SwitchRow(
+                        label = stringResource(R.string.before_medication),
+                        checked = draft.beforeMedication,
+                        onChange = { v -> vm.update { it.copy(beforeMedication = v) } },
+                    )
+                    SwitchRow(
+                        label = stringResource(R.string.irregular_heartbeat),
+                        checked = draft.irregularHeartbeat,
+                        onChange = { v -> vm.update { it.copy(irregularHeartbeat = v) } },
+                    )
+                }
+            }
 
-            ChipRow("手臂", listOf(
-                Arm.Left to stringResource(R.string.arm_left),
-                Arm.Right to stringResource(R.string.arm_right),
-            ), draft.arm) { a -> vm.update { it.copy(arm = a) } }
-
-            ChipRow("姿勢", listOf(
-                Posture.Sitting to stringResource(R.string.posture_sitting),
-                Posture.Supine to stringResource(R.string.posture_supine),
-                Posture.Standing to stringResource(R.string.posture_standing),
-            ), draft.posture) { p -> vm.update { it.copy(posture = p) } }
-
-            SwitchRow(stringResource(R.string.before_medication), draft.beforeMedication) { v -> vm.update { it.copy(beforeMedication = v) } }
-            SwitchRow(stringResource(R.string.irregular_heartbeat), draft.irregularHeartbeat) { v -> vm.update { it.copy(irregularHeartbeat = v) } }
-
-            OutlinedTextField(
-                value = draft.note,
-                onValueChange = { v -> vm.update { it.copy(note = v) } },
-                label = { Text(stringResource(R.string.note)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Button(
-                enabled = draft.isValid,
-                onClick = { vm.save(onSaved) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.save))
+            SectionCard("備註") {
+                OutlinedTextField(
+                    value = draft.note,
+                    onValueChange = { v -> vm.update { it.copy(note = v) } },
+                    placeholder = { Text("(選填)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 5,
+                )
             }
 
             if (!draft.isValid) {
@@ -136,37 +227,189 @@ fun ConfirmReadingScreen(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+
+            Spacer(Modifier.size(8.dp))
         }
     }
 }
 
 @Composable
-private fun NumberField(label: String, value: String, onAccept: (Int) -> Unit, modifier: Modifier = Modifier) {
-    OutlinedTextField(
-        value = if (value == "0") "" else value,
-        onValueChange = { v ->
-            val cleaned = v.filter { it.isDigit() }.take(3)
-            onAccept(cleaned.toIntOrNull() ?: 0)
-        },
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-        modifier = modifier,
-    )
+private fun NumberField(
+    label: String,
+    value: Int,
+    emphasizedColor: Color,
+    onChange: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedTextField(
+            value = if (value == 0) "" else value.toString(),
+            onValueChange = { v ->
+                val cleaned = v.filter { it.isDigit() }.take(3)
+                onChange(cleaned.toIntOrNull() ?: 0)
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = emphasizedColor,
+            ),
+            modifier = Modifier.size(width = 96.dp, height = 56.dp),
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimestampRow(
+    timestamp: Instant,
+    onSetTimestamp: (Instant) -> Unit,
+) {
+    val zone = remember { ZoneId.systemDefault() }
+    val fmt = remember {
+        DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm", Locale.TAIWAN).withZone(zone)
+    }
+    var showDate by remember { mutableStateOf(false) }
+    var showTime by remember { mutableStateOf(false) }
+    var pendingDate by remember { mutableStateOf<LocalDate?>(null) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("時間", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        OutlinedButton(onClick = { showDate = true }) {
+            Text(fmt.format(timestamp))
+        }
+    }
+
+    if (showDate) {
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = timestamp.toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val ms = state.selectedDateMillis
+                    if (ms != null) {
+                        pendingDate = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
+                        showDate = false
+                        showTime = true
+                    } else {
+                        showDate = false
+                    }
+                }) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDate = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        ) {
+            DatePicker(state = state)
+        }
+    }
+
+    if (showTime) {
+        val current = remember { timestamp.atZone(zone).toLocalTime() }
+        val state = rememberTimePickerState(
+            initialHour = current.hour,
+            initialMinute = current.minute,
+            is24Hour = true,
+        )
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showTime = false }) {
+            Card(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    TimePicker(state = state)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showTime = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(onClick = {
+                            val date = pendingDate ?: timestamp.atZone(zone).toLocalDate()
+                            val newTs = LocalDateTime.of(date, LocalTime.of(state.hour, state.minute))
+                                .atZone(zone)
+                                .toInstant()
+                            onSetTimestamp(newTs)
+                            showTime = false
+                            pendingDate = null
+                        }) { Text(stringResource(R.string.save)) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun <T> ChipRow(title: String, items: List<Pair<T, String>>, current: T, onSelect: (T) -> Unit) {
-    Column {
-        Text(title, style = MaterialTheme.typography.labelSmall)
-        Spacer(Modifier.size(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items.forEach { (value, label) ->
-                FilterChip(
-                    selected = current == value,
-                    onClick = { onSelect(value) },
-                    label = { Text(label, style = MaterialTheme.typography.labelMedium) }
+private fun ConfidenceRow(confidence: Double) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.confidence),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        val color = when {
+            confidence >= 0.85 -> MaterialTheme.colorScheme.primary
+            confidence >= 0.60 -> Color(0xFFFF9500)
+            else -> MaterialTheme.colorScheme.error
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            (1..5).forEach { i ->
+                val filled = confidence * 5 >= i.toDouble() - 0.5
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(if (filled) color else MaterialTheme.colorScheme.surfaceVariant),
                 )
+                Spacer(Modifier.size(4.dp))
+            }
+            Spacer(Modifier.size(8.dp))
+            Text(
+                "${(confidence * 100).toInt()}%",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> SegmentedRow(
+    title: String,
+    options: List<Pair<T, String>>,
+    selected: T,
+    onSelect: (T) -> Unit,
+) {
+    Column {
+        Text(title, style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.size(4.dp))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            options.forEachIndexed { idx, (value, label) ->
+                SegmentedButton(
+                    selected = value == selected,
+                    onClick = { onSelect(value) },
+                    shape = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelMedium)
+                }
             }
         }
     }
@@ -174,30 +417,11 @@ private fun <T> ChipRow(title: String, items: List<Pair<T, String>>, current: T,
 
 @Composable
 private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(label, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
-
-@Composable
-private fun ConfidenceBar(confidence: Double) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.confidence), style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.size(8.dp))
-            val color = when {
-                confidence >= 0.85 -> MaterialTheme.colorScheme.primary
-                confidence >= 0.60 -> Color(0xFFFF9500)
-                else -> MaterialTheme.colorScheme.error
-            }
-            (1..5).forEach { i ->
-                val filled = confidence * 5 >= i.toDouble() - 0.5
-                Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(if (filled) color else MaterialTheme.colorScheme.surfaceVariant))
-                Spacer(Modifier.size(4.dp))
-            }
-            Spacer(Modifier.size(8.dp))
-            Text("${(confidence * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-        }
     }
 }

@@ -2,6 +2,7 @@ package com.silverbp.android.ui.confirm
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.capture.CaptureSessionHolder
@@ -22,6 +23,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
 import java.util.UUID
+
+private const val TAG = "ConfirmReading"
 
 class ConfirmReadingViewModel(
     private val repo: BpRepository = ServiceLocator.bpRepository,
@@ -71,22 +74,32 @@ class ConfirmReadingViewModel(
     fun save(onDone: () -> Unit) {
         viewModelScope.launch {
             val current = _draft.value
-            val photoFilename = current.photo?.let { writePhotoToDisk(it) } ?: current.photoFilename
-            val reading = if (editingId != null) {
-                BpReading(
-                    id = editingId!!,
-                    systolic = current.systolic, diastolic = current.diastolic, pulse = current.pulse,
-                    timestamp = current.timestamp, arm = current.arm, posture = current.posture,
-                    partOfDay = current.partOfDay, beforeMedication = current.beforeMedication,
-                    photoFilename = photoFilename, confidence = current.confidence,
-                    source = current.source, note = current.note,
-                    irregularHeartbeat = current.irregularHeartbeat,
-                )
-            } else {
-                current.toReading(photoFilename)
+            Log.i(
+                TAG,
+                "[Confirm] save sys=${current.systolic} dia=${current.diastolic} " +
+                    "pulse=${current.pulse ?: -1} src=${current.source} conf=${current.confidence}",
+            )
+            try {
+                val photoFilename = current.photo?.let { writePhotoToDisk(it) } ?: current.photoFilename
+                val reading = if (editingId != null) {
+                    BpReading(
+                        id = editingId!!,
+                        systolic = current.systolic, diastolic = current.diastolic, pulse = current.pulse,
+                        timestamp = current.timestamp, arm = current.arm, posture = current.posture,
+                        partOfDay = current.partOfDay, beforeMedication = current.beforeMedication,
+                        photoFilename = photoFilename, confidence = current.confidence,
+                        source = current.source, note = current.note,
+                        irregularHeartbeat = current.irregularHeartbeat,
+                    )
+                } else {
+                    current.toReading(photoFilename)
+                }
+                repo.upsert(reading)
+                onDone()
+            } catch (e: Throwable) {
+                Log.e(TAG, "[Confirm] save failed: ${e.message}", e)
+                throw e
             }
-            repo.upsert(reading)
-            onDone()
         }
     }
 

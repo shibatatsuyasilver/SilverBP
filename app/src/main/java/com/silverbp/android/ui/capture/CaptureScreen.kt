@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,7 +13,10 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,19 +26,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.RadioButtonChecked
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -114,20 +116,34 @@ fun CaptureScreen(
                 )
                 imageCapture = capture
             } catch (e: Exception) {
-                Log.e("CaptureScreen", "bind failed", e)
+                Log.e("CaptureScreen", "[CaptureView] bind failed", e)
             }
         }
     }
+
+    val showCameraControls = phase !is CapturePhase.Recognizing
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (hasPermission) {
             AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
             FrameOverlay(modifier = Modifier.fillMaxSize())
         } else {
-            Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(stringResource(R.string.camera_permission_title), color = Color.White, style = MaterialTheme.typography.titleMedium)
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.camera_permission_title),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.camera_permission_body), color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(R.string.camera_permission_body),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Spacer(Modifier.size(16.dp))
                 Button(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }) {
                     Text(stringResource(R.string.retry))
@@ -137,60 +153,115 @@ fun CaptureScreen(
 
         // Phase overlay
         when (val p = phase) {
-            CapturePhase.Recognizing -> Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
+            CapturePhase.Recognizing -> Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center,
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
                     Spacer(Modifier.size(8.dp))
                     Text(stringResource(R.string.recognizing), color = Color.White)
                 }
             }
-            is CapturePhase.Error -> Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+            is CapturePhase.Error -> Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center,
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(p.message, color = Color.White, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.size(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = { vm.setCapturing() }) { Text(stringResource(R.string.retry)) }
-                        Button(onClick = { onCaptured("draft") }) { Text(stringResource(R.string.manual_entry)) }
+                        Button(onClick = { onCaptured("draft") }) {
+                            Text(stringResource(R.string.manual_entry))
+                        }
                     }
                 }
             }
             else -> Unit
         }
 
-        // Top close button
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
-        ) { Icon(Icons.Filled.Close, null, tint = Color.White) }
+        if (showCameraControls) {
+            CameraTopBar(
+                onClose = onClose,
+                onPickPhoto = {
+                    pickPhoto.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                },
+                onManualEntry = onManualEntry,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
 
-        // Bottom controls
-        Row(
-            modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(24.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FilledIconButton(onClick = {
-                pickPhoto.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Icon(Icons.Filled.Image, null) }
-
-            FilledIconButton(
+            ShutterButton(
                 onClick = {
-                    val capture = imageCapture ?: return@FilledIconButton
+                    val capture = imageCapture ?: return@ShutterButton
                     capturePhoto(context, capture) { bmp ->
                         if (bmp != null) {
                             vm.processCapturedImage(bmp) { onCaptured("draft") }
                         } else {
-                            // failure already surfaced by VM via state; fall through to manual
-                            CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), source = Source.Manual))
+                            CaptureSessionHolder.put(
+                                BpReadingDraft(timestamp = Instant.now(), source = Source.Manual),
+                            )
                             onCaptured("draft")
                         }
                     }
                 },
-                modifier = Modifier.size(72.dp),
-            ) { Icon(Icons.Filled.RadioButtonChecked, null, modifier = Modifier.size(48.dp)) }
-
-            FilledIconButton(onClick = onManualEntry) { Icon(Icons.Outlined.Edit, null) }
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
+            )
         }
+    }
+}
+
+@Composable
+private fun CameraTopBar(
+    onClose: () -> Unit,
+    onPickPhoto: () -> Unit,
+    onManualEntry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = onClose) {
+            Text(stringResource(R.string.cancel), color = Color.White)
+        }
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onPickPhoto) {
+            Icon(Icons.Filled.Image, contentDescription = stringResource(R.string.pick_from_library), tint = Color.White)
+        }
+        TextButton(onClick = onManualEntry) {
+            Text(stringResource(R.string.manual_entry), color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun ShutterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Mirrors the iOS CaptureView 72-pt white circle with a thin black inner ring.
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .clip(CircleShape)
+            .background(Color.White)
+            .border(BorderStroke(2.dp, Color.Black.copy(alpha = 0.25f)), CircleShape)
+            .clickable(onClick = onClick)
+            .padding(6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(BorderStroke(1.dp, Color.Black.copy(alpha = 0.2f)), CircleShape),
+        )
     }
 }
 
@@ -228,7 +299,7 @@ private fun capturePhoto(
                 onResult(bmp)
             }
             override fun onError(exception: ImageCaptureException) {
-                Log.e("CaptureScreen", "capture failed", exception)
+                Log.e("CaptureScreen", "[CaptureView] capture failed", exception)
                 onResult(null)
             }
         }

@@ -1,5 +1,8 @@
 package com.silverbp.android.ui.settings
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,24 +13,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
@@ -53,16 +65,64 @@ import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.ModelVariant
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
+import com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA
+import com.silverbp.android.ui.components.SectionCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
+fun SettingsScreen(
+    onClose: () -> Unit = {},
+    vm: SettingsViewModel = viewModel(),
+) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     val modelPhase by ServiceLocator.modelLoadStatus.phase.collectAsStateWithLifecycle()
     var hfToken by remember { mutableStateOf("") }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_settings)) }) }) { padding ->
+    val snackbarHostState = remember { SnackbarHostState() }
+    val hcReadPerms = remember { ServiceLocator.healthConnectExerciseBridge.readPermissions }
+    // On Android 14+ (UPSIDE_DOWN_CAKE) Health Connect is OS-integrated and
+    // its permissions are real Android runtime permissions — request them via
+    // the standard contract. The HC SDK 1.1.0-alpha07 contract still launches
+    // the legacy `androidx.health.ACTION_REQUEST_PERMISSIONS` action which has
+    // no handler on built-in HC (silent no-op).
+    val hcModernLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results -> vm.onHealthConnectGrantResult(results.filterValues { it }.keys) }
+    val hcLegacyLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { granted -> vm.onHealthConnectGrantResult(granted) }
+
+    LaunchedEffect(Unit) {
+        vm.hcPermissionDenied.collect {
+            val result = snackbarHostState.showSnackbar(
+                message = "Health Connect 權限被拒,請手動授予「步數讀取」權限",
+                actionLabel = "開啟 Health Connect",
+                duration = SnackbarDuration.Long,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                runCatching {
+                    val intent = android.content.Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS")
+                        .apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    context.startActivity(intent)
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.tab_settings)) },
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cancel))
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -439,6 +499,26 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                 )
             }
 
+            // Daily step goal + medal notifications
+            SectionCard(stringResource(R.string.medal_settings_section)) {
+                StepGoalRow(
+                    goal = state.dailyStepGoal,
+                    onChange = vm::setDailyStepGoal,
+                )
+                HorizontalDivider()
+                ToggleRow(
+                    label = stringResource(R.string.medal_settings_notify),
+                    checked = state.notifyOnMedalUnlock,
+                    onChange = vm::setNotifyOnMedalUnlock,
+                )
+                NotificationPermissionHint()
+            }
+
+            // Location permission status (Exercise feature)
+            SectionCard(stringResource(R.string.exercise_settings_section)) {
+                LocationPermissionRow()
+            }
+
             // About
             SectionCard(stringResource(R.string.about_section)) {
                 Text(stringResource(R.string.about_model), style = MaterialTheme.typography.bodySmall)
@@ -752,17 +832,6 @@ private fun VisionBackendDropdown(
                     onClick = { onSelect(v); expanded = false },
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.size(6.dp))
-            content()
         }
     }
 }

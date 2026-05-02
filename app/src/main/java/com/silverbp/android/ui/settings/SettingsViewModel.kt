@@ -28,8 +28,39 @@ class SettingsViewModel(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserSettings()
     )
 
+    private val _hcDenied = Channel<Unit>(capacity = Channel.BUFFERED)
+    /** Emits when the user dismissed/denied the Health Connect READ_STEPS prompt. UI shows a snackbar. */
+    val hcPermissionDenied: Flow<Unit> = _hcDenied.receiveAsFlow()
+
     fun setGuideline(g: HypertensionGuideline) { viewModelScope.launch { repo.setGuideline(g) } }
-    fun setHealthConnect(enabled: Boolean) { viewModelScope.launch { repo.setHealthConnectEnabled(enabled) } }
+
+    /**
+     * Called from the composable's permission-result callback after the user
+     * has interacted with the Health Connect permission sheet. We only flip
+     * `enableHealthConnect` to true when every required read permission was
+     * granted; otherwise the toggle stays off and we emit a denied event so
+     * the UI can prompt the user to open Health Connect manually.
+     */
+    fun onHealthConnectGrantResult(granted: Set<String>) {
+        viewModelScope.launch {
+            val required = ServiceLocator.healthConnectExerciseBridge.readPermissions
+            if (granted.containsAll(required)) {
+                repo.setHealthConnectEnabled(true)
+                StepSyncScheduler.schedule(ServiceLocator.context)
+                ServiceLocator.achievementStore.launchRefresh()
+            } else {
+                _hcDenied.trySend(Unit)
+            }
+        }
+    }
+
+    fun disableHealthConnect() {
+        viewModelScope.launch {
+            repo.setHealthConnectEnabled(false)
+            StepSyncScheduler.cancel(ServiceLocator.context)
+        }
+    }
+
     fun setCloudSync(enabled: Boolean) { viewModelScope.launch { repo.setCloudSyncEnabled(enabled) } }
 
     fun setRecognitionBackend(b: RecognitionBackend) {

@@ -3,15 +3,22 @@ package com.silverbp.android.ui.insights
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -31,7 +38,10 @@ import com.silverbp.android.ui.insights.charts.TimeSeriesChart
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsightsScreen(vm: InsightsViewModel = viewModel()) {
+fun InsightsScreen(
+    onOpenReport: () -> Unit = {},
+    vm: InsightsViewModel = viewModel(),
+) {
     val state by vm.state.collectAsStateWithLifecycle()
 
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_insights)) }) }) { padding ->
@@ -53,6 +63,17 @@ fun InsightsScreen(vm: InsightsViewModel = viewModel()) {
             ChartCard(stringResource(R.string.heatmap_title)) {
                 HeatmapChart(readings = state.readings, modifier = Modifier.fillMaxWidth())
             }
+
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onOpenReport,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) {
+                Icon(Icons.Filled.Description, null)
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.report_screen_title))
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }

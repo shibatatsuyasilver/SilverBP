@@ -1,6 +1,7 @@
 package com.silverbp.android.ui.nav
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -9,6 +10,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -211,7 +213,8 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
     composable(TabDestination.Today.route) {
         TodayScreen(
             onCapture = { rootNav.navigate(Routes.CAPTURE) },
-            onAddManual = { rootNav.navigate(Routes.CONFIRM_NEW) }
+            onAddManual = { rootNav.navigate(Routes.CONFIRM_NEW) },
+            onOpenSettings = { rootNav.navigate(Routes.SETTINGS) },
         )
     }
     composable(TabDestination.History.route) {
