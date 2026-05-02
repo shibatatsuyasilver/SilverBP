@@ -39,17 +39,17 @@ object DeviceCapabilities {
     fun recommendedVisionBackend(): VisionBackend {
         val soc = currentSocModel()
         if (soc in DENYLISTED_SOC_MODELS) {
-            Log.i(TAG, "vision backend = CPU (denylisted SOC_MODEL=$soc)")
+            Log.i(TAG, "[DeviceCaps] vision backend = CPU (denylisted SOC_MODEL=$soc)")
             return VisionBackend.CPU
         }
         if (soc.isEmpty()) {
             val hw = Build.HARDWARE.lowercase()
             if (DENYLISTED_HARDWARE_HINTS.any { hw.contains(it) }) {
-                Log.i(TAG, "vision backend = CPU (HARDWARE hint=$hw, SOC_MODEL empty)")
+                Log.i(TAG, "[DeviceCaps] vision backend = CPU (HARDWARE hint=$hw, SOC_MODEL empty)")
                 return VisionBackend.CPU
             }
         }
-        Log.i(TAG, "vision backend = GPU (SOC_MODEL=$soc HARDWARE=${Build.HARDWARE})")
+        Log.i(TAG, "[DeviceCaps] vision backend = GPU (SOC_MODEL=$soc HARDWARE=${Build.HARDWARE})")
         return VisionBackend.GPU
     }
 
@@ -62,7 +62,7 @@ object DeviceCapabilities {
     fun logFingerprint() {
         Log.i(
             TAG,
-            "device fingerprint MODEL=${Build.MODEL} MANUFACTURER=${Build.MANUFACTURER} " +
+            "[DeviceCaps] device fingerprint MODEL=${Build.MODEL} MANUFACTURER=${Build.MANUFACTURER} " +
                 "SOC_MODEL=${currentSocModel()} SOC_MFG=${currentSocManufacturer()} " +
                 "HARDWARE=${Build.HARDWARE} BOARD=${Build.BOARD} " +
                 "ABI=${Build.SUPPORTED_ABIS.firstOrNull().orEmpty()}",

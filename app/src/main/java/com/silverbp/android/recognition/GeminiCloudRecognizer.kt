@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit
  * @param apiKey  Google AI Studio key (`AIza...`). Get one at https://aistudio.google.com/app/apikey
  * @param modelId Default `gemini-2.5-flash` — fast & cheap. Use `gemini-2.5-pro` for tougher photos.
  */
+private const val TAG = "GeminiCloud"
+
 class GeminiCloudRecognizer(
     private val apiKey: String,
     private val modelId: String = DEFAULT_MODEL,
@@ -80,21 +82,41 @@ class GeminiCloudRecognizer(
         val response = client.newCall(request).execute()
         val responseBody = response.body?.string().orEmpty()
         if (!response.isSuccessful) {
-            throw BpExtractionError.InvalidJson.also {
-                android.util.Log.e("GeminiCloud", "HTTP ${response.code}: $responseBody")
-            }
+            android.util.Log.e(
+                TAG,
+                "[Cloud] HTTP ${response.code} model=$modelId body: ${responseBody.take(500)}",
+            )
+            throw BpExtractionError.InvalidJson
         }
 
         val parsed = try {
             json.decodeFromString<GeminiResponse>(responseBody)
         } catch (e: Exception) {
+            android.util.Log.w(
+                TAG,
+                "[Cloud] envelope decode failed: ${e.message}; body=${responseBody.take(500)}",
+            )
             throw BpExtractionError.InvalidJson
         }
-        val text = parsed.candidates?.firstOrNull()
+        val firstCandidate = parsed.candidates?.firstOrNull()
+        val rawText = firstCandidate
             ?.content?.parts?.firstOrNull { it.text != null }?.text
-            ?: throw BpExtractionError.InvalidJson
+            ?: run {
+                android.util.Log.w(
+                    TAG,
+                    "[Cloud] no text in response. finishReason=${firstCandidate?.finishReason ?: "?"}",
+                )
+                android.util.Log.w(TAG, "[Cloud] full body: ${responseBody.take(800)}")
+                throw BpExtractionError.InvalidJson
+            }
 
-        BpResponseParser.parse(text)
+        android.util.Log.i(
+            TAG,
+            "[Cloud] finishReason=${firstCandidate?.finishReason ?: "?"} text len=${rawText.length}",
+        )
+        android.util.Log.i(TAG, "[Cloud] Final JSON to parse:\n$rawText\n[Cloud] (end)")
+
+        BpResponseParser.parse(rawText)
     }
 
     companion object {
@@ -124,16 +146,20 @@ private data class GeminiRequest(
 )
 
 @Serializable
-private data class GeminiContent(val parts: List<GeminiPart>)
+internal data class GeminiContent(
+    val parts: List<GeminiPart>,
+    /** "user" | "model" | "system". Optional so OCR call sites stay byte-identical. */
+    val role: String? = null,
+)
 
 @Serializable
-private data class GeminiPart(
+internal data class GeminiPart(
     val text: String? = null,
     @SerialName("inline_data") val inlineData: GeminiInlineData? = null,
 )
 
 @Serializable
-private data class GeminiInlineData(
+internal data class GeminiInlineData(
     @SerialName("mime_type") val mimeType: String,
     val data: String,
 )
@@ -152,4 +178,7 @@ private data class GeminiResponse(
 )
 
 @Serializable
-private data class GeminiCandidate(val content: GeminiContent? = null)
+private data class GeminiCandidate(
+    val content: GeminiContent? = null,
+    val finishReason: String? = null,
+)

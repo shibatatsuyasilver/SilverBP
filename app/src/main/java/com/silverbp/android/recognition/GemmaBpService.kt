@@ -1,7 +1,9 @@
 package com.silverbp.android.recognition
 
+import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Debug
 import android.os.SystemClock
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
@@ -29,6 +31,29 @@ import java.util.UUID
  * The model file is downloaded by [ModelDownloader] on first launch.
  */
 private const val TAG = "GemmaBpService"
+
+/**
+ * Mirrors iOS [Mem ...] snapshots in BPRecognition/GemmaBPService.swift.
+ * iOS reports MLX active/cache/peak; on Android we don't have an equivalent
+ * cache instrumentation in LiteRT-LM, so we report JVM heap + native heap +
+ * device-available RAM, which is the closest like-for-like signal.
+ */
+private fun memSnapshot(context: Context?, tag: String) {
+    val mb: (Long) -> String = { "%.0f MB".format(it.toDouble() / 1024 / 1024) }
+    val rt = Runtime.getRuntime()
+    val heapUsed = rt.totalMemory() - rt.freeMemory()
+    val native = Debug.getNativeHeapAllocatedSize()
+    val avail = context?.let {
+        val info = ActivityManager.MemoryInfo()
+        (it.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.getMemoryInfo(info)
+        info.availMem
+    } ?: 0L
+    android.util.Log.i(
+        TAG,
+        "[Mem $tag] footprint=${mb(heapUsed + native)} avail=${mb(avail)} " +
+            "heap=${mb(heapUsed)} native=${mb(native)}",
+    )
+}
 
 object GemmaBpService {
 
@@ -70,7 +95,7 @@ object GemmaBpService {
                     val elapsed = SystemClock.elapsedRealtime() - t0
                     android.util.Log.i(
                         TAG,
-                        "preload ok vision=$choice attempt=$attemptLabel elapsedMs=$elapsed " +
+                        "[ModelLoad] preload ok vision=$choice attempt=$attemptLabel elapsedMs=$elapsed " +
                             "model=${modelFile.name} maxTokens=$maxNumTokens override=$override",
                     )
                     return@withContext
@@ -79,7 +104,7 @@ object GemmaBpService {
                     lastErr = t
                     android.util.Log.w(
                         TAG,
-                        "preload failed vision=$choice attempt=$attemptLabel elapsedMs=$elapsed " +
+                        "[ModelLoad] preload failed vision=$choice attempt=$attemptLabel elapsedMs=$elapsed " +
                             "model=${modelFile.name} err=${t.javaClass.simpleName}: ${t.message}",
                     )
                 }
@@ -88,7 +113,7 @@ object GemmaBpService {
                 ?: IllegalStateException("preload exhausted attempts with no recorded error")
             android.util.Log.e(
                 TAG,
-                "preload exhausted all vision backends for ${modelFile.name}. " +
+                "[ModelLoad] preload exhausted all vision backends for ${modelFile.name}. " +
                     "Likely GPU OOM — try a smaller variant (E2B), lower maxNumTokens, " +
                     "or set Settings → Vision encoder backend → Force CPU.",
                 cause,
@@ -123,11 +148,16 @@ object GemmaBpService {
     }
 
     suspend fun extract(bitmap: Bitmap): ExtractedReading = withContext(Dispatchers.Default) {
+        android.util.Log.i(TAG, "[Extract] entered")
+        memSnapshot(ctx, "pre-preload")
         val tExtractStart = SystemClock.elapsedRealtime()
         val eng = engine ?: throw BpExtractionError.ModelNotLoaded
         val appCtx = ctx ?: throw BpExtractionError.ModelNotLoaded
+        android.util.Log.i(TAG, "[Extract] container ready")
+        memSnapshot(appCtx, "post-load")
         val systemOverride = ServiceLocator.userSettings.flow.first().systemPrompt
         val processed = bitmap.preprocessForOcr()
+        android.util.Log.i(TAG, "[Extract] preprocess done")
 
         // Content.ImageFile takes a filesystem path; persist preprocessed bitmap to cache.
         val tmp = File(appCtx.cacheDir, "gemma/${UUID.randomUUID()}.jpg").apply {
@@ -137,6 +167,7 @@ object GemmaBpService {
 
         try {
             eng.createConversation().use { conversation ->
+                android.util.Log.i(TAG, "[Extract] generate() starting stream")
                 val tInferStart = SystemClock.elapsedRealtime()
                 val response = conversation.sendMessage(
                     Contents.of(
@@ -146,18 +177,20 @@ object GemmaBpService {
                 )
                 val inferMs = SystemClock.elapsedRealtime() - tInferStart
                 val raw = response.toString()
-                android.util.Log.d(TAG, "Gemma raw response (${raw.length} chars): $raw")
+                android.util.Log.i(TAG, "[Extract] stream done, ${raw.length} chars")
+                memSnapshot(appCtx, "post-generate")
+                android.util.Log.i(TAG, "[Extract] raw output: ${raw.take(200)}")
                 try {
                     val parsed = BpResponseParser.parse(raw)
                     android.util.Log.i(
                         TAG,
-                        "extract phase=full inferMs=$inferMs " +
+                        "[Extract] complete inferMs=$inferMs " +
                             "totalMs=${SystemClock.elapsedRealtime() - tExtractStart} " +
                             "bitmapPx=${bitmap.width}x${bitmap.height} respChars=${raw.length}",
                     )
                     parsed
                 } catch (e: BpExtractionError) {
-                    android.util.Log.w(TAG, "Parse failed (${e.message}); raw was: ${raw.take(500)}")
+                    android.util.Log.w(TAG, "[Extract] parse failed (${e.message}); raw was: ${raw.take(500)}")
                     throw e
                 }
             }
@@ -167,4 +200,13 @@ object GemmaBpService {
     }
 
     fun isLoaded(): Boolean = engine != null
+
+    /**
+     * Expose the warmed engine to [com.silverbp.android.recognition.chat.GemmaChatService]
+     * so chat reuses the same LiteRT-LM instance instead of loading a second copy.
+     * Returns null until [preload] has succeeded.
+     */
+    internal fun engineOrNull(): Engine? = engine
+
+    internal fun appContextOrNull(): Context? = ctx
 }

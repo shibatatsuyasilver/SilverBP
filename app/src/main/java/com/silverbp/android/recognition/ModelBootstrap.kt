@@ -40,7 +40,7 @@ object ModelBootstrap {
                         .onFailure { e ->
                             android.util.Log.w(
                                 "ModelBootstrap",
-                                "AICore preload at start failed: ${e.message}",
+                                "[ModelLoad] AICore preload at start failed: ${e.message}",
                             )
                         }
                 }
@@ -66,7 +66,10 @@ object ModelBootstrap {
             GemmaBpService.tearDown()
             runCatching { AICoreBpService.preload(ctx) }
                 .onFailure { e ->
-                    android.util.Log.w("ModelBootstrap", "AICore preload failed: ${e.message}")
+                    android.util.Log.w(
+                        "ModelBootstrap",
+                        "[ModelLoad] AICore preload failed: ${e.message}",
+                    )
                 }
         }
     }

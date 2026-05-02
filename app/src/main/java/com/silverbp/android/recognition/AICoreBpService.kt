@@ -53,7 +53,10 @@ object AICoreBpService {
             else -> false
         }
     }.getOrElse { t ->
-        android.util.Log.w(TAG, "isAvailable check failed: ${t.javaClass.simpleName}: ${t.message}")
+        android.util.Log.w(
+            TAG,
+            "[ModelLoad] AICore isAvailable check failed: ${t.javaClass.simpleName}: ${t.message}",
+        )
         false
     }
 
@@ -77,7 +80,7 @@ object AICoreBpService {
                         status.set(ModelLoadPhase.Ready)
                         android.util.Log.i(
                             TAG,
-                            "preload ok status=AVAILABLE baseModel=${baseModelName(m)} " +
+                            "[ModelLoad] preload ok status=AVAILABLE baseModel=${baseModelName(m)} " +
                                 "elapsedMs=${SystemClock.elapsedRealtime() - t0}",
                         )
                     }
@@ -91,7 +94,7 @@ object AICoreBpService {
                                     totalToDownload = ds.bytesToDownload
                                     android.util.Log.i(
                                         TAG,
-                                        "download start bytesToDownload=$totalToDownload",
+                                        "[ModelLoad] download start bytesToDownload=$totalToDownload",
                                     )
                                 }
                                 is DownloadStatus.DownloadProgress -> {
@@ -102,12 +105,12 @@ object AICoreBpService {
                                     status.set(ModelLoadPhase.Downloading(frac, "gemini-nano"))
                                 }
                                 is DownloadStatus.DownloadCompleted -> {
-                                    android.util.Log.i(TAG, "download complete")
+                                    android.util.Log.i(TAG, "[ModelLoad] download complete")
                                 }
                                 is DownloadStatus.DownloadFailed -> {
                                     android.util.Log.e(
                                         TAG,
-                                        "download failed: ${ds.e.javaClass.simpleName}: ${ds.e.message}",
+                                        "[ModelLoad] download failed: ${ds.e.javaClass.simpleName}: ${ds.e.message}",
                                         ds.e,
                                     )
                                     throw ds.e
@@ -120,7 +123,7 @@ object AICoreBpService {
                         status.set(ModelLoadPhase.Ready)
                         android.util.Log.i(
                             TAG,
-                            "preload ok status=DOWNLOADED+WARMED baseModel=${baseModelName(m)} " +
+                            "[ModelLoad] preload ok status=DOWNLOADED+WARMED baseModel=${baseModelName(m)} " +
                                 "elapsedMs=${SystemClock.elapsedRealtime() - t0}",
                         )
                     }
@@ -133,7 +136,7 @@ object AICoreBpService {
                 status.set(ModelLoadPhase.Failed(t.message ?: "AICore preload failed"))
                 android.util.Log.e(
                     TAG,
-                    "preload failed elapsedMs=${SystemClock.elapsedRealtime() - t0} " +
+                    "[ModelLoad] preload failed elapsedMs=${SystemClock.elapsedRealtime() - t0} " +
                         "err=${t.javaClass.simpleName}: ${t.message}",
                     t,
                 )
@@ -143,11 +146,14 @@ object AICoreBpService {
     }
 
     suspend fun extract(bitmap: Bitmap): ExtractedReading = withContext(Dispatchers.IO) {
+        android.util.Log.i(TAG, "[Extract] entered")
         val tStart = SystemClock.elapsedRealtime()
         val m = client ?: throw BpExtractionError.ModelNotLoaded
         if (!warmed) throw BpExtractionError.ModelNotLoaded
+        android.util.Log.i(TAG, "[Extract] container ready")
         val systemOverride = ServiceLocator.userSettings.flow.first().systemPrompt
         val processed = bitmap.preprocessForOcr()
+        android.util.Log.i(TAG, "[Extract] preprocess done")
         val req = generateContentRequest(
             ImagePart(processed),
             TextPart(BpPrompt.systemAndExtract(systemOverride)),
@@ -157,23 +163,25 @@ object AICoreBpService {
             candidateCount = 1
             maxOutputTokens = 256
         }
+        android.util.Log.i(TAG, "[Extract] generate() starting stream")
         val tInferStart = SystemClock.elapsedRealtime()
         val response = m.generateContent(req)
         val inferMs = SystemClock.elapsedRealtime() - tInferStart
         val text = response.candidates.firstOrNull()?.text
             ?: throw BpExtractionError.InvalidJson
-        android.util.Log.d(TAG, "Gemini Nano raw response (${text.length} chars): $text")
+        android.util.Log.i(TAG, "[Extract] stream done, ${text.length} chars")
+        android.util.Log.i(TAG, "[Extract] raw output: ${text.take(200)}")
         try {
             val parsed = BpResponseParser.parse(text)
             android.util.Log.i(
                 TAG,
-                "extract phase=full inferMs=$inferMs " +
+                "[Extract] complete inferMs=$inferMs " +
                     "totalMs=${SystemClock.elapsedRealtime() - tStart} " +
                     "bitmapPx=${bitmap.width}x${bitmap.height} respChars=${text.length}",
             )
             parsed
         } catch (e: BpExtractionError) {
-            android.util.Log.w(TAG, "Parse failed (${e.message}); raw was: ${text.take(500)}")
+            android.util.Log.w(TAG, "[Extract] parse failed (${e.message}); raw was: ${text.take(500)}")
             throw e
         }
     }
@@ -187,6 +195,13 @@ object AICoreBpService {
     }
 
     fun isLoaded(): Boolean = client != null && warmed
+
+    /**
+     * Expose the warmed client to [com.silverbp.android.recognition.chat.AICoreChatService]
+     * so chat shares the same Gemini Nano session and avoids a second [warmup].
+     * Returns null until preload completes.
+     */
+    internal fun clientOrNull(): GenerativeModel? = if (warmed) client else null
 
     private fun ensureClient(): GenerativeModel {
         val existing = client
