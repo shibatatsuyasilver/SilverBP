@@ -9,6 +9,10 @@ import com.silverbp.android.core.Posture
 import com.silverbp.android.core.Source
 import com.silverbp.android.core.Tag
 import com.silverbp.android.core.UserProfile
+import com.silverbp.android.exercise.ActivityKind
+import com.silverbp.android.exercise.ExerciseSession
+import com.silverbp.android.exercise.ExerciseSource
+import com.silverbp.android.exercise.RoutePoint
 import java.time.Instant
 import java.util.UUID
 
@@ -68,3 +72,55 @@ fun Medication.toEntity() = MedicationEntity(id = id.toString(), name = name, do
 fun MedicationEntity.toDomain() = Medication(id = UUID.fromString(id), name = name, dose = dose)
 fun Tag.toEntity() = TagEntity(id = id.toString(), name = name)
 fun TagEntity.toDomain() = Tag(id = UUID.fromString(id), name = name)
+
+fun ExerciseSession.toEntity() = ExerciseSessionEntity(
+    id = id.toString(),
+    activityKind = kind.raw,
+    startedAt = startedAt.toEpochMilli(),
+    endedAt = endedAt.toEpochMilli(),
+    distanceMeters = distanceMeters,
+    stepCount = stepCount,
+    averagePaceSecPerKm = averagePaceSecPerKm,
+    source = source.raw,
+    note = note,
+    hcRecordId = hcRecordId,
+    createdAt = createdAt.toEpochMilli(),
+    updatedAt = updatedAt.toEpochMilli(),
+)
+
+fun ExerciseSessionEntity.toDomain() = ExerciseSession(
+    id = UUID.fromString(id),
+    kind = ActivityKind.fromRaw(activityKind),
+    startedAt = Instant.ofEpochMilli(startedAt),
+    endedAt = Instant.ofEpochMilli(endedAt),
+    distanceMeters = distanceMeters,
+    stepCount = stepCount,
+    averagePaceSecPerKm = averagePaceSecPerKm,
+    source = ExerciseSource.fromRaw(source),
+    note = note,
+    hcRecordId = hcRecordId,
+    createdAt = Instant.ofEpochMilli(createdAt),
+    updatedAt = Instant.ofEpochMilli(updatedAt),
+)
+
+fun RoutePoint.toEntity() = RoutePointEntity(
+    id = id.toString(),
+    sessionId = sessionId.toString(),
+    timestamp = timestamp.toEpochMilli(),
+    lat = lat,
+    lon = lon,
+    horizontalAccuracy = horizontalAccuracy,
+    altitude = altitude,
+    speedMps = speedMps,
+)
+
+fun RoutePointEntity.toDomain() = RoutePoint(
+    id = UUID.fromString(id),
+    sessionId = UUID.fromString(sessionId),
+    timestamp = Instant.ofEpochMilli(timestamp),
+    lat = lat,
+    lon = lon,
+    horizontalAccuracy = horizontalAccuracy,
+    altitude = altitude,
+    speedMps = speedMps,
+)

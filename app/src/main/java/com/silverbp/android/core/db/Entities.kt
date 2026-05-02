@@ -1,6 +1,7 @@
 package com.silverbp.android.core.db
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -53,4 +54,46 @@ data class TagEntity(
 data class ReadingTagCrossRef(
     val readingId: String,
     val tagId: String,
+)
+
+@Entity(
+    tableName = "exercise_session",
+    indices = [Index("startedAt"), Index("activityKind")],
+)
+data class ExerciseSessionEntity(
+    @PrimaryKey val id: String,
+    val activityKind: String,
+    val startedAt: Long,
+    val endedAt: Long,
+    val distanceMeters: Double,
+    val stepCount: Int?,
+    val averagePaceSecPerKm: Double?,
+    val source: String,
+    val note: String,
+    val hcRecordId: String?,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "route_point",
+    foreignKeys = [
+        ForeignKey(
+            entity = ExerciseSessionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["sessionId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("sessionId"), Index("timestamp")],
+)
+data class RoutePointEntity(
+    @PrimaryKey val id: String,
+    val sessionId: String,
+    val timestamp: Long,
+    val lat: Double,
+    val lon: Double,
+    val horizontalAccuracy: Float,
+    val altitude: Double?,
+    val speedMps: Float?,
 )

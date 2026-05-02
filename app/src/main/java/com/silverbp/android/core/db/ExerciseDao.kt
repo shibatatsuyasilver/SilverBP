@@ -1,0 +1,77 @@
+package com.silverbp.android.core.db
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * Read+write API for [ExerciseSessionEntity] + [RoutePointEntity]. Mirrors
+ * [BpDao] conventions: Flow for reads, suspend for writes; entity types only
+ * (mapping to domain happens in [com.silverbp.android.exercise.ExerciseRepository]).
+ *
+ * Cascade delete on FK clears [route_point] rows automatically when a session
+ * is deleted — see [RoutePointEntity]'s ForeignKey definition.
+ */
+@Dao
+interface ExerciseDao {
+
+    @Query("SELECT * FROM exercise_session ORDER BY startedAt DESC")
+    fun observeAll(): Flow<List<ExerciseSessionEntity>>
+
+    @Query(
+        "SELECT * FROM exercise_session " +
+            "WHERE startedAt BETWEEN :from AND :to " +
+            "ORDER BY startedAt DESC"
+    )
+    fun observeRange(from: Long, to: Long): Flow<List<ExerciseSessionEntity>>
+
+    @Query("SELECT * FROM exercise_session WHERE id = :id LIMIT 1")
+    fun observeById(id: String): Flow<ExerciseSessionEntity?>
+
+    @Query("SELECT * FROM exercise_session WHERE id = :id LIMIT 1")
+    suspend fun findById(id: String): ExerciseSessionEntity?
+
+    @Query("SELECT * FROM route_point WHERE sessionId = :sessionId ORDER BY timestamp ASC")
+    fun observePoints(sessionId: String): Flow<List<RoutePointEntity>>
+
+    @Query("SELECT * FROM route_point WHERE sessionId = :sessionId ORDER BY timestamp ASC")
+    suspend fun pointsFor(sessionId: String): List<RoutePointEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSession(session: ExerciseSessionEntity)
+
+    @Update
+    suspend fun updateSession(session: ExerciseSessionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPoints(points: List<RoutePointEntity>)
+
+    @Query("DELETE FROM route_point WHERE sessionId = :sessionId")
+    suspend fun clearPoints(sessionId: String)
+
+    @Query("DELETE FROM exercise_session WHERE id = :id")
+    suspend fun delete(id: String)
+
+    @Query("SELECT COUNT(*) FROM exercise_session")
+    suspend fun count(): Int
+
+    /**
+     * Replace a session and its full point list in one transaction. Existing
+     * points are deleted first so re-saving the same session id (e.g. user
+     * re-edits the note) does not duplicate route rows.
+     */
+    @Transaction
+    suspend fun upsertWithPoints(
+        session: ExerciseSessionEntity,
+        points: List<RoutePointEntity>,
+    ) {
+        val existed = findById(session.id) != null
+        if (existed) updateSession(session) else insertSession(session)
+        clearPoints(session.id)
+        if (points.isNotEmpty()) insertPoints(points)
+    }
+}
