@@ -19,11 +19,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,7 +53,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -192,66 +195,51 @@ fun ChatScreen(
         onRenameSession = vm::renameSession,
         onDeleteSession = vm::deleteSession,
     ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.tab_chat)) },
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "返回",
-                                )
-                            }
-                        } else {
-                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Filled.Menu, contentDescription = "對話列表")
-                            }
+        // Flat Column instead of an inner Scaffold. The outer HomeWithTabs
+        // Scaffold already supplies the bottom NavigationBar; nesting a second
+        // Scaffold with its own bottomBar squashed the message area to ~0 dp
+        // when the IME pushed the layout up, hiding all message bubbles.
+        //
+        // ModalNavigationDrawer's SubcomposeLayout sizes its content slot to
+        // the full window — overriding the status-bar padding HomeWithTabs
+        // already applied. statusBarsPadding() can't fix this either: the
+        // outer consumeWindowInsets(padding) has already marked the status
+        // bar inset as consumed, so windowInsetsPadding-based modifiers
+        // become no-ops here. We instead read the inset value once and apply
+        // it as a plain dp padding, which bypasses the consumed-insets check.
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(top = statusBarTop)
+        ) {
+            TopAppBar(
+                title = { Text(stringResource(R.string.tab_chat)) },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                            )
                         }
-                    },
-                )
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            bottomBar = {
-                ChatInputBar(
-                    input = input,
-                    onInputChange = { input = it },
-                    stagedImagePath = state.stagedImagePath,
-                    onClearImage = vm::clearStagedImage,
-                    onAttach = { showAttachSheet = true },
-                    onMic = {
-                        val granted = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.RECORD_AUDIO,
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (granted) {
-                            launchVoice(context, voiceLauncher::launch)
-                        } else {
-                            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    } else {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Filled.Menu, contentDescription = "對話列表")
                         }
-                    },
-                    onSend = {
-                        val toSend = input
-                        input = ""
-                        vm.send(toSend)
-                    },
-                    canSend = state.canSend(input),
-                    isGenerating = state.isGenerating,
-                    onCancel = vm::cancelGeneration,
-                )
-            },
-        ) { padding ->
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                    }
+                },
+            )
+            if (state.modelPhase != ModelLoadPhase.Ready &&
+                state.backend != RecognitionBackend.Cloud
             ) {
-                if (state.modelPhase != ModelLoadPhase.Ready &&
-                    state.backend != RecognitionBackend.Cloud
-                ) {
-                    ModelLoadBanner(phase = state.modelPhase)
-                }
-
+                ModelLoadBanner(phase = state.modelPhase)
+            }
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
                 ChatMessageList(
                     messages = state.messages,
                     streamingAssistantId = state.streamingAssistantId,
@@ -259,7 +247,36 @@ fun ChatScreen(
                     onSuggestion = { suggestion -> input = suggestion },
                     modifier = Modifier.fillMaxSize(),
                 )
+                SnackbarHost(
+                    snackbarHostState,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
+            ChatInputBar(
+                input = input,
+                onInputChange = { input = it },
+                stagedImagePath = state.stagedImagePath,
+                onClearImage = vm::clearStagedImage,
+                onAttach = { showAttachSheet = true },
+                onMic = {
+                    val granted = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.RECORD_AUDIO,
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (granted) {
+                        launchVoice(context, voiceLauncher::launch)
+                    } else {
+                        micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
+                onSend = {
+                    val toSend = input
+                    input = ""
+                    vm.send(toSend)
+                },
+                canSend = state.canSend(input),
+                isGenerating = state.isGenerating,
+                onCancel = vm::cancelGeneration,
+            )
         }
     }
 }
@@ -424,12 +441,18 @@ private fun ChatInputBar(
     onCancel: () -> Unit,
 ) {
     Surface(tonalElevation = 3.dp) {
-        // softInputMode defaults to adjustResize, so the activity window already
-        // shrinks for the IME — adding imePadding() here would double-count and
-        // leave a keyboard-sized gap between the input row and the keyboard top.
+        // imePadding lifts the input row above the keyboard. We deliberately
+        // do NOT declare windowSoftInputMode in the manifest — Vivo OriginOS's
+        // adjustResize collapses the visible content area to zero under
+        // edge-to-edge, and adjustPan pushes the TopAppBar off screen. Letting
+        // Compose absorb the IME inset here is the only path that works
+        // across OEMs. AppNavHost hides the outer NavigationBar when the IME
+        // is open in the Chat tab so this padding doesn't leave a NavBar-
+        // sized gap between the input row and the keyboard top.
         Column(
             Modifier
                 .fillMaxWidth()
+                .imePadding()
                 .padding(horizontal = 8.dp, vertical = 6.dp)
         ) {
             stagedImagePath?.let { path ->

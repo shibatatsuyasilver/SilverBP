@@ -87,11 +87,23 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- IME handling: adjustNothing tells the OS to NOT pan or resize the
+             window when the keyboard appears. Compose then absorbs the IME
+             inset via Modifier.imePadding() on the chat input bar. We tried
+             every other combination on Vivo OriginOS and they all break:
+               - unset / adjustUnspecified → adjustPan, which stacks with
+                 imePadding to leave a keyboard-sized gap.
+               - adjustResize → collapses the visible content area to zero
+                 under edge-to-edge.
+               - adjustPan → pushes TopAppBar off screen.
+             adjustNothing + imePadding is the only combo that gives a clean
+             layout across OEMs. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.SilverBp">
+            android:theme="@style/Theme.SilverBp"
+            android:windowSoftInputMode="adjustNothing">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

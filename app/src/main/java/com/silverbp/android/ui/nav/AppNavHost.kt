@@ -1,8 +1,11 @@
 package com.silverbp.android.ui.nav
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -144,6 +147,7 @@ fun AppNavHost() {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeWithTabs(rootNav: NavHostController) {
     val tabsNav = rememberNavController()
@@ -171,25 +175,35 @@ private fun HomeWithTabs(rootNav: NavHostController) {
         }
     }
 
+    // Hide the bottom NavigationBar when the keyboard is open on the Chat tab.
+    // ChatInputBar uses Modifier.imePadding() to lift itself above the keyboard;
+    // an 80 dp NavigationBar between the input row and the keyboard top would
+    // leave a visible gap, so we collapse the bar while typing. Other tabs
+    // never trigger the IME, so this only affects Chat.
+    val imeVisible = WindowInsets.isImeVisible
+    val hideNavBar = imeVisible && currentRoute == TabDestination.Chat.route
+
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                visibleTabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = currentRoute == tab.route,
-                        onClick = {
-                            tabsNav.navigate(tab.route) {
-                                popUpTo(TabDestination.Today.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(tab.icon, contentDescription = null) },
-                        label = { Text(stringResource(tab.labelRes)) },
-                        // Six tabs is tight on small phones; only label the active one
-                        // so the icons keep enough breathing room.
-                        alwaysShowLabel = false,
-                    )
+            if (!hideNavBar) {
+                NavigationBar {
+                    visibleTabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = currentRoute == tab.route,
+                            onClick = {
+                                tabsNav.navigate(tab.route) {
+                                    popUpTo(TabDestination.Today.route) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Icon(tab.icon, contentDescription = null) },
+                            label = { Text(stringResource(tab.labelRes)) },
+                            // Six tabs is tight on small phones; only label the active one
+                            // so the icons keep enough breathing room.
+                            alwaysShowLabel = false,
+                        )
+                    }
                 }
             }
         }
