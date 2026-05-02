@@ -2,14 +2,21 @@ package com.silverbp.android.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.achievements.StepSyncScheduler
+import com.silverbp.android.coach.CoachReminderScheduler
+import com.silverbp.android.coach.NutritionBackfillWorker
+import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.settings.UserSettingsRepository
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -45,5 +52,75 @@ class SettingsViewModel(
     }
     fun setVisionBackendOverride(v: VisionBackendOverride) {
         viewModelScope.launch { repo.setVisionBackendOverride(v) }
+    }
+    fun setDailyStepGoal(value: Int) {
+        viewModelScope.launch {
+            repo.setDailyStepGoal(value)
+            // Re-evaluate streak medals against the new threshold immediately.
+            ServiceLocator.achievementStore.refresh()
+        }
+    }
+    fun setNotifyOnMedalUnlock(value: Boolean) {
+        viewModelScope.launch { repo.setNotifyOnMedalUnlock(value) }
+    }
+    fun setChatPersona(v: String) {
+        viewModelScope.launch { repo.setChatPersona(v) }
+    }
+    fun setChatIncludeRecordsContext(v: Boolean) {
+        viewModelScope.launch { repo.setChatIncludeRecordsContext(v) }
+    }
+    fun setEnableCoach(v: Boolean) {
+        viewModelScope.launch {
+            repo.setEnableCoach(v)
+            // Sync the WorkManager schedule with the toggle immediately so the
+            // user doesn't have to wait for the next app launch for daily
+            // reminders / weekly reports to start (or stop).
+            if (v) {
+                CoachReminderScheduler.scheduleAll(ServiceLocator.context)
+            } else {
+                CoachReminderScheduler.cancelAll(ServiceLocator.context)
+            }
+        }
+    }
+
+    /**
+     * Called when the user dismisses the Health Connect SLEEP permission sheet.
+     *
+     * We don't trust the launcher's callback payload — on Android 15 the HC
+     * controller short-circuits the runtime-permissions path so the modern
+     * RequestMultiplePermissions() contract returns an empty map even after a
+     * successful grant. Re-query the bridge instead; that hits HC directly
+     * and gives the truth regardless of which permission UI rendered.
+     */
+    fun onSleepGrantResult(@Suppress("UNUSED_PARAMETER") granted: Set<String>) {
+        viewModelScope.launch {
+            val ok = runCatching {
+                ServiceLocator.healthConnectBridge.hasSleepReadPermission()
+            }.getOrDefault(false)
+            if (ok) {
+                repo.setSleepTrackingEnabled(true)
+                SleepBackfillWorker.enqueue(ServiceLocator.context)
+            }
+        }
+    }
+
+    fun disableSleepTracking() {
+        viewModelScope.launch { repo.setSleepTrackingEnabled(false) }
+    }
+
+    fun onDietGrantResult(@Suppress("UNUSED_PARAMETER") granted: Set<String>) {
+        viewModelScope.launch {
+            val ok = runCatching {
+                ServiceLocator.healthConnectBridge.hasNutritionReadPermission()
+            }.getOrDefault(false)
+            if (ok) {
+                repo.setDietTrackingEnabled(true)
+                NutritionBackfillWorker.enqueue(ServiceLocator.context)
+            }
+        }
+    }
+
+    fun disableDietTracking() {
+        viewModelScope.launch { repo.setDietTrackingEnabled(false) }
     }
 }

@@ -3,15 +3,24 @@
 
     <!-- Tabs -->
     <string name="tab_today">首頁</string>
+    <string name="tab_exercise">運動</string>
     <string name="tab_history">紀錄</string>
     <string name="tab_insights">分析</string>
     <string name="tab_report">報告</string>
     <string name="tab_settings">設定</string>
+    <string name="tab_chat">助理</string>
+    <string name="tab_coach">教練</string>
 
     <!-- Today -->
+    <string name="today_screen_title">今日</string>
     <string name="latest_reading">最新讀數</string>
     <string name="no_readings">尚無讀數</string>
     <string name="capture_cta">點右上角的 + 開始記錄</string>
+    <string name="settings_a11y">設定</string>
+    <string name="add_reading_a11y">新增讀數</string>
+
+    <!-- Report -->
+    <string name="report_screen_title">PDF 報告</string>
 
     <!-- Reading -->
     <string name="systolic">收縮壓</string>
@@ -95,4 +104,164 @@
     <string name="report_subject">血壓報告</string>
     <string name="generate_report">產生報告</string>
     <string name="share">分享</string>
+
+    <!-- Exercise -->
+    <string name="exercise_kind_walking">走路</string>
+    <string name="exercise_kind_running">跑步</string>
+    <string name="exercise_start_walking">開始走路</string>
+    <string name="exercise_start_running">開始跑步</string>
+    <string name="exercise_pause">暫停</string>
+    <string name="exercise_resume">繼續</string>
+    <string name="exercise_stop">停止</string>
+    <string name="exercise_save">儲存</string>
+    <string name="exercise_discard">捨棄</string>
+    <string name="exercise_distance">距離</string>
+    <string name="exercise_duration">時間</string>
+    <string name="exercise_pace">配速</string>
+    <string name="exercise_steps">步數</string>
+    <string name="exercise_avg_pace">平均配速</string>
+    <string name="exercise_recording_title">記錄路徑中</string>
+    <string name="exercise_recording_starting">取得 GPS 中…</string>
+    <string name="exercise_recording_body">距離 %1$s · 時間 %2$s</string>
+    <string name="exercise_notification_channel">運動追蹤</string>
+    <string name="exercise_notification_channel_desc">運動 session 進行中的常駐通知。</string>
+    <string name="exercise_location_permission_title">需要位置權限</string>
+    <string name="exercise_location_permission_body">SilverBP 需要精確位置才能記錄您的走路/跑步路徑。</string>
+    <string name="exercise_location_denied">GPS 權限被拒,無法記錄路徑。</string>
+    <string name="exercise_no_play_services">本裝置無 Google Play Services,地圖無法顯示。</string>
+    <string name="exercise_history_empty">尚無紀錄。點擊「開始」記錄第一次運動。</string>
+    <string name="exercise_recent_sessions">最近紀錄</string>
+    <string name="exercise_summary_title">運動摘要</string>
+    <string name="exercise_note_hint">備註 (選填)</string>
+    <string name="exercise_delete_confirm">確定要刪除這筆紀錄嗎?</string>
+    <string name="exercise_settings_section">位置</string>
+    <string name="exercise_settings_gps_label">運動 GPS 權限</string>
+    <string name="exercise_settings_gps_granted">已授權</string>
+    <string name="exercise_settings_gps_denied">已拒絕</string>
+    <string name="exercise_settings_gps_not_asked">尚未詢問</string>
+    <string name="exercise_settings_open_app_settings">開啟系統設定</string>
+    <string name="exercise_today_steps">今日步數</string>
+    <string name="exercise_today_steps_unavailable">本裝置不支援計步</string>
+    <string name="exercise_grant_health_connect">授權 Health Connect</string>
+    <string name="exercise_map_api_key_missing">請在 local.properties 加入 MAPS_API_KEY 才能顯示地圖。</string>
+
+    <!-- Achievements / medals -->
+    <string name="medal_screen_title">獎章</string>
+    <string name="medal_screen_hc_notice">連續達標紀錄需要 Health Connect 讀取步數權限,否則只能保留近幾日。</string>
+    <string name="medal_section_daily">單日步數</string>
+    <string name="medal_section_cumulative">累計步數</string>
+    <string name="medal_section_streak">連續達標</string>
+    <string name="medal_section_session">運動紀錄</string>
+    <string name="medal_unlocked_on">解鎖於 %1$s</string>
+    <string name="medal_progress_label">%1$s / %2$s</string>
+
+    <string name="medal_today_target">/ 目標 %1$s</string>
+
+    <string name="medal_showcase_title">獎章</string>
+    <string name="medal_showcase_view_all">查看全部 →</string>
+    <string name="medal_showcase_empty">今天走滿 5,000 步即可獲得第一個獎章。</string>
+
+    <string name="medal_banner_one">獲得獎章</string>
+    <string name="medal_banner_many">解鎖 %1$d 個獎章</string>
+    <string name="medal_banner_tap_view">點按查看全部</string>
+    <string name="medal_banner_notif_decline">暫不需要</string>
+    <string name="medal_banner_notif_accept">開啟通知</string>
+
+    <string name="medal_notification_channel">獎章通知</string>
+    <string name="medal_notification_channel_desc">解鎖新的走路/跑步獎章時通知你。</string>
+    <string name="medal_notification_title">新獎章</string>
+    <string name="medal_notification_body">解鎖「%1$s」</string>
+    <string name="medal_notification_body_multi">解鎖 %1$d 個新獎章</string>
+
+    <string name="medal_settings_section">步數目標與獎章</string>
+    <string name="medal_settings_goal">每日步數目標</string>
+    <string name="medal_settings_goal_hint">用於連續達標獎章 (建議 4,000–20,000)。</string>
+    <string name="medal_settings_notify">解鎖獎章時推播</string>
+    <string name="medal_settings_notify_denied">通知權限被拒,請開啟系統設定授權。</string>
+
+    <string name="medal_daily_5k">五千步達人</string>
+    <string name="medal_daily_8k">八千步健將</string>
+    <string name="medal_daily_10k">萬步達人</string>
+    <string name="medal_daily_15k">一萬五挑戰者</string>
+    <string name="medal_daily_20k">兩萬步傳奇</string>
+    <string name="medal_cumulative_100k">累積十萬步</string>
+    <string name="medal_cumulative_500k">累積五十萬步</string>
+    <string name="medal_cumulative_1m">百萬步里程碑</string>
+    <string name="medal_cumulative_5m">五百萬步殿堂</string>
+    <string name="medal_streak_7">七日連續</string>
+    <string name="medal_streak_30">月之健行者</string>
+    <string name="medal_streak_100">百日恆心</string>
+    <string name="medal_streak_365">一年無休</string>
+    <string name="medal_sessions_1">初次紀錄</string>
+    <string name="medal_sessions_10">十次紀錄</string>
+    <string name="medal_sessions_50">五十次紀錄</string>
+    <string name="medal_sessions_100">百次紀錄</string>
+
+    <!-- Coach -->
+    <string name="coach_screen_title">生活方式教練</string>
+    <string name="coach_today_task_title">今日任務</string>
+    <string name="coach_today_task_placeholder">散步 20 分鐘</string>
+    <string name="coach_today_task_completed">已完成</string>
+    <string name="coach_today_task_complete_action">標記完成</string>
+    <string name="coach_safety_hold_title">建議今日休息</string>
+    <string name="coach_safety_hold_body">近期讀數偏高,今日請暫停運動,並考慮聯絡醫師。</string>
+    <string name="coach_module_exercise">運動</string>
+    <string name="coach_module_diet">飲食</string>
+    <string name="coach_module_sleep">睡眠</string>
+    <string name="coach_module_medication">服藥</string>
+    <string name="coach_modules_title">本週進度</string>
+    <string name="coach_module_progress">%1$d / %2$d</string>
+    <string name="coach_weekly_progress_title">本週趨勢</string>
+    <string name="coach_weekly_progress_placeholder">累積 7 天紀錄後會在此顯示圖表。</string>
+    <string name="coach_narration_title">教練回饋</string>
+    <string name="coach_narration_placeholder">累積足夠紀錄後,教練會在這裡用親切口吻向你解說計畫。</string>
+    <string name="coach_view_weekly_report">查看本週報告</string>
+    <string name="coach_log_diet_title">飲食紀錄</string>
+    <string name="coach_log_sleep_title">睡眠紀錄</string>
+    <string name="coach_log_medication_title">服藥紀錄</string>
+    <string name="coach_weekly_report_title">本週報告</string>
+    <string name="coach_settings_section">教練</string>
+    <string name="coach_settings_enable">啟用教練</string>
+    <string name="coach_settings_enable_hint">加上教練分頁,顯示每日任務與週報。</string>
+    <string name="coach_settings_sleep_tracking">從 Health Connect 讀取睡眠</string>
+    <string name="coach_settings_sleep_tracking_hint">同步近 14 天睡眠時數,協助教練判斷晚睡。</string>
+    <string name="coach_settings_diet_tracking">從 Health Connect 讀取飲食</string>
+    <string name="coach_settings_diet_tracking_hint">讀取每日鈉攝取(低 / 中 / 高),如裝置有資料則使用。</string>
+
+    <!-- Coach module unit suffixes -->
+    <string name="coach_unit_minutes">分鐘</string>
+    <string name="coach_unit_mg">毫克</string>
+    <string name="coach_unit_hours">小時</string>
+    <string name="coach_unit_doses">劑</string>
+
+    <!-- Coach log screens -->
+    <string name="coach_log_save">儲存</string>
+    <string name="coach_log_saved">已儲存</string>
+    <string name="coach_log_today">今天</string>
+    <string name="coach_log_diet_sodium">今日鈉攝取</string>
+    <string name="coach_log_diet_sodium_low">低 (低於目標)</string>
+    <string name="coach_log_diet_sodium_mid">中 (接近目標)</string>
+    <string name="coach_log_diet_sodium_high">高 (超出目標)</string>
+    <string name="coach_log_diet_veg">蔬菜份數</string>
+    <string name="coach_log_sleep_duration">睡眠時間 (小時)</string>
+    <string name="coach_log_medication_taken">已服用</string>
+    <string name="coach_log_medication_skipped">略過</string>
+    <string name="coach_log_medication_empty">尚未建立藥物清單,請先在個人資料新增藥品才能追蹤服藥率。</string>
+
+    <!-- Coach notification channels -->
+    <string name="coach_channel_daily">教練每日提醒</string>
+    <string name="coach_channel_daily_desc">每天早晨提醒今日任務。</string>
+    <string name="coach_channel_weekly">教練週報</string>
+    <string name="coach_channel_weekly_desc">每週一上午摘要上週成果。</string>
+    <string name="coach_channel_alert">教練血壓警示</string>
+    <string name="coach_channel_alert_desc">連續高血壓讀數時提醒你。</string>
+
+    <!-- Coach notification copy -->
+    <string name="coach_notif_daily_title">今日教練任務</string>
+    <string name="coach_notif_daily_body_default">點擊查看今日的計畫。</string>
+    <string name="coach_notif_weekly_title">本週報告已完成</string>
+    <string name="coach_notif_weekly_body">點擊查看過去 7 天的回顧。</string>
+    <string name="coach_notif_alert_title_caution">連續偏高讀數</string>
+    <string name="coach_notif_alert_title_critical">讀數偏高,請放慢步調</string>
+    <string name="coach_notif_alert_body">24 小時內 3 次以上偏高讀數,請坐下深呼吸,稍後再量。</string>
 </resources>

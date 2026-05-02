@@ -31,6 +31,17 @@ class UserSettingsRepository(private val context: Context) {
         val MAX_NUM_TOKENS = intPreferencesKey("max_num_tokens")
         val SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
         val VISION_OVERRIDE = stringPreferencesKey("vision_backend_override")
+        val DAILY_STEP_GOAL = intPreferencesKey("daily_step_goal")
+        val NOTIFY_MEDAL_UNLOCK = booleanPreferencesKey("notify_medal_unlock")
+        val DID_OFFER_NOTIF_PROMPT = booleanPreferencesKey("did_offer_notif_prompt")
+        val CHAT_PERSONA = stringPreferencesKey("chat_persona")
+        val CHAT_INCLUDE_RECORDS = booleanPreferencesKey("chat_include_records")
+        val ENABLE_COACH = booleanPreferencesKey("enable_coach")
+        val WEEKLY_AEROBIC_MIN = intPreferencesKey("weekly_aerobic_min")
+        val DAILY_SODIUM_MG = intPreferencesKey("daily_sodium_mg")
+        val TARGET_SLEEP_HOURS = floatPreferencesKey("target_sleep_hours")
+        val SLEEP_TRACKING = booleanPreferencesKey("sleep_tracking_enabled")
+        val DIET_TRACKING = booleanPreferencesKey("diet_tracking_enabled")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -53,6 +64,17 @@ class UserSettingsRepository(private val context: Context) {
             visionBackendOverride = prefs[Keys.VISION_OVERRIDE]
                 ?.let { VisionBackendOverride.fromRaw(it) }
                 ?: VisionBackendOverride.Auto,
+            dailyStepGoal = prefs[Keys.DAILY_STEP_GOAL] ?: 8000,
+            notifyOnMedalUnlock = prefs[Keys.NOTIFY_MEDAL_UNLOCK] ?: true,
+            didOfferNotificationPrompt = prefs[Keys.DID_OFFER_NOTIF_PROMPT] ?: false,
+            chatPersona = prefs[Keys.CHAT_PERSONA] ?: "",
+            chatIncludeRecordsContext = prefs[Keys.CHAT_INCLUDE_RECORDS] ?: true,
+            enableCoach = prefs[Keys.ENABLE_COACH] ?: true,
+            weeklyAerobicMinTarget = prefs[Keys.WEEKLY_AEROBIC_MIN] ?: 150,
+            dailySodiumTargetMg = prefs[Keys.DAILY_SODIUM_MG] ?: 2000,
+            targetSleepHours = prefs[Keys.TARGET_SLEEP_HOURS] ?: 7.0f,
+            sleepTrackingEnabled = prefs[Keys.SLEEP_TRACKING] ?: false,
+            dietTrackingEnabled = prefs[Keys.DIET_TRACKING] ?: false,
         )
     }
 
@@ -91,5 +113,38 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setVisionBackendOverride(v: VisionBackendOverride) {
         context.dataStore.edit { it[Keys.VISION_OVERRIDE] = v.raw }
+    }
+    suspend fun setDailyStepGoal(v: Int) {
+        context.dataStore.edit { it[Keys.DAILY_STEP_GOAL] = v.coerceIn(2_000, 30_000) }
+    }
+    suspend fun setNotifyOnMedalUnlock(v: Boolean) {
+        context.dataStore.edit { it[Keys.NOTIFY_MEDAL_UNLOCK] = v }
+    }
+    suspend fun setDidOfferNotificationPrompt(v: Boolean) {
+        context.dataStore.edit { it[Keys.DID_OFFER_NOTIF_PROMPT] = v }
+    }
+    suspend fun setChatPersona(v: String) {
+        context.dataStore.edit { it[Keys.CHAT_PERSONA] = v }
+    }
+    suspend fun setChatIncludeRecordsContext(v: Boolean) {
+        context.dataStore.edit { it[Keys.CHAT_INCLUDE_RECORDS] = v }
+    }
+    suspend fun setEnableCoach(v: Boolean) {
+        context.dataStore.edit { it[Keys.ENABLE_COACH] = v }
+    }
+    suspend fun setWeeklyAerobicMinTarget(v: Int) {
+        context.dataStore.edit { it[Keys.WEEKLY_AEROBIC_MIN] = v.coerceIn(60, 600) }
+    }
+    suspend fun setDailySodiumTargetMg(v: Int) {
+        context.dataStore.edit { it[Keys.DAILY_SODIUM_MG] = v.coerceIn(1000, 4000) }
+    }
+    suspend fun setTargetSleepHours(v: Float) {
+        context.dataStore.edit { it[Keys.TARGET_SLEEP_HOURS] = v.coerceIn(4f, 12f) }
+    }
+    suspend fun setSleepTrackingEnabled(v: Boolean) {
+        context.dataStore.edit { it[Keys.SLEEP_TRACKING] = v }
+    }
+    suspend fun setDietTrackingEnabled(v: Boolean) {
+        context.dataStore.edit { it[Keys.DIET_TRACKING] = v }
     }
 }

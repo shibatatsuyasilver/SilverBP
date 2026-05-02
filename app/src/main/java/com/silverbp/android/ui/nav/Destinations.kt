@@ -1,27 +1,29 @@
 package com.silverbp.android.ui.nav
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.silverbp.android.R
 
 sealed class TabDestination(val route: String, val labelRes: Int, val icon: ImageVector) {
     data object Today    : TabDestination("today",    R.string.tab_today,    Icons.Filled.Home)
     data object History  : TabDestination("history",  R.string.tab_history,  Icons.Filled.History)
+    data object Coach    : TabDestination("coach",    R.string.tab_coach,    Icons.Filled.Favorite)
+    data object Exercise : TabDestination("exercise", R.string.tab_exercise, Icons.AutoMirrored.Filled.DirectionsRun)
     data object Insights : TabDestination("insights", R.string.tab_insights, Icons.Filled.Assessment)
-    data object Report   : TabDestination("report",   R.string.tab_report,   Icons.Filled.Description)
-    data object Settings : TabDestination("settings", R.string.tab_settings, Icons.Filled.Settings)
+    data object Chat     : TabDestination("chat",     R.string.tab_chat,     Icons.AutoMirrored.Filled.Chat)
 
     companion object {
         // Lazy because Kotlin initialises the companion object before the
         // sealed class's data-object children, so eager listOf(...) here
         // would capture nulls and crash NavigationBar at first render.
         val all: List<TabDestination> by lazy {
-            listOf(Today, History, Insights, Report, Settings)
+            listOf(Today, History, Coach, Exercise, Insights, Chat)
         }
     }
 }
@@ -33,4 +35,26 @@ object Routes {
     const val CONFIRM_NEW = "confirm/new"   // brand-new manual entry
     fun confirmEdit(id: String) = "confirm/$id"
     const val ARG_READING_ID = "readingId"
+
+    const val EXERCISE_SESSION = "exercise/session"
+    const val EXERCISE_SUMMARY = "exercise/summary"
+    fun exerciseDetail(id: String) = "exercise/detail/$id"
+    const val EXERCISE_DETAIL_PATTERN = "exercise/detail/{exerciseId}"
+    const val ARG_EXERCISE_ID = "exerciseId"
+
+    const val MEDALS = "achievements/medals"
+
+    // Non-tab modal routes hosted by the root NavHost. Settings is opened
+    // from TodayScreen's gear icon; Report is opened from InsightsScreen's
+    // bottom button. Both hide the bottom NavigationBar while active.
+    const val SETTINGS = "settings"
+    const val REPORT = "report"
+
+    // Coach sub-routes hosted by the root NavHost (hide bottom bar while active).
+    // Entry points are inside the Coach tab; later iterations may also link from
+    // notifications via deep links.
+    const val COACH_WEEKLY_REPORT = "coach/weekly-report"
+    const val COACH_LOG_DIET = "coach/log-diet"
+    const val COACH_LOG_SLEEP = "coach/log-sleep"
+    const val COACH_LOG_MEDICATION = "coach/log-medication"
 }

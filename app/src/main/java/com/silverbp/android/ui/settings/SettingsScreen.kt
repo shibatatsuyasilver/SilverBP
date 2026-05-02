@@ -352,9 +352,84 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                 }
             }
 
+            // ===== Chat settings (applies to all backends) =====
+            SectionCard("聊天設定") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "聊天 persona",
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { vm.setChatPersona("") }) { Text("重置") }
+                }
+                Text(
+                    "留空 = 使用內建預設 persona。下一輪訊息即套用,不需重新載入模型。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.size(4.dp))
+                OutlinedTextField(
+                    value = state.chatPersona,
+                    onValueChange = { vm.setChatPersona(it) },
+                    placeholder = { Text(CHAT_SYSTEM_PERSONA.take(120) + "…") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    maxLines = 12,
+                )
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                ToggleRow(
+                    label = "包含個人健康紀錄",
+                    checked = state.chatIncludeRecordsContext,
+                    onChange = vm::setChatIncludeRecordsContext,
+                )
+                Text(
+                    "啟用時會把最新血壓 / 7 日 30 日統計 / 運動 / 徽章摘要附在 system prompt 中讓 LLM 參考。" +
+                        "關閉適合測試模型對中性問題的回應。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            // Coach
+            SectionCard(stringResource(R.string.coach_settings_section)) {
+                ToggleRow(
+                    label = stringResource(R.string.coach_settings_enable),
+                    checked = state.enableCoach,
+                    onChange = vm::setEnableCoach,
+                )
+                Text(
+                    stringResource(R.string.coach_settings_enable_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (state.enableCoach) {
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    SleepTrackingRow(
+                        enabled = state.sleepTrackingEnabled,
+                        onEnable = { vm.onSleepGrantResult(it) },
+                        onDisable = vm::disableSleepTracking,
+                    )
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    DietTrackingRow(
+                        enabled = state.dietTrackingEnabled,
+                        onEnable = { vm.onDietGrantResult(it) },
+                        onDisable = vm::disableDietTracking,
+                    )
+                }
+            }
+
             // Integrations
             SectionCard(stringResource(R.string.integration_section)) {
-                ToggleRow(stringResource(R.string.health_connect), state.enableHealthConnect, vm::setHealthConnect)
+                ToggleRow(
+                    label = stringResource(R.string.health_connect),
+                    checked = state.enableHealthConnect,
+                    onChange = { newValue ->
+                        if (newValue) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                hcModernLauncher.launch(hcReadPerms.toTypedArray())
+                            } else {
+                                hcLegacyLauncher.launch(hcReadPerms)
+                            }
+                        } else vm.disableHealthConnect()
+                    },
+                )
                 HorizontalDivider()
                 ToggleRow(
                     label = stringResource(R.string.cloud_sync) + "  " + stringResource(R.string.cloud_sync_unavailable),
@@ -369,6 +444,168 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel()) {
                 Text(stringResource(R.string.about_model), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.size(6.dp))
                 Text(stringResource(R.string.not_medical_device), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SleepTrackingRow(
+    enabled: Boolean,
+    onEnable: (Set<String>) -> Unit,
+    onDisable: () -> Unit,
+) {
+    val ctx = LocalContext.current
+    val perms = remember { ServiceLocator.healthConnectBridge.sleepReadPermissions }
+    // Modern (Android 14+): HC permissions are real Android runtime perms.
+    // Older: route through HC SDK's legacy contract. Mirrors HC steps wiring.
+    val modernLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results -> onEnable(results.filterValues { it }.keys) }
+    val legacyLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { granted -> onEnable(granted) }
+
+    ToggleRow(
+        label = stringResource(R.string.coach_settings_sleep_tracking),
+        checked = enabled,
+        onChange = { newValue ->
+            if (newValue) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    modernLauncher.launch(perms.toTypedArray())
+                } else {
+                    legacyLauncher.launch(perms)
+                }
+            } else onDisable()
+        },
+    )
+    Text(
+        stringResource(R.string.coach_settings_sleep_tracking_hint),
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
+private fun DietTrackingRow(
+    enabled: Boolean,
+    onEnable: (Set<String>) -> Unit,
+    onDisable: () -> Unit,
+) {
+    val ctx = LocalContext.current
+    val perms = remember { ServiceLocator.healthConnectBridge.nutritionReadPermissions }
+    val modernLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results -> onEnable(results.filterValues { it }.keys) }
+    val legacyLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract(),
+    ) { granted -> onEnable(granted) }
+
+    ToggleRow(
+        label = stringResource(R.string.coach_settings_diet_tracking),
+        checked = enabled,
+        onChange = { newValue ->
+            if (newValue) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    modernLauncher.launch(perms.toTypedArray())
+                } else {
+                    legacyLauncher.launch(perms)
+                }
+            } else onDisable()
+        },
+    )
+    Text(
+        stringResource(R.string.coach_settings_diet_tracking_hint),
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
+private fun StepGoalRow(goal: Int, onChange: (Int) -> Unit) {
+    val numberFormat = remember { java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault()) }
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.medal_settings_goal), fontWeight = FontWeight.Medium)
+            Text(
+                stringResource(R.string.medal_settings_goal_hint),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        TextButton(
+            onClick = { onChange((goal - 1000).coerceAtLeast(2_000)) },
+            enabled = goal > 2_000,
+        ) { Text("−1000") }
+        Text(
+            numberFormat.format(goal),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+        TextButton(
+            onClick = { onChange((goal + 1000).coerceAtMost(30_000)) },
+            enabled = goal < 30_000,
+        ) { Text("+1000") }
+    }
+}
+
+@Composable
+private fun NotificationPermissionHint() {
+    val context = LocalContext.current
+    val granted = com.silverbp.android.achievements.MedalNotifier.hasPostPermission(context)
+    if (granted) return
+    Spacer(Modifier.size(4.dp))
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.medal_settings_notify_denied),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = {
+            val intent = android.content.Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", context.packageName, null),
+            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+            context.startActivity(intent)
+        }) {
+            Text(stringResource(R.string.exercise_settings_open_app_settings))
+        }
+    }
+}
+
+@Composable
+private fun LocationPermissionRow() {
+    val context = LocalContext.current
+    val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.exercise_settings_gps_label), fontWeight = FontWeight.Medium)
+            Text(
+                stringResource(
+                    if (granted) R.string.exercise_settings_gps_granted
+                    else R.string.exercise_settings_gps_denied
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        if (!granted) {
+            TextButton(onClick = {
+                val intent = android.content.Intent(
+                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.fromParts("package", context.packageName, null),
+                ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                context.startActivity(intent)
+            }) {
+                Text(stringResource(R.string.exercise_settings_open_app_settings))
             }
         }
     }

@@ -20,8 +20,21 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.achievements.MedalsScreen
 import com.silverbp.android.ui.capture.CaptureScreen
+import com.silverbp.android.ui.chat.ChatScreen
+import com.silverbp.android.ui.coach.CoachLogDietScreen
+import com.silverbp.android.ui.coach.CoachLogMedicationScreen
+import com.silverbp.android.ui.coach.CoachLogSleepScreen
+import com.silverbp.android.ui.coach.CoachScreen
+import com.silverbp.android.ui.coach.CoachWeeklyReportScreen
 import com.silverbp.android.ui.confirm.ConfirmReadingScreen
+import com.silverbp.android.ui.exercise.ExerciseDetailScreen
+import com.silverbp.android.ui.exercise.ExerciseHomeScreen
+import com.silverbp.android.ui.exercise.ExerciseSessionScreen
+import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
 import com.silverbp.android.ui.history.HistoryScreen
 import com.silverbp.android.ui.insights.InsightsScreen
 import com.silverbp.android.ui.report.ReportScreen
@@ -31,6 +44,26 @@ import com.silverbp.android.ui.today.TodayScreen
 @Composable
 fun AppNavHost() {
     val rootNav = rememberNavController()
+
+    // Notification tap → navigate root-level sub-routes here; tab routes are
+    // handled inside HomeWithTabs (inner nav). DeepLinkBus is a SharedFlow so
+    // both layers receive each event.
+    LaunchedEffect(Unit) {
+        DeepLinkBus.routes.collect { route ->
+            when (route) {
+                Routes.COACH_WEEKLY_REPORT,
+                Routes.COACH_LOG_DIET,
+                Routes.COACH_LOG_SLEEP,
+                Routes.COACH_LOG_MEDICATION -> {
+                    // Pop back to home first so the new screen overlays cleanly
+                    // even if the user was deep in another modal.
+                    rootNav.popBackStack(Routes.HOME, inclusive = false)
+                    rootNav.navigate(route)
+                }
+            }
+        }
+    }
+
     NavHost(navController = rootNav, startDestination = Routes.HOME) {
         composable(Routes.HOME) { HomeWithTabs(rootNav) }
         composable(Routes.CAPTURE) {
@@ -53,6 +86,59 @@ fun AppNavHost() {
                 onCancel = { rootNav.popBackStack() }
             )
         }
+        composable(Routes.EXERCISE_SESSION) {
+            ExerciseSessionScreen(
+                onFinished = {
+                    rootNav.navigate(Routes.EXERCISE_SUMMARY) {
+                        popUpTo(Routes.EXERCISE_SESSION) { inclusive = true }
+                    }
+                },
+                onClose = { rootNav.popBackStack() },
+            )
+        }
+        composable(Routes.EXERCISE_SUMMARY) {
+            ExerciseSummaryScreen(
+                onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onDiscard = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+            )
+        }
+        composable(
+            Routes.EXERCISE_DETAIL_PATTERN,
+            arguments = listOf(navArgument(Routes.ARG_EXERCISE_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString(Routes.ARG_EXERCISE_ID) ?: return@composable
+            ExerciseDetailScreen(
+                sessionId = id,
+                onBack = { rootNav.popBackStack() },
+                onDeleted = { rootNav.popBackStack() },
+            )
+        }
+        composable(Routes.MEDALS) {
+            MedalsScreen(onBack = { rootNav.popBackStack() })
+        }
+        // Settings + Report live at the root NavHost so the bottom NavigationBar
+        // disappears when they're active — matching iOS sheet/push behavior.
+        // popBackStack(HOME, inclusive=false) keeps us safe from accidental app-exit
+        // if either route ever gets launched as the start destination.
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onClose = { rootNav.popBackStack(Routes.HOME, inclusive = false) })
+        }
+        composable(Routes.REPORT) {
+            ReportScreen(onClose = { rootNav.popBackStack() })
+        }
+        // Coach sub-routes — modal-style, hide bottom bar like Settings/Report.
+        composable(Routes.COACH_WEEKLY_REPORT) {
+            CoachWeeklyReportScreen(onClose = { rootNav.popBackStack() })
+        }
+        composable(Routes.COACH_LOG_DIET) {
+            CoachLogDietScreen(onClose = { rootNav.popBackStack() })
+        }
+        composable(Routes.COACH_LOG_SLEEP) {
+            CoachLogSleepScreen(onClose = { rootNav.popBackStack() })
+        }
+        composable(Routes.COACH_LOG_MEDICATION) {
+            CoachLogMedicationScreen(onClose = { rootNav.popBackStack() })
+        }
     }
 }
 
@@ -61,11 +147,32 @@ private fun HomeWithTabs(rootNav: NavHostController) {
     val tabsNav = rememberNavController()
     val backstack by tabsNav.currentBackStackEntryAsState()
     val currentRoute = backstack?.destination?.route ?: TabDestination.Today.route
+    val settings by ServiceLocator.userSettings.flow.collectAsStateWithLifecycle(initialValue = null)
+    val visibleTabs = TabDestination.all.filter { tab ->
+        // Coach tab is gated on the master toggle — every other tab is always shown.
+        // settings == null on cold start: show every tab including Coach (matches its
+        // default-true value), so users don't see a brief 5-tab flash.
+        tab !is TabDestination.Coach || (settings?.enableCoach ?: true)
+    }
+
+    // Notification tap → switch to Coach tab. Sub-routes are handled by the
+    // outer NavHost; here we only honour the tab route.
+    LaunchedEffect(Unit) {
+        DeepLinkBus.routes.collect { route ->
+            if (route == TabDestination.Coach.route) {
+                tabsNav.navigate(TabDestination.Coach.route) {
+                    popUpTo(TabDestination.Today.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                TabDestination.all.forEach { tab ->
+                visibleTabs.forEach { tab ->
                     NavigationBarItem(
                         selected = currentRoute == tab.route,
                         onClick = {
@@ -77,12 +184,22 @@ private fun HomeWithTabs(rootNav: NavHostController) {
                         },
                         icon = { Icon(tab.icon, contentDescription = null) },
                         label = { Text(stringResource(tab.labelRes)) },
+                        // Six tabs is tight on small phones; only label the active one
+                        // so the icons keep enough breathing room.
+                        alwaysShowLabel = false,
                     )
                 }
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        // consumeWindowInsets stops nested Scaffolds (e.g. ChatScreen) from
+        // re-applying the system-bar insets the outer Scaffold already padded for.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding)
+        ) {
             NavHost(navController = tabsNav, startDestination = TabDestination.Today.route) {
                 tabsGraph(rootNav)
             }
@@ -102,7 +219,26 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onEdit = { id -> rootNav.navigate(Routes.confirmEdit(id)) }
         )
     }
-    composable(TabDestination.Insights.route) { InsightsScreen() }
-    composable(TabDestination.Report.route) { ReportScreen() }
-    composable(TabDestination.Settings.route) { SettingsScreen() }
+    composable(TabDestination.Coach.route) {
+        CoachScreen(
+            onOpenWeeklyReport = { rootNav.navigate(Routes.COACH_WEEKLY_REPORT) },
+            onOpenLogDiet = { rootNav.navigate(Routes.COACH_LOG_DIET) },
+            onOpenLogSleep = { rootNav.navigate(Routes.COACH_LOG_SLEEP) },
+            onOpenLogMedication = { rootNav.navigate(Routes.COACH_LOG_MEDICATION) },
+        )
+    }
+    composable(TabDestination.Exercise.route) {
+        ExerciseHomeScreen(
+            onStartSession = { rootNav.navigate(Routes.EXERCISE_SESSION) },
+            onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
+            onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
+        )
+    }
+    composable(TabDestination.Insights.route) {
+        InsightsScreen(onOpenReport = { rootNav.navigate(Routes.REPORT) })
+    }
+    composable(TabDestination.Chat.route) {
+        // onBack = null hides the back arrow when Chat is rendered as a tab.
+        ChatScreen(onBack = null)
+    }
 }

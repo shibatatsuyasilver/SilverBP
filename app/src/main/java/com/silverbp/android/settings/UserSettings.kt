@@ -35,4 +35,47 @@ data class UserSettings(
      * and retries CPU if GPU init fails. Explicit values skip auto-detect.
      */
     val visionBackendOverride: VisionBackendOverride = VisionBackendOverride.Auto,
+
+    /** Daily step target used as the streak medal threshold. Tunable in Settings. */
+    val dailyStepGoal: Int = 8000,
+    /** When true, surface a system notification on medal unlock (perm-gated). */
+    val notifyOnMedalUnlock: Boolean = true,
+    /**
+     * Internal flag — true once the in-app banner has prompted the user about
+     * notification permission. Prevents re-asking after a denial.
+     */
+    val didOfferNotificationPrompt: Boolean = false,
+
+    /**
+     * User-edited chat persona. Blank → fall back to
+     * [com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA]. Applies on the next
+     * sent turn — no model reload needed.
+     */
+    val chatPersona: String = "",
+    /**
+     * When true (default) the chat system prompt includes a markdown summary of
+     * the user's BP / exercise / medal records (see RecordsContextBuilder).
+     * Disable for "stateless" generic Q&A — useful when the records are noisy
+     * or when testing model behavior on neutral prompts.
+     */
+    val chatIncludeRecordsContext: Boolean = true,
+
+    /**
+     * Master toggle for the lifestyle Coach feature. When false the Coach tab
+     * is hidden from the bottom navigation. Other Coach plumbing (workers,
+     * anomaly watcher) inspects this flag before posting notifications.
+     */
+    val enableCoach: Boolean = true,
+
+    /** Weekly aerobic-minute target (WHO 2020 default). Used by [com.silverbp.android.coach.CoachEngine]. */
+    val weeklyAerobicMinTarget: Int = 150,
+    /** Daily sodium ceiling in mg (AHA default 2000). */
+    val dailySodiumTargetMg: Int = 2000,
+    /** Daily sleep target in hours (NSF: 7–8 h). */
+    val targetSleepHours: Float = 7.0f,
+
+    /** Opt-in: read sleep duration from Health Connect. Off by default — user must grant the perm. */
+    val sleepTrackingEnabled: Boolean = false,
+    /** Opt-in: read nutrition (sodium) from Health Connect. */
+    val dietTrackingEnabled: Boolean = false,
 )
