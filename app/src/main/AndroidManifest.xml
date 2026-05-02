@@ -55,6 +55,38 @@
         <uses-native-library android:name="libOpenCL-car.so" android:required="false" />
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
 
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
+        <service
+            android:name=".exercise.LocationTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- Health Connect rationale screen. HC's PermissionsActivity refuses
+             to show the permission UI unless the requesting app declares a
+             handler for these intents (modern action on Android 14+, legacy
+             VIEW_PERMISSION_USAGE for the standalone HC app on Android 13). -->
+        <activity
+            android:name=".health.PermissionsRationaleActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SilverBp">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name=".health.ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".health.PermissionsRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
