@@ -145,6 +145,22 @@
     <string name="exercise_grant_health_connect">授權 Health Connect</string>
     <string name="exercise_map_api_key_missing">請在 local.properties 加入 MAPS_API_KEY 才能顯示地圖。</string>
 
+    <!-- Exercise trends -->
+    <string name="exercise_trends_title">運動趨勢</string>
+    <string name="exercise_trends_distance">每日距離</string>
+    <string name="exercise_trends_pace">配速</string>
+    <string name="exercise_trends_kind">運動分布</string>
+    <string name="exercise_trends_heatmap">運動日曆</string>
+    <string name="exercise_trends_empty">資料不足</string>
+    <string name="exercise_total_distance">總距離</string>
+    <string name="exercise_total_duration">總時數</string>
+    <string name="exercise_session_count">次數</string>
+    <string name="exercise_week_steps">本週步數</string>
+    <string name="exercise_range_7d">7 天</string>
+    <string name="exercise_range_30d">30 天</string>
+    <string name="exercise_range_90d">90 天</string>
+    <string name="exercise_range_all">全部</string>
+
     <!-- Achievements / medals -->
     <string name="medal_screen_title">獎章</string>
     <string name="medal_screen_hc_notice">連續達標紀錄需要 Health Connect 讀取步數權限,否則只能保留近幾日。</string>

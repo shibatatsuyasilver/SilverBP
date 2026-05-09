@@ -39,6 +39,7 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.ui.achievements.MedalUnlockBannerHost
+import com.silverbp.android.ui.exercise.components.ExerciseTrendsCard
 import com.silverbp.android.ui.exercise.components.MedalShowcaseCard
 import com.silverbp.android.ui.exercise.components.RecentSessionsCard
 import com.silverbp.android.ui.exercise.components.TodayStepsCard
@@ -58,6 +59,7 @@ fun ExerciseHomeScreen(
 
     LifecycleResumeEffect(Unit) {
         ServiceLocator.achievementStore.launchRefresh()
+        vm.refreshWeekSteps()
         onPauseOrDispose { }
     }
 
@@ -100,6 +102,11 @@ fun ExerciseHomeScreen(
             MedalShowcaseCard(
                 state = achievementState,
                 onViewAll = onOpenMedals,
+            )
+
+            ExerciseTrendsCard(
+                state = state,
+                onSelectRange = vm::setRange,
             )
 
             RecentSessionsCard(

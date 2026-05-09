@@ -145,6 +145,22 @@
     <string name="exercise_grant_health_connect">Grant Health Connect access</string>
     <string name="exercise_map_api_key_missing">Add MAPS_API_KEY to local.properties to render maps.</string>
 
+    <!-- Exercise trends -->
+    <string name="exercise_trends_title">Trends</string>
+    <string name="exercise_trends_distance">Daily distance</string>
+    <string name="exercise_trends_pace">Pace</string>
+    <string name="exercise_trends_kind">Activity mix</string>
+    <string name="exercise_trends_heatmap">Activity calendar</string>
+    <string name="exercise_trends_empty">Not enough data</string>
+    <string name="exercise_total_distance">Total distance</string>
+    <string name="exercise_total_duration">Total time</string>
+    <string name="exercise_session_count">Sessions</string>
+    <string name="exercise_week_steps">This week</string>
+    <string name="exercise_range_7d">7d</string>
+    <string name="exercise_range_30d">30d</string>
+    <string name="exercise_range_90d">90d</string>
+    <string name="exercise_range_all">All</string>
+
     <!-- Achievements / medals -->
     <string name="medal_screen_title">Achievements</string>
     <string name="medal_screen_hc_notice">Long streaks need Health Connect read access for steps. Without it, only the past few days count.</string>
