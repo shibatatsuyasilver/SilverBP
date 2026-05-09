@@ -32,6 +32,7 @@ class UserSettingsRepository(private val context: Context) {
         val MAX_NUM_TOKENS = intPreferencesKey("max_num_tokens")
         val SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
         val VISION_OVERRIDE = stringPreferencesKey("vision_backend_override")
+        val SPECULATIVE_DECODING = booleanPreferencesKey("enable_speculative_decoding")
         val DAILY_STEP_GOAL = intPreferencesKey("daily_step_goal")
         val NOTIFY_MEDAL_UNLOCK = booleanPreferencesKey("notify_medal_unlock")
         val DID_OFFER_NOTIF_PROMPT = booleanPreferencesKey("did_offer_notif_prompt")
@@ -65,6 +66,7 @@ class UserSettingsRepository(private val context: Context) {
             visionBackendOverride = prefs[Keys.VISION_OVERRIDE]
                 ?.let { VisionBackendOverride.fromRaw(it) }
                 ?: VisionBackendOverride.Auto,
+            enableSpeculativeDecoding = prefs[Keys.SPECULATIVE_DECODING] ?: true,
             dailyStepGoal = prefs[Keys.DAILY_STEP_GOAL] ?: 8000,
             notifyOnMedalUnlock = prefs[Keys.NOTIFY_MEDAL_UNLOCK] ?: true,
             didOfferNotificationPrompt = prefs[Keys.DID_OFFER_NOTIF_PROMPT] ?: false,
@@ -114,6 +116,9 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setVisionBackendOverride(v: VisionBackendOverride) {
         context.dataStore.edit { it[Keys.VISION_OVERRIDE] = v.raw }
+    }
+    suspend fun setEnableSpeculativeDecoding(v: Boolean) {
+        context.dataStore.edit { it[Keys.SPECULATIVE_DECODING] = v }
     }
     suspend fun setDailyStepGoal(v: Int) {
         context.dataStore.edit { it[Keys.DAILY_STEP_GOAL] = v.coerceIn(2_000, 30_000) }

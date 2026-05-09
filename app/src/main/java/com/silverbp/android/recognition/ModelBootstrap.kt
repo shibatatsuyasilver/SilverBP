@@ -47,10 +47,39 @@ object ModelBootstrap {
                 RecognitionBackend.Local -> {
                     val variant = ModelCatalog.byId(settings.selectedModelId)
                     if (downloader.isDownloaded(variant)) {
+                        // Only sweep legacy orphans once the new file is in place,
+                        // so a power-cut mid-rename can't strand the user.
+                        cleanupLegacyModelFiles(context.applicationContext)
                         preload(context.applicationContext, variant)
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Delete `.litertlm`/`.task` files in `filesDir/models/` that aren't claimed
+     * by any current [ModelCatalog] variant — e.g. the pre-MTP
+     * `gemma-4-E2B-it.litertlm` left over when the catalog moved to the
+     * `-mtp` filename. Best-effort; logs but never throws.
+     */
+    private fun cleanupLegacyModelFiles(context: Context) {
+        val dir = java.io.File(context.filesDir, "models")
+        if (!dir.isDirectory) return
+        val keep = ModelCatalog.variants.map { it.filename }.toSet()
+        dir.listFiles()?.forEach { file ->
+            if (!file.isFile) return@forEach
+            val name = file.name
+            if (name in keep) return@forEach
+            // Don't touch in-flight `.part` downloads.
+            if (name.endsWith(".part")) return@forEach
+            // Only sweep things that look like our model files.
+            if (!name.endsWith(".litertlm") && !name.endsWith(".task")) return@forEach
+            val deleted = runCatching { file.delete() }.getOrDefault(false)
+            android.util.Log.i(
+                "ModelBootstrap",
+                "[ModelLoad] legacy cleanup name=$name sizeBytes=${file.length()} deleted=$deleted",
+            )
         }
     }
 
@@ -149,10 +178,14 @@ object ModelBootstrap {
     private suspend fun preload(context: Context, variant: ModelVariant) {
         val status = ServiceLocator.modelLoadStatus
         val downloader = ModelDownloader(context)
-        val maxTokens = ServiceLocator.userSettings.flow.first().maxNumTokens
+        val settings = ServiceLocator.userSettings.flow.first()
+        val maxTokens = settings.maxNumTokens
+        // Speculative decoding requires both a user-side opt-in and an MTP-capable
+        // .litertlm. 3n (.task / MediaPipe) variants stay false regardless.
+        val speculative = settings.enableSpeculativeDecoding && variant.supportsSpeculativeDecoding
         status.set(ModelLoadPhase.Loading)
         try {
-            GemmaBpService.preload(context, downloader.targetFile(variant), maxTokens)
+            GemmaBpService.preload(context, downloader.targetFile(variant), maxTokens, speculative)
             status.set(ModelLoadPhase.Ready)
         } catch (e: Throwable) {
             status.set(ModelLoadPhase.Failed(e.message ?: "preload failed"))

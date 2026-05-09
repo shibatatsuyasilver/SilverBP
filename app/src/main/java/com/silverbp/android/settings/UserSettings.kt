@@ -36,6 +36,16 @@ data class UserSettings(
      */
     val visionBackendOverride: VisionBackendOverride = VisionBackendOverride.Auto,
 
+    /**
+     * Enables LiteRT-LM v0.11.0 Multi-Token Prediction (MTP) speculative
+     * decoding for variants whose .litertlm file ships MTP heads
+     * ([com.silverbp.android.recognition.ModelVariant.supportsSpeculativeDecoding]).
+     * Default ON (~2x decode speedup on mobile GPUs); flip OFF here for
+     * compatibility debugging. Read at engine init only — toggling requires
+     * `ModelBootstrap.reloadCurrentVariant`.
+     */
+    val enableSpeculativeDecoding: Boolean = true,
+
     /** Daily step target used as the streak medal threshold. Tunable in Settings. */
     val dailyStepGoal: Int = 8000,
     /** When true, surface a system notification on medal unlock (perm-gated). */

@@ -21,7 +21,7 @@ datastore = "1.1.1"
 camerax = "1.4.0"
 workManager = "2.10.0"
 
-litertlm = "0.10.2"
+litertlm = "0.11.0"
 mediapipeVision = "0.10.26.1"
 mlkitObjectDetection = "17.0.2"
 mlkitGenaiPrompt = "1.0.0-beta2"

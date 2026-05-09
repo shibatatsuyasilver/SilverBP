@@ -291,6 +291,30 @@ fun SettingsScreen(
 
                     HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
+                    val selectedVariant = remember(state.selectedModelId) {
+                        ModelCatalog.byId(state.selectedModelId)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Speculative decoding (~2x 解碼加速)", fontWeight = FontWeight.Medium)
+                            Text(
+                                if (selectedVariant.supportsSpeculativeDecoding) {
+                                    "MTP 加速;若遇相容性問題可關閉。改值後請按上方「套用並重新載入模型」。"
+                                } else {
+                                    "目前選用的模型 (${selectedVariant.displayName}) 沒有 MTP heads,此選項暫不適用。"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Switch(
+                            checked = state.enableSpeculativeDecoding,
+                            onCheckedChange = { vm.setEnableSpeculativeDecoding(it) },
+                            enabled = selectedVariant.supportsSpeculativeDecoding,
+                        )
+                    }
+
+                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "OCR system prompt",

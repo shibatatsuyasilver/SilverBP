@@ -10,6 +10,8 @@ import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.ExperimentalApi
+import com.google.ai.edge.litertlm.ExperimentalFlags
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -61,7 +63,13 @@ object GemmaBpService {
     @Volatile private var engine: Engine? = null
     @Volatile private var ctx: Context? = null
 
-    suspend fun preload(context: Context, modelFile: File, maxNumTokens: Int) = mutex.withLock {
+    @OptIn(ExperimentalApi::class)
+    suspend fun preload(
+        context: Context,
+        modelFile: File,
+        maxNumTokens: Int,
+        enableSpeculativeDecoding: Boolean,
+    ) = mutex.withLock {
         if (engine != null) return@withLock
         require(modelFile.exists()) { "Model file missing at ${modelFile.absolutePath}" }
         ctx = context.applicationContext
@@ -78,9 +86,21 @@ object GemmaBpService {
             // litert-community .litertlm doesn't ship gpu_artisan subgraphs —
             // "Unsupported backend: 2".
             val override = ServiceLocator.userSettings.flow.first().visionBackendOverride
-            val attempts = visionAttemptOrder(override)
+            val visionAttempts = visionAttemptOrder(override)
+            // Build a (vision, speculative) attempt grid so we can fall back from
+            // speculative=true → speculative=false on the same vision backend if
+            // the MTP heads reject the device. Engine init reads
+            // ExperimentalFlags.enableSpeculativeDecoding at construction time.
+            val attempts: List<Pair<DeviceCapabilities.VisionBackend, Boolean>> =
+                if (enableSpeculativeDecoding) {
+                    visionAttempts.map { it to true } + visionAttempts.map { it to false }
+                } else {
+                    visionAttempts.map { it to false }
+                }
             var lastErr: Throwable? = null
-            for ((index, choice) in attempts.withIndex()) {
+            for ((index, attempt) in attempts.withIndex()) {
+                val (choice, speculative) = attempt
+                ExperimentalFlags.enableSpeculativeDecoding = speculative
                 val cfg = EngineConfig(
                     modelPath = modelFile.absolutePath,
                     backend = Backend.GPU(),
@@ -95,8 +115,9 @@ object GemmaBpService {
                     val elapsed = SystemClock.elapsedRealtime() - t0
                     android.util.Log.i(
                         TAG,
-                        "[ModelLoad] preload ok vision=$choice attempt=$attemptLabel elapsedMs=$elapsed " +
-                            "model=${modelFile.name} maxTokens=$maxNumTokens override=$override",
+                        "[ModelLoad] preload ok vision=$choice speculative=$speculative " +
+                            "attempt=$attemptLabel elapsedMs=$elapsed model=${modelFile.name} " +
+                            "maxTokens=$maxNumTokens override=$override",
                     )
                     return@withContext
                 } catch (t: Throwable) {
@@ -104,8 +125,9 @@ object GemmaBpService {
                     lastErr = t
                     android.util.Log.w(
                         TAG,
-                        "[ModelLoad] preload failed vision=$choice attempt=$attemptLabel elapsedMs=$elapsed " +
-                            "model=${modelFile.name} err=${t.javaClass.simpleName}: ${t.message}",
+                        "[ModelLoad] preload failed vision=$choice speculative=$speculative " +
+                            "attempt=$attemptLabel elapsedMs=$elapsed model=${modelFile.name} " +
+                            "err=${t.javaClass.simpleName}: ${t.message}",
                     )
                 }
             }

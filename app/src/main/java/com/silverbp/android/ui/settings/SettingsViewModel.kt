@@ -84,6 +84,9 @@ class SettingsViewModel(
     fun setVisionBackendOverride(v: VisionBackendOverride) {
         viewModelScope.launch { repo.setVisionBackendOverride(v) }
     }
+    fun setEnableSpeculativeDecoding(v: Boolean) {
+        viewModelScope.launch { repo.setEnableSpeculativeDecoding(v) }
+    }
     fun setDailyStepGoal(value: Int) {
         viewModelScope.launch {
             repo.setDailyStepGoal(value)
