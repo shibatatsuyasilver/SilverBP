@@ -108,6 +108,9 @@ interface MedicationDoseDao {
     @Query("SELECT * FROM medication_dose WHERE dayStart = :dayStart ORDER BY scheduledHour ASC")
     suspend fun forDay(dayStart: Long): List<MedicationDoseEntity>
 
+    @Query("SELECT * FROM medication_dose WHERE dayStart >= :from AND dayStart < :to ORDER BY dayStart ASC")
+    fun observeForRange(from: Long, to: Long): Flow<List<MedicationDoseEntity>>
+
     @Query(
         """
         SELECT COUNT(*) FROM medication_dose

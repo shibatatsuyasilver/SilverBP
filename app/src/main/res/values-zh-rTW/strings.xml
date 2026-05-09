@@ -201,8 +201,9 @@
     <string name="coach_screen_title">生活方式教練</string>
     <string name="coach_today_task_title">今日任務</string>
     <string name="coach_today_task_placeholder">散步 20 分鐘</string>
-    <string name="coach_today_task_completed">已完成</string>
-    <string name="coach_today_task_complete_action">標記完成</string>
+    <string name="coach_today_task_progress">已運動 %1$d / %2$d 分鐘</string>
+    <string name="coach_today_task_go_walk">去散步</string>
+    <string name="coach_today_task_done_today">今日已完成 %1$d 分鐘</string>
     <string name="coach_safety_hold_title">建議今日休息</string>
     <string name="coach_safety_hold_body">近期讀數偏高,今日請暫停運動,並考慮聯絡醫師。</string>
     <string name="coach_module_exercise">運動</string>

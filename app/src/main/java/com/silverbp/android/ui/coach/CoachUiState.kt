@@ -29,6 +29,10 @@ data class TodayTaskUi(
     val completed: Boolean = false,
     /** When true the run-engine flagged today as a recovery day; UI shows a red banner instead of the action button. */
     val safetyHold: Boolean = false,
+    /** Minutes of qualifying exercise logged today (Walking + Running). */
+    val achievedMinutes: Int = 0,
+    /** Target minutes for today's exercise task; 0 means no quantitative target. */
+    val targetMinutes: Int = 0,
 )
 
 /**

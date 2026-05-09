@@ -8,6 +8,9 @@ import com.silverbp.android.coach.BpAnomalyWatcher
 import com.silverbp.android.coach.CoachEngine
 import com.silverbp.android.coach.CoachNarrator
 import com.silverbp.android.coach.CoachRepository
+import com.silverbp.android.coach.ExerciseRepoSummaryProvider
+import com.silverbp.android.coach.TodayExerciseTaskGenerator
+import com.silverbp.android.recognition.chat.ChatRecognizerFactory
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.db.SilverBpDatabase
 import com.silverbp.android.exercise.ExerciseController
@@ -83,6 +86,8 @@ object ServiceLocator {
             sleeps = database.sleepDao(),
             diets = database.dietDao(),
             doses = database.medicationDoseDao(),
+            medicationSchedules = database.medicationScheduleDao(),
+            medications = database.medicationDao(),
         )
     }
 
@@ -96,6 +101,13 @@ object ServiceLocator {
     }
 
     val coachNarrator: CoachNarrator by lazy { CoachNarrator() }
+
+    val todayExerciseTaskGenerator: TodayExerciseTaskGenerator by lazy {
+        TodayExerciseTaskGenerator(
+            summaryProvider = ExerciseRepoSummaryProvider(exerciseRepository),
+            chatFactory = { ChatRecognizerFactory.current() },
+        )
+    }
 
     val bpAnomalyWatcher: BpAnomalyWatcher by lazy {
         BpAnomalyWatcher(context, bpRepository, coachEngine, userSettings)

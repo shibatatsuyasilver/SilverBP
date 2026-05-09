@@ -201,8 +201,9 @@
     <string name="coach_screen_title">Lifestyle Coach</string>
     <string name="coach_today_task_title">Today\'s Task</string>
     <string name="coach_today_task_placeholder">Take a 20-minute walk</string>
-    <string name="coach_today_task_completed">Done</string>
-    <string name="coach_today_task_complete_action">Mark complete</string>
+    <string name="coach_today_task_progress">%1$d / %2$d min walked</string>
+    <string name="coach_today_task_go_walk">Go for a walk</string>
+    <string name="coach_today_task_done_today">Today\'s exercise complete: %1$d min</string>
     <string name="coach_safety_hold_title">Rest day recommended</string>
     <string name="coach_safety_hold_body">Recent readings are high. Skip exercise today and consider contacting your doctor.</string>
     <string name="coach_module_exercise">Exercise</string>

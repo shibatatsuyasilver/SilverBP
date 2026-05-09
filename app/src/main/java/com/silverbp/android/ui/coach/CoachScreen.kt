@@ -37,6 +37,7 @@ fun CoachScreen(
     onOpenLogDiet: () -> Unit = {},
     onOpenLogSleep: () -> Unit = {},
     onOpenLogMedication: () -> Unit = {},
+    onStartExercise: () -> Unit = {},
     vm: CoachViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -64,7 +65,7 @@ fun CoachScreen(
             }
             is CoachUiState.Ready -> ReadyContent(
                 state = s,
-                onTaskComplete = vm::onTodayTaskCheck,
+                onStartExercise = onStartExercise,
                 onOpenWeeklyReport = onOpenWeeklyReport,
                 onOpenLogDiet = onOpenLogDiet,
                 onOpenLogSleep = onOpenLogSleep,
@@ -80,7 +81,7 @@ fun CoachScreen(
 @Composable
 private fun ReadyContent(
     state: CoachUiState.Ready,
-    onTaskComplete: () -> Unit,
+    onStartExercise: () -> Unit,
     onOpenWeeklyReport: () -> Unit,
     onOpenLogDiet: () -> Unit,
     onOpenLogSleep: () -> Unit,
@@ -93,7 +94,7 @@ private fun ReadyContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TodayTaskCard(task = state.todayTask, onComplete = onTaskComplete)
+        TodayTaskCard(task = state.todayTask, onStartExercise = onStartExercise)
 
         Text(
             stringResource(R.string.coach_modules_title),

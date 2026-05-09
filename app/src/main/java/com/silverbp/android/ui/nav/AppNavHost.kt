@@ -272,6 +272,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onOpenLogDiet = { rootNav.navigate(Routes.COACH_LOG_DIET) },
             onOpenLogSleep = { rootNav.navigate(Routes.COACH_LOG_SLEEP) },
             onOpenLogMedication = { rootNav.navigate(Routes.COACH_LOG_MEDICATION) },
+            onStartExercise = { rootNav.navigate(Routes.EXERCISE_SESSION) },
         )
     }
     composable(TabDestination.Exercise.route) {
