@@ -41,6 +41,14 @@ interface ExerciseDao {
     @Query("SELECT * FROM route_point WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     suspend fun pointsFor(sessionId: String): List<RoutePointEntity>
 
+    /**
+     * Bulk read of every route_point row across all sessions, used by the
+     * cross-device sync source so a single round can flush both sessions and
+     * their points without N+1 querying per session.
+     */
+    @Query("SELECT * FROM route_point ORDER BY sessionId, timestamp ASC")
+    suspend fun allPoints(): List<RoutePointEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: ExerciseSessionEntity)
 

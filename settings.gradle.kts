@@ -24,5 +24,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "SilverBP"
 include(":app")
+include(":sync")
 include(":cli")
 project(":cli").projectDir = file("tools/cli")

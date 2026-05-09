@@ -19,6 +19,7 @@ data class AchievementEntity(
     val notifiedAt: Long?,
     val unlockedBackfilled: Boolean,
     val valueAtUnlock: Long,
+    val hlcUpdatedAt: String = "0",
 )
 
 /**
@@ -32,4 +33,5 @@ data class DailyStepLogEntity(
     val steps: Int,
     val sourceRaw: String,
     val updatedAt: Long,
+    val hlcUpdatedAt: String = "0",
 )

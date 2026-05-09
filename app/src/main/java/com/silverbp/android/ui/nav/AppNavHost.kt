@@ -128,10 +128,18 @@ fun AppNavHost() {
         // popBackStack(HOME, inclusive=false) keeps us safe from accidental app-exit
         // if either route ever gets launched as the start destination.
         composable(Routes.SETTINGS) {
-            SettingsScreen(onClose = { rootNav.popBackStack(Routes.HOME, inclusive = false) })
+            SettingsScreen(
+                onClose = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onOpenSyncPairing = { rootNav.navigate(Routes.SYNC_PAIRING) },
+            )
         }
         composable(Routes.REPORT) {
             ReportScreen(onClose = { rootNav.popBackStack() })
+        }
+        composable(Routes.SYNC_PAIRING) {
+            com.silverbp.android.ui.sync.PairingScreen(
+                onBack = { rootNav.popBackStack() },
+            )
         }
         // Coach sub-routes — modal-style, hide bottom bar like Settings/Report.
         composable(Routes.COACH_WEEKLY_REPORT) {

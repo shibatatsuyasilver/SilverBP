@@ -65,6 +65,19 @@ interface CoachPlanDao {
         """
     )
     suspend fun adherenceForPlan(planId: String): List<CoachAdherenceRow>
+
+    /** Bulk reads used by cross-device sync. Plans first, then their tasks. */
+    @Query("SELECT * FROM coach_plan ORDER BY weekStart ASC")
+    suspend fun listAllPlans(): List<CoachPlanEntity>
+
+    @Query("SELECT * FROM coach_task ORDER BY planId, dayOffset ASC")
+    suspend fun listAllTasks(): List<CoachTaskEntity>
+
+    @Query("SELECT * FROM coach_plan WHERE id = :id")
+    suspend fun findPlanById(id: String): CoachPlanEntity?
+
+    @Query("SELECT * FROM coach_task WHERE id = :id")
+    suspend fun findTaskById(id: String): CoachTaskEntity?
 }
 
 @Dao
@@ -80,6 +93,9 @@ interface SleepDao {
 
     @Query("SELECT * FROM sleep_log WHERE dayStart >= :from AND dayStart < :to ORDER BY dayStart ASC")
     suspend fun range(from: Long, to: Long): List<SleepLogEntity>
+
+    @Query("SELECT * FROM sleep_log ORDER BY dayStart ASC")
+    suspend fun listAll(): List<SleepLogEntity>
 }
 
 @Dao
@@ -95,6 +111,9 @@ interface DietDao {
 
     @Query("SELECT * FROM diet_check WHERE dayStart >= :from AND dayStart < :to ORDER BY dayStart ASC")
     suspend fun range(from: Long, to: Long): List<DietCheckEntity>
+
+    @Query("SELECT * FROM diet_check ORDER BY dayStart ASC")
+    suspend fun listAll(): List<DietCheckEntity>
 }
 
 @Dao
@@ -121,4 +140,26 @@ interface MedicationDoseDao {
 
     @Query("SELECT COUNT(*) FROM medication_dose WHERE dayStart >= :from AND dayStart < :to")
     suspend fun countScheduledInRange(from: Long, to: Long): Int
+
+    /**
+     * Bulk read used by the cross-device sync source. Ordered by dayStart so
+     * paginated peers see deterministic ordering.
+     */
+    @Query("SELECT * FROM medication_dose ORDER BY dayStart ASC")
+    suspend fun all(): List<MedicationDoseEntity>
+
+    @Query("SELECT COUNT(*) FROM medication_dose")
+    suspend fun count(): Int
+
+    /** Content-key dedup lookup for cross-device sync apply. */
+    @Query(
+        "SELECT * FROM medication_dose " +
+            "WHERE dayStart = :dayStart AND medicationId = :medicationId AND scheduledHour = :scheduledHour " +
+            "LIMIT 1"
+    )
+    suspend fun findByContent(
+        dayStart: Long,
+        medicationId: String,
+        scheduledHour: Int,
+    ): MedicationDoseEntity?
 }

@@ -64,4 +64,7 @@ object Routes {
     const val COACH_EDIT_MEDICATION_PATTERN = "coach/edit-medication/{medicationId}"
     const val ARG_MEDICATION_ID = "medicationId"
     fun coachEditMedication(id: String) = "coach/edit-medication/$id"
+
+    // Cross-device sync pairing — opened from SettingsScreen's "跨裝置同步" row.
+    const val SYNC_PAIRING = "sync/pairing"
 }

@@ -24,6 +24,8 @@ data class BpReadingEntity(
     val medicationId: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    /** Packed HLC string for cross-device LWW. Lex-sortable; defaults to "0" pre-sync. */
+    val hlcUpdatedAt: String = "0",
 )
 
 @Entity(tableName = "user_profile")
@@ -44,6 +46,8 @@ data class MedicationEntity(
     val dose: String,
     /** [MedicationKind] string discriminator. Default keeps v5 rows classified as drugs. */
     val kind: String = MedicationKind.MEDICATION,
+    /** Packed HLC for cross-device LWW; "0" pre-sync. v7→v8 migration. */
+    val hlcUpdatedAt: String = "0",
 )
 
 object MedicationKind {
@@ -71,6 +75,7 @@ data class MedicationScheduleEntity(
     val hour: Int,
     val minute: Int,
     val enabled: Boolean,
+    val hlcUpdatedAt: String = "0",
 )
 
 @Entity(tableName = "tag")
@@ -99,9 +104,11 @@ data class ExerciseSessionEntity(
     val averagePaceSecPerKm: Double?,
     val source: String,
     val note: String,
+    /** Health Connect record id — platform-local, NOT synced to peers. */
     val hcRecordId: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    val hlcUpdatedAt: String = "0",
 )
 
 @Entity(
@@ -125,4 +132,5 @@ data class RoutePointEntity(
     val horizontalAccuracy: Float,
     val altitude: Double?,
     val speedMps: Float?,
+    val hlcUpdatedAt: String = "0",
 )

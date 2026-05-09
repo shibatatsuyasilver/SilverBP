@@ -26,8 +26,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DietCheckEntity::class,
         MedicationDoseEntity::class,
         MedicationScheduleEntity::class,
+        TombstoneEntity::class,
+        SyncDeviceEntity::class,
+        SyncOutboxEntity::class,
     ],
-    version = 6,
+    version = 11,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -43,6 +46,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun sleepDao(): SleepDao
     abstract fun dietDao(): DietDao
     abstract fun medicationDoseDao(): MedicationDoseDao
+    abstract fun syncDao(): SyncDao
 
     companion object {
         @Volatile private var instance: SilverBpDatabase? = null
@@ -58,6 +62,11 @@ abstract class SilverBpDatabase : RoomDatabase() {
                     MIGRATION_3_4,
                     MIGRATION_4_5,
                     MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                    MIGRATION_9_10,
+                    MIGRATION_10_11,
                 )
                 .build()
                 .also { instance = it }
@@ -355,5 +364,122 @@ internal val MIGRATION_5_6: Migration = object : Migration(5, 6) {
             "CREATE INDEX IF NOT EXISTS `index_medication_schedule_medicationId` " +
                 "ON `medication_schedule` (`medicationId`)"
         )
+    }
+}
+
+/**
+ * v6 → v7: introduce cross-device sync (Phase 1). Adds [hlcUpdatedAt] to
+ * `bp_reading` for LWW conflict resolution and creates the three system tables
+ * required for the Noise XK over mDNS sync engine: `tombstone` (soft-delete
+ * record for any synced entity), `sync_device` (paired peers with their
+ * X25519 long-term pubkeys + HLC watermarks), and `sync_outbox` (CBOR-encoded
+ * SyncRecord payloads queued while peers are offline).
+ *
+ * Subsequent tables (`user_profile`, `medication`, etc.) gain `hlcUpdatedAt`
+ * in Phase 2 once the BP-only MVP has proven the wire path.
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/7.json` after building.
+ */
+internal val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `bp_reading` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'"
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `tombstone` (
+              `entityType` TEXT NOT NULL,
+              `pk` TEXT NOT NULL,
+              `hlc` TEXT NOT NULL,
+              `deletedAt` INTEGER NOT NULL,
+              PRIMARY KEY(`entityType`, `pk`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_tombstone_hlc` ON `tombstone` (`hlc`)"
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `sync_device` (
+              `deviceId` TEXT NOT NULL,
+              `name` TEXT NOT NULL,
+              `pubKey` BLOB NOT NULL,
+              `lastSeenAt` INTEGER NOT NULL,
+              `lastHlcSeen` TEXT NOT NULL,
+              PRIMARY KEY(`deviceId`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `sync_outbox` (
+              `seq` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `payload` BLOB NOT NULL,
+              `createdAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_sync_outbox_createdAt` ON `sync_outbox` (`createdAt`)"
+        )
+    }
+}
+
+/**
+ * v7 → v8: extend cross-device sync (Phase 2). Adds [hlcUpdatedAt] columns
+ * to the entities the user explicitly asked us to sync next: exercise
+ * (`exercise_session`, `route_point`) and medication (`medication`,
+ * `medication_schedule`, `medication_dose`).
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/8.json` after building.
+ */
+internal val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+        db.execSQL("ALTER TABLE `route_point` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+        db.execSQL("ALTER TABLE `medication` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+        db.execSQL("ALTER TABLE `medication_schedule` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+        db.execSQL("ALTER TABLE `medication_dose` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+    }
+}
+
+/**
+ * v8 → v9: extend Phase 2 sync to `daily_step_log` (Insights 步數). Adds
+ * [hlcUpdatedAt] for LWW. SQL must match Room's generated schema byte-for-byte;
+ * see `app/schemas/.../SilverBpDatabase/9.json` after building.
+ */
+internal val MIGRATION_8_9: Migration = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `daily_step_log` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+    }
+}
+
+/**
+ * v9 → v10: extend Phase 2 sync to `achievement` (獎章). Adds [hlcUpdatedAt]
+ * for LWW. Achievement rows are append-only in practice (PK is the medal id),
+ * so we never expect conflicting writes — HLC is here for parity with the
+ * other synced tables and to give the engine a wire-side timestamp.
+ */
+internal val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `achievement` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+    }
+}
+
+/**
+ * v10 → v11: extend Phase 2 sync to the Coach module — `coach_plan`,
+ * `coach_task`, `sleep_log`, `diet_check`. Adds [hlcUpdatedAt] for LWW so
+ * the weekly plan + per-day tasks + sleep + diet records all sync across
+ * paired devices.
+ */
+internal val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `coach_plan` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+        db.execSQL("ALTER TABLE `coach_task` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+        db.execSQL("ALTER TABLE `sleep_log` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+        db.execSQL("ALTER TABLE `diet_check` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
     }
 }

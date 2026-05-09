@@ -56,4 +56,10 @@ interface AchievementDao {
 
     @Query("SELECT * FROM daily_step_log ORDER BY dayStart DESC LIMIT :limit")
     suspend fun recentStepLogs(limit: Int): List<DailyStepLogEntity>
+
+    @Query("SELECT * FROM daily_step_log")
+    suspend fun listAllStepLogs(): List<DailyStepLogEntity>
+
+    @Query("SELECT * FROM daily_step_log WHERE dayStart = :dayStart")
+    suspend fun findStepLog(dayStart: Long): DailyStepLogEntity?
 }

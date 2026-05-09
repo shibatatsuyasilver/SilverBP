@@ -65,6 +65,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":sync"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -100,6 +101,8 @@ dependencies {
     // tasks-vision still pulled in for MPImage / future MLKit rectangle detection
     implementation(libs.mediapipe.tasks.vision)
     implementation(libs.mlkit.objectDetection)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.zxing.core)
     // ML Kit GenAI Prompt API — Gemini Nano via AICore (Pixel 9/10 series).
     // Used by AICoreBpRecognizer; gracefully unavailable on non-Pixel devices.
     implementation(libs.mlkit.genai.prompt)

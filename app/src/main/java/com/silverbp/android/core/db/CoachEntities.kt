@@ -23,6 +23,7 @@ data class CoachPlanEntity(
     val phaseRaw: String,
     /** Goals serialised as JSON so the schema can evolve without migrations. */
     val goalsJson: String,
+    val hlcUpdatedAt: String = "0",
 )
 
 @Entity(
@@ -48,6 +49,7 @@ data class CoachTaskEntity(
     val intensityRaw: String,
     val safetyHold: Boolean,
     val completedAt: Long?,
+    val hlcUpdatedAt: String = "0",
 )
 
 @Entity(tableName = "sleep_log")
@@ -58,6 +60,7 @@ data class SleepLogEntity(
     /** "hc" | "manual" */
     val sourceRaw: String,
     val updatedAt: Long,
+    val hlcUpdatedAt: String = "0",
 )
 
 @Entity(tableName = "diet_check")
@@ -69,6 +72,7 @@ data class DietCheckEntity(
     /** "hc" | "manual" */
     val sourceRaw: String,
     val updatedAt: Long,
+    val hlcUpdatedAt: String = "0",
 )
 
 @Entity(
@@ -82,4 +86,5 @@ data class MedicationDoseEntity(
     val scheduledHour: Int,
     val taken: Boolean,
     val updatedAt: Long,
+    val hlcUpdatedAt: String = "0",
 )

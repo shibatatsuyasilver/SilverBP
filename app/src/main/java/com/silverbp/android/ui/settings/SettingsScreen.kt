@@ -72,6 +72,7 @@ import com.silverbp.android.ui.components.SectionCard
 @Composable
 fun SettingsScreen(
     onClose: () -> Unit = {},
+    onOpenSyncPairing: () -> Unit = {},
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -541,6 +542,21 @@ fun SettingsScreen(
             // Location permission status (Exercise feature)
             SectionCard(stringResource(R.string.exercise_settings_section)) {
                 LocationPermissionRow()
+            }
+
+            // Cross-device sync — opens the QR-pairing flow for adding a paired
+            // iPhone/Android peer over LAN. End-to-end Noise XK + SAS confirm.
+            SectionCard("跨裝置同步") {
+                Button(
+                    onClick = onOpenSyncPairing,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("配對另一台裝置") }
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    "掃描另一台裝置的 QR 碼配對,之後在同 Wi-Fi 下血壓資料會自動同步。" +
+                        "資料端對端加密,雲端永遠看不到內容。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
 
             // About
