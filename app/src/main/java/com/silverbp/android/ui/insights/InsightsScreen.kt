@@ -139,7 +139,10 @@ private fun StatChip(label: String, value: String, modifier: Modifier = Modifier
 @Composable
 private fun ChartCard(title: String, content: @Composable () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Column(Modifier.padding(12.dp)) {
+        Column(
+            Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             content()
         }

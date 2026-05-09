@@ -113,6 +113,7 @@
     <string name="exercise_pause">Pause</string>
     <string name="exercise_resume">Resume</string>
     <string name="exercise_stop">Stop</string>
+    <string name="exercise_recenter">Recenter</string>
     <string name="exercise_save">Save</string>
     <string name="exercise_discard">Discard</string>
     <string name="exercise_distance">Distance</string>

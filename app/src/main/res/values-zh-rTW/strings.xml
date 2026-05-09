@@ -113,6 +113,7 @@
     <string name="exercise_pause">暫停</string>
     <string name="exercise_resume">繼續</string>
     <string name="exercise_stop">停止</string>
+    <string name="exercise_recenter">回到目前位置</string>
     <string name="exercise_save">儲存</string>
     <string name="exercise_discard">捨棄</string>
     <string name="exercise_distance">距離</string>

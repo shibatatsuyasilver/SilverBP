@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -19,12 +20,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +43,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.CameraMoveStartedReason
 import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
@@ -89,6 +95,8 @@ fun ExerciseSessionScreen(
     }
 }
 
+private const val FOLLOW_ZOOM = 17f
+
 @SuppressLint("MissingPermission")
 @Composable
 private fun SessionMap(live: SessionLive, modifier: Modifier = Modifier) {
@@ -97,10 +105,11 @@ private fun SessionMap(live: SessionLive, modifier: Modifier = Modifier) {
     val cameraState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
             pathPoints.firstOrNull() ?: LatLng(25.0330, 121.5654), // Taipei 101 default
-            16f,
+            FOLLOW_ZOOM,
         )
     }
     val liveLatest by rememberUpdatedState(live)
+    var followCamera by rememberSaveable { mutableStateOf(true) }
 
     // Seed the camera with last-known location so the first frame centers on the
     // user instead of the Taipei 101 fallback while waiting for the first GPS sample.
@@ -112,19 +121,27 @@ private fun SessionMap(live: SessionLive, modifier: Modifier = Modifier) {
                 if (loc != null && liveLatest.routePoints.isEmpty()) {
                     cameraState.position = CameraPosition.fromLatLngZoom(
                         LatLng(loc.latitude, loc.longitude),
-                        16f,
+                        FOLLOW_ZOOM,
                     )
                 }
             }
     }
 
-    LaunchedEffect(pathPoints.size, live.runState) {
-        if (live.runState != RunState.Running) return@LaunchedEffect
+    LaunchedEffect(pathPoints.size, followCamera) {
+        if (!followCamera) return@LaunchedEffect
         val last = pathPoints.lastOrNull() ?: return@LaunchedEffect
         cameraState.animate(
-            CameraUpdateFactory.newLatLngZoom(last, cameraState.position.zoom),
+            CameraUpdateFactory.newLatLngZoom(last, FOLLOW_ZOOM),
             durationMs = 600,
         )
+    }
+
+    LaunchedEffect(cameraState.isMoving) {
+        if (cameraState.isMoving &&
+            cameraState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE
+        ) {
+            followCamera = false
+        }
     }
 
     Box(modifier) {
@@ -151,6 +168,19 @@ private fun SessionMap(live: SessionLive, modifier: Modifier = Modifier) {
             }
             pathPoints.lastOrNull()?.let { current ->
                 Marker(state = MarkerState(position = current), title = "Now")
+            }
+        }
+        if (!followCamera) {
+            SmallFloatingActionButton(
+                onClick = { followCamera = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+            ) {
+                Icon(
+                    Icons.Filled.MyLocation,
+                    contentDescription = stringResource(R.string.exercise_recenter),
+                )
             }
         }
     }
