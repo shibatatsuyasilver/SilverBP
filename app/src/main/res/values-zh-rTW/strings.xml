@@ -246,7 +246,41 @@
     <string name="coach_log_sleep_duration">睡眠時間 (小時)</string>
     <string name="coach_log_medication_taken">已服用</string>
     <string name="coach_log_medication_skipped">略過</string>
-    <string name="coach_log_medication_empty">尚未建立藥物清單,請先在個人資料新增藥品才能追蹤服藥率。</string>
+    <string name="coach_log_medication_empty">尚未建立藥物清單,點擊「管理」即可新增藥物或保健食品並設定提醒。</string>
+
+    <!-- 藥物與保健食品管理 -->
+    <string name="medication_manage_title">藥物管理</string>
+    <string name="medication_manage_action">管理</string>
+    <string name="medication_kind_medication">藥物</string>
+    <string name="medication_kind_supplement">保健食品</string>
+    <string name="medication_add">新增藥物</string>
+    <string name="medication_edit_title">編輯藥物</string>
+    <string name="medication_edit_title_new">新增藥物</string>
+    <string name="medication_name">名稱</string>
+    <string name="medication_dose_optional">劑量(選填)</string>
+    <string name="medication_kind">類型</string>
+    <string name="medication_schedules">服用時間</string>
+    <string name="medication_add_schedule">新增服用時間</string>
+    <string name="medication_no_schedules">尚未設定服用時間,新增一筆即可啟用提醒。</string>
+    <string name="medication_section_medications">藥物</string>
+    <string name="medication_section_supplements">保健食品</string>
+    <string name="medication_delete_confirm_title">刪除此項目?</string>
+    <string name="medication_delete_confirm_msg">提醒將停止,既有服藥紀錄會保留。</string>
+    <string name="medication_save">儲存</string>
+    <string name="medication_enabled">啟用</string>
+    <string name="medication_remove_schedule">移除此排程</string>
+    <string name="medication_summary_no_days">未選擇日期</string>
+    <string name="medication_manage_empty">尚未建立任何藥物或保健食品。</string>
+
+    <string name="medication_log_no_today_doses">今日無預定服藥時段。</string>
+    <string name="medication_action_taken">標記已服用</string>
+
+    <!-- 服藥提醒通知 -->
+    <string name="medication_reminder_channel_name">服藥提醒</string>
+    <string name="medication_reminder_channel_desc">依設定時間提醒您服用所儲存的藥物或保健食品。</string>
+    <string name="medication_reminder_notification_title">該服用 %1$s 了</string>
+    <string name="medication_reminder_notification_body">預定時間 %1$s。點擊以記錄。</string>
+    <string name="medication_reminder_notification_body_with_dose">%1$s 預定時間 %2$s。點擊以記錄。</string>
 
     <!-- Coach notification channels -->
     <string name="coach_channel_daily">教練每日提醒</string>

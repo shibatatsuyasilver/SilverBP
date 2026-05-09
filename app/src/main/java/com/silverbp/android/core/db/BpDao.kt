@@ -48,11 +48,50 @@ interface MedicationDao {
     @Query("SELECT * FROM medication ORDER BY name ASC")
     fun observeAll(): Flow<List<MedicationEntity>>
 
+    @Query("SELECT * FROM medication WHERE kind = :kind ORDER BY name ASC")
+    fun observeByKind(kind: String): Flow<List<MedicationEntity>>
+
+    @Query("SELECT * FROM medication WHERE id = :id LIMIT 1")
+    suspend fun findById(id: String): MedicationEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(m: MedicationEntity)
 
     @Query("DELETE FROM medication WHERE id = :id")
     suspend fun delete(id: String)
+}
+
+@Dao
+interface MedicationScheduleDao {
+    @Query("SELECT * FROM medication_schedule ORDER BY medicationId, hour, minute")
+    fun observeAll(): Flow<List<MedicationScheduleEntity>>
+
+    @Query("SELECT * FROM medication_schedule WHERE medicationId = :medicationId ORDER BY hour, minute")
+    fun observeForMedication(medicationId: String): Flow<List<MedicationScheduleEntity>>
+
+    @Query("SELECT * FROM medication_schedule ORDER BY medicationId, hour, minute")
+    suspend fun all(): List<MedicationScheduleEntity>
+
+    @Query("SELECT * FROM medication_schedule WHERE enabled = 1 ORDER BY medicationId, hour, minute")
+    suspend fun allEnabled(): List<MedicationScheduleEntity>
+
+    @Query("SELECT * FROM medication_schedule WHERE medicationId = :medicationId ORDER BY hour, minute")
+    suspend fun forMedication(medicationId: String): List<MedicationScheduleEntity>
+
+    @Query("SELECT * FROM medication_schedule WHERE id = :id LIMIT 1")
+    suspend fun findById(id: String): MedicationScheduleEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(s: MedicationScheduleEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(list: List<MedicationScheduleEntity>)
+
+    @Query("DELETE FROM medication_schedule WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query("DELETE FROM medication_schedule WHERE medicationId = :medicationId")
+    suspend fun deleteForMedication(medicationId: String)
 }
 
 @Dao

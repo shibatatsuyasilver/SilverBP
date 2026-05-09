@@ -35,6 +35,8 @@ import com.silverbp.android.ui.coach.CoachLogMedicationScreen
 import com.silverbp.android.ui.coach.CoachLogSleepScreen
 import com.silverbp.android.ui.coach.CoachScreen
 import com.silverbp.android.ui.coach.CoachWeeklyReportScreen
+import com.silverbp.android.ui.coach.MedicationEditScreen
+import com.silverbp.android.ui.coach.MedicationManageScreen
 import com.silverbp.android.ui.confirm.ConfirmReadingScreen
 import com.silverbp.android.ui.exercise.ExerciseDetailScreen
 import com.silverbp.android.ui.exercise.ExerciseHomeScreen
@@ -142,7 +144,35 @@ fun AppNavHost() {
             CoachLogSleepScreen(onClose = { rootNav.popBackStack() })
         }
         composable(Routes.COACH_LOG_MEDICATION) {
-            CoachLogMedicationScreen(onClose = { rootNav.popBackStack() })
+            CoachLogMedicationScreen(
+                onClose = { rootNav.popBackStack() },
+                onManage = { rootNav.navigate(Routes.COACH_MANAGE_MEDICATIONS) },
+            )
+        }
+        composable(Routes.COACH_MANAGE_MEDICATIONS) {
+            MedicationManageScreen(
+                onClose = { rootNav.popBackStack() },
+                onAddNew = { rootNav.navigate(Routes.COACH_EDIT_MEDICATION_NEW) },
+                onEdit = { id -> rootNav.navigate(Routes.coachEditMedication(id)) },
+            )
+        }
+        composable(Routes.COACH_EDIT_MEDICATION_NEW) {
+            MedicationEditScreen(
+                medicationId = null,
+                onSaved = { rootNav.popBackStack() },
+                onCancel = { rootNav.popBackStack() },
+            )
+        }
+        composable(
+            Routes.COACH_EDIT_MEDICATION_PATTERN,
+            arguments = listOf(navArgument(Routes.ARG_MEDICATION_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString(Routes.ARG_MEDICATION_ID)
+            MedicationEditScreen(
+                medicationId = id,
+                onSaved = { rootNav.popBackStack() },
+                onCancel = { rootNav.popBackStack() },
+            )
         }
     }
 }

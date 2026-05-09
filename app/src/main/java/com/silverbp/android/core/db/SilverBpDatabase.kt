@@ -25,14 +25,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SleepLogEntity::class,
         DietCheckEntity::class,
         MedicationDoseEntity::class,
+        MedicationScheduleEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun bpDao(): BpDao
     abstract fun userProfileDao(): UserProfileDao
     abstract fun medicationDao(): MedicationDao
+    abstract fun medicationScheduleDao(): MedicationScheduleDao
     abstract fun tagDao(): TagDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun achievementDao(): AchievementDao
@@ -50,7 +52,13 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 SilverBpDatabase::class.java,
                 "silverbp.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                )
                 .build()
                 .also { instance = it }
         }
@@ -310,6 +318,42 @@ internal val MIGRATION_4_5: Migration = object : Migration(4, 5) {
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS `index_medication_dose_medicationId` " +
                 "ON `medication_dose` (`medicationId`)"
+        )
+    }
+}
+
+/**
+ * v5 → v6: medication / supplement management & per-time-of-day reminders.
+ * Adds `kind` to `medication` (default 'medication' so existing rows preserve
+ * behavior) and creates `medication_schedule` for the day-of-week × time
+ * regimen rows that drive [MedicationReminderScheduler].
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/6.json` after building.
+ */
+internal val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `medication` ADD COLUMN `kind` TEXT NOT NULL DEFAULT 'medication'"
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_schedule` (
+              `id` TEXT NOT NULL,
+              `medicationId` TEXT NOT NULL,
+              `daysOfWeekMask` INTEGER NOT NULL,
+              `hour` INTEGER NOT NULL,
+              `minute` INTEGER NOT NULL,
+              `enabled` INTEGER NOT NULL,
+              PRIMARY KEY(`id`),
+              FOREIGN KEY(`medicationId`) REFERENCES `medication`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_schedule_medicationId` " +
+                "ON `medication_schedule` (`medicationId`)"
         )
     }
 }

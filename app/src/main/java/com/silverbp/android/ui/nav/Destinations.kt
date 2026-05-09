@@ -57,4 +57,11 @@ object Routes {
     const val COACH_LOG_DIET = "coach/log-diet"
     const val COACH_LOG_SLEEP = "coach/log-sleep"
     const val COACH_LOG_MEDICATION = "coach/log-medication"
+
+    // Medication management — opened from CoachLogMedicationScreen.
+    const val COACH_MANAGE_MEDICATIONS = "coach/manage-medications"
+    const val COACH_EDIT_MEDICATION_NEW = "coach/edit-medication/new"
+    const val COACH_EDIT_MEDICATION_PATTERN = "coach/edit-medication/{medicationId}"
+    const val ARG_MEDICATION_ID = "medicationId"
+    fun coachEditMedication(id: String) = "coach/edit-medication/$id"
 }

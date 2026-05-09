@@ -64,6 +64,13 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Handles the "Mark as taken" action button on the medication
+             reminder notification — fires synchronously, writes a dose row,
+             and dismisses the notification without opening the app. -->
+        <receiver
+            android:name=".coach.MedicationActionReceiver"
+            android:exported="false" />
+
         <!-- Health Connect rationale screen. HC's PermissionsActivity refuses
              to show the permission UI unless the requesting app declares a
              handler for these intents (modern action on Android 14+, legacy

@@ -5,6 +5,7 @@ import com.silverbp.android.achievements.MedalNotifier
 import com.silverbp.android.achievements.StepSyncScheduler
 import com.silverbp.android.coach.CoachNotifier
 import com.silverbp.android.coach.CoachReminderScheduler
+import com.silverbp.android.coach.MedicationReminderScheduler
 import com.silverbp.android.coach.NutritionBackfillWorker
 import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.di.ServiceLocator
@@ -54,8 +55,10 @@ class SilverBpApplication : Application() {
         val s = runCatching { ServiceLocator.userSettings.flow.first() }.getOrNull() ?: return
         if (s.enableCoach) {
             CoachReminderScheduler.scheduleAll(this)
+            MedicationReminderScheduler.scheduleAll(this)
         } else {
             CoachReminderScheduler.cancelAll(this)
+            MedicationReminderScheduler.cancelAllSuspend(this)
         }
         // Best-effort backfill on every cold start when opted-in. Workers
         // self-no-op when permissions are revoked, so an unconditional kick

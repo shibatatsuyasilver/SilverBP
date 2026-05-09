@@ -42,6 +42,35 @@ data class MedicationEntity(
     @PrimaryKey val id: String,
     val name: String,
     val dose: String,
+    /** [MedicationKind] string discriminator. Default keeps v5 rows classified as drugs. */
+    val kind: String = MedicationKind.MEDICATION,
+)
+
+object MedicationKind {
+    const val MEDICATION = "medication"
+    const val SUPPLEMENT = "supplement"
+}
+
+@Entity(
+    tableName = "medication_schedule",
+    foreignKeys = [
+        ForeignKey(
+            entity = MedicationEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["medicationId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("medicationId")],
+)
+data class MedicationScheduleEntity(
+    @PrimaryKey val id: String,
+    val medicationId: String,
+    /** 7-bit ISO mask: bit (DayOfWeek.value - 1). bit0=Mon … bit6=Sun. */
+    val daysOfWeekMask: Int,
+    val hour: Int,
+    val minute: Int,
+    val enabled: Boolean,
 )
 
 @Entity(tableName = "tag")

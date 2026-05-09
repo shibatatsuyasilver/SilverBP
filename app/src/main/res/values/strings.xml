@@ -246,7 +246,41 @@
     <string name="coach_log_sleep_duration">Sleep duration (hours)</string>
     <string name="coach_log_medication_taken">Taken</string>
     <string name="coach_log_medication_skipped">Skipped</string>
-    <string name="coach_log_medication_empty">No medications saved yet. Add them under your profile to enable adherence tracking.</string>
+    <string name="coach_log_medication_empty">No medications saved yet. Tap Manage to add medications and supplements with reminder schedules.</string>
+
+    <!-- Medication management -->
+    <string name="medication_manage_title">Manage medications</string>
+    <string name="medication_manage_action">Manage</string>
+    <string name="medication_kind_medication">Medication</string>
+    <string name="medication_kind_supplement">Supplement</string>
+    <string name="medication_add">Add medication</string>
+    <string name="medication_edit_title">Edit medication</string>
+    <string name="medication_edit_title_new">New medication</string>
+    <string name="medication_name">Name</string>
+    <string name="medication_dose_optional">Dose (optional)</string>
+    <string name="medication_kind">Type</string>
+    <string name="medication_schedules">Schedules</string>
+    <string name="medication_add_schedule">Add schedule</string>
+    <string name="medication_no_schedules">No schedules — add one to enable reminders.</string>
+    <string name="medication_section_medications">Medications</string>
+    <string name="medication_section_supplements">Supplements</string>
+    <string name="medication_delete_confirm_title">Delete this item?</string>
+    <string name="medication_delete_confirm_msg">Reminders will stop. Past adherence history is preserved.</string>
+    <string name="medication_save">Save</string>
+    <string name="medication_enabled">Enabled</string>
+    <string name="medication_remove_schedule">Remove schedule</string>
+    <string name="medication_summary_no_days">No days selected</string>
+    <string name="medication_manage_empty">No medications or supplements yet.</string>
+
+    <string name="medication_log_no_today_doses">No doses scheduled for today.</string>
+    <string name="medication_action_taken">Mark as taken</string>
+
+    <!-- Medication reminder notifications -->
+    <string name="medication_reminder_channel_name">Medication reminders</string>
+    <string name="medication_reminder_channel_desc">Time-of-day reminders for your saved medications and supplements.</string>
+    <string name="medication_reminder_notification_title">Time to take %1$s</string>
+    <string name="medication_reminder_notification_body">Scheduled for %1$s. Tap to log it.</string>
+    <string name="medication_reminder_notification_body_with_dose">%1$s scheduled for %2$s. Tap to log it.</string>
 
     <!-- Coach notification channels -->
     <string name="coach_channel_daily">Coach daily reminders</string>
