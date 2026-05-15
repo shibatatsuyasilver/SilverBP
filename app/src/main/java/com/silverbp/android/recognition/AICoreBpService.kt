@@ -188,6 +188,9 @@ object AICoreBpService {
 
     fun isLoaded(): Boolean = client != null && warmed
 
+    /** Exposes the warmed model for AICoreChatService. Read-only; never close from outside. */
+    fun modelForChat(): GenerativeModel? = if (warmed) client else null
+
     private fun ensureClient(): GenerativeModel {
         val existing = client
         if (existing != null) return existing

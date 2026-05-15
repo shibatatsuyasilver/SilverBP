@@ -167,4 +167,7 @@ object GemmaBpService {
     }
 
     fun isLoaded(): Boolean = engine != null
+
+    /** Exposes the engine for GemmaChatService. Read-only; never close from outside. */
+    fun engineForChat(): Engine? = engine
 }

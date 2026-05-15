@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.silverbp.android.ui.capture.CaptureScreen
+import com.silverbp.android.ui.chat.ChatScreen
 import com.silverbp.android.ui.confirm.ConfirmReadingScreen
 import com.silverbp.android.ui.history.HistoryScreen
 import com.silverbp.android.ui.insights.InsightsScreen
@@ -104,5 +105,6 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
     }
     composable(TabDestination.Insights.route) { InsightsScreen() }
     composable(TabDestination.Report.route) { ReportScreen() }
+    composable(TabDestination.Chat.route) { ChatScreen() }
     composable(TabDestination.Settings.route) { SettingsScreen() }
 }
