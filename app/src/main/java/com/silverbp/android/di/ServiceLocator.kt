@@ -1,6 +1,7 @@
 package com.silverbp.android.di
 
 import android.content.Context
+import com.silverbp.android.chat.ChatRepository
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.db.SilverBpDatabase
 import com.silverbp.android.recognition.ModelLoadStatus
@@ -24,6 +25,8 @@ object ServiceLocator {
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 
     val bpRepository: BpRepository by lazy { BpRepository(database.bpDao()) }
+
+    val chatRepository: ChatRepository by lazy { ChatRepository(database.chatDao()) }
 
     val userSettings: UserSettingsRepository by lazy { UserSettingsRepository(context) }
 
