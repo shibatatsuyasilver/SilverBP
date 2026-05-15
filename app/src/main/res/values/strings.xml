@@ -6,6 +6,7 @@
     <string name="tab_history">History</string>
     <string name="tab_insights">Insights</string>
     <string name="tab_report">Report</string>
+    <string name="tab_chat">Chat</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Today -->
