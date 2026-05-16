@@ -40,24 +40,27 @@ class DbKeyStore(
     /** True once the on-disk `silverbp.db` is SQLCipher-encrypted. */
     fun isDbEncrypted(): Boolean = prefs.getBoolean(KEY_ENCRYPTED, false)
 
-    /** The stored passphrase, or null if encryption was never enabled. */
-    fun passphraseOrNull(): ByteArray? {
-        val s = prefs.getString(KEY_PASSPHRASE, null) ?: return null
-        return runCatching { Base64.getDecoder().decode(s) }.getOrNull()
-    }
+    /**
+     * The stored passphrase, or null if encryption was never enabled.
+     *
+     * Canonical form is the **Base64 string** of 32 random bytes — not the raw
+     * bytes — so the exact same characters feed SQLCipher's KDF in both places
+     * it matters: Room's `SupportOpenHelperFactory(byte[])` and the migration's
+     * `ATTACH DATABASE ... KEY '<passphrase>'`. Base64's alphabet is SQL-safe
+     * (no quotes), and an ASCII string round-trips identically through both.
+     */
+    fun passphraseOrNull(): String? = prefs.getString(KEY_PASSPHRASE, null)
 
     /**
-     * Returns the existing passphrase, creating + persisting a fresh 32-byte
-     * random one on first call. Each call returns a defensive copy because
-     * SQLCipher's `SupportOpenHelperFactory` zeroes the array it is handed.
+     * Returns the existing passphrase, creating + persisting a fresh one
+     * (Base64 of 32 CSPRNG bytes) on first call.
      */
-    fun getOrCreatePassphrase(): ByteArray {
-        passphraseOrNull()?.let { return it.copyOf() }
+    fun getOrCreatePassphrase(): String {
+        passphraseOrNull()?.let { return it }
         val bytes = ByteArray(PASSPHRASE_BYTES).also { random.nextBytes(it) }
-        prefs.edit()
-            .putString(KEY_PASSPHRASE, Base64.getEncoder().encodeToString(bytes))
-            .apply()
-        return bytes.copyOf()
+        val b64 = Base64.getEncoder().encodeToString(bytes)
+        prefs.edit().putString(KEY_PASSPHRASE, b64).apply()
+        return b64
     }
 
     /**

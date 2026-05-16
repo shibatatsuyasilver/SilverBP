@@ -96,7 +96,9 @@ abstract class SilverBpDatabase : RoomDatabase() {
             if (keyStore.isDbEncrypted()) {
                 System.loadLibrary("sqlcipher")
                 builder.openHelperFactory(
-                    SupportOpenHelperFactory(keyStore.getOrCreatePassphrase()),
+                    SupportOpenHelperFactory(
+                        keyStore.getOrCreatePassphrase().toByteArray(Charsets.US_ASCII),
+                    ),
                 )
             }
 
