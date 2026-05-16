@@ -18,16 +18,13 @@ private const val TAG = "GemmaChatService"
  * Chat counterpart to [GemmaBpService]. Reuses the warm LiteRT-LM engine via
  * [GemmaBpService.engineOrNull] so we don't load the model twice.
  *
- * LiteRT-LM does not expose a token-streaming API in the version used here
- * (the existing [GemmaBpService.extract] takes the full response from
- * `Conversation.sendMessage`), so this service emits a single chunk with the
- * full assistant reply. The interface ([ChatRecognizer.chat]) is a Flow so we
- * can swap in streaming later without touching call sites.
+ * Streams via `Conversation.sendMessageAsync(...): Flow<Message>` and re-emits
+ * deltas through [ChatRecognizer.chat] so the UI can render token-by-token.
  *
  * Multi-turn: each call creates a fresh Conversation and feeds it the full
  * transcript flattened into one prompt, since per-Conversation state doesn't
  * survive across calls. This matches how [GemmaBpService.extract] uses the
- * engine (line 169-177) and keeps inference deterministic.
+ * engine and keeps inference deterministic.
  */
 object GemmaChatService {
 
@@ -51,18 +48,36 @@ object GemmaChatService {
                     latestImage?.let { add(Content.ImageFile(it)) }
                     add(Content.Text(flattened))
                 }
-                val response = conversation.sendMessage(Contents.of(*parts.toTypedArray()))
-                val raw = response.toString()
+                val acc = StringBuilder()
+                var chunks = 0
+                conversation.sendMessageAsync(Contents.of(*parts.toTypedArray()))
+                    .collect { msg ->
+                        val text = msg.toString()
+                        if (text.isEmpty()) return@collect
+                        val delta = computeDelta(acc.toString(), text)
+                        if (delta.isNotEmpty()) {
+                            acc.append(delta)
+                            chunks++
+                            emit(delta)
+                        }
+                    }
                 val elapsed = SystemClock.elapsedRealtime() - tStart
                 android.util.Log.i(
                     TAG,
                     "[Chat] turns=${messages.size} hasImage=${latestImage != null} " +
-                        "respChars=${raw.length} elapsedMs=$elapsed",
+                        "respChars=${acc.length} chunks=$chunks elapsedMs=$elapsed",
                 )
-                emit(raw)
             }
         }
     }.flowOn(Dispatchers.Default)
+
+    /** If [next] starts with what we've accumulated, treat as cumulative; otherwise it's a delta. */
+    private fun computeDelta(accumulated: String, next: String): String =
+        if (accumulated.isNotEmpty() && next.startsWith(accumulated)) {
+            next.substring(accumulated.length)
+        } else {
+            next
+        }
 
     /**
      * Flatten the transcript into a single text prompt that respects roles.
