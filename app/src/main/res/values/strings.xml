@@ -319,6 +319,37 @@
     <string name="coach_notif_alert_title_critical">Very high readings — please slow down</string>
     <string name="coach_notif_alert_body">Three or more elevated readings in 24 h. Take a moment to breathe slowly and sit upright.</string>
 
+    <!-- Onboarding (first-launch nickname capture) -->
+    <string name="onboarding_nickname_title">How would you like the coach to address you?</string>
+    <string name="onboarding_nickname_subtitle">You can change this later in Settings. Leave it blank if you\'d rather not be addressed by name.</string>
+    <string name="onboarding_nickname_hint">e.g. Grandpa, Mr. Wang, Alex, you</string>
+    <string name="onboarding_nickname_footnote">Used in coach feedback only. Stays on your device.</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_done">Done</string>
+    <string name="onboarding_continue">Continue</string>
+
+    <!-- Onboarding step 0 — welcome + medical disclaimer + privacy consent -->
+    <string name="onboarding_welcome_title">Welcome to SilverBP</string>
+    <string name="onboarding_welcome_body">SilverBP keeps your blood-pressure readings, exercise sessions, and coach feedback on your device. No account, no cloud upload of your health data.</string>
+    <string name="onboarding_privacy_link">Read the privacy policy</string>
+    <string name="onboarding_accept">I have read and agree to the privacy policy.</string>
+
+    <!-- Onboarding step 1 — notification permission -->
+    <string name="onboarding_notifications_title">Stay on track with reminders</string>
+    <string name="onboarding_notifications_body">Allow notifications so SilverBP can send daily coach prompts, medication reminders, and high-reading alerts. You can change this later in system settings.</string>
+    <string name="onboarding_notifications_grant">Allow notifications</string>
+    <string name="onboarding_notifications_skip">Not now</string>
+
+    <!-- Settings personalization section -->
+    <string name="settings_personalization_section">Personalization</string>
+    <string name="settings_user_nickname_label">How the coach addresses you</string>
+    <string name="settings_user_nickname_placeholder">Leave blank to disable</string>
+    <string name="settings_user_nickname_help">Used in daily, weekly, and anomaly coach feedback as well as today\'s task headline.</string>
+
+    <!-- Settings — privacy policy actions -->
+    <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="settings_review_consent">Review consent</string>
+
     <!-- Settings — recognition backend selector -->
     <string name="settings_recognition_section">Recognition engine</string>
     <string name="settings_backend_local_title">Local model (LiteRT-LM)</string>

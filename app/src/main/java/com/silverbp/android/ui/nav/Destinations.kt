@@ -67,4 +67,9 @@ object Routes {
 
     // Cross-device sync pairing — opened from SettingsScreen's "跨裝置同步" row.
     const val SYNC_PAIRING = "sync/pairing"
+
+    // First-launch nickname capture. Routed from AppNavHost when
+    // UserSettings.didOnboard is false; clears itself from the back stack on
+    // completion so users cannot navigate back into it.
+    const val ONBOARDING = "onboarding"
 }

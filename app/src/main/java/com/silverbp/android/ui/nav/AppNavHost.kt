@@ -27,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.ui.achievements.MedalsScreen
 import com.silverbp.android.ui.capture.CaptureScreen
 import com.silverbp.android.ui.chat.ChatScreen
@@ -44,6 +45,7 @@ import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
 import com.silverbp.android.ui.history.HistoryScreen
 import com.silverbp.android.ui.insights.InsightsScreen
+import com.silverbp.android.ui.onboarding.OnboardingNicknameScreen
 import com.silverbp.android.ui.report.ReportScreen
 import com.silverbp.android.ui.settings.SettingsScreen
 import com.silverbp.android.ui.today.TodayScreen
@@ -51,6 +53,24 @@ import com.silverbp.android.ui.today.TodayScreen
 @Composable
 fun AppNavHost() {
     val rootNav = rememberNavController()
+    val rootSettings by ServiceLocator.userSettings.flow.collectAsStateWithLifecycle(initialValue = null)
+
+    // First-launch gate: when DataStore reports didOnboard == false OR the user
+    // hasn't accepted the current privacy policy version, push the onboarding
+    // screen on top of HOME and clear HOME so back-press exits the app instead
+    // of revealing an un-onboarded HOME. Once both flags are satisfied,
+    // nothing happens here on re-launch.
+    val needsOnboarding: Boolean? = rootSettings?.let {
+        !it.didOnboard || it.acceptedPolicyVersion < CURRENT_PRIVACY_POLICY_VERSION
+    }
+    LaunchedEffect(needsOnboarding) {
+        if (needsOnboarding == true) {
+            rootNav.navigate(Routes.ONBOARDING) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     // Notification tap → navigate root-level sub-routes here; tab routes are
     // handled inside HomeWithTabs (inner nav). DeepLinkBus is a SharedFlow so
@@ -73,6 +93,16 @@ fun AppNavHost() {
 
     NavHost(navController = rootNav, startDestination = Routes.HOME) {
         composable(Routes.HOME) { HomeWithTabs(rootNav) }
+        composable(Routes.ONBOARDING) {
+            OnboardingNicknameScreen(
+                onCompleted = {
+                    rootNav.navigate(Routes.HOME) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
         composable(Routes.CAPTURE) {
             CaptureScreen(
                 onCaptured = { readingId -> rootNav.navigate(Routes.confirmEdit(readingId)) },

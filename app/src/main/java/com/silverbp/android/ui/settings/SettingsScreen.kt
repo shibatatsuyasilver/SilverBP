@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
@@ -130,6 +131,28 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // Personalization — coach nickname (mirrors onboarding capture).
+            SectionCard(stringResource(R.string.settings_personalization_section)) {
+                Text(
+                    stringResource(R.string.settings_user_nickname_label),
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.size(4.dp))
+                OutlinedTextField(
+                    value = state.userNickname,
+                    onValueChange = { vm.setUserNickname(it) },
+                    placeholder = {
+                        Text(stringResource(R.string.settings_user_nickname_placeholder))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                Text(
+                    stringResource(R.string.settings_user_nickname_help),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
             // Hypertension guideline
             SectionCard(stringResource(R.string.guideline_section)) {
                 HypertensionGuideline.entries.forEach { g ->
@@ -488,6 +511,105 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (state.enableCoach) {
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    SleepTrackingRow(
+                        enabled = state.sleepTrackingEnabled,
+                        onEnable = { vm.onSleepGrantResult(it) },
+                        onDisable = vm::disableSleepTracking,
+                    )
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    DietTrackingRow(
+                        enabled = state.dietTrackingEnabled,
+                        onEnable = { vm.onDietGrantResult(it) },
+                        onDisable = vm::disableDietTracking,
+                    )
+                }
+            }
+
+            // Integrations
+            SectionCard(stringResource(R.string.integration_section)) {
+                ToggleRow(
+                    label = stringResource(R.string.health_connect),
+                    checked = state.enableHealthConnect,
+                    onChange = { newValue ->
+                        if (newValue) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                hcModernLauncher.launch(hcReadPerms.toTypedArray())
+                            } else {
+                                hcLegacyLauncher.launch(hcReadPerms)
+                            }
+                        } else vm.disableHealthConnect()
+                    },
+                )
+                HorizontalDivider()
+                ToggleRow(
+                    label = stringResource(R.string.cloud_sync) + "  " + stringResource(R.string.cloud_sync_unavailable),
+                    checked = state.enableCloudSync,
+                    onChange = vm::setCloudSync,
+                    enabled = false,
+                )
+            }
+
+            // Daily step goal + medal notifications
+            SectionCard(stringResource(R.string.medal_settings_section)) {
+                StepGoalRow(
+                    goal = state.dailyStepGoal,
+                    onChange = vm::setDailyStepGoal,
+                )
+                HorizontalDivider()
+                ToggleRow(
+                    label = stringResource(R.string.medal_settings_notify),
+                    checked = state.notifyOnMedalUnlock,
+                    onChange = vm::setNotifyOnMedalUnlock,
+                )
+                NotificationPermissionHint()
+            }
+
+            // Location permission status (Exercise feature)
+            SectionCard(stringResource(R.string.exercise_settings_section)) {
+                LocationPermissionRow()
+            }
+
+            // Cross-device sync — opens the QR-pairing flow for adding a paired
+            // iPhone/Android peer over LAN. End-to-end Noise XK + SAS confirm.
+            SectionCard(stringResource(R.string.settings_sync_section)) {
+                Button(
+                    onClick = onOpenSyncPairing,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.settings_sync_pair_button)) }
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    stringResource(R.string.settings_sync_pair_help),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            // About
+            SectionCard(stringResource(R.string.about_section)) {
+                Text(stringResource(R.string.about_model), style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.size(6.dp))
+                Text(stringResource(R.string.not_medical_device), style = MaterialTheme.typography.bodySmall)
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(BuildConfig.PRIVACY_POLICY_URL),
+                            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                            context.startActivity(intent)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_privacy_policy))
+                }
+                TextButton(
+                    onClick = { vm.reviewConsent() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_review_consent))
+                }
             }
         }
     }

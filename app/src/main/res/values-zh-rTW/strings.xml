@@ -319,6 +319,37 @@
     <string name="coach_notif_alert_title_critical">讀數偏高,請放慢步調</string>
     <string name="coach_notif_alert_body">24 小時內 3 次以上偏高讀數,請坐下深呼吸,稍後再量。</string>
 
+    <!-- 首次啟動引導(設定教練稱呼) -->
+    <string name="onboarding_nickname_title">想讓教練怎麼稱呼您？</string>
+    <string name="onboarding_nickname_subtitle">之後可以在設定中修改。留空則教練不會稱呼您。</string>
+    <string name="onboarding_nickname_hint">例:阿公、王先生、小明、你</string>
+    <string name="onboarding_nickname_footnote">僅用於教練回饋。稱呼只儲存在這台裝置。</string>
+    <string name="onboarding_skip">略過</string>
+    <string name="onboarding_done">完成</string>
+    <string name="onboarding_continue">繼續</string>
+
+    <!-- 引導 step 0 — 歡迎 + 醫療免責聲明 + 隱私同意 -->
+    <string name="onboarding_welcome_title">歡迎使用 SilverBP</string>
+    <string name="onboarding_welcome_body">SilverBP 將您的血壓紀錄、運動 session 與教練回饋全部留在這台裝置。不需要帳號,健康資料也不會上傳雲端。</string>
+    <string name="onboarding_privacy_link">查看隱私政策</string>
+    <string name="onboarding_accept">我已閱讀並同意上述隱私政策。</string>
+
+    <!-- 引導 step 1 — 通知權限 -->
+    <string name="onboarding_notifications_title">開啟通知,讓提醒不漏接</string>
+    <string name="onboarding_notifications_body">開啟通知後,SilverBP 才能傳送每日教練任務、服藥提醒以及偏高讀數的警示。日後可以隨時在系統設定中關閉。</string>
+    <string name="onboarding_notifications_grant">允許通知</string>
+    <string name="onboarding_notifications_skip">暫時不要</string>
+
+    <!-- 設定頁:個人化區塊 -->
+    <string name="settings_personalization_section">個人化</string>
+    <string name="settings_user_nickname_label">教練如何稱呼您</string>
+    <string name="settings_user_nickname_placeholder">留空則不稱呼</string>
+    <string name="settings_user_nickname_help">套用於每日教練回饋、週報、異常提醒以及今日任務標題。</string>
+
+    <!-- 設定頁:隱私政策操作 -->
+    <string name="settings_privacy_policy">隱私政策</string>
+    <string name="settings_review_consent">重新檢視同意條款</string>
+
     <!-- 設定頁:辨識引擎選擇 -->
     <string name="settings_recognition_section">辨識引擎</string>
     <string name="settings_backend_local_title">本機模型 (LiteRT-LM)</string>

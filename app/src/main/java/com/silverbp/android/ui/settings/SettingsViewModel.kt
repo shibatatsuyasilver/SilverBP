@@ -100,6 +100,9 @@ class SettingsViewModel(
     fun setChatPersona(v: String) {
         viewModelScope.launch { repo.setChatPersona(v) }
     }
+    fun setUserNickname(v: String) {
+        viewModelScope.launch { repo.setUserNickname(v) }
+    }
     fun setChatIncludeRecordsContext(v: Boolean) {
         viewModelScope.launch { repo.setChatIncludeRecordsContext(v) }
     }
@@ -156,5 +159,15 @@ class SettingsViewModel(
 
     fun disableDietTracking() {
         viewModelScope.launch { repo.setDietTrackingEnabled(false) }
+    }
+
+    /**
+     * Reset the privacy-policy acceptance to 0 so the AppNavHost gate sends the
+     * user back to the consent step on next nav recomposition. didOnboard
+     * stays true so we don't lose the user's nickname / settings — the
+     * onboarding screen pre-fills them.
+     */
+    fun reviewConsent() {
+        viewModelScope.launch { repo.setAcceptedPolicyVersion(0) }
     }
 }

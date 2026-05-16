@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SilverBP — Privacy Policy</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #fafafa;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { color: #ececec; background: #121212; }
+      a { color: #8ab4ff; }
+      hr { border-color: #333; }
+    }
+    h1 { font-size: 1.8rem; margin-top: 0; }
+    h2 { font-size: 1.3rem; margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    @media (prefers-color-scheme: dark) {
+      h2 { border-bottom-color: #333; }
+    }
+    h3 { font-size: 1.05rem; margin-top: 1.5rem; }
+    code, kbd { background: rgba(0,0,0,0.05); padding: 1px 4px; border-radius: 3px; }
+    @media (prefers-color-scheme: dark) {
+      code, kbd { background: rgba(255,255,255,0.08); }
+    }
+    nav.locale {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      font-size: 0.9rem;
+    }
+    section { margin-bottom: 24px; }
+    .meta {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 24px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .meta { color: #aaa; }
+    }
+    ul { padding-left: 22px; }
+    li { margin-bottom: 4px; }
+    hr { margin: 48px 0; border: none; border-top: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+
+<nav class="locale">
+  <a href="#en">English</a>
+  <a href="#zh-tw">繁體中文</a>
+</nav>
+
+<section id="en">
+  <h1>SilverBP — Privacy Policy</h1>
+  <p class="meta">Effective date: 2026-05-09 · Version 1</p>
+
+  <p>SilverBP ("the app") is a personal blood-pressure tracking, exercise, and lifestyle-coach Android application developed by <strong>Silver</strong> ("we", "us"). Contact: <a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a>. This policy explains what data the app handles, where it is stored, and your choices.</p>
+
+  <h2>1. What we collect</h2>
+  <p>All data described below is collected only when you actively use the corresponding feature. Nothing is collected in the background without your action.</p>
+  <ul>
+    <li><strong>Blood-pressure readings</strong> — systolic, diastolic, pulse, posture, arm, time of day, free-text notes you enter.</li>
+    <li><strong>Exercise sessions</strong> — type (walk / run), duration, distance, GPS path, calories, optional notes. GPS is recorded only while you have explicitly started a session.</li>
+    <li><strong>Health Connect data (optional)</strong> — when you opt in, SilverBP reads steps, sleep, and nutrition (sodium) from Health Connect, and writes blood-pressure and exercise data back to Health Connect.</li>
+    <li><strong>Microphone (optional)</strong> — the chat feature uses the Android Speech Recognizer to transcribe your voice into text in real time. Audio is processed by the system speech recognizer and is not stored or uploaded by SilverBP.</li>
+    <li><strong>Camera (optional)</strong> — used to photograph your home blood-pressure monitor display so the on-device model can extract numbers. Photos are processed locally and saved into the app's private storage; you can delete them at any time.</li>
+    <li><strong>Nickname</strong> — a short label you may enter during onboarding so the coach can address you. Optional and editable in Settings.</li>
+    <li><strong>Hugging Face access token (optional)</strong> — only if you choose to download a gated Gemma model variant. Stored locally; used only for the download request.</li>
+    <li><strong>LAN-sync peer keys (optional)</strong> — when you pair another device, we store the peer's public key locally so future syncs over the same Wi-Fi can be authenticated.</li>
+    <li><strong>App preferences</strong> — guideline choice, coach toggles, daily targets, model picker selections.</li>
+  </ul>
+
+  <h2>2. How data is stored</h2>
+  <ul>
+    <li>All app data is kept on your device (Room database + Android DataStore), inside SilverBP's private app sandbox.</li>
+    <li>Health Connect data is managed by the Android Health Connect platform; SilverBP only reads or writes it with permissions you grant in the system Health Connect app.</li>
+    <li>SilverBP does <strong>not</strong> have a server. Your health data is never uploaded to us or to any third-party analytics or advertising service.</li>
+  </ul>
+
+  <h2>3. Network use</h2>
+  <ul>
+    <li><strong>Model download</strong> — when you initiate a download, the app fetches the Gemma model file over HTTPS from Hugging Face (or Google AI Edge). No personal data is sent — only your access token if you provided one.</li>
+    <li><strong>Google Maps</strong> — exercise route maps are rendered by the Google Maps Android SDK. Your map view interactions are subject to <a href="https://policies.google.com/privacy">Google's Privacy Policy</a>. Recorded GPS coordinates remain on your device.</li>
+    <li><strong>LAN sync (optional)</strong> — when paired with another of your devices on the same Wi-Fi, blood-pressure and exercise records are exchanged peer-to-peer over an end-to-end encrypted Noise XK channel. The data does not pass through any cloud server.</li>
+    <li><strong>Cloud recognition (optional)</strong> — if you opt to use the Google Gemini cloud route for OCR, the photo of your monitor display is sent to Google's Gemini API using the API key you configured. This is governed by Google's API terms.</li>
+  </ul>
+
+  <h2>4. Sharing with third parties</h2>
+  <p>SilverBP does <strong>not</strong> share your data with third-party analytics, advertising, or tracking SDKs. The only third parties involved are the optional services you explicitly enable (Health Connect, Google Maps, Hugging Face downloads, Google Gemini cloud OCR), as described above.</p>
+
+  <h2>5. Permissions</h2>
+  <p>SilverBP requests the following Android permissions only when needed for a feature you use:</p>
+  <ul>
+    <li><code>CAMERA</code> — photograph your monitor display for OCR.</li>
+    <li><code>RECORD_AUDIO</code> — voice input in chat (real-time transcription, not recorded).</li>
+    <li><code>ACCESS_FINE_LOCATION</code> + <code>FOREGROUND_SERVICE_LOCATION</code> — GPS path tracking during an exercise session you started.</li>
+    <li><code>ACTIVITY_RECOGNITION</code> — read step count from the device's step sensor.</li>
+    <li><code>POST_NOTIFICATIONS</code> — show coach reminders, medication reminders, and high-reading alerts.</li>
+    <li><code>health.READ_*</code> / <code>health.WRITE_*</code> — read/write the relevant Health Connect record types when you turn the feature on.</li>
+    <li><code>CHANGE_WIFI_MULTICAST_STATE</code> + <code>ACCESS_NETWORK_STATE</code> + <code>ACCESS_WIFI_STATE</code> — discover paired devices on your local Wi-Fi for LAN sync.</li>
+  </ul>
+
+  <h2>6. Your choices and rights</h2>
+  <ul>
+    <li>Every feature that uses sensitive data (Health Connect, GPS, microphone, notifications, LAN sync) can be enabled or disabled in Settings or via the system permission screen.</li>
+    <li>Uninstalling SilverBP removes all data stored by the app on your device. Records that were synced to Health Connect remain in Health Connect; you can remove them in the system Health Connect app.</li>
+    <li>You may contact us at <a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a> with any privacy-related questions.</li>
+  </ul>
+
+  <h2>7. Children</h2>
+  <p>SilverBP is not directed at children under 13 and we do not knowingly collect data from children under 13.</p>
+
+  <h2>8. Security</h2>
+  <ul>
+    <li>Network traffic uses HTTPS where applicable; cleartext HTTP is disabled in the manifest.</li>
+    <li>LAN sync uses an end-to-end encrypted Noise XK channel with a short-authentication-string confirmation during pairing.</li>
+    <li>App data is stored in SilverBP's private app sandbox, accessible only to the app itself on a non-rooted device.</li>
+  </ul>
+
+  <h2>9. Changes</h2>
+  <p>We will update the version number and effective date above when this policy changes. Material changes will trigger a re-consent prompt the next time you open SilverBP.</p>
+</section>
+
+<hr />
+
+<section id="zh-tw" lang="zh-TW">
+  <h1>SilverBP — 隱私政策</h1>
+  <p class="meta">生效日期:2026-05-09 · 版本 1</p>
+
+  <p>SilverBP(以下稱「本 App」)是一款由 <strong>Silver</strong>(以下稱「我們」)所開發的個人血壓追蹤、運動與生活方式教練的 Android 應用程式。聯絡信箱:<a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a>。本政策說明本 App 處理哪些資料、儲存於何處,以及您的選擇。</p>
+
+  <h2>1. 我們蒐集哪些資料</h2>
+  <p>下列資料只有在您主動使用對應功能時才會蒐集,本 App 不會在背景未經您操作的情況下蒐集任何資料。</p>
+  <ul>
+    <li><strong>血壓讀數</strong> — 收縮壓、舒張壓、脈搏、姿勢、左右臂、時段以及您填寫的備註。</li>
+    <li><strong>運動紀錄</strong> — 類型(走路 / 跑步)、時間、距離、GPS 路徑、卡路里以及備註。GPS 僅在您主動開始 session 時記錄。</li>
+    <li><strong>Health Connect 資料(選用)</strong> — 啟用後,本 App 會從 Health Connect 讀取步數、睡眠、營養(鈉),並把血壓與運動資料寫回 Health Connect。</li>
+    <li><strong>麥克風(選用)</strong> — 聊天功能使用 Android Speech Recognizer 即時把您的語音轉成文字。音訊由系統語音辨識服務處理,本 App 不儲存、不上傳。</li>
+    <li><strong>相機(選用)</strong> — 用於拍攝家用血壓計螢幕,讓裝置端模型辨識數字。照片在本機處理並儲存於本 App 私有空間,您可隨時刪除。</li>
+    <li><strong>暱稱</strong> — 您在引導頁可選擇輸入一個簡短稱呼,讓教練稱呼您。可選,可在設定中修改。</li>
+    <li><strong>Hugging Face access token(選用)</strong> — 只有在您下載受授權保護的 Gemma 模型版本時才需要。儲存於本機,僅用於下載請求。</li>
+    <li><strong>區網同步對端公鑰(選用)</strong> — 配對另一台裝置時,我們把對端的公鑰儲存於本機,日後在同一 Wi-Fi 同步時用於認證。</li>
+    <li><strong>App 偏好設定</strong> — 高血壓指引、教練開關、每日目標、模型選擇等。</li>
+  </ul>
+
+  <h2>2. 資料如何儲存</h2>
+  <ul>
+    <li>所有資料都儲存在您的裝置(Room 資料庫 + Android DataStore),位於 SilverBP 私有的 App sandbox 內。</li>
+    <li>Health Connect 資料由 Android Health Connect 平台管理;SilverBP 僅在您於系統 Health Connect App 授權後讀寫。</li>
+    <li>SilverBP <strong>沒有伺服器</strong>。您的健康資料絕不上傳至我們或任何第三方分析、廣告平台。</li>
+  </ul>
+
+  <h2>3. 網路使用</h2>
+  <ul>
+    <li><strong>模型下載</strong> — 當您主動下載時,本 App 透過 HTTPS 從 Hugging Face(或 Google AI Edge)取得 Gemma 模型檔。除了您所提供的 access token 之外,不會傳送任何個人資料。</li>
+    <li><strong>Google 地圖</strong> — 運動路徑地圖由 Google Maps Android SDK 繪製,適用 <a href="https://policies.google.com/privacy">Google 隱私政策</a>。您所記錄的 GPS 座標仍儲存在本機。</li>
+    <li><strong>區網同步(選用)</strong> — 在同一 Wi-Fi 上配對另一台您的裝置時,血壓與運動紀錄透過端對端加密的 Noise XK 通道直接交換。資料不經任何雲端伺服器。</li>
+    <li><strong>雲端辨識(選用)</strong> — 如您選擇使用 Google Gemini 雲端 OCR,血壓計螢幕的照片會以您所設定的 API key 傳送至 Google Gemini API,適用 Google 的 API 條款。</li>
+  </ul>
+
+  <h2>4. 第三方分享</h2>
+  <p>SilverBP 不與任何第三方分析、廣告或追蹤 SDK 分享您的資料。唯一涉及的第三方,是您主動啟用的選用服務(Health Connect、Google Maps、Hugging Face 下載、Google Gemini 雲端 OCR),如上所述。</p>
+
+  <h2>5. 權限</h2>
+  <p>本 App 僅在您使用對應功能時才請求下列 Android 權限:</p>
+  <ul>
+    <li><code>CAMERA</code> — 拍攝血壓計螢幕進行辨識。</li>
+    <li><code>RECORD_AUDIO</code> — 聊天語音輸入(即時轉錄,不錄音)。</li>
+    <li><code>ACCESS_FINE_LOCATION</code> + <code>FOREGROUND_SERVICE_LOCATION</code> — 您主動開始運動 session 時記錄 GPS 路徑。</li>
+    <li><code>ACTIVITY_RECOGNITION</code> — 讀取裝置計步感測器的步數。</li>
+    <li><code>POST_NOTIFICATIONS</code> — 顯示教練提醒、服藥提醒、偏高讀數警示。</li>
+    <li><code>health.READ_*</code> / <code>health.WRITE_*</code> — 啟用相應功能時讀寫對應的 Health Connect 資料類型。</li>
+    <li><code>CHANGE_WIFI_MULTICAST_STATE</code> + <code>ACCESS_NETWORK_STATE</code> + <code>ACCESS_WIFI_STATE</code> — 在本機 Wi-Fi 內探索已配對裝置以進行區網同步。</li>
+  </ul>
+
+  <h2>6. 您的選擇與權利</h2>
+  <ul>
+    <li>所有使用敏感資料的功能(Health Connect、GPS、麥克風、通知、區網同步)都可在設定或系統權限頁面隨時啟用或關閉。</li>
+    <li>移除 SilverBP 即清除本 App 在裝置上儲存的所有資料。已同步到 Health Connect 的紀錄會留在 Health Connect 中,您可在系統 Health Connect App 內刪除。</li>
+    <li>如有任何隱私相關問題,請來信:<a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a>。</li>
+  </ul>
+
+  <h2>7. 兒童</h2>
+  <p>SilverBP 並非針對 13 歲以下兒童;我們也不會故意蒐集 13 歲以下兒童的資料。</p>
+
+  <h2>8. 安全</h2>
+  <ul>
+    <li>網路傳輸採用 HTTPS;Manifest 已停用 cleartext HTTP。</li>
+    <li>區網同步採用端對端加密的 Noise XK 通道,並在配對時以 short-authentication-string 確認。</li>
+    <li>App 資料儲存於 SilverBP 私有 App sandbox,在未 root 的裝置上僅本 App 可存取。</li>
+  </ul>
+
+  <h2>9. 政策變更</h2>
+  <p>當本政策變更時,上方的版本號與生效日期會一併更新。重大變更會在您下次開啟 SilverBP 時觸發重新同意流程。</p>
+</section>
+
+</body>
+</html>
