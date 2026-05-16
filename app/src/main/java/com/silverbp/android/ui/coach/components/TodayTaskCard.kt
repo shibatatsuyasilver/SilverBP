@@ -47,6 +47,43 @@ fun TodayTaskCard(
                 return@Column
             }
 
+            if (task.isRestDay) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                    Text(
+                        stringResource(R.string.coach_today_task_rest_day),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+                if (task.achievedMinutes > 0) {
+                    Text(
+                        stringResource(
+                            R.string.coach_today_task_rest_day_progress,
+                            task.achievedMinutes,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                return@Column
+            }
+
             Text(
                 task.title,
                 style = MaterialTheme.typography.headlineSmall,

@@ -33,6 +33,8 @@ data class TodayTaskUi(
     val achievedMinutes: Int = 0,
     /** Target minutes for today's exercise task; 0 means no quantitative target. */
     val targetMinutes: Int = 0,
+    /** True when today has no scheduled Exercise task (Wed/Sat). UI renders a rest-day headline instead. */
+    val isRestDay: Boolean = false,
 )
 
 /**

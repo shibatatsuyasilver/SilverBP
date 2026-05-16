@@ -34,6 +34,20 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
+ * Pure helper for the Exercise weekly-progress row: counts the distinct
+ * local-zone calendar dates on which there is at least one [ExerciseSession].
+ * Extracted as a top-level `internal` function so the same-package JUnit test
+ * can call it directly (mirrors `CoachRepository.countScheduledInWeek`).
+ */
+internal fun countDistinctExerciseDays(
+    sessions: List<ExerciseSession>,
+    zone: ZoneId,
+): Int = sessions
+    .map { it.startedAt.atZone(zone).toLocalDate() }
+    .distinct()
+    .size
+
+/**
  * Coach ViewModel.
  *
  * Source of truth: [CoachRepository.observeCurrentPlan] (Room-backed Flow).
@@ -89,18 +103,18 @@ class CoachViewModel(
 
     val state: StateFlow<CoachUiState> = combine(
         coachRepo.observeCurrentPlan(nowMillis),
-        exerciseRepo.observeRange(todayStart(), todayEnd()),
+        exerciseRepo.observeRange(weekStart(), weekEnd()),
         coachRepo.observeMedicationWeeklyProgressPerMed(
             weekStartDate = currentWeekStart(),
             zone = zone,
         ),
         _narration,
         _overlay,
-    ) { plan, todaySessions, medProgressPerMed, narration, overlay ->
+    ) { plan, weekSessions, medProgressPerMed, narration, overlay ->
         if (plan == null) {
             CoachUiState.Loading
         } else {
-            val ready = buildReadyState(plan, todaySessions, medProgressPerMed, overlay)
+            val ready = buildReadyState(plan, weekSessions, medProgressPerMed, overlay)
             ready.todayTaskId?.let { id ->
                 if (id != lastNarratedTaskId) {
                     lastNarratedTaskId = id
@@ -149,19 +163,27 @@ class CoachViewModel(
 
     private suspend fun buildReadyState(
         plan: CoachPlan,
-        todaySessions: List<ExerciseSession>,
+        weekSessions: List<ExerciseSession>,
         medProgressPerMed: List<MedicationPerMedProgress>,
         overlay: KeyedOverlay?,
     ): CoachUiState.Ready {
         val today = todayDayOffset(plan)
         val tasksByDay = plan.tasks.filter { it.dayOffset == today }
         val todayExercise = tasksByDay.firstOrNull { it.module == LifestyleModule.Exercise }
-        val priorityToday = todayExercise ?: tasksByDay.firstOrNull()
-        // Exercise / Diet / Sleep still source their X/Y from coach_task;
+        // Strictly Exercise — never fall back to Diet/Sleep, otherwise their
+        // targetValue (e.g. sodium 2000 mg) leaks into the exercise UI.
+        val priorityToday = todayExercise
+        val isRestDay = priorityToday == null
+        // Diet / Sleep still source their X/Y from coach_task; Exercise is now
+        // sourced from distinct exercise-days this week (see baseModules below).
         // Medication is rendered as one row per active medication, sourced
         // from medication_dose × medication_schedule (live).
         val adherence = coachRepo.adherenceForPlan(plan.id).associateBy { it.module }
 
+        val todayDate = LocalDate.now(clock.withZone(zone))
+        val todaySessions = weekSessions.filter {
+            it.startedAt.atZone(zone).toLocalDate() == todayDate
+        }
         val targetMin = priorityToday?.targetValue?.toInt() ?: 0
         val achievedMin = computeAchievedMinutes(todaySessions, targetMin)
         val derivedCompleted = targetMin > 0 && achievedMin >= (targetMin * 0.8).toInt()
@@ -179,7 +201,12 @@ class CoachViewModel(
         }
 
         val baseModules = listOf(
-            moduleRow(LifestyleModule.Exercise, "Exercise", adherence[LifestyleModule.Exercise]),
+            ModuleRowUi(
+                moduleKey = ModuleKey.Exercise,
+                displayName = "Exercise",
+                completed = countDistinctExerciseDays(weekSessions, zone),
+                target = 7,
+            ),
             moduleRow(LifestyleModule.Diet, "Diet", adherence[LifestyleModule.Diet]),
             moduleRow(LifestyleModule.Sleep, "Sleep", adherence[LifestyleModule.Sleep]),
         )
@@ -196,8 +223,9 @@ class CoachViewModel(
         val activeOverlay = if (priorityToday != null && overlay != null &&
             overlay.key == overlayKey(plan.id, priorityToday.id)
         ) overlay.overlay else null
-        val title = activeOverlay?.title ?: priorityToday?.title ?: "今日無任務"
+        val title = if (isRestDay) "" else (activeOverlay?.title ?: priorityToday!!.title)
         val subtitle = when {
+            isRestDay -> null
             activeOverlay?.subtitle != null -> activeOverlay.subtitle
             priorityToday?.targetUnit != null && priorityToday.targetValue != null ->
                 "${formatTarget(priorityToday.targetValue)} ${priorityToday.targetUnit}"
@@ -212,6 +240,7 @@ class CoachViewModel(
                 safetyHold = priorityToday?.safetyHold == true,
                 achievedMinutes = achievedMin,
                 targetMinutes = targetMin,
+                isRestDay = isRestDay,
             ),
             modules = modules,
             weeklyProgress = WeeklyProgressUi(
@@ -278,9 +307,9 @@ class CoachViewModel(
         return ((today.toEpochDay() - weekStart.toEpochDay()).toInt()).coerceIn(0, 6)
     }
 
-    private fun todayStart(): Instant =
-        LocalDate.now(clock).atStartOfDay(zone).toInstant()
+    private fun weekStart(): Instant =
+        currentWeekStart().atStartOfDay(zone).toInstant()
 
-    private fun todayEnd(): Instant =
-        LocalDate.now(clock).plusDays(1).atStartOfDay(zone).toInstant()
+    private fun weekEnd(): Instant =
+        currentWeekStart().plusDays(7).atStartOfDay(zone).toInstant()
 }
