@@ -27,6 +27,8 @@ class SilverBpApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ServiceLocator.init(this)
+        // Begin observing process foreground/background for the app-lock gate.
+        ServiceLocator.lockManager.attach()
         ExerciseNotification.createChannel(this)
         MedalNotifier.createChannel(this)
         CoachNotifier.createChannels(this)

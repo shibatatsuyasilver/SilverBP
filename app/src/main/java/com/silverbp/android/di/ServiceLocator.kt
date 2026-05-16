@@ -21,6 +21,7 @@ import com.silverbp.android.exercise.StepCounterReader
 import com.silverbp.android.health.HealthConnectBridge
 import com.silverbp.android.recognition.ModelLoadStatus
 import com.silverbp.android.security.DbKeyStore
+import com.silverbp.android.security.LockManager
 import com.silverbp.android.settings.UserSettingsRepository
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
@@ -60,6 +61,9 @@ object ServiceLocator {
      * opt-in/opt-out migration and the Settings toggle.
      */
     val dbKeyStore: DbKeyStore by lazy { DbKeyStore.create(context) }
+
+    /** Process-wide app-lock UI state for the opt-in biometric gate. */
+    val lockManager: LockManager by lazy { LockManager() }
 
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 

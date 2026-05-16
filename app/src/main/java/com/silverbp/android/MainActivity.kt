@@ -2,16 +2,18 @@ package com.silverbp.android
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
 import com.silverbp.android.coach.CoachNotifier
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.ui.SilverBpApp
 import com.silverbp.android.ui.nav.DeepLinkBus
 import com.silverbp.android.ui.theme.SilverBpTheme
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity (a ComponentActivity subclass) is required by
+// androidx.biometric.BiometricPrompt for the app-lock gate.
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

@@ -468,4 +468,12 @@
     <string name="chart_legend_morning">早晨</string>
     <string name="chart_legend_evening">傍晚</string>
     <string name="chart_no_data">尚無資料</string>
+
+    <!-- App 鎖定(指紋／裝置密碼)畫面 -->
+    <string name="app_lock_title">SilverBP 已鎖定</string>
+    <string name="app_lock_subtitle">請驗證身分以檢視您的健康資料。</string>
+    <string name="app_lock_unlock">解鎖</string>
+    <string name="app_lock_prompt_title">解鎖 SilverBP</string>
+    <string name="app_lock_prompt_subtitle">使用指紋、臉部或裝置 PIN／密碼。</string>
+    <string name="app_lock_error">驗證失敗 — 點「解鎖」再試一次。</string>
 </resources>

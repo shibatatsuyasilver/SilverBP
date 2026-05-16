@@ -468,4 +468,12 @@
     <string name="chart_legend_morning">Morning</string>
     <string name="chart_legend_evening">Evening</string>
     <string name="chart_no_data">No data yet</string>
+
+    <!-- App-lock (biometric / device-credential) gate -->
+    <string name="app_lock_title">SilverBP is locked</string>
+    <string name="app_lock_subtitle">Verify it\'s you to view your health data.</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_prompt_title">Unlock SilverBP</string>
+    <string name="app_lock_prompt_subtitle">Use your fingerprint, face, or device PIN/password.</string>
+    <string name="app_lock_error">Couldn\'t verify — tap Unlock to try again.</string>
 </resources>

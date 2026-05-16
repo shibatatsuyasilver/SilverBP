@@ -60,6 +60,8 @@ class UserSettingsRepository(private val context: Context) {
         val DIET_TRACKING = booleanPreferencesKey("diet_tracking_enabled")
         val USER_NICKNAME = stringPreferencesKey("user_nickname")
         val ACCEPTED_POLICY_VERSION = intPreferencesKey("accepted_policy_version")
+        val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
+        val APP_LOCK_TIMEOUT = intPreferencesKey("app_lock_timeout_seconds")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -96,6 +98,8 @@ class UserSettingsRepository(private val context: Context) {
             dietTrackingEnabled = prefs[Keys.DIET_TRACKING] ?: false,
             userNickname = reveal(prefs[Keys.USER_NICKNAME] ?: ""),
             acceptedPolicyVersion = prefs[Keys.ACCEPTED_POLICY_VERSION] ?: 0,
+            appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: false,
+            appLockTimeoutSeconds = prefs[Keys.APP_LOCK_TIMEOUT] ?: 60,
         )
     }
 
@@ -177,6 +181,13 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setAcceptedPolicyVersion(v: Int) {
         context.dataStore.edit { it[Keys.ACCEPTED_POLICY_VERSION] = v }
+    }
+
+    suspend fun setAppLockEnabled(v: Boolean) {
+        context.dataStore.edit { it[Keys.APP_LOCK_ENABLED] = v }
+    }
+    suspend fun setAppLockTimeoutSeconds(v: Int) {
+        context.dataStore.edit { it[Keys.APP_LOCK_TIMEOUT] = v.coerceIn(0, 600) }
     }
 
     /**
