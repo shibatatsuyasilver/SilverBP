@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
+import com.silverbp.android.security.DbKeyStore
+import com.silverbp.android.security.KeystoreStringCipher
 import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
@@ -18,6 +20,18 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = "user_settings")
 
 class UserSettingsRepository(private val context: Context) {
+
+    // Sensitive free-text fields (API key / prompts / nickname) are stored
+    // encrypted once the user opts into at-rest encryption. The marker is the
+    // same synchronous source of truth Room uses; values carry a sentinel so
+    // the read path is tolerant during opt-in/opt-out (mixed states).
+    private val dbKey: DbKeyStore by lazy { DbKeyStore.create(context) }
+
+    private fun protect(v: String): String =
+        if (v.isNotEmpty() && dbKey.isDbEncrypted()) KeystoreStringCipher.encrypt(v) else v
+
+    private fun reveal(v: String): String =
+        if (KeystoreStringCipher.isEncrypted(v)) KeystoreStringCipher.decrypt(v) else v
 
     private object Keys {
         val GUIDELINE = stringPreferencesKey("guideline")
@@ -61,10 +75,10 @@ class UserSettingsRepository(private val context: Context) {
                 ?.let { RecognitionBackend.fromRaw(it) }
                 ?: RecognitionBackend.Local,
             selectedModelId = prefs[Keys.MODEL_ID] ?: ModelCatalog.default.id,
-            geminiApiKey = prefs[Keys.GEMINI_KEY] ?: "",
+            geminiApiKey = reveal(prefs[Keys.GEMINI_KEY] ?: ""),
             geminiModel = prefs[Keys.GEMINI_MODEL] ?: GeminiCloudRecognizer.DEFAULT_MODEL,
             maxNumTokens = prefs[Keys.MAX_NUM_TOKENS] ?: 2048,
-            systemPrompt = prefs[Keys.SYSTEM_PROMPT] ?: "",
+            systemPrompt = reveal(prefs[Keys.SYSTEM_PROMPT] ?: ""),
             visionBackendOverride = prefs[Keys.VISION_OVERRIDE]
                 ?.let { VisionBackendOverride.fromRaw(it) }
                 ?: VisionBackendOverride.Auto,
@@ -72,7 +86,7 @@ class UserSettingsRepository(private val context: Context) {
             dailyStepGoal = prefs[Keys.DAILY_STEP_GOAL] ?: 8000,
             notifyOnMedalUnlock = prefs[Keys.NOTIFY_MEDAL_UNLOCK] ?: true,
             didOfferNotificationPrompt = prefs[Keys.DID_OFFER_NOTIF_PROMPT] ?: false,
-            chatPersona = prefs[Keys.CHAT_PERSONA] ?: "",
+            chatPersona = reveal(prefs[Keys.CHAT_PERSONA] ?: ""),
             chatIncludeRecordsContext = prefs[Keys.CHAT_INCLUDE_RECORDS] ?: true,
             enableCoach = prefs[Keys.ENABLE_COACH] ?: true,
             weeklyAerobicMinTarget = prefs[Keys.WEEKLY_AEROBIC_MIN] ?: 150,
@@ -80,7 +94,7 @@ class UserSettingsRepository(private val context: Context) {
             targetSleepHours = prefs[Keys.TARGET_SLEEP_HOURS] ?: 7.0f,
             sleepTrackingEnabled = prefs[Keys.SLEEP_TRACKING] ?: false,
             dietTrackingEnabled = prefs[Keys.DIET_TRACKING] ?: false,
-            userNickname = prefs[Keys.USER_NICKNAME] ?: "",
+            userNickname = reveal(prefs[Keys.USER_NICKNAME] ?: ""),
             acceptedPolicyVersion = prefs[Keys.ACCEPTED_POLICY_VERSION] ?: 0,
         )
     }
@@ -107,7 +121,7 @@ class UserSettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.MODEL_ID] = id }
     }
     suspend fun setGeminiApiKey(key: String) {
-        context.dataStore.edit { it[Keys.GEMINI_KEY] = key }
+        context.dataStore.edit { it[Keys.GEMINI_KEY] = protect(key) }
     }
     suspend fun setGeminiModel(id: String) {
         context.dataStore.edit { it[Keys.GEMINI_MODEL] = id }
@@ -116,7 +130,7 @@ class UserSettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.MAX_NUM_TOKENS] = v }
     }
     suspend fun setSystemPrompt(v: String) {
-        context.dataStore.edit { it[Keys.SYSTEM_PROMPT] = v }
+        context.dataStore.edit { it[Keys.SYSTEM_PROMPT] = protect(v) }
     }
     suspend fun setVisionBackendOverride(v: VisionBackendOverride) {
         context.dataStore.edit { it[Keys.VISION_OVERRIDE] = v.raw }
@@ -134,7 +148,7 @@ class UserSettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.DID_OFFER_NOTIF_PROMPT] = v }
     }
     suspend fun setChatPersona(v: String) {
-        context.dataStore.edit { it[Keys.CHAT_PERSONA] = v }
+        context.dataStore.edit { it[Keys.CHAT_PERSONA] = protect(v) }
     }
     suspend fun setChatIncludeRecordsContext(v: Boolean) {
         context.dataStore.edit { it[Keys.CHAT_INCLUDE_RECORDS] = v }
@@ -159,10 +173,28 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setUserNickname(v: String) {
         val sanitized = v.trim().take(MAX_NICKNAME_LEN)
-        context.dataStore.edit { it[Keys.USER_NICKNAME] = sanitized }
+        context.dataStore.edit { it[Keys.USER_NICKNAME] = protect(sanitized) }
     }
     suspend fun setAcceptedPolicyVersion(v: Int) {
         context.dataStore.edit { it[Keys.ACCEPTED_POLICY_VERSION] = v }
+    }
+
+    /**
+     * Rewrite the sensitive free-text fields so their on-disk form matches the
+     * current [DbKeyStore.isDbEncrypted] marker. Called by the app-lock
+     * opt-in/opt-out flow **after** the marker has been flipped:
+     *  - opt-in  (marker now true)  → plaintext values get re-stored encrypted
+     *  - opt-out (marker now false) → encrypted values get re-stored plaintext
+     * Idempotent: [reveal] tolerates either state, [protect] keys off the marker.
+     */
+    suspend fun migrateSensitiveFields() {
+        val sensitive = listOf(Keys.GEMINI_KEY, Keys.SYSTEM_PROMPT, Keys.CHAT_PERSONA, Keys.USER_NICKNAME)
+        context.dataStore.edit { prefs ->
+            for (k in sensitive) {
+                val current = prefs[k] ?: continue
+                prefs[k] = protect(reveal(current))
+            }
+        }
     }
 
     companion object {
