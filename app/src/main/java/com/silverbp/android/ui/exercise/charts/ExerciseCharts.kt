@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -21,18 +22,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.ceil
+import com.silverbp.android.R
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.ui.exercise.colorForKind
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val EmptyHint = Color(0xFF8E8E93)
@@ -193,27 +198,69 @@ fun PaceLineChart(
     val yMin = (values.min() * 0.9)
     val yMax = (values.max() * 1.1).coerceAtLeast(yMin + 1.0)
 
+    // X axis = date. Without tick labels the line was unreadable ("what is
+    // this showing?"). Draw the start/end dates under the plot; collapse to a
+    // single centred label when every sample is on the same day.
+    val zone = ZoneId.systemDefault()
+    val dateFmt = remember { DateTimeFormatter.ofPattern("M/d") }
+    val startDate = Instant.ofEpochMilli(minTime).atZone(zone).toLocalDate()
+    val endDate = Instant.ofEpochMilli(maxTime).atZone(zone).toLocalDate()
+    val startText = startDate.format(dateFmt)
+    val endText = endDate.format(dateFmt)
+    val measurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(color = EmptyHint, fontSize = 10.sp)
+    val startLayout = measurer.measure(startText, labelStyle)
+    val endLayout = measurer.measure(endText, labelStyle)
+    val sameDay = startDate == endDate
+    val xLabelHeight = maxOf(startLayout.size.height, endLayout.size.height).toFloat()
+    val xLabelGap = 4f
+
     Canvas(modifier = modifier.height(180.dp).padding(8.dp)) {
+        val chartBottom = size.height - xLabelHeight - xLabelGap
         drawable.forEach { (kind, samples) ->
             val color = colorForKind(kind)
             val path = Path()
             samples.forEachIndexed { i, (t, v) ->
                 val x = mapX(t.toEpochMilli(), minTime, maxTime, size.width)
                 // Flip Y so faster (lower) pace appears higher.
-                val y = mapYFlipped(v, yMin, yMax, size.height)
+                val y = mapYFlipped(v, yMin, yMax, chartBottom)
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             drawPath(path, color = color, style = Stroke(width = 4f))
             samples.forEach { (t, v) ->
                 val x = mapX(t.toEpochMilli(), minTime, maxTime, size.width)
-                val y = mapYFlipped(v, yMin, yMax, size.height)
+                val y = mapYFlipped(v, yMin, yMax, chartBottom)
                 drawCircle(color, radius = 4f, center = Offset(x, y))
             }
         }
+        val labelY = chartBottom + xLabelGap
+        if (sameDay) {
+            drawText(
+                textLayoutResult = startLayout,
+                topLeft = Offset((size.width - startLayout.size.width) / 2f, labelY),
+            )
+        } else {
+            drawText(textLayoutResult = startLayout, topLeft = Offset(0f, labelY))
+            drawText(
+                textLayoutResult = endLayout,
+                topLeft = Offset(size.width - endLayout.size.width, labelY),
+            )
+        }
     }
+    // One-line legend so the axes are self-explanatory: X = date range,
+    // Y = pace (higher = faster), plus the latest pace for context.
     val latest = allPoints.maxByOrNull { it.first.toEpochMilli() }
-    if (latest != null) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Text(
+            stringResource(
+                R.string.exercise_pace_axis_hint,
+                if (sameDay) startText else "$startText–$endText",
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (latest != null) {
+            Spacer(Modifier.weight(1f))
             Text(
                 ExerciseMath.formatPace(latest.second),
                 style = MaterialTheme.typography.labelSmall,
