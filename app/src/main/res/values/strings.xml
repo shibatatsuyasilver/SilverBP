@@ -476,4 +476,13 @@
     <string name="app_lock_prompt_title">Unlock SilverBP</string>
     <string name="app_lock_prompt_subtitle">Use your fingerprint, face, or device PIN/password.</string>
     <string name="app_lock_error">Couldn\'t verify — tap Unlock to try again.</string>
+
+    <!-- Settings: Security section (app-lock + at-rest encryption toggle) -->
+    <string name="settings_security_section">Security</string>
+    <string name="settings_app_lock_label">App lock &amp; data encryption</string>
+    <string name="settings_app_lock_help">Require your fingerprint or device PIN/password to open SilverBP, and encrypt your health data on this device. Turning this off restores the unencrypted database.</string>
+    <string name="settings_app_lock_working">Migrating your data — please keep the app open and do not force-close it…</string>
+    <string name="settings_app_lock_need_credential">Set a device screen lock (PIN, password, or biometric) before enabling this.</string>
+    <string name="settings_app_lock_open_security">Open security settings</string>
+    <string name="settings_app_lock_failed">Couldn\'t change app lock. Your data was left unchanged.</string>
 </resources>

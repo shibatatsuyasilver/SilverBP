@@ -476,4 +476,13 @@
     <string name="app_lock_prompt_title">解鎖 SilverBP</string>
     <string name="app_lock_prompt_subtitle">使用指紋、臉部或裝置 PIN／密碼。</string>
     <string name="app_lock_error">驗證失敗 — 點「解鎖」再試一次。</string>
+
+    <!-- 設定頁:安全性區塊(App 鎖定 + 本機加密) -->
+    <string name="settings_security_section">安全性</string>
+    <string name="settings_app_lock_label">App 鎖定與資料加密</string>
+    <string name="settings_app_lock_help">開啟 SilverBP 需指紋或裝置 PIN／密碼,並將健康資料在本機加密。關閉時會還原為未加密的資料庫。</string>
+    <string name="settings_app_lock_working">資料移轉中 — 請保持 App 開啟,勿強制關閉…</string>
+    <string name="settings_app_lock_need_credential">啟用前請先設定裝置螢幕鎖(PIN、密碼或指紋)。</string>
+    <string name="settings_app_lock_open_security">開啟安全性設定</string>
+    <string name="settings_app_lock_failed">無法變更 App 鎖定,資料維持原狀。</string>
 </resources>

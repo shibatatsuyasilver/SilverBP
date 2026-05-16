@@ -10,15 +10,21 @@ import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
+import com.silverbp.android.security.DbCipherMigration
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.settings.UserSettingsRepository
+import com.silverbp.android.ui.lock.canDeviceAuthenticate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsViewModel(
     private val repo: UserSettingsRepository = ServiceLocator.userSettings,
@@ -169,5 +175,58 @@ class SettingsViewModel(
      */
     fun reviewConsent() {
         viewModelScope.launch { repo.setAcceptedPolicyVersion(0) }
+    }
+
+    /** Drives the Settings UI while the app-lock toggle migrates the DB. */
+    sealed interface AppLockStatus {
+        data object Idle : AppLockStatus
+        /** DB encrypt/decrypt in progress — UI shows a blocking spinner. */
+        data object Working : AppLockStatus
+        /** Device has no biometric/PIN/password enrolled — UI deep-links to settings. */
+        data object NeedsDeviceCredential : AppLockStatus
+        /** Migration failed; [restored] true means data was rolled back intact. */
+        data class Failed(val reason: String, val restored: Boolean) : AppLockStatus
+    }
+
+    private val _appLockStatus = MutableStateFlow<AppLockStatus>(AppLockStatus.Idle)
+    val appLockStatus: StateFlow<AppLockStatus> = _appLockStatus.asStateFlow()
+
+    fun dismissAppLockStatus() { _appLockStatus.value = AppLockStatus.Idle }
+
+    /**
+     * Toggle app-lock + at-rest encryption. Orchestration order matters:
+     *  - enable : verify device can auth → encrypt DB → re-encrypt sensitive
+     *             settings → persist flag.
+     *  - disable: decrypt DB (clears the key) → rewrite settings plaintext →
+     *             clear flag.
+     * The DB migration is self-rolling-back; on failure the flag is left
+     * untouched so the UI stays consistent with the on-disk state.
+     */
+    fun setAppLock(enable: Boolean) {
+        if (_appLockStatus.value == AppLockStatus.Working) return
+        val ctx = ServiceLocator.context
+        if (enable && !canDeviceAuthenticate(ctx)) {
+            _appLockStatus.value = AppLockStatus.NeedsDeviceCredential
+            return
+        }
+        _appLockStatus.value = AppLockStatus.Working
+        viewModelScope.launch {
+            val outcome = withContext(Dispatchers.IO) {
+                val keyStore = ServiceLocator.dbKeyStore
+                if (enable) DbCipherMigration.encrypt(ctx, keyStore)
+                else DbCipherMigration.decrypt(ctx, keyStore)
+            }
+            when (outcome) {
+                is DbCipherMigration.Outcome.Success -> {
+                    repo.migrateSensitiveFields()
+                    repo.setAppLockEnabled(enable)
+                    _appLockStatus.value = AppLockStatus.Idle
+                }
+                is DbCipherMigration.Outcome.Failed -> {
+                    _appLockStatus.value =
+                        AppLockStatus.Failed(outcome.reason, outcome.restored)
+                }
+            }
+        }
     }
 }

@@ -124,6 +124,7 @@
     <li>Network traffic uses HTTPS where applicable; cleartext HTTP is disabled in the manifest.</li>
     <li>LAN sync uses an end-to-end encrypted Noise XK channel with a short-authentication-string confirmation during pairing.</li>
     <li>App data is stored in SilverBP's private app sandbox, accessible only to the app itself on a non-rooted device.</li>
+    <li><strong>Optional app lock &amp; encryption</strong> — you can require your fingerprint, face, or device PIN/password to open the app. When enabled, the local database and sensitive settings are additionally encrypted at rest with a key held in the device's hardware-backed keystore. This protects against device backup and file extraction on a non-rooted device; it is not designed to resist a rooted device, and the unlock credential is managed by Android (SilverBP never sees it). The feature is off by default and can be turned off again at any time.</li>
   </ul>
 
   <h2>9. Changes</h2>
@@ -197,6 +198,7 @@
     <li>網路傳輸採用 HTTPS;Manifest 已停用 cleartext HTTP。</li>
     <li>區網同步採用端對端加密的 Noise XK 通道,並在配對時以 short-authentication-string 確認。</li>
     <li>App 資料儲存於 SilverBP 私有 App sandbox,在未 root 的裝置上僅本 App 可存取。</li>
+    <li><strong>選用的 App 鎖定與加密</strong> — 您可以要求開啟 App 時驗證指紋、臉部或裝置 PIN／密碼。啟用後,本機資料庫與敏感設定會額外以裝置硬體金鑰庫保管的金鑰加密儲存。此可防範未 root 裝置上的備份與檔案萃取,但不用於對抗已 root 的裝置;解鎖憑證由 Android 管理,SilverBP 永遠不會看到。此功能預設關閉,且可隨時關閉。</li>
   </ul>
 
   <h2>9. 政策變更</h2>

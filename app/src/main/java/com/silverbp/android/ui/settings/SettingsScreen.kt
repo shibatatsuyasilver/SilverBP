@@ -78,6 +78,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
+    val appLockStatus by vm.appLockStatus.collectAsStateWithLifecycle()
     val modelPhase by ServiceLocator.modelLoadStatus.phase.collectAsStateWithLifecycle()
     var hfToken by remember { mutableStateOf("") }
 
@@ -582,6 +583,61 @@ fun SettingsScreen(
                     stringResource(R.string.settings_sync_pair_help),
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+
+            // Security — opt-in biometric/device-credential lock + at-rest
+            // encryption. Default off; enabling runs the DB migration.
+            SectionCard(stringResource(R.string.settings_security_section)) {
+                ToggleRow(
+                    label = stringResource(R.string.settings_app_lock_label),
+                    checked = state.appLockEnabled,
+                    onChange = { vm.setAppLock(it) },
+                    enabled = appLockStatus != SettingsViewModel.AppLockStatus.Working,
+                )
+                Text(
+                    stringResource(R.string.settings_app_lock_help),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                when (appLockStatus) {
+                    SettingsViewModel.AppLockStatus.Working -> {
+                        Spacer(Modifier.size(8.dp))
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text(
+                            stringResource(R.string.settings_app_lock_working),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                    SettingsViewModel.AppLockStatus.NeedsDeviceCredential -> {
+                        Text(
+                            stringResource(R.string.settings_app_lock_need_credential),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        TextButton(onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.provider.Settings.ACTION_SECURITY_SETTINGS,
+                                    ).apply {
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    },
+                                )
+                            }
+                            vm.dismissAppLockStatus()
+                        }) { Text(stringResource(R.string.settings_app_lock_open_security)) }
+                    }
+                    is SettingsViewModel.AppLockStatus.Failed -> {
+                        Text(
+                            stringResource(R.string.settings_app_lock_failed),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                    SettingsViewModel.AppLockStatus.Idle -> Unit
+                }
             }
 
             // About
