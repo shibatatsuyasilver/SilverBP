@@ -7,10 +7,27 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val mapsApiKey: String = Properties().apply {
+val localProps: Properties = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
-}.getProperty("MAPS_API_KEY") ?: ""
+}
+val mapsApiKey: String = localProps.getProperty("MAPS_API_KEY") ?: ""
+
+// Release upload key. Generate locally with:
+//   keytool -genkey -v -keystore ~/keystores/silverbp-upload.jks \
+//     -alias upload -keyalg RSA -keysize 2048 -validity 10000
+// Then add KEYSTORE_PATH / KEYSTORE_PASS / KEY_ALIAS / KEY_PASS to local.properties
+// (do NOT commit). When any value is missing the release config falls back to the
+// debug key, so a fresh clone can still build a debug APK.
+val keystorePath: String? = localProps.getProperty("KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+val keystorePass: String? = localProps.getProperty("KEYSTORE_PASS")?.takeIf { it.isNotBlank() }
+val keystoreAlias: String? = localProps.getProperty("KEY_ALIAS")?.takeIf { it.isNotBlank() }
+val keystoreKeyPass: String? = localProps.getProperty("KEY_PASS")?.takeIf { it.isNotBlank() }
+val hasReleaseSigning: Boolean =
+    keystorePath != null && keystorePass != null && keystoreAlias != null && keystoreKeyPass != null
+
+// Hosted via GitHub Pages from /docs in this repo.
+val privacyPolicyUrl: String = "https://shibatatsuyasilver.github.io/SilverBP/privacy.html"
 
 android {
     namespace = "com.silverbp.android"
@@ -19,7 +36,7 @@ android {
     defaultConfig {
         applicationId = "com.silverbp.android"
         minSdk = 33
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -28,18 +45,37 @@ android {
 
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
+        buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
+
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
     }
 
+    if (hasReleaseSigning) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystorePath!!)
+                storePassword = keystorePass
+                keyAlias = keystoreAlias
+                keyPassword = keystoreKeyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            // else: falls back to the debug signing config so a fresh clone
+            // without a keystore can still produce an installable release APK.
         }
     }
 
