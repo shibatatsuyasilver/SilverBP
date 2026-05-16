@@ -223,6 +223,8 @@
     <string name="coach_today_task_done_today">Today\'s exercise complete: %1$d min</string>
     <string name="coach_safety_hold_title">Rest day recommended</string>
     <string name="coach_safety_hold_body">Recent readings are high. Skip exercise today and consider contacting your doctor.</string>
+    <string name="coach_today_task_rest_day">Today\'s goal met</string>
+    <string name="coach_today_task_rest_day_progress">%1$d min walked today</string>
     <string name="coach_module_exercise">Exercise</string>
     <string name="coach_module_diet">Diet</string>
     <string name="coach_module_sleep">Sleep</string>
@@ -316,4 +318,123 @@
     <string name="coach_notif_alert_title_caution">Repeatedly high readings</string>
     <string name="coach_notif_alert_title_critical">Very high readings — please slow down</string>
     <string name="coach_notif_alert_body">Three or more elevated readings in 24 h. Take a moment to breathe slowly and sit upright.</string>
+
+    <!-- Settings — recognition backend selector -->
+    <string name="settings_recognition_section">Recognition engine</string>
+    <string name="settings_backend_local_title">Local model (LiteRT-LM)</string>
+    <string name="settings_backend_local_desc">Runs offline, no API cost — initial download required</string>
+    <string name="settings_backend_cloud_title">Cloud API (Google Gemini)</string>
+    <string name="settings_backend_cloud_desc">No on-device RAM, requires API key + internet</string>
+    <string name="settings_backend_aicore_title">AICore (Gemini Nano, Pixel 9/10 only)</string>
+    <string name="settings_backend_aicore_desc">System-installed Gemini Nano with Tensor TPU acceleration. Model is managed by Android — no extra APK weight.</string>
+
+    <!-- Settings — local model section -->
+    <string name="settings_local_model_section">Choose a local model</string>
+    <string name="settings_hf_token_label">Hugging Face token (only for gated models)</string>
+    <string name="settings_hf_token_help">Gemma models on HF are gated: log in to huggingface.co → accept the Gemma terms → Settings → Access Tokens → generate a read token.</string>
+
+    <!-- Settings — advanced (model tuning) -->
+    <string name="settings_advanced_section">Advanced</string>
+    <string name="settings_max_tokens_label">Max tokens (KV cache)</string>
+    <string name="settings_max_tokens_help">Affects GPU memory usage and output length. Tap the button below to reload the model after changing.</string>
+    <string name="settings_apply_reload">Apply and reload model</string>
+    <string name="settings_max_tokens_dropdown">Max tokens</string>
+    <string name="settings_vision_backend_label">Vision encoder backend</string>
+    <string name="settings_vision_backend_help">Auto = chosen by SoC (Adreno 7xx → CPU, others → GPU with auto fallback). Tap \"Apply and reload model\" above after changing.</string>
+    <string name="settings_vision_backend_dropdown">Vision backend</string>
+    <string name="settings_speculative_label">Speculative decoding (~2x faster)</string>
+    <string name="settings_speculative_supported_help">MTP acceleration; turn off if you hit compatibility issues. Tap \"Apply and reload model\" above after changing.</string>
+    <string name="settings_speculative_unsupported_help">The selected model (%1$s) has no MTP heads — this option is not available.</string>
+    <string name="settings_ocr_prompt_label">OCR system prompt</string>
+    <string name="settings_action_reset">Reset</string>
+    <string name="settings_ocr_prompt_help">Leave blank to use the built-in default prompt. Applies to the next photo — no reload needed.</string>
+
+    <!-- Settings — Gemini cloud -->
+    <string name="settings_gemini_section">Gemini settings</string>
+    <string name="settings_gemini_api_label">API Key (AIza…)</string>
+    <string name="settings_gemini_help">Get an API key at https://aistudio.google.com/app/apikey.\nFlash works for most cases — use Pro for blurry or reflective photos.</string>
+    <string name="settings_gemini_model_label">Gemini model</string>
+
+    <!-- Settings — AICore (Gemini Nano) -->
+    <string name="settings_aicore_section">AICore (Gemini Nano)</string>
+    <string name="settings_aicore_help">On Pixel 9/10, Android\'s system service (AICore) loads Gemini Nano with Tensor TPU acceleration. First load may pull the model from Play services.</string>
+    <string name="settings_aicore_soc">Device SoC: %1$s</string>
+    <string name="settings_aicore_downloading">Downloading Gemini Nano… %1$d%%</string>
+    <string name="settings_aicore_warming">Warming up…</string>
+    <string name="settings_aicore_ready">Loaded — ready.</string>
+    <string name="settings_aicore_failed">Load failed: %1$s</string>
+    <string name="settings_aicore_idle">Not loaded yet. Tap the button below to check for and download Gemini Nano.</string>
+    <string name="settings_aicore_check_button">Check / download Gemini Nano</string>
+    <string name="settings_aicore_unavailable_help">If you see \"unavailable\", this device or Play services has not provisioned Gemini Nano yet. Go to system Settings → System → Developer options → AICore Settings to verify the model is enabled, and add your account to the aicore-experimental Google Group plus the Play Store tester program.</string>
+
+    <!-- Settings — chat persona + records toggle -->
+    <string name="settings_chat_section">Chat settings</string>
+    <string name="settings_chat_persona_label">Chat persona</string>
+    <string name="settings_chat_persona_help">Leave blank to use the built-in default persona. Applies to the next message — no reload needed.</string>
+    <string name="settings_chat_include_records">Include personal health records</string>
+    <string name="settings_chat_include_records_help">When on, the latest reading, 7-day and 30-day stats, exercise sessions, and badge summaries are appended to the system prompt for the LLM to reference. Turn off to test the model\'s response to neutral questions.</string>
+
+    <!-- Settings — cross-device sync -->
+    <string name="settings_sync_section">Cross-device sync</string>
+    <string name="settings_sync_pair_button">Pair another device</string>
+    <string name="settings_sync_pair_help">Scan another device\'s QR code to pair. After that, blood-pressure data syncs automatically over the same Wi-Fi. End-to-end encrypted — the cloud never sees the contents.</string>
+
+    <!-- Settings — model variant row -->
+    <string name="model_chip_downloaded">Downloaded</string>
+    <string name="model_button_downloading">Downloading…</string>
+    <string name="model_button_download">Download</string>
+    <string name="model_download_progress">Download progress %1$d%%</string>
+
+    <!-- Settings — Health Connect snackbar -->
+    <string name="settings_hc_steps_denied">Health Connect permission denied — please grant \"read steps\" manually.</string>
+    <string name="settings_hc_open_action">Open Health Connect</string>
+
+    <!-- Chat sessions drawer -->
+    <string name="chat_drawer_title">Chats</string>
+    <string name="chat_new_session">New chat</string>
+    <string name="chat_drawer_empty">No chats yet — tap \"New chat\" above to start.</string>
+    <string name="chat_options_a11y">Options</string>
+    <string name="chat_rename">Rename</string>
+    <string name="chat_delete">Delete</string>
+    <string name="chat_rename_dialog_title">Rename chat</string>
+    <string name="chat_delete_dialog_title">Delete chat?</string>
+    <string name="chat_delete_dialog_message">All messages and images in \"%1$s\" will be permanently deleted.</string>
+    <string name="chat_default_session_title">New chat</string>
+
+    <!-- Chat relative-time labels for the drawer subtitle -->
+    <string name="chat_time_just_now">just now</string>
+    <string name="chat_time_minutes_ago">%1$d min ago</string>
+    <string name="chat_time_hours_ago">%1$d hr ago</string>
+
+    <!-- Chat screen accessibility / icon labels -->
+    <string name="a11y_back">Back</string>
+    <string name="a11y_chat_list">Chats</string>
+    <string name="a11y_attach">Attach</string>
+    <string name="a11y_voice_input">Voice input</string>
+    <string name="a11y_cancel">Cancel</string>
+    <string name="a11y_send">Send</string>
+    <string name="a11y_remove_image">Remove image</string>
+
+    <!-- Chat screen UI labels -->
+    <string name="chat_attach_camera">Take a photo</string>
+    <string name="chat_attach_gallery">Pick from library</string>
+    <string name="chat_input_placeholder">Type a message…</string>
+    <string name="chat_image_attached">Image attached</string>
+    <string name="chat_empty_title">Ask about your health records</string>
+    <string name="chat_empty_subtitle">Ask in text, voice, or photo. Answers reference your records first.</string>
+    <string name="chat_suggestion_latest">What\'s my latest blood pressure?</string>
+    <string name="chat_suggestion_weekly_avg">What\'s my weekly BP average?</string>
+    <string name="chat_suggestion_last_exercise">How did my last workout go?</string>
+    <string name="chat_suggestion_badges">Which badges have I earned?</string>
+    <string name="chat_voice_prompt">Speak now</string>
+
+    <!-- Insights chart empty-state and legend labels -->
+    <string name="chart_no_data_short">Not enough readings</string>
+    <string name="chart_legend_systolic">Systolic</string>
+    <string name="chart_legend_diastolic">Diastolic</string>
+    <string name="chart_need_5">Need at least 5 readings</string>
+    <string name="chart_need_7">Need at least 7 readings</string>
+    <string name="chart_legend_morning">Morning</string>
+    <string name="chart_legend_evening">Evening</string>
+    <string name="chart_no_data">No data yet</string>
 </resources>

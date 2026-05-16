@@ -94,11 +94,13 @@ fun SettingsScreen(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted -> vm.onHealthConnectGrantResult(granted) }
 
+    val hcStepsDeniedMsg = stringResource(R.string.settings_hc_steps_denied)
+    val hcOpenAction = stringResource(R.string.settings_hc_open_action)
     LaunchedEffect(Unit) {
         vm.hcPermissionDenied.collect {
             val result = snackbarHostState.showSnackbar(
-                message = "Health Connect 權限被拒,請手動授予「步數讀取」權限",
-                actionLabel = "開啟 Health Connect",
+                message = hcStepsDeniedMsg,
+                actionLabel = hcOpenAction,
                 duration = SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) {
@@ -149,7 +151,7 @@ fun SettingsScreen(
             }
 
             // ===== Recognition backend (Local / Cloud) =====
-            SectionCard("辨識引擎") {
+            SectionCard(stringResource(R.string.settings_recognition_section)) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -160,8 +162,8 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.size(8.dp))
                     Column {
-                        Text("本機模型 (LiteRT-LM)", fontWeight = FontWeight.Medium)
-                        Text("離線運作,無 API 費用,首次需下載", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.settings_backend_local_title), fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.settings_backend_local_desc), style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Row(
@@ -174,8 +176,8 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.size(8.dp))
                     Column {
-                        Text("雲端 API (Google Gemini)", fontWeight = FontWeight.Medium)
-                        Text("不佔本機 RAM,需 API key + 網路", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.settings_backend_cloud_title), fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.settings_backend_cloud_desc), style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Row(
@@ -189,11 +191,11 @@ fun SettingsScreen(
                     Spacer(Modifier.size(8.dp))
                     Column {
                         Text(
-                            "AICore (Gemini Nano,Pixel 9/10 only)",
+                            stringResource(R.string.settings_backend_aicore_title),
                             fontWeight = FontWeight.Medium,
                         )
                         Text(
-                            "系統內建 Gemini Nano + Tensor TPU 加速。模型由 Android 管理,APK 不增重。",
+                            stringResource(R.string.settings_backend_aicore_desc),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -202,7 +204,7 @@ fun SettingsScreen(
 
             // ===== Local model picker (when Local backend active) =====
             if (state.recognitionBackend == RecognitionBackend.Local) {
-                SectionCard("選擇本機模型") {
+                SectionCard(stringResource(R.string.settings_local_model_section)) {
                     val downloader = remember { ModelDownloader(context) }
                     ModelCatalog.variants.forEach { variant ->
                         val isSelected = state.selectedModelId == variant.id
@@ -246,21 +248,21 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = hfToken,
                         onValueChange = { hfToken = it },
-                        label = { Text("Hugging Face token (gated 模型才需要)") },
+                        label = { Text(stringResource(R.string.settings_hf_token_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
                     Text(
-                        "Gemma 模型在 HF 受授權保護:登入 huggingface.co → 接受 Gemma 條款 → Settings → Access Tokens 產一個 read token。",
+                        stringResource(R.string.settings_hf_token_help),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
 
-                SectionCard("進階設定") {
-                    Text("Max tokens (KV cache)", fontWeight = FontWeight.Medium)
+                SectionCard(stringResource(R.string.settings_advanced_section)) {
+                    Text(stringResource(R.string.settings_max_tokens_label), fontWeight = FontWeight.Medium)
                     Text(
-                        "影響 GPU 記憶體用量與輸出長度。改值後請按下方按鈕重新載入模型。",
+                        stringResource(R.string.settings_max_tokens_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.size(4.dp))
@@ -272,14 +274,13 @@ fun SettingsScreen(
                     Button(
                         onClick = { ModelBootstrap.reloadCurrentVariant(context) },
                         enabled = !ServiceLocator.modelLoadStatus.isBusy,
-                    ) { Text("套用並重新載入模型") }
+                    ) { Text(stringResource(R.string.settings_apply_reload)) }
 
                     HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
-                    Text("Vision encoder backend", fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.settings_vision_backend_label), fontWeight = FontWeight.Medium)
                     Text(
-                        "Auto = 依 SoC 自動選擇 (Adreno 7xx → CPU,其餘 → GPU + 失敗自動 fallback)。" +
-                            "改值後請按上方「套用並重新載入模型」。",
+                        stringResource(R.string.settings_vision_backend_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.size(4.dp))
@@ -297,12 +298,15 @@ fun SettingsScreen(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Speculative decoding (~2x 解碼加速)", fontWeight = FontWeight.Medium)
+                            Text(stringResource(R.string.settings_speculative_label), fontWeight = FontWeight.Medium)
                             Text(
                                 if (selectedVariant.supportsSpeculativeDecoding) {
-                                    "MTP 加速;若遇相容性問題可關閉。改值後請按上方「套用並重新載入模型」。"
+                                    stringResource(R.string.settings_speculative_supported_help)
                                 } else {
-                                    "目前選用的模型 (${selectedVariant.displayName}) 沒有 MTP heads,此選項暫不適用。"
+                                    stringResource(
+                                        R.string.settings_speculative_unsupported_help,
+                                        selectedVariant.displayName,
+                                    )
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -318,14 +322,16 @@ fun SettingsScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "OCR system prompt",
+                            stringResource(R.string.settings_ocr_prompt_label),
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = { vm.setSystemPrompt("") }) { Text("重置") }
+                        TextButton(onClick = { vm.setSystemPrompt("") }) {
+                            Text(stringResource(R.string.settings_action_reset))
+                        }
                     }
                     Text(
-                        "留空 = 使用內建預設 prompt。下一張照片即套用,不需重新載入模型。",
+                        stringResource(R.string.settings_ocr_prompt_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.size(4.dp))
@@ -342,11 +348,11 @@ fun SettingsScreen(
 
             // ===== Cloud (Gemini) configuration =====
             if (state.recognitionBackend == RecognitionBackend.Cloud) {
-                SectionCard("Gemini 設定") {
+                SectionCard(stringResource(R.string.settings_gemini_section)) {
                     OutlinedTextField(
                         value = state.geminiApiKey,
                         onValueChange = { vm.setGeminiApiKey(it) },
-                        label = { Text("API Key (AIza…)") },
+                        label = { Text(stringResource(R.string.settings_gemini_api_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
@@ -357,8 +363,7 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.size(8.dp))
                     Text(
-                        "至 https://aistudio.google.com/app/apikey 取得 API key。\n" +
-                            "Flash 適合大多數情況,Pro 用於模糊或反光的照片。",
+                        stringResource(R.string.settings_gemini_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -366,17 +371,16 @@ fun SettingsScreen(
 
             // ===== AICore (Gemini Nano) configuration =====
             if (state.recognitionBackend == RecognitionBackend.AICore) {
-                SectionCard("AICore (Gemini Nano)") {
+                SectionCard(stringResource(R.string.settings_aicore_section)) {
                     Text(
-                        "在 Pixel 9/10 系列上由 Android 系統服務 (AICore) 載入 Gemini Nano,使用 Tensor TPU 加速。" +
-                            "首次載入可能需從 Play 服務下載模型。",
+                        stringResource(R.string.settings_aicore_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.size(8.dp))
                     val socHint = remember { DeviceCapabilities.currentSocModel() }
                     if (socHint.isNotEmpty()) {
                         Text(
-                            "本機 SoC: $socHint",
+                            stringResource(R.string.settings_aicore_soc, socHint),
                             style = MaterialTheme.typography.labelSmall,
                         )
                     }
@@ -389,7 +393,7 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             Text(
-                                "Gemini Nano 下載中… $pct%",
+                                stringResource(R.string.settings_aicore_downloading, pct),
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(top = 4.dp),
                             )
@@ -397,27 +401,27 @@ fun SettingsScreen(
                         is ModelLoadPhase.Loading -> {
                             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                             Text(
-                                "正在 warm up…",
+                                stringResource(R.string.settings_aicore_warming),
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(top = 4.dp),
                             )
                         }
                         is ModelLoadPhase.Ready -> {
                             Text(
-                                "已載入,可用。",
+                                stringResource(R.string.settings_aicore_ready),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }
                         is ModelLoadPhase.Failed -> {
                             Text(
-                                "載入失敗:${phase.message}",
+                                stringResource(R.string.settings_aicore_failed, phase.message),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
                         ModelLoadPhase.Idle -> {
                             Text(
-                                "尚未載入。按下方按鈕檢查並下載 Gemini Nano。",
+                                stringResource(R.string.settings_aicore_idle),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }
@@ -426,29 +430,29 @@ fun SettingsScreen(
                     Button(
                         onClick = { ModelBootstrap.preloadAICore(context) },
                         enabled = !ServiceLocator.modelLoadStatus.isBusy,
-                    ) { Text("檢查 / 下載 Gemini Nano") }
+                    ) { Text(stringResource(R.string.settings_aicore_check_button)) }
                     Spacer(Modifier.size(8.dp))
                     Text(
-                        "若顯示「unavailable」表示這台裝置或 Play 服務還沒提供 Gemini Nano。" +
-                            "請在系統設定 → 系統 → 開發人員選項 → AICore Settings 確認模型已啟用," +
-                            "並把帳號加入 aicore-experimental Google Group + Play Store tester 計畫。",
+                        stringResource(R.string.settings_aicore_unavailable_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
 
             // ===== Chat settings (applies to all backends) =====
-            SectionCard("聊天設定") {
+            SectionCard(stringResource(R.string.settings_chat_section)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "聊天 persona",
+                        stringResource(R.string.settings_chat_persona_label),
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { vm.setChatPersona("") }) { Text("重置") }
+                    TextButton(onClick = { vm.setChatPersona("") }) {
+                        Text(stringResource(R.string.settings_action_reset))
+                    }
                 }
                 Text(
-                    "留空 = 使用內建預設 persona。下一輪訊息即套用,不需重新載入模型。",
+                    stringResource(R.string.settings_chat_persona_help),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.size(4.dp))
@@ -462,13 +466,12 @@ fun SettingsScreen(
                 )
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 ToggleRow(
-                    label = "包含個人健康紀錄",
+                    label = stringResource(R.string.settings_chat_include_records),
                     checked = state.chatIncludeRecordsContext,
                     onChange = vm::setChatIncludeRecordsContext,
                 )
                 Text(
-                    "啟用時會把最新血壓 / 7 日 30 日統計 / 運動 / 徽章摘要附在 system prompt 中讓 LLM 參考。" +
-                        "關閉適合測試模型對中性問題的回應。",
+                    stringResource(R.string.settings_chat_include_records_help),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -485,85 +488,6 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (state.enableCoach) {
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    SleepTrackingRow(
-                        enabled = state.sleepTrackingEnabled,
-                        onEnable = { vm.onSleepGrantResult(it) },
-                        onDisable = vm::disableSleepTracking,
-                    )
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    DietTrackingRow(
-                        enabled = state.dietTrackingEnabled,
-                        onEnable = { vm.onDietGrantResult(it) },
-                        onDisable = vm::disableDietTracking,
-                    )
-                }
-            }
-
-            // Integrations
-            SectionCard(stringResource(R.string.integration_section)) {
-                ToggleRow(
-                    label = stringResource(R.string.health_connect),
-                    checked = state.enableHealthConnect,
-                    onChange = { newValue ->
-                        if (newValue) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                hcModernLauncher.launch(hcReadPerms.toTypedArray())
-                            } else {
-                                hcLegacyLauncher.launch(hcReadPerms)
-                            }
-                        } else vm.disableHealthConnect()
-                    },
-                )
-                HorizontalDivider()
-                ToggleRow(
-                    label = stringResource(R.string.cloud_sync) + "  " + stringResource(R.string.cloud_sync_unavailable),
-                    checked = state.enableCloudSync,
-                    onChange = vm::setCloudSync,
-                    enabled = false,
-                )
-            }
-
-            // Daily step goal + medal notifications
-            SectionCard(stringResource(R.string.medal_settings_section)) {
-                StepGoalRow(
-                    goal = state.dailyStepGoal,
-                    onChange = vm::setDailyStepGoal,
-                )
-                HorizontalDivider()
-                ToggleRow(
-                    label = stringResource(R.string.medal_settings_notify),
-                    checked = state.notifyOnMedalUnlock,
-                    onChange = vm::setNotifyOnMedalUnlock,
-                )
-                NotificationPermissionHint()
-            }
-
-            // Location permission status (Exercise feature)
-            SectionCard(stringResource(R.string.exercise_settings_section)) {
-                LocationPermissionRow()
-            }
-
-            // Cross-device sync — opens the QR-pairing flow for adding a paired
-            // iPhone/Android peer over LAN. End-to-end Noise XK + SAS confirm.
-            SectionCard("跨裝置同步") {
-                Button(
-                    onClick = onOpenSyncPairing,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("配對另一台裝置") }
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    "掃描另一台裝置的 QR 碼配對,之後在同 Wi-Fi 下血壓資料會自動同步。" +
-                        "資料端對端加密,雲端永遠看不到內容。",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            // About
-            SectionCard(stringResource(R.string.about_section)) {
-                Text(stringResource(R.string.about_model), style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.size(6.dp))
-                Text(stringResource(R.string.not_medical_device), style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -754,14 +678,24 @@ private fun ModelVariantRow(
                 if (isDownloaded) {
                     AssistChip(
                         onClick = {},
-                        label = { Text("已下載", style = MaterialTheme.typography.labelSmall) },
+                        label = {
+                            Text(
+                                stringResource(R.string.model_chip_downloaded),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
                         colors = AssistChipDefaults.assistChipColors(),
                     )
                 }
             }
             if (!isDownloaded) {
                 TextButton(onClick = onDownload, enabled = !inProgress) {
-                    Text(if (inProgress) "下載中…" else "下載")
+                    Text(
+                        stringResource(
+                            if (inProgress) R.string.model_button_downloading
+                            else R.string.model_button_download,
+                        ),
+                    )
                 }
             }
         }
@@ -773,7 +707,7 @@ private fun ModelVariantRow(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                "下載進度 $pct%",
+                stringResource(R.string.model_download_progress, pct),
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(top = 2.dp),
             )
@@ -792,7 +726,7 @@ private fun GeminiModelDropdown(selected: String, onSelect: (String) -> Unit) {
             value = selected,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Gemini 模型") },
+            label = { Text(stringResource(R.string.settings_gemini_model_label)) },
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = {
                 TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }
@@ -818,7 +752,7 @@ private fun MaxTokensDropdown(selected: Int, onSelect: (Int) -> Unit) {
             value = selected.toString(),
             onValueChange = {},
             readOnly = true,
-            label = { Text("Max tokens") },
+            label = { Text(stringResource(R.string.settings_max_tokens_dropdown)) },
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = {
                 TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }
@@ -853,7 +787,7 @@ private fun VisionBackendDropdown(
             value = display,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Vision backend") },
+            label = { Text(stringResource(R.string.settings_vision_backend_dropdown)) },
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = {
                 TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }

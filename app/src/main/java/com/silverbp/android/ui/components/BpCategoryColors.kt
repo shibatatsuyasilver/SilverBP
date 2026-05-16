@@ -12,6 +12,7 @@ import com.silverbp.android.ui.theme.CategoryHypotension
 import com.silverbp.android.ui.theme.CategoryNormal
 import com.silverbp.android.ui.theme.CategoryStage1
 import com.silverbp.android.ui.theme.CategoryStage2
+import java.util.Locale
 
 @Composable
 @ReadOnlyComposable
@@ -24,13 +25,30 @@ fun colorFor(category: BpCategory): Color = when (category) {
     BpCategory.Hypotension -> CategoryHypotension
 }
 
-fun chineseLabel(category: BpCategory): String = when (category) {
-    BpCategory.Normal -> "正常"
-    BpCategory.Elevated -> "偏高"
-    BpCategory.Stage1 -> "高血壓 1 期"
-    BpCategory.Stage2 -> "高血壓 2 期"
-    BpCategory.HypertensiveCrisis -> "高血壓危象"
-    BpCategory.Hypotension -> "低血壓"
+/**
+ * Locale-aware short label for a [BpCategory]. Used both in Composables
+ * (chart legends, today screen) and from non-Composable code that builds
+ * LLM context, so it picks zh-TW vs en via [Locale.getDefault] rather than
+ * Compose's `stringResource`. Android 13+ per-app language overrides are
+ * applied to the default locale, so this stays consistent with UI strings.
+ */
+fun categoryLabel(category: BpCategory): String {
+    val zh = Locale.getDefault().language.equals("zh", ignoreCase = true)
+    return if (zh) when (category) {
+        BpCategory.Normal -> "正常"
+        BpCategory.Elevated -> "偏高"
+        BpCategory.Stage1 -> "高血壓 1 期"
+        BpCategory.Stage2 -> "高血壓 2 期"
+        BpCategory.HypertensiveCrisis -> "高血壓危象"
+        BpCategory.Hypotension -> "低血壓"
+    } else when (category) {
+        BpCategory.Normal -> "Normal"
+        BpCategory.Elevated -> "Elevated"
+        BpCategory.Stage1 -> "Stage 1 hypertension"
+        BpCategory.Stage2 -> "Stage 2 hypertension"
+        BpCategory.HypertensiveCrisis -> "Hypertensive crisis"
+        BpCategory.Hypotension -> "Hypotension"
+    }
 }
 
 fun classify(systolic: Int, diastolic: Int, guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022): BpCategory =

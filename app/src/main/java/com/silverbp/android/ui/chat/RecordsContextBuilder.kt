@@ -2,6 +2,7 @@ package com.silverbp.android.ui.chat
 
 import com.silverbp.android.achievements.AchievementStore
 import com.silverbp.android.analytics.StatsEngine
+import com.silverbp.android.coach.CoachPrompts
 import com.silverbp.android.coach.CoachRepository
 import com.silverbp.android.coach.LifestyleModule
 import com.silverbp.android.core.BpReading
@@ -11,8 +12,8 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.settings.UserSettingsRepository
+import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
-import com.silverbp.android.ui.components.chineseLabel
 import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.time.LocalDate
@@ -27,6 +28,11 @@ import java.util.Locale
  *
  * Token budget: ~400 tokens. Keep section bodies short. If usage shows
  * truncation on Gemma E2B's 4K context, drop "30 日趨勢" first.
+ *
+ * Locale-aware: section headers and field labels follow [Locale.getDefault],
+ * delegating to [CoachPrompts.Records]. The English variant uses the same
+ * structure so the chat persona's section references (## Latest reading / etc.)
+ * line up with what the LLM actually sees.
  */
 class RecordsContextBuilder(
     private val bp: BpRepository = ServiceLocator.bpRepository,
@@ -47,7 +53,7 @@ class RecordsContextBuilder(
         val sb = StringBuilder()
         val zone = ZoneId.systemDefault()
 
-        sb.appendLine("# 使用者目前資料 (供你回答時參考)")
+        sb.appendLine(CoachPrompts.Records.header)
         sb.appendLine()
 
         appendProfile(sb)
@@ -67,24 +73,31 @@ class RecordsContextBuilder(
 
     private suspend fun appendProfile(sb: StringBuilder) {
         val s = runCatching { settings.flow.first() }.getOrNull() ?: return
-        sb.appendLine("## 個人化")
-        sb.appendLine("- 高血壓指引: ${s.guideline.raw}")
-        sb.appendLine("- 每日步數目標: ${s.dailyStepGoal}")
-        sb.appendLine("- 辨識後端: ${s.recognitionBackend.raw}")
+        sb.appendLine(CoachPrompts.Records.sectionProfile)
+        sb.appendLine(CoachPrompts.Records.guidelineLine(s.guideline.raw))
+        sb.appendLine(CoachPrompts.Records.stepGoalLine(s.dailyStepGoal))
+        sb.appendLine(CoachPrompts.Records.backendLine(s.recognitionBackend.raw))
         sb.appendLine()
     }
 
     private suspend fun appendLatestBp(sb: StringBuilder, zone: ZoneId) {
         val latest = runCatching { bp.observeLatest().first() }.getOrNull()
-        sb.appendLine("## 最新血壓")
+        sb.appendLine(CoachPrompts.Records.sectionLatestBp)
         if (latest == null) {
-            sb.appendLine("- 尚無紀錄")
+            sb.appendLine("- ${CoachPrompts.Records.noRecord}")
         } else {
-            val cat = chineseLabel(classify(latest.systolic, latest.diastolic))
+            val cat = categoryLabel(classify(latest.systolic, latest.diastolic))
             val ts = TS_FMT.withZone(zone).format(latest.timestamp)
-            val pulse = latest.pulse?.let { "，脈搏 $it" } ?: ""
-            sb.appendLine("- $ts — ${latest.systolic}/${latest.diastolic} mmHg ($cat)$pulse")
-            if (latest.note.isNotBlank()) sb.appendLine("- 備註: ${latest.note}")
+            sb.appendLine(
+                CoachPrompts.Records.latestBpLine(
+                    timestamp = ts,
+                    sys = latest.systolic,
+                    dia = latest.diastolic,
+                    category = cat,
+                    pulse = latest.pulse,
+                ),
+            )
+            if (latest.note.isNotBlank()) sb.appendLine(CoachPrompts.Records.noteLine(latest.note))
         }
         sb.appendLine()
     }
@@ -99,9 +112,9 @@ class RecordsContextBuilder(
             bp.observeRange(thirtyDaysAgo, now).first()
         }.getOrNull().orEmpty()
 
-        sb.appendLine("## 血壓統計")
+        sb.appendLine(CoachPrompts.Records.sectionBpStats)
         if (recent7.isEmpty()) {
-            sb.appendLine("- 7 日內無紀錄")
+            sb.appendLine("- ${CoachPrompts.Records.noRecord7Days}")
         } else {
             val sys = recent7.map { it.systolic.toDouble() }
             val dia = recent7.map { it.diastolic.toDouble() }
@@ -110,8 +123,13 @@ class RecordsContextBuilder(
             val diaMean = StatsEngine.mean(dia)
             val diaSd = StatsEngine.standardDeviation(dia)
             sb.appendLine(
-                "- 7 日 (n=${recent7.size}): SBP ${"%.1f".format(sysMean)}±${"%.1f".format(sysSd)}, " +
-                    "DBP ${"%.1f".format(diaMean)}±${"%.1f".format(diaSd)} mmHg"
+                CoachPrompts.Records.bpStats7Line(
+                    n = recent7.size,
+                    sysMean = sysMean,
+                    sysSd = sysSd,
+                    diaMean = diaMean,
+                    diaSd = diaSd,
+                ),
             )
         }
         if (recent30.isNotEmpty()) {
@@ -122,11 +140,14 @@ class RecordsContextBuilder(
             val surge = StatsEngine.morningSurge(morningSys, eveningSys)
             if (surge != null) {
                 sb.appendLine(
-                    "- 30 日晨起 vs 夜晚 SBP 差: ${"%+.1f".format(surge)} mmHg" +
-                        " (n 早=${morningSys.size}, n 晚=${eveningSys.size})"
+                    CoachPrompts.Records.morningSurgeLine(
+                        surge = surge,
+                        nMorning = morningSys.size,
+                        nEvening = eveningSys.size,
+                    ),
                 )
             }
-            sb.appendLine("- 30 日紀錄筆數: ${recent30.size}")
+            sb.appendLine(CoachPrompts.Records.thirtyDayCountLine(recent30.size))
         }
         sb.appendLine()
     }
@@ -137,19 +158,22 @@ class RecordsContextBuilder(
             exercise.observeRange(sevenDaysAgo, now).first()
         }.getOrNull().orEmpty()
 
-        sb.appendLine("## 運動")
+        sb.appendLine(CoachPrompts.Records.sectionExercise)
         val achievementStats = achievements.state.value.stats
         sb.appendLine(
-            "- 今日步數: ${achievementStats.todaySteps} / 目標 ${achievementStats.dailyStepGoal}",
+            CoachPrompts.Records.todayStepsLine(
+                today = achievementStats.todaySteps,
+                goal = achievementStats.dailyStepGoal,
+            ),
         )
-        sb.appendLine("- 連續達標天數: ${achievementStats.currentStreakDays} 天")
+        sb.appendLine(CoachPrompts.Records.streakLine(achievementStats.currentStreakDays))
         if (recent.isEmpty()) {
-            sb.appendLine("- 7 日內無運動紀錄")
+            sb.appendLine("- ${CoachPrompts.Records.noExercise7Days}")
         } else {
-            sb.appendLine("- 7 日運動次數: ${recent.size}")
+            sb.appendLine(CoachPrompts.Records.exercise7CountLine(recent.size))
             // Cap at 7 to keep the prompt within Gemma E2B's ~4K context budget.
             val sessions = recent.sortedByDescending { it.startedAt }.take(7)
-            sb.appendLine("- 7 日內紀錄:")
+            sb.appendLine(CoachPrompts.Records.exercise7ListHeader)
             for (s in sessions) {
                 sb.appendLine("  • ${formatSession(s, zone)}")
             }
@@ -161,21 +185,25 @@ class RecordsContextBuilder(
         val ts = TS_FMT.withZone(zone).format(s.startedAt)
         val durMin = (s.endedAt.toEpochMilli() - s.startedAt.toEpochMilli()) / 60_000
         val km = "%.2f".format(s.distanceMeters / 1000.0)
-        val pace = s.averagePaceSecPerKm
-            ?.let { "%.1f".format(it / 60.0) + " 分/km" }
-            ?: "配速 —"
-        val steps = s.stepCount?.let { ", ${"%,d".format(it)} 步" } ?: ""
-        return "$ts ${s.kind.raw} ${km}km / ${durMin} 分 ($pace$steps)"
+        val pace = s.averagePaceSecPerKm?.let { CoachPrompts.Records.paceLine(it) }
+        return CoachPrompts.Records.sessionLine(
+            timestamp = ts,
+            kindRaw = s.kind.raw,
+            km = km,
+            durMin = durMin,
+            paceText = pace,
+            steps = s.stepCount,
+        )
     }
 
     private fun appendAchievements(sb: StringBuilder) {
         val recent = achievements.state.value.recent.take(3)
         if (recent.isEmpty()) return
-        sb.appendLine("## 最近徽章")
+        sb.appendLine(CoachPrompts.Records.sectionAchievements)
         for (m in recent) {
             val ts = TS_FMT.withZone(ZoneId.systemDefault())
                 .format(Instant.ofEpochMilli(m.unlockedAtMillis))
-            sb.appendLine("- ${m.kind.kindRaw} (解鎖於 $ts)")
+            sb.appendLine(CoachPrompts.Records.achievementLine(m.kind.kindRaw, ts))
         }
         sb.appendLine()
     }
@@ -185,13 +213,13 @@ class RecordsContextBuilder(
         val rows = runCatching {
             coachRepo.sleepRange(sevenDaysAgoMillis, now.toEpochMilli())
         }.getOrNull().orEmpty()
-        sb.appendLine("## 睡眠 (7 日)")
+        sb.appendLine(CoachPrompts.Records.sectionSleep)
         if (rows.isEmpty()) {
-            sb.appendLine("- 7 日內無紀錄")
+            sb.appendLine("- ${CoachPrompts.Records.noRecord7Days}")
         } else {
             val meanMin = rows.map { it.durationMin }.average()
             val meanH = "%.1f".format(meanMin / 60.0)
-            sb.appendLine("- 平均 $meanH 小時 (n=${rows.size})")
+            sb.appendLine(CoachPrompts.Records.sleepAvgLine(meanH, rows.size))
         }
         sb.appendLine()
     }
@@ -201,16 +229,16 @@ class RecordsContextBuilder(
         val rows = runCatching {
             coachRepo.dietRange(sevenDaysAgoMillis, now.toEpochMilli())
         }.getOrNull().orEmpty()
-        sb.appendLine("## 飲食 (7 日)")
+        sb.appendLine(CoachPrompts.Records.sectionDiet)
         if (rows.isEmpty()) {
-            sb.appendLine("- 7 日內無紀錄")
+            sb.appendLine("- ${CoachPrompts.Records.noRecord7Days}")
         } else {
             val high = rows.count { it.sodiumLevelRaw == "high" }
             val mid = rows.count { it.sodiumLevelRaw == "mid" }
             val low = rows.count { it.sodiumLevelRaw == "low" }
             val avgVeg = rows.map { it.vegServings }.average()
-            sb.appendLine("- 鈉攝取: 低=$low / 中=$mid / 高=$high")
-            sb.appendLine("- 平均蔬菜份數: ${"%.1f".format(avgVeg)}")
+            sb.appendLine(CoachPrompts.Records.dietSodiumLine(low, mid, high))
+            sb.appendLine(CoachPrompts.Records.dietVegLine("%.1f".format(avgVeg)))
         }
         sb.appendLine()
     }
@@ -220,28 +248,30 @@ class RecordsContextBuilder(
         val ratio = runCatching {
             coachRepo.medicationAdherence(sevenDaysAgoMillis, now.toEpochMilli())
         }.getOrNull() ?: 0f
-        sb.appendLine("## 服藥 (7 日)")
-        sb.appendLine("- 完成率: ${(ratio * 100).toInt()}%")
+        sb.appendLine(CoachPrompts.Records.sectionMedication)
+        sb.appendLine(CoachPrompts.Records.medicationRateLine((ratio * 100).toInt()))
         sb.appendLine()
     }
 
     private suspend fun appendCurrentPlan(sb: StringBuilder, now: Instant) {
         val plan = runCatching { coachRepo.currentPlan(now.toEpochMilli()) }.getOrNull() ?: return
-        sb.appendLine("## 本週計畫")
-        sb.appendLine("- Phase: ${plan.phase.raw}, ruleVersion=${plan.ruleVersion}")
+        sb.appendLine(CoachPrompts.Records.sectionWeeklyPlan)
+        sb.appendLine(CoachPrompts.Records.planPhaseLine(plan.phase.raw, plan.ruleVersion))
         val byModule = plan.tasks.groupBy { it.module }
         for (module in LifestyleModule.entries) {
             val tasks = byModule[module].orEmpty()
             if (tasks.isEmpty()) continue
             val done = tasks.count { it.completedAtMillis != null }
-            sb.appendLine("- ${module.raw}: $done / ${tasks.size}")
+            sb.appendLine(CoachPrompts.Records.planModuleLine(module.raw, done, tasks.size))
         }
         sb.appendLine()
     }
 
     companion object {
+        // Pattern is locale-neutral (digits + separators only); Locale.getDefault()
+        // keeps the formatter aligned with system + per-app language settings.
         private val TS_FMT: DateTimeFormatter =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.TAIWAN)
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
     }
 }
 
@@ -256,6 +286,8 @@ class RecordsContextBuilder(
  * [GeminiCloudChatRecognizer] also post-processes the response to strip
  * checklist tails / quoted self-summaries / repeated answers, and on
  * Gemini 2.5 Flash/Pro we disable thinking via `thinkingConfig.thinkingBudget=0`.
+ *
+ * Locale-aware via [CoachPrompts.chatPersona].
  */
-const val CHAT_SYSTEM_PERSONA: String =
-    "你是 SilverBp 健康助理。依下方各區段 (## 最新血壓 / ## 血壓統計 / ## 運動 / ## 最近徽章) 之資料以繁體中文簡短回答；僅在對應區段明確顯示無紀錄時才回「目前沒有相關紀錄」。不開處方、不下診斷，數值異常時提醒就診。"
+val CHAT_SYSTEM_PERSONA: String
+    get() = CoachPrompts.chatPersona

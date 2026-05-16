@@ -20,10 +20,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.silverbp.android.R
 import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
-import com.silverbp.android.ui.components.chineseLabel
+import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.theme.CategoryCrisis
 import com.silverbp.android.ui.theme.CategoryElevated
 import com.silverbp.android.ui.theme.CategoryHypotension
@@ -43,7 +45,7 @@ private val EmptyHint = androidx.compose.ui.graphics.Color(0xFF8E8E93)
 @Composable
 fun TimeSeriesChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
     if (readings.size < 2) {
-        EmptyChart("讀數不足", modifier.height(220.dp))
+        EmptyChart(stringResource(R.string.chart_no_data_short), modifier.height(220.dp))
         return
     }
     val sorted = readings.sortedBy { it.timestamp }
@@ -82,15 +84,15 @@ fun TimeSeriesChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
         }
     }
     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        LegendDot(SbpLine, "收縮壓")
-        LegendDot(DbpLine, "舒張壓")
+        LegendDot(SbpLine, stringResource(R.string.chart_legend_systolic))
+        LegendDot(DbpLine, stringResource(R.string.chart_legend_diastolic))
     }
 }
 
 @Composable
 fun ScatterChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
     if (readings.size < 5) {
-        EmptyChart("讀數不足 5 筆", modifier.height(220.dp))
+        EmptyChart(stringResource(R.string.chart_need_5), modifier.height(220.dp))
         return
     }
     val xMin = 50; val xMax = 110; val yMin = 80; val yMax = 190
@@ -105,8 +107,8 @@ fun ScatterChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
         drawLine(EmptyHint.copy(alpha = 0.2f), androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, size.height), strokeWidth = 1f, pathEffect = effect)
     }
     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        LegendDot(SbpLine, "早晨")
-        LegendDot(DbpLine, "傍晚")
+        LegendDot(SbpLine, stringResource(R.string.chart_legend_morning))
+        LegendDot(DbpLine, stringResource(R.string.chart_legend_evening))
     }
 }
 
@@ -114,7 +116,7 @@ fun ScatterChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
 fun DistributionDonut(distribution: Map<BpCategory, Int>, modifier: Modifier = Modifier) {
     val total = distribution.values.sum().toFloat()
     if (total == 0f) {
-        EmptyChart("尚無資料", modifier.height(180.dp))
+        EmptyChart(stringResource(R.string.chart_no_data), modifier.height(180.dp))
         return
     }
     val order: List<Pair<BpCategory, Color>> = listOf(
@@ -155,7 +157,7 @@ fun DistributionDonut(distribution: Map<BpCategory, Int>, modifier: Modifier = M
                         Canvas(Modifier.size(10.dp)) { drawCircle(color) }
                     }
                     Spacer(Modifier.size(6.dp))
-                    Text("${chineseLabel(cat)}  $n  ($pct%)", style = MaterialTheme.typography.bodySmall)
+                    Text("${categoryLabel(cat)}  $n  ($pct%)", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -165,7 +167,7 @@ fun DistributionDonut(distribution: Map<BpCategory, Int>, modifier: Modifier = M
 @Composable
 fun HeatmapChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
     if (readings.size < 7) {
-        EmptyChart("讀數不足 7 筆", modifier.height(180.dp))
+        EmptyChart(stringResource(R.string.chart_need_7), modifier.height(180.dp))
         return
     }
     val zone = ZoneId.systemDefault()

@@ -153,7 +153,7 @@ fun ChatScreen(
         ) {
             Column(Modifier.padding(bottom = 16.dp)) {
                 ListItem(
-                    headlineContent = { Text("拍照") },
+                    headlineContent = { Text(stringResource(R.string.chat_attach_camera)) },
                     leadingContent = {
                         Icon(Icons.Filled.PhotoCamera, contentDescription = null)
                     },
@@ -163,7 +163,7 @@ fun ChatScreen(
                     },
                 )
                 ListItem(
-                    headlineContent = { Text("從相簿選擇") },
+                    headlineContent = { Text(stringResource(R.string.chat_attach_gallery)) },
                     leadingContent = {
                         Icon(Icons.Filled.Image, contentDescription = null)
                     },
@@ -220,12 +220,15 @@ fun ChatScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "返回",
+                                contentDescription = stringResource(R.string.a11y_back),
                             )
                         }
                     } else {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Filled.Menu, contentDescription = "對話列表")
+                            Icon(
+                                Icons.Filled.Menu,
+                                contentDescription = stringResource(R.string.a11y_chat_list),
+                            )
                         }
                     }
                 },
@@ -395,22 +398,22 @@ private fun MessageBubble(
 @Composable
 private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
     val suggestions = listOf(
-        "我最新的血壓是多少?",
-        "本週血壓的平均",
-        "上次運動表現如何?",
-        "我達成了什麼徽章?",
+        stringResource(R.string.chat_suggestion_latest),
+        stringResource(R.string.chat_suggestion_weekly_avg),
+        stringResource(R.string.chat_suggestion_last_exercise),
+        stringResource(R.string.chat_suggestion_badges),
     )
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "問問你的健康紀錄",
+            stringResource(R.string.chat_empty_title),
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
         )
         Text(
-            "可用文字、語音、照片提問。回答以你的紀錄為主。",
+            stringResource(R.string.chat_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -465,15 +468,15 @@ private fun ChatInputBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onAttach) {
-                    Icon(Icons.Filled.Add, contentDescription = "附加")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.a11y_attach))
                 }
                 IconButton(onClick = onMic) {
-                    Icon(Icons.Filled.Mic, contentDescription = "語音輸入")
+                    Icon(Icons.Filled.Mic, contentDescription = stringResource(R.string.a11y_voice_input))
                 }
                 OutlinedTextField(
                     value = input,
                     onValueChange = onInputChange,
-                    placeholder = { Text("輸入訊息…") },
+                    placeholder = { Text(stringResource(R.string.chat_input_placeholder)) },
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 4.dp),
@@ -482,11 +485,14 @@ private fun ChatInputBar(
                 )
                 if (isGenerating) {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Filled.Close, contentDescription = "取消")
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.a11y_cancel))
                     }
                 } else {
                     IconButton(onClick = onSend, enabled = canSend) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "傳送")
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = stringResource(R.string.a11y_send),
+                        )
                     }
                 }
             }
@@ -518,13 +524,13 @@ private fun StagedImageStrip(path: String, onClear: () -> Unit) {
         }
         Spacer(Modifier.size(8.dp))
         Text(
-            "已附加圖片",
+            stringResource(R.string.chat_image_attached),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onClear) {
-            Icon(Icons.Filled.Close, contentDescription = "移除圖片")
+            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.a11y_remove_image))
         }
     }
 }
@@ -535,8 +541,10 @@ private fun launchVoice(context: Context, launch: (Intent) -> Unit) {
             RecognizerIntent.EXTRA_LANGUAGE_MODEL,
             RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
         )
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.TAIWAN.toLanguageTag())
-        putExtra(RecognizerIntent.EXTRA_PROMPT, "請說話")
+        // Voice recognition language follows the active app locale so the
+        // ASR engine returns text in the user's language.
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+        putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.chat_voice_prompt))
     }
     runCatching { launch(intent) }
         .onFailure {

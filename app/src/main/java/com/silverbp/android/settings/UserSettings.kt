@@ -88,4 +88,21 @@ data class UserSettings(
     val sleepTrackingEnabled: Boolean = false,
     /** Opt-in: read nutrition (sodium) from Health Connect. */
     val dietTrackingEnabled: Boolean = false,
+
+    /**
+     * How the coach should address the user (e.g. 阿公 / 王先生 / 小明 / 你).
+     * Blank = no nickname; the coach will not address the user by name.
+     * Captured in onboarding ([com.silverbp.android.ui.onboarding.OnboardingNicknameScreen])
+     * and editable later in Settings. Injected into all coach LLM prompts.
+     */
+    val userNickname: String = "",
+
+    /**
+     * Privacy policy version the user last accepted. Compared against
+     * [com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION] in the
+     * onboarding gate ([com.silverbp.android.ui.nav.AppNavHost]) — when the
+     * stored value is lower (or 0 for a fresh install) the user is sent back
+     * to the consent step. Bump the constant when policy text changes.
+     */
+    val acceptedPolicyVersion: Int = 0,
 )

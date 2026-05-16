@@ -44,6 +44,8 @@ class UserSettingsRepository(private val context: Context) {
         val TARGET_SLEEP_HOURS = floatPreferencesKey("target_sleep_hours")
         val SLEEP_TRACKING = booleanPreferencesKey("sleep_tracking_enabled")
         val DIET_TRACKING = booleanPreferencesKey("diet_tracking_enabled")
+        val USER_NICKNAME = stringPreferencesKey("user_nickname")
+        val ACCEPTED_POLICY_VERSION = intPreferencesKey("accepted_policy_version")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -78,6 +80,8 @@ class UserSettingsRepository(private val context: Context) {
             targetSleepHours = prefs[Keys.TARGET_SLEEP_HOURS] ?: 7.0f,
             sleepTrackingEnabled = prefs[Keys.SLEEP_TRACKING] ?: false,
             dietTrackingEnabled = prefs[Keys.DIET_TRACKING] ?: false,
+            userNickname = prefs[Keys.USER_NICKNAME] ?: "",
+            acceptedPolicyVersion = prefs[Keys.ACCEPTED_POLICY_VERSION] ?: 0,
         )
     }
 
@@ -152,5 +156,16 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setDietTrackingEnabled(v: Boolean) {
         context.dataStore.edit { it[Keys.DIET_TRACKING] = v }
+    }
+    suspend fun setUserNickname(v: String) {
+        val sanitized = v.trim().take(MAX_NICKNAME_LEN)
+        context.dataStore.edit { it[Keys.USER_NICKNAME] = sanitized }
+    }
+    suspend fun setAcceptedPolicyVersion(v: Int) {
+        context.dataStore.edit { it[Keys.ACCEPTED_POLICY_VERSION] = v }
+    }
+
+    companion object {
+        const val MAX_NICKNAME_LEN: Int = 20
     }
 }

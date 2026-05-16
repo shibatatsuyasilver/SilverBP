@@ -55,7 +55,10 @@ class TodayExerciseTaskGenerator(
         }
 
         val raw = runCatching {
-            val sys = ChatMessage(role = ChatMessage.Role.System, text = systemPrompt(baseTask))
+            val sys = ChatMessage(
+                role = ChatMessage.Role.System,
+                text = systemPrompt(baseTask, settings.userNickname),
+            )
             val user = ChatMessage(role = ChatMessage.Role.User, text = userPrompt(baseTask, summary))
             val sb = StringBuilder()
             recognizer.chat(listOf(sys, user)).collect { delta -> sb.append(delta) }
@@ -78,41 +81,11 @@ class TodayExerciseTaskGenerator(
         isLlmGenerated = false,
     )
 
-    private fun systemPrompt(baseTask: CoachTask): String = buildString {
-        appendLine("你是 SilverBp 健康教練。根據使用者最近 7 天的運動紀錄,")
-        appendLine("為今日的運動任務寫一個短標題,讓使用者覺得親切、想立刻去做。")
-        appendLine()
-        appendLine("固定條件 (絕對不可更動):")
-        appendLine("- 運動類型: ${baseTask.module.raw}")
-        baseTask.targetValue?.let { v ->
-            appendLine("- 目標時間: ${v.toInt()} 分鐘")
-        }
-        appendLine("- 強度: ${baseTask.intensity.raw}")
-        appendLine()
-        appendLine("只能改變【標題的措辭】,不可改變分鐘數、強度、類型,")
-        appendLine("不可建議休息或省略運動,不可加入未提供的數字。")
-        appendLine()
-        appendLine("只輸出 JSON,不要 Markdown 也不要程式碼框:")
-        appendLine("{\"title\": \"...\", \"subtitle\": \"...\"}")
-        appendLine("- title ≤ 16 個中文字,口語、自然引用最近紀錄")
-        append("- subtitle ≤ 24 個中文字,可省略 (空字串)")
-    }
+    private fun systemPrompt(baseTask: CoachTask, nickname: String): String =
+        CoachPrompts.buildExerciseTitleSystemPrompt(baseTask, nickname)
 
-    private fun userPrompt(baseTask: CoachTask, s: RecentExerciseSummary): String = buildString {
-        appendLine("# 最近 7 天運動紀錄")
-        appendLine("- 有運動的天數: ${s.daysWithExerciseLast7}")
-        appendLine("- 累計分鐘: ${s.totalMinutesLast7}")
-        appendLine("- 距離上次運動: ${s.lastSessionMinutesAgo?.let { "${it / 60} 小時前" } ?: "從未紀錄"}")
-        appendLine("- 上次運動類型: ${s.lastKind?.raw ?: "無"}")
-        appendLine("- 本週目標: ${s.weeklyTargetMin} 分鐘 (已達 ${s.weeklyAchievedMin} 分鐘)")
-        appendLine()
-        appendLine("# 今日任務基礎資料")
-        appendLine("- 預設標題: ${baseTask.title}")
-        baseTask.targetValue?.let { v ->
-            appendLine("- 目標分鐘: ${v.toInt()}")
-        }
-        append("- 強度: ${baseTask.intensity.raw}")
-    }
+    private fun userPrompt(baseTask: CoachTask, s: RecentExerciseSummary): String =
+        CoachPrompts.buildExerciseTitleUserPrompt(baseTask, s)
 
     private fun parseJson(raw: String): TitleJson? {
         val cleaned = stripFence(raw).trim()

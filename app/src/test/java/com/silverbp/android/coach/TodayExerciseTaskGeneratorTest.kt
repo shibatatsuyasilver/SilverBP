@@ -9,19 +9,33 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Locale
 import java.util.UUID
 
 class TodayExerciseTaskGeneratorTest {
 
     private val zone = ZoneId.of("Asia/Taipei")
+    private val previousLocale: Locale = Locale.getDefault()
+
+    @Before fun setUp() {
+        // System prompts in CoachPrompts switch on Locale.getDefault();
+        // pin to zh-TW for the existing assertions and override per-test for English.
+        Locale.setDefault(Locale.TAIWAN)
+    }
+
+    @After fun tearDown() {
+        Locale.setDefault(previousLocale)
+    }
 
     private val baseTask = CoachTask(
         id = "task-1",
@@ -140,6 +154,62 @@ class TodayExerciseTaskGeneratorTest {
     }
 
     @Test
+    fun `non-blank nickname is injected into system prompt`() = runTest {
+        val capturer = CapturingRecognizer("""{"title":"先走 18 分鐘","subtitle":""}""")
+        val gen = TodayExerciseTaskGenerator(
+            summaryProvider = { emptySummary },
+            chatFactory = { capturer },
+        )
+        gen.generate(plan, baseTask, settings.copy(userNickname = "阿公"))
+        val systemText = capturer.lastMessages
+            .first { it.role == ChatMessage.Role.System }
+            .text
+        assertTrue(
+            "system prompt should reference the nickname, was:\n$systemText",
+            systemText.contains("阿公"),
+        )
+    }
+
+    @Test
+    fun `blank nickname does not add nickname instruction`() = runTest {
+        val capturer = CapturingRecognizer("""{"title":"散步 18 分鐘","subtitle":""}""")
+        val gen = TodayExerciseTaskGenerator(
+            summaryProvider = { emptySummary },
+            chatFactory = { capturer },
+        )
+        gen.generate(plan, baseTask, settings.copy(userNickname = ""))
+        val systemText = capturer.lastMessages
+            .first { it.role == ChatMessage.Role.System }
+            .text
+        assertFalse(
+            "blank nickname should not produce the 「」 quoting in the system prompt:\n$systemText",
+            systemText.contains("使用者希望被稱為"),
+        )
+    }
+
+    @Test
+    fun `english locale produces english system prompt`() = runTest {
+        Locale.setDefault(Locale.ENGLISH)
+        val capturer = CapturingRecognizer("""{"title":"Walk 18 min","subtitle":""}""")
+        val gen = TodayExerciseTaskGenerator(
+            summaryProvider = { emptySummary },
+            chatFactory = { capturer },
+        )
+        gen.generate(plan, baseTask, settings)
+        val systemText = capturer.lastMessages
+            .first { it.role == ChatMessage.Role.System }
+            .text
+        assertTrue(
+            "english system prompt should mention 'health coach', was:\n$systemText",
+            systemText.contains("health coach"),
+        )
+        assertFalse(
+            "english system prompt must not include the zh persona, was:\n$systemText",
+            systemText.contains("健康教練"),
+        )
+    }
+
+    @Test
     fun `summary aggregation - empty sessions`() {
         val now = Instant.parse("2026-05-07T10:00:00Z")
         val s = RecentExerciseSummary.from(emptyList(), now, zone, weeklyTargetMin = 150)
@@ -208,6 +278,18 @@ class TodayExerciseTaskGeneratorTest {
         override fun supportsImages(): Boolean = false
         override fun chat(messages: List<ChatMessage>): Flow<String> = flow {
             throw RuntimeException("boom")
+        }
+    }
+
+    private class CapturingRecognizer(private val response: String) : ChatRecognizer {
+        var lastMessages: List<ChatMessage> = emptyList()
+            private set
+
+        override fun isReady(): Boolean = true
+        override fun supportsImages(): Boolean = false
+        override fun chat(messages: List<ChatMessage>): Flow<String> {
+            lastMessages = messages
+            return flowOf(response)
         }
     }
 

@@ -44,7 +44,7 @@ import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.ui.components.BpReadingValue
 import com.silverbp.android.ui.components.ModelLoadBanner
-import com.silverbp.android.ui.components.chineseLabel
+import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
 import java.time.ZoneId
@@ -156,7 +156,7 @@ private fun LatestReadingCard(reading: BpReading, modifier: Modifier = Modifier)
                 Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
                 Spacer(Modifier.size(8.dp))
                 Text(
-                    chineseLabel(cat),
+                    categoryLabel(cat),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )

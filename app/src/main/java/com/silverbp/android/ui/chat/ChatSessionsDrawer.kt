@@ -42,9 +42,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.silverbp.android.chat.ChatMessage
+import com.silverbp.android.R
 import com.silverbp.android.chat.ChatRepository
 import com.silverbp.android.chat.ChatSessionSummary
 import java.time.Instant
@@ -126,12 +128,12 @@ fun ChatSessionsDrawer(
 private fun DrawerHeader(onNewSession: () -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(
-            "對話",
+            stringResource(R.string.chat_drawer_title),
             style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.padding(top = 8.dp))
         NavigationDrawerItem(
-            label = { Text("新對話") },
+            label = { Text(stringResource(R.string.chat_new_session)) },
             icon = { Icon(Icons.Filled.Add, contentDescription = null) },
             selected = false,
             onClick = onNewSession,
@@ -146,7 +148,7 @@ private fun EmptySessionsHint() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "尚無對話 — 點上方「新對話」開始。",
+            stringResource(R.string.chat_drawer_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -162,10 +164,14 @@ private fun SessionRow(
     onRequestDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    val displayTitle = session.title.ifBlank { ChatRepository.DEFAULT_TITLE_NEW }
+    val context = LocalContext.current
+    val defaultTitle = stringResource(R.string.chat_default_session_title)
+    val displayTitle = session.title
+        .ifBlank { defaultTitle }
+        .let { if (it in ChatRepository.DEFAULT_TITLES) defaultTitle else it }
     val snippet = session.lastSnippet?.let { firstLine(it).take(36) }
     val subtitle = buildString {
-        append(formatRelative(session.updatedAt))
+        append(formatRelative(session.updatedAt, context = context))
         if (!snippet.isNullOrBlank()) {
             append(" · ")
             append(snippet)
@@ -200,13 +206,13 @@ private fun SessionRow(
             IconButton(onClick = { menuOpen = true }) {
                 Icon(
                     Icons.Filled.MoreVert,
-                    contentDescription = "選項",
+                    contentDescription = stringResource(R.string.chat_options_a11y),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
-                    text = { Text("重新命名") },
+                    text = { Text(stringResource(R.string.chat_rename)) },
                     leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
                     onClick = {
                         menuOpen = false
@@ -214,7 +220,7 @@ private fun SessionRow(
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("刪除") },
+                    text = { Text(stringResource(R.string.chat_delete)) },
                     leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
                     onClick = {
                         menuOpen = false
@@ -233,26 +239,27 @@ private fun RenameSessionDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
+    val defaultTitle = stringResource(R.string.chat_default_session_title)
     var input by remember(current.id) { mutableStateOf(current.title) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("重新命名對話") },
+        title = { Text(stringResource(R.string.chat_rename_dialog_title)) },
         text = {
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it.take(40) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(ChatRepository.DEFAULT_TITLE_NEW) },
+                placeholder = { Text(defaultTitle) },
             )
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(input.trim().ifBlank { ChatRepository.DEFAULT_TITLE_NEW }) },
-            ) { Text("儲存") }
+                onClick = { onConfirm(input.trim().ifBlank { defaultTitle }) },
+            ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -263,35 +270,43 @@ private fun DeleteSessionDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val title = current.title.ifBlank { ChatRepository.DEFAULT_TITLE_NEW }
+    val defaultTitle = stringResource(R.string.chat_default_session_title)
+    val title = current.title
+        .ifBlank { defaultTitle }
+        .let { if (it in ChatRepository.DEFAULT_TITLES) defaultTitle else it }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("刪除對話?") },
-        text = { Text("「$title」內所有訊息與圖片將一併刪除,無法復原。") },
+        title = { Text(stringResource(R.string.chat_delete_dialog_title)) },
+        text = { Text(stringResource(R.string.chat_delete_dialog_message, title)) },
         confirmButton = {
             TextButton(
                 onClick = onConfirm,
                 colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
-            ) { Text("刪除") }
+            ) { Text(stringResource(R.string.delete)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
 
+// Pattern is locale-neutral; Locale.getDefault() honours per-app language overrides.
 private val TIME_FMT: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("MM-dd HH:mm", Locale.TAIWAN)
+    DateTimeFormatter.ofPattern("MM-dd HH:mm", Locale.getDefault())
 
-/** Drawer subtitle: "剛剛" / "N 分鐘前" / "N 小時前" / fall back to MM-dd HH:mm. */
-private fun formatRelative(t: Instant, now: Instant = Instant.now()): String {
+/** Drawer subtitle: "just now" / "N min ago" / "N hr ago" / fall back to MM-dd HH:mm. */
+private fun formatRelative(
+    t: Instant,
+    context: android.content.Context,
+    now: Instant = Instant.now(),
+): String {
     val mins = ChronoUnit.MINUTES.between(t, now).coerceAtLeast(0)
     return when {
-        mins < 1 -> "剛剛"
-        mins < 60 -> "$mins 分鐘前"
-        mins < 60 * 24 -> "${mins / 60} 小時前"
+        mins < 1 -> context.getString(R.string.chat_time_just_now)
+        mins < 60 -> context.getString(R.string.chat_time_minutes_ago, mins)
+        mins < 60 * 24 -> context.getString(R.string.chat_time_hours_ago, mins / 60)
         else -> TIME_FMT.withZone(ZoneId.systemDefault()).format(t)
     }
 }
@@ -299,11 +314,3 @@ private fun formatRelative(t: Instant, now: Instant = Instant.now()): String {
 /** First non-blank line of a message, used as the snippet preview. */
 private fun firstLine(s: String): String =
     s.lineSequence().map { it.trim() }.firstOrNull { it.isNotBlank() }.orEmpty()
-
-/** Strip System-role markers ([earlier turns omitted: N]) from snippet for cleaner UI. */
-@Suppress("unused")
-private fun roleHint(role: ChatMessage.Role?): String = when (role) {
-    ChatMessage.Role.User -> "你: "
-    ChatMessage.Role.Assistant -> ""
-    ChatMessage.Role.System, null -> ""
-}
