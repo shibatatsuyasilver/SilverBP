@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.silverbp.android.security.DbKeyStore
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
     entities = [
@@ -49,27 +51,56 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun syncDao(): SyncDao
 
     companion object {
+        const val DB_NAME = "silverbp.db"
+
         @Volatile private var instance: SilverBpDatabase? = null
+
         fun get(context: Context): SilverBpDatabase = instance ?: synchronized(this) {
-            instance ?: Room.databaseBuilder(
-                context.applicationContext,
+            instance ?: build(context.applicationContext).also { instance = it }
+        }
+
+        /**
+         * Drop the cached handle so the next [get] reopens the file. Used by
+         * the encrypt/decrypt migration which must close Room, swap the file,
+         * then reopen with (or without) the SQLCipher passphrase.
+         */
+        fun resetForMigration() = synchronized(this) {
+            instance?.close()
+            instance = null
+        }
+
+        private fun build(appContext: Context): SilverBpDatabase {
+            val builder = Room.databaseBuilder(
+                appContext,
                 SilverBpDatabase::class.java,
-                "silverbp.db",
+                DB_NAME,
+            ).addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+                MIGRATION_8_9,
+                MIGRATION_9_10,
+                MIGRATION_10_11,
             )
-                .addMigrations(
-                    MIGRATION_1_2,
-                    MIGRATION_2_3,
-                    MIGRATION_3_4,
-                    MIGRATION_4_5,
-                    MIGRATION_5_6,
-                    MIGRATION_6_7,
-                    MIGRATION_7_8,
-                    MIGRATION_8_9,
-                    MIGRATION_9_10,
-                    MIGRATION_10_11,
+
+            // At-rest encryption is opt-in. The marker lives in the Keystore-
+            // wrapped DbKeyStore and is read synchronously here, before any DAO
+            // touches the file. When absent (default / never opted in) the
+            // builder is left untouched → plain SQLite, zero behaviour change.
+            // The Room MIGRATION_* chain still runs, just inside the cipher DB.
+            val keyStore = DbKeyStore.create(appContext)
+            if (keyStore.isDbEncrypted()) {
+                System.loadLibrary("sqlcipher")
+                builder.openHelperFactory(
+                    SupportOpenHelperFactory(keyStore.getOrCreatePassphrase()),
                 )
-                .build()
-                .also { instance = it }
+            }
+
+            return builder.build()
         }
     }
 }

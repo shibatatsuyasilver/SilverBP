@@ -20,6 +20,7 @@ import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.StepCounterReader
 import com.silverbp.android.health.HealthConnectBridge
 import com.silverbp.android.recognition.ModelLoadStatus
+import com.silverbp.android.security.DbKeyStore
 import com.silverbp.android.settings.UserSettingsRepository
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
@@ -51,6 +52,14 @@ object ServiceLocator {
 
     val context: Context
         get() = appCtx ?: error("ServiceLocator not initialised — did SilverBpApplication.onCreate run?")
+
+    /**
+     * Keystore-wrapped SQLCipher passphrase + "is the DB encrypted" marker.
+     * Constructed before [database] is first touched; the marker decides
+     * whether Room opens the file with a cipher key. Also used by the
+     * opt-in/opt-out migration and the Settings toggle.
+     */
+    val dbKeyStore: DbKeyStore by lazy { DbKeyStore.create(context) }
 
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 
