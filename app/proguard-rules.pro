@@ -66,3 +66,12 @@
 
 # ---- Coil image loader ----
 -dontwarn coil.**
+
+# ---- SQLCipher (net.zetetic sqlcipher-android) ----
+# JNI-bound classes; R8 must not rename/strip them or the native bridge breaks.
+-keep,includedescriptorclasses class net.zetetic.database.** { *; }
+-keep,includedescriptorclasses interface net.zetetic.database.** { *; }
+-dontwarn net.zetetic.database.**
+
+# ---- AndroidX Biometric ----
+-dontwarn androidx.biometric.**

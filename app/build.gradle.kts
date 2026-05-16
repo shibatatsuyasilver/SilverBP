@@ -126,6 +126,14 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
 
+    // At-rest encryption + biometric app-lock (opt-in). security-crypto holds
+    // the Keystore-wrapped DB passphrase; sqlcipher-android encrypts Room.
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.sqlcipher.android)
+    implementation(libs.androidx.sqlite)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.lifecycle.process)
+
     implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.androidx.camera.core)
