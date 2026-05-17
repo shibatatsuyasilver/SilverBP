@@ -198,74 +198,97 @@ fun PaceLineChart(
     val yMin = (values.min() * 0.9)
     val yMax = (values.max() * 1.1).coerceAtLeast(yMin + 1.0)
 
-    // X axis = date. Without tick labels the line was unreadable ("what is
-    // this showing?"). Draw the start/end dates under the plot; collapse to a
-    // single centred label when every sample is on the same day.
+    // Self-describing axes — no prose caption. Y = pace ticks (top = faster,
+    // because the line is Y-flipped) with an explicit 「快▲」 direction marker;
+    // X = date ticks; a colour legend names walking vs running.
     val zone = ZoneId.systemDefault()
     val dateFmt = remember { DateTimeFormatter.ofPattern("M/d") }
     val startDate = Instant.ofEpochMilli(minTime).atZone(zone).toLocalDate()
     val endDate = Instant.ofEpochMilli(maxTime).atZone(zone).toLocalDate()
     val startText = startDate.format(dateFmt)
     val endText = endDate.format(dateFmt)
-    val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(color = EmptyHint, fontSize = 10.sp)
-    val startLayout = measurer.measure(startText, labelStyle)
-    val endLayout = measurer.measure(endText, labelStyle)
     val sameDay = startDate == endDate
+
+    val measurer = rememberTextMeasurer()
+    val axisStyle = TextStyle(color = EmptyHint, fontSize = 10.sp)
+    val fastLayout = measurer.measure(ExerciseMath.formatPace(values.min()), axisStyle)
+    val slowLayout = measurer.measure(ExerciseMath.formatPace(values.max()), axisStyle)
+    val dirLayout = measurer.measure("快 ▲", axisStyle)
+    val startLayout = measurer.measure(startText, axisStyle)
+    val endLayout = measurer.measure(endText, axisStyle)
+    val yAxisW = maxOf(
+        fastLayout.size.width, slowLayout.size.width, dirLayout.size.width,
+    ).toFloat() + 6f
     val xLabelHeight = maxOf(startLayout.size.height, endLayout.size.height).toFloat()
-    val xLabelGap = 4f
+    val gap = 4f
 
     Canvas(modifier = modifier.height(180.dp).padding(8.dp)) {
-        val chartBottom = size.height - xLabelHeight - xLabelGap
+        val plotLeft = yAxisW
+        val plotW = size.width - plotLeft
+        val chartBottom = size.height - xLabelHeight - gap
+        fun px(t: Long): Float =
+            if (maxTime > minTime) plotLeft + ((t - minTime).toFloat() / (maxTime - minTime)) * plotW
+            else plotLeft + plotW / 2f
+        fun py(v: Double): Float = mapYFlipped(v, yMin, yMax, chartBottom)
+
+        // Y axis: direction marker + fastest/slowest pace ticks.
+        drawText(textLayoutResult = dirLayout, topLeft = Offset(0f, 0f))
+        drawText(
+            textLayoutResult = fastLayout,
+            topLeft = Offset(0f, dirLayout.size.height.toFloat() + 2f),
+        )
+        drawText(
+            textLayoutResult = slowLayout,
+            topLeft = Offset(0f, chartBottom - slowLayout.size.height),
+        )
+
         drawable.forEach { (kind, samples) ->
             val color = colorForKind(kind)
             val path = Path()
             samples.forEachIndexed { i, (t, v) ->
-                val x = mapX(t.toEpochMilli(), minTime, maxTime, size.width)
-                // Flip Y so faster (lower) pace appears higher.
-                val y = mapYFlipped(v, yMin, yMax, chartBottom)
+                val x = px(t.toEpochMilli())
+                val y = py(v)
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             drawPath(path, color = color, style = Stroke(width = 4f))
             samples.forEach { (t, v) ->
-                val x = mapX(t.toEpochMilli(), minTime, maxTime, size.width)
-                val y = mapYFlipped(v, yMin, yMax, chartBottom)
-                drawCircle(color, radius = 4f, center = Offset(x, y))
+                drawCircle(color, radius = 4f, center = Offset(px(t.toEpochMilli()), py(v)))
             }
         }
-        val labelY = chartBottom + xLabelGap
+
+        val labelY = chartBottom + gap
         if (sameDay) {
             drawText(
                 textLayoutResult = startLayout,
-                topLeft = Offset((size.width - startLayout.size.width) / 2f, labelY),
+                topLeft = Offset(plotLeft + (plotW - startLayout.size.width) / 2f, labelY),
             )
         } else {
-            drawText(textLayoutResult = startLayout, topLeft = Offset(0f, labelY))
+            drawText(textLayoutResult = startLayout, topLeft = Offset(plotLeft, labelY))
             drawText(
                 textLayoutResult = endLayout,
                 topLeft = Offset(size.width - endLayout.size.width, labelY),
             )
         }
     }
-    // One-line legend so the axes are self-explanatory: X = date range,
-    // Y = pace (higher = faster), plus the latest pace for context.
-    val latest = allPoints.maxByOrNull { it.first.toEpochMilli() }
-    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        Text(
-            stringResource(
-                R.string.exercise_pace_axis_hint,
-                if (sameDay) startText else "$startText–$endText",
-            ),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (latest != null) {
-            Spacer(Modifier.weight(1f))
-            Text(
-                ExerciseMath.formatPace(latest.second),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    // Colour legend names each line — the chart needs no explanatory sentence.
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        drawable.keys.forEach { kind ->
+            val c = colorForKind(kind)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.size(8.dp)) { drawCircle(c) }
+                Spacer(Modifier.size(4.dp))
+                Text(
+                    stringResource(
+                        if (kind == ActivityKind.Walking) R.string.exercise_kind_walking
+                        else R.string.exercise_kind_running,
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
