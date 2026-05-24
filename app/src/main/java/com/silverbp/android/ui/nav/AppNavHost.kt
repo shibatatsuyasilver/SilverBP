@@ -82,7 +82,8 @@ fun AppNavHost() {
                 Routes.COACH_LOG_DIET,
                 Routes.COACH_LOG_SLEEP,
                 Routes.COACH_LOG_MEDICATION,
-                Routes.EXERCISE_SESSION -> {
+                Routes.EXERCISE_SESSION,
+                Routes.EXERCISE_SUMMARY -> {
                     // Pop back to home first so the new screen overlays cleanly
                     // even if the user was deep in another modal.
                     rootNav.popBackStack(Routes.HOME, inclusive = false)
@@ -162,6 +163,7 @@ fun AppNavHost() {
             SettingsScreen(
                 onClose = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onOpenSyncPairing = { rootNav.navigate(Routes.SYNC_PAIRING) },
+                onOpenManageMedications = { rootNav.navigate(Routes.COACH_MANAGE_MEDICATIONS) },
             )
         }
         composable(Routes.REPORT) {

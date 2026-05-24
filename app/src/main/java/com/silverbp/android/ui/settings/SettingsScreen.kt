@@ -74,6 +74,7 @@ import com.silverbp.android.ui.components.SectionCard
 fun SettingsScreen(
     onClose: () -> Unit = {},
     onOpenSyncPairing: () -> Unit = {},
+    onOpenManageMedications: () -> Unit = {},
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -523,6 +524,20 @@ fun SettingsScreen(
                         enabled = state.dietTrackingEnabled,
                         onEnable = { vm.onDietGrantResult(it) },
                         onDisable = vm::disableDietTracking,
+                    )
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    // Medication management entry point: the Coach tab's
+                    // medication module card only appears once at least one
+                    // medication has an active schedule, so without this row
+                    // a first-time user has no UI path to add medication #1.
+                    Button(
+                        onClick = onOpenManageMedications,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.settings_manage_medications_button)) }
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        stringResource(R.string.settings_manage_medications_hint),
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }

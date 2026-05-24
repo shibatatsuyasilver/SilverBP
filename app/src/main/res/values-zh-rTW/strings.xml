@@ -135,6 +135,8 @@
     <string name="exercise_notification_action_pause">暫停</string>
     <string name="exercise_notification_action_resume">繼續</string>
     <string name="exercise_notification_action_stop">停止</string>
+    <string name="settings_manage_medications_button">管理服藥</string>
+    <string name="settings_manage_medications_hint">新增、編輯或刪除教練追蹤的藥物與保健食品。</string>
     <string name="exercise_location_permission_title">需要位置權限</string>
     <string name="exercise_location_permission_body">SilverBP 需要精確位置才能記錄您的走路/跑步路徑。</string>
     <string name="exercise_location_denied">GPS 權限被拒,無法記錄路徑。</string>

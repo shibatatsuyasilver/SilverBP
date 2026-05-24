@@ -42,6 +42,16 @@ object ExerciseNotification {
     const val CHANNEL_ID = "exercise_tracking"
     const val NOTIF_ID = 4242
 
+    /**
+     * Boolean Intent extra MainActivity reads to know that the Stop button on
+     * the notification (lock screen or shade or Atomic Island) was pressed.
+     * MainActivity calls [com.silverbp.android.di.ServiceLocator.exerciseController]
+     * `.stop()` and deep-links to [Routes.EXERCISE_SUMMARY] so the user lands
+     * on the save/discard screen instead of having the notification just
+     * vanish.
+     */
+    const val EXTRA_STOP_AND_REVIEW = "exercise_stop_and_review"
+
     // Distinct request codes so FLAG_UPDATE_CURRENT updates the right slot.
     private const val RC_OPEN = 1
     private const val RC_PAUSE = 2
@@ -79,12 +89,45 @@ object ExerciseNotification {
     }
 
     fun build(ctx: Context, live: SessionLive?): Notification {
-        val title = buildTitle(ctx, live)
+        // On Android 16+ keep the title stable across pause/resume so OEM
+        // Live-Update islands don't dismiss us on every state flip; the
+        // paused state is conveyed by the (frozen) duration + desaturated
+        // route thumbnail instead. On older versions the suffix is fine.
+        val useStableTitle = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+        val title = buildTitle(ctx, live, includePausedSuffix = !useStableTitle)
         val body = buildBody(ctx, live)
         val (bigBmp, thumbBmp) = obtainBitmaps(ctx, live)
 
+        // Kind-specific static small icon + accent color so the OEM island's
+        // left slot is unambiguously "walking person, green" or "running
+        // person, red". setColor() tints the small-icon alpha mask system-
+        // wide (status bar, shade, lock screen, OriginOS Atomic Island).
+        // Colours match RouteBitmapRenderer's polyline so the island icon
+        // and the route preview read as the same accent. live==null is the
+        // pre-first-build window between Start tap and service refresh —
+        // walk is the safe default (~99% of sessions).
+        //
+        // No animation: at 24 dp + 1 Hz notification refresh, frame-swap
+        // animation reads as a flicker rather than motion; we tried mirror,
+        // leg-swap, and march-in-place poses and none read cleanly. Static
+        // kind icon + accent colour is the better trade-off.
+        val smallIconRes: Int
+        val accentColor: Int
+        when (live?.kind) {
+            ActivityKind.Running -> {
+                smallIconRes = R.drawable.ic_notification_run
+                accentColor = 0xFFD32F2F.toInt()  // red-700, matches RouteBitmapRenderer
+            }
+            else -> {
+                smallIconRes = R.drawable.ic_notification_walk
+                accentColor = 0xFF2E7D32.toInt()  // green-800, matches RouteBitmapRenderer
+            }
+        }
+
         val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_directions)
+            .setSmallIcon(smallIconRes)
+            .setColor(accentColor)
+            .setColorized(false)  // only tint the small icon, not the whole notification background
             .setContentTitle(title)
             .setContentText(body)
             .setOngoing(true)
@@ -126,13 +169,13 @@ object ExerciseNotification {
 
     // ─── Title / body / summary ───────────────────────────────────────────
 
-    private fun buildTitle(ctx: Context, live: SessionLive?): String {
+    private fun buildTitle(ctx: Context, live: SessionLive?, includePausedSuffix: Boolean): String {
         if (live == null) return ctx.getString(R.string.exercise_recording_title)
         val base = when (live.kind) {
             ActivityKind.Walking -> ctx.getString(R.string.exercise_notification_title_walk)
             ActivityKind.Running -> ctx.getString(R.string.exercise_notification_title_run)
         }
-        val pausedSuffix = if (live.runState == RunState.Paused || live.runState == RunState.AutoPaused) {
+        val pausedSuffix = if (includePausedSuffix && (live.runState == RunState.Paused || live.runState == RunState.AutoPaused)) {
             ctx.getString(R.string.exercise_notification_paused_suffix)
         } else ""
         return base + pausedSuffix
@@ -222,26 +265,42 @@ object ExerciseNotification {
     // ─── Actions ──────────────────────────────────────────────────────────
 
     private fun addToggleAction(ctx: Context, builder: NotificationCompat.Builder, live: SessionLive?) {
-        when (live?.runState) {
-            RunState.Running -> builder.addAction(
-                android.R.drawable.ic_media_pause,
-                ctx.getString(R.string.exercise_notification_action_pause),
-                servicePi(ctx, LocationTrackingService.ACTION_PAUSE, RC_PAUSE),
-            )
-            RunState.Paused, RunState.AutoPaused -> builder.addAction(
-                android.R.drawable.ic_media_play,
-                ctx.getString(R.string.exercise_notification_action_resume),
-                servicePi(ctx, LocationTrackingService.ACTION_RESUME, RC_RESUME),
-            )
-            else -> Unit
-        }
+        // Always render BOTH Pause and Resume actions so the notification
+        // structure stays stable across runState transitions — flipping a
+        // button in/out makes OEM Live-Update surfaces (OriginOS Atomic
+        // Island, etc.) treat the notification as a major restructure and
+        // drop it from the island. Tapping the "wrong" one is a no-op
+        // because LiveStore's pause()/resume() only fire on matching state.
+        if (live == null) return
+        builder.addAction(
+            android.R.drawable.ic_media_pause,
+            ctx.getString(R.string.exercise_notification_action_pause),
+            servicePi(ctx, LocationTrackingService.ACTION_PAUSE, RC_PAUSE),
+        )
+        builder.addAction(
+            android.R.drawable.ic_media_play,
+            ctx.getString(R.string.exercise_notification_action_resume),
+            servicePi(ctx, LocationTrackingService.ACTION_RESUME, RC_RESUME),
+        )
     }
 
     private fun addStopAction(ctx: Context, builder: NotificationCompat.Builder) {
+        // Route Stop through MainActivity (not directly to the service) so the
+        // user lands on the Summary screen for save/discard. MainActivity
+        // calls controller.stop() itself; the service shuts down as a
+        // side-effect of that call.
+        val intent = Intent(ctx, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(EXTRA_STOP_AND_REVIEW, true)
+        }
+        val pi = PendingIntent.getActivity(
+            ctx, RC_STOP, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         builder.addAction(
             android.R.drawable.ic_menu_close_clear_cancel,
             ctx.getString(R.string.exercise_notification_action_stop),
-            servicePi(ctx, LocationTrackingService.ACTION_STOP, RC_STOP),
+            pi,
         )
     }
 
@@ -278,9 +337,29 @@ object ExerciseNotification {
         title: String,
         summary: String,
     ) {
-        // Single segment representing the current kilometre. The tracker
-        // icon (= small route thumbnail) moves along the bar as distance
-        // accumulates; once the user passes a km, the bar resets to 0.
+        // Why this bar exists at all: NotificationCompat.ProgressStyle is the
+        // gate-keeper API for Android 16's Live Updates surface — OriginOS
+        // Atomic Island, Pixel status pill, Samsung Now Brief etc. only pull
+        // a notification into their compact capsule if it carries ProgressStyle.
+        // Drop the style and the notification stays buried in the shade.
+        //
+        // What the bar represents: one 100-unit Segment coloured by activity
+        // kind (walk green-800 / run red-700). The bar tracks CURRENT
+        // KILOMETRE, not total session distance — progress = (distance % 1000) / 10
+        // so 0 m → 1, 500 m → 50, 999 m → 99, then it resets and the next km
+        // starts. Looping rather than saturating-fill keeps the bar
+        // informative past 1 km without requiring the user to set a goal
+        // (this app has no exercise-distance target the way coach/medication
+        // schedules do).
+        //
+        // What the tracker icon is: the same route-polyline thumbnail we hand
+        // to setLargeIcon, repurposed as the slider so the user sees a
+        // recognisable miniature of their route walking along the bar instead
+        // of a generic dot.
+        //
+        // setProgressIndeterminate(false) is deliberate: determinate mode lets
+        // the slider position carry real meaning; indeterminate would just be
+        // a barber-pole animation with no signal.
         val nextKmProgress = ((live.accumulatedDistanceMeters % 1000.0) / 10.0)
             .toInt()
             .coerceIn(1, 100)

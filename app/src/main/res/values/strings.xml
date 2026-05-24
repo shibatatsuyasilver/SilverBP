@@ -135,6 +135,8 @@
     <string name="exercise_notification_action_pause">Pause</string>
     <string name="exercise_notification_action_resume">Resume</string>
     <string name="exercise_notification_action_stop">Stop</string>
+    <string name="settings_manage_medications_button">Manage medications</string>
+    <string name="settings_manage_medications_hint">Add, edit, or remove the medications and supplements the coach tracks.</string>
     <string name="exercise_location_permission_title">Location permission required</string>
     <string name="exercise_location_permission_body">SilverBP needs precise location to record your walk/run path.</string>
     <string name="exercise_location_denied">Location permission denied — cannot record your path.</string>
