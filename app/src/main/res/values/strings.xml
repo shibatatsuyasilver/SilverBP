@@ -126,6 +126,15 @@
     <string name="exercise_recording_body">Distance %1$s · Time %2$s</string>
     <string name="exercise_notification_channel">Exercise tracking</string>
     <string name="exercise_notification_channel_desc">Foreground notification while a walk/run is being recorded.</string>
+    <string name="exercise_notification_title_walk">Recording walk</string>
+    <string name="exercise_notification_title_run">Recording run</string>
+    <string name="exercise_notification_paused_suffix"> · Paused</string>
+    <string name="exercise_recording_body_with_pace">%1$s · %2$s · %3$s</string>
+    <string name="exercise_notification_big_summary_format">%1$s · %2$s steps</string>
+    <string name="exercise_notification_big_summary_no_steps">%1$s</string>
+    <string name="exercise_notification_action_pause">Pause</string>
+    <string name="exercise_notification_action_resume">Resume</string>
+    <string name="exercise_notification_action_stop">Stop</string>
     <string name="exercise_location_permission_title">Location permission required</string>
     <string name="exercise_location_permission_body">SilverBP needs precise location to record your walk/run path.</string>
     <string name="exercise_location_denied">Location permission denied — cannot record your path.</string>

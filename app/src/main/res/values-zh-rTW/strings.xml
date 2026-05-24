@@ -126,6 +126,15 @@
     <string name="exercise_recording_body">距離 %1$s · 時間 %2$s</string>
     <string name="exercise_notification_channel">運動追蹤</string>
     <string name="exercise_notification_channel_desc">運動 session 進行中的常駐通知。</string>
+    <string name="exercise_notification_title_walk">記錄走路中</string>
+    <string name="exercise_notification_title_run">記錄跑步中</string>
+    <string name="exercise_notification_paused_suffix"> · 已暫停</string>
+    <string name="exercise_recording_body_with_pace">%1$s · %2$s · %3$s</string>
+    <string name="exercise_notification_big_summary_format">%1$s · %2$s 步</string>
+    <string name="exercise_notification_big_summary_no_steps">%1$s</string>
+    <string name="exercise_notification_action_pause">暫停</string>
+    <string name="exercise_notification_action_resume">繼續</string>
+    <string name="exercise_notification_action_stop">停止</string>
     <string name="exercise_location_permission_title">需要位置權限</string>
     <string name="exercise_location_permission_body">SilverBP 需要精確位置才能記錄您的走路/跑步路徑。</string>
     <string name="exercise_location_denied">GPS 權限被拒,無法記錄路徑。</string>

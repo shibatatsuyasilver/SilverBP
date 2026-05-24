@@ -81,7 +81,8 @@ fun AppNavHost() {
                 Routes.COACH_WEEKLY_REPORT,
                 Routes.COACH_LOG_DIET,
                 Routes.COACH_LOG_SLEEP,
-                Routes.COACH_LOG_MEDICATION -> {
+                Routes.COACH_LOG_MEDICATION,
+                Routes.EXERCISE_SESSION -> {
                     // Pop back to home first so the new screen overlays cleanly
                     // even if the user was deep in another modal.
                     rootNav.popBackStack(Routes.HOME, inclusive = false)
