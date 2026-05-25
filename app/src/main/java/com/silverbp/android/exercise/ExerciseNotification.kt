@@ -200,6 +200,15 @@ object ExerciseNotification {
         }
         val dist = ExerciseMath.formatDistance(live.accumulatedDistanceMeters)
         val time = ExerciseMath.formatDuration(live.activeDurationMillis)
+        // When paused, prefix the body with U+23F8 (⏸) so the lock screen and
+        // drop-down shade clearly read "paused" at a glance — the existing
+        // header subtext alone is too easy to miss. Pace is dropped: it's
+        // frozen while paused and reads as misleading stale data. The body is
+        // not consumed by OEM Live-Update islands (they use shortCriticalText),
+        // so changing it across pause/resume does not affect island docking.
+        if (live.runState == RunState.Paused || live.runState == RunState.AutoPaused) {
+            return ctx.getString(R.string.exercise_recording_body_paused, dist, time)
+        }
         val pace = live.paceSecPerKm
         return if (pace != null) {
             ctx.getString(R.string.exercise_recording_body_with_pace, dist, time, ExerciseMath.formatPace(pace))

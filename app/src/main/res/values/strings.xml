@@ -130,6 +130,7 @@
     <string name="exercise_notification_title_run">Recording run</string>
     <string name="exercise_notification_paused_suffix"> · Paused</string>
     <string name="exercise_recording_body_with_pace">%1$s · %2$s · %3$s</string>
+    <string name="exercise_recording_body_paused">⏸ %1$s · %2$s</string>
     <string name="exercise_notification_big_summary_format">%1$s · %2$s steps</string>
     <string name="exercise_notification_big_summary_no_steps">%1$s</string>
     <string name="exercise_notification_action_pause">Pause</string>
