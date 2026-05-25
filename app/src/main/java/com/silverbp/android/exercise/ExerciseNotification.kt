@@ -140,6 +140,14 @@ object ExerciseNotification {
 
         if (thumbBmp != null) builder.setLargeIcon(thumbBmp)
 
+        // Subtext appears next to the app name in the notification header — a
+        // safe (non-structural) slot to vary across pause/resume, visible on
+        // both the lock screen and expanded shade. Title stays stable per the
+        // OEM-island concern above; this is the secondary affordance.
+        if (live != null && (live.runState == RunState.Paused || live.runState == RunState.AutoPaused)) {
+            builder.setSubText(ctx.getString(R.string.exercise_notification_subtext_paused))
+        }
+
         addToggleAction(ctx, builder, live)
         addStopAction(ctx, builder)
 
@@ -151,8 +159,12 @@ object ExerciseNotification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA && live != null) {
             // OEM islands compact the notification to a short label + tracker
             // icon — the duration (mm:ss, ~5 chars) is the most useful glance
-            // value and fits the suggested 7-char budget.
-            builder.setShortCriticalText(ExerciseMath.formatDuration(live.activeDurationMillis))
+            // value and fits the suggested 7-char budget. When paused, prefix
+            // U+23F8 (⏸) so the island shows "⏸ 12:34" — within budget and
+            // makes the paused state legible at a glance from the status bar.
+            val duration = ExerciseMath.formatDuration(live.activeDurationMillis)
+            val isPaused = live.runState == RunState.Paused || live.runState == RunState.AutoPaused
+            builder.setShortCriticalText(if (isPaused) "⏸ $duration" else duration)
             applyProgressStyle(builder, live, thumbBmp, title, buildSummary(ctx, live))
         } else if (bigBmp != null) {
             builder.setStyle(
