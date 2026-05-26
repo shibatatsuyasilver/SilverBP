@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -95,7 +94,7 @@ class ExerciseHomeViewModel(
         val kindCounts = filtered.groupBy { it.kind }.mapValues { it.value.size }
 
         val totalDistance = filtered.sumOf { it.distanceMeters }
-        val totalDuration = filtered.sumOf { Duration.between(it.startedAt, it.endedAt).toMillis() }
+        val totalDuration = filtered.sumOf { it.activeDurationMillis }
 
         val weekSteps = hcWeekSteps ?: run {
             val weekCutoff = now.minus(7, ChronoUnit.DAYS)

@@ -22,6 +22,7 @@ class ExerciseDaysProgressTest {
         kind = kind,
         startedAt = startedAt,
         endedAt = startedAt.plus(Duration.ofMinutes(durationMin)),
+        activeDurationMillis = Duration.ofMinutes(durationMin).toMillis(),
         distanceMeters = 1500.0,
     )
 

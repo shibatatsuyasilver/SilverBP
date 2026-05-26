@@ -288,6 +288,31 @@ class ExerciseSessionLiveStoreTest {
         assertEquals(RunState.Finished, store.flow.value!!.runState)
     }
 
+    @Test
+    fun `snapshotAndFinish carries activeDurationMillis into the persisted session`() {
+        val store = newStore()
+        // Two moving samples 3 s apart → activeDurationMillis = 3000.
+        store.appendSample(sample(BASE_MS + 1_000, TAIPEI_LAT, TAIPEI_LON, speedMps = 3.0f), BASE_MS + 1_000)
+        store.appendSample(
+            sample(BASE_MS + 4_000, TAIPEI_LAT + DEG_PER_100M, TAIPEI_LON, speedMps = 3.0f),
+            BASE_MS + 4_000,
+        )
+        val activeBefore = store.flow.value!!.activeDurationMillis
+        assertTrue("active duration should accumulate from moving samples", activeBefore >= 3_000L)
+
+        // 30 s wall-clock gap, then stop. The wall-clock window (endedAt -
+        // startedAt) is ~30 s; activeDurationMillis stays at 3 s — that's the
+        // whole point of the field.
+        val (session, _) = store.snapshotAndFinish(Instant.ofEpochMilli(BASE_MS + 30_000))!!
+
+        assertEquals(activeBefore, session.activeDurationMillis)
+        val wallClockMs = session.endedAt.toEpochMilli() - session.startedAt.toEpochMilli()
+        assertTrue(
+            "wall-clock duration ($wallClockMs ms) must exceed active duration (${session.activeDurationMillis} ms)",
+            wallClockMs > session.activeDurationMillis,
+        )
+    }
+
     private companion object {
         const val BASE_MS = 1_700_000_000_000L
         const val TAIPEI_LAT = 25.0330

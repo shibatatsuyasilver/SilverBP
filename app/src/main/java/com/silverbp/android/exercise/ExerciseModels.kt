@@ -36,12 +36,19 @@ enum class RunState { Idle, Running, Paused, AutoPaused, Finished }
 /**
  * Persisted exercise session. Mirrors iOS BPExercise.ExerciseSession 1:1
  * except [hcRecordId] (Android Health Connect) replaces hkWorkoutUUID.
+ *
+ * [activeDurationMillis] is the running-state-only accumulation captured by
+ * [ExerciseSessionLiveStore.SessionLive.activeDurationMillis]. It excludes
+ * time spent in Paused / AutoPaused, so summary UI and aggregations reflect
+ * actual exercise time rather than the inflated wall-clock window
+ * `endedAt − startedAt`.
  */
 data class ExerciseSession(
     val id: UUID = UUID.randomUUID(),
     val kind: ActivityKind,
     val startedAt: Instant,
     val endedAt: Instant,
+    val activeDurationMillis: Long,
     val distanceMeters: Double,
     val stepCount: Int? = null,
     val averagePaceSecPerKm: Double? = null,

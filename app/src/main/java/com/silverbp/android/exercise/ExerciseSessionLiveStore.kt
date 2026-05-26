@@ -237,6 +237,7 @@ class ExerciseSessionLiveStore {
             kind = cur.kind,
             startedAt = cur.startedAt,
             endedAt = endedAt,
+            activeDurationMillis = cur.activeDurationMillis,
             distanceMeters = cur.accumulatedDistanceMeters,
             stepCount = cur.stepCount,
             averagePaceSecPerKm = ExerciseMath.paceSecPerKm(

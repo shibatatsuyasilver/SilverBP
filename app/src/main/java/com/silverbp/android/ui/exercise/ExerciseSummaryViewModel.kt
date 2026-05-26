@@ -33,6 +33,7 @@ class ExerciseSummaryViewModel(
                 kind = live.kind,
                 startedAt = live.startedAt,
                 endedAt = java.time.Instant.now(),
+                activeDurationMillis = live.activeDurationMillis,
                 distanceMeters = live.accumulatedDistanceMeters,
                 stepCount = live.stepCount,
                 averagePaceSecPerKm = live.paceSecPerKm,

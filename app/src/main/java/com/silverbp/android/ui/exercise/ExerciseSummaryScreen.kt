@@ -93,9 +93,7 @@ fun ExerciseSummaryScreen(
         StatsCard(
             distance = ExerciseMath.formatDistance(session.distanceMeters),
             distanceLabel = stringResource(R.string.exercise_distance),
-            duration = ExerciseMath.formatDuration(
-                java.time.Duration.between(session.startedAt, session.endedAt).toMillis()
-            ),
+            duration = ExerciseMath.formatDuration(session.activeDurationMillis),
             durationLabel = stringResource(R.string.exercise_duration),
             pace = ExerciseMath.formatPace(session.averagePaceSecPerKm),
             paceLabel = stringResource(R.string.exercise_avg_pace),

@@ -134,11 +134,21 @@ class ExerciseSessionSyncMapper(
         }
         val p = record.payload
         val existing = dao.findById(record.pk)
+        val startedAtMs = (p[2] as? SyncValue.Int64)?.value ?: 0L
+        val endedAtMs = (p[3] as? SyncValue.Int64)?.value ?: 0L
         val entity = ExerciseSessionEntity(
             id = record.pk,
             activityKind = (p[1] as? SyncValue.Text)?.value ?: "walking",
-            startedAt = (p[2] as? SyncValue.Int64)?.value ?: 0L,
-            endedAt = (p[3] as? SyncValue.Int64)?.value ?: 0L,
+            startedAt = startedAtMs,
+            endedAt = endedAtMs,
+            // activeDurationMillis is NOT carried in the wire (iOS-byte-identical
+            // tag layout 1..12 is frozen). Fall back to wall-clock window so
+            // legacy + iOS-sourced sessions behave the same as they did before
+            // v12 locally added the column. When the synced session is updated
+            // again on a v12+ device, the local activeDurationMillis is
+            // preserved if we already had a row for this pk.
+            activeDurationMillis = existing?.activeDurationMillis
+                ?: (endedAtMs - startedAtMs).coerceAtLeast(0L),
             distanceMeters = (p[4] as? SyncValue.Double)?.value ?: 0.0,
             stepCount = (p[5] as? SyncValue.Int64)?.value?.toInt(),
             averagePaceSecPerKm = (p[6] as? SyncValue.Double)?.value,

@@ -183,7 +183,7 @@ class RecordsContextBuilder(
 
     private fun formatSession(s: ExerciseSession, zone: ZoneId): String {
         val ts = TS_FMT.withZone(zone).format(s.startedAt)
-        val durMin = (s.endedAt.toEpochMilli() - s.startedAt.toEpochMilli()) / 60_000
+        val durMin = s.activeDurationMillis / 60_000
         val km = "%.2f".format(s.distanceMeters / 1000.0)
         val pace = s.averagePaceSecPerKm?.let { CoachPrompts.Records.paceLine(it) }
         return CoachPrompts.Records.sessionLine(

@@ -99,6 +99,14 @@ data class ExerciseSessionEntity(
     val activityKind: String,
     val startedAt: Long,
     val endedAt: Long,
+    /**
+     * Running-state-only duration. Excludes Paused/AutoPaused time so UI and
+     * aggregations don't inflate exercise minutes with sit-down breaks.
+     * Backfilled for v11→v12 legacy rows as `endedAt - startedAt` (wall-clock,
+     * matches previous display behaviour). New rows carry the real value from
+     * [com.silverbp.android.exercise.ExerciseSessionLiveStore.SessionLive.activeDurationMillis].
+     */
+    val activeDurationMillis: Long,
     val distanceMeters: Double,
     val stepCount: Int?,
     val averagePaceSecPerKm: Double?,

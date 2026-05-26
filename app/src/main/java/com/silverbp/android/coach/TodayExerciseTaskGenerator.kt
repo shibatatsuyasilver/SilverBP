@@ -159,7 +159,7 @@ data class RecentExerciseSummary(
         }
 
         private fun sessionMinutes(s: ExerciseSession): Int =
-            Duration.between(s.startedAt, s.endedAt).toMinutes().toInt().coerceAtLeast(0)
+            (s.activeDurationMillis / 60_000L).toInt().coerceAtLeast(0)
     }
 }
 

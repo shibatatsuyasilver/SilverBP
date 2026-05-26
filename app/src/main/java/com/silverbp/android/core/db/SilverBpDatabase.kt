@@ -32,7 +32,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         SyncDeviceEntity::class,
         SyncOutboxEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -85,6 +85,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_8_9,
                 MIGRATION_9_10,
                 MIGRATION_10_11,
+                MIGRATION_11_12,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -514,5 +515,35 @@ internal val MIGRATION_10_11: Migration = object : Migration(10, 11) {
         db.execSQL("ALTER TABLE `coach_task` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
         db.execSQL("ALTER TABLE `sleep_log` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
         db.execSQL("ALTER TABLE `diet_check` ADD COLUMN `hlcUpdatedAt` TEXT NOT NULL DEFAULT '0'")
+    }
+}
+
+/**
+ * v11 → v12: introduce `activeDurationMillis` on `exercise_session` so the
+ * persisted record carries the running-only duration (excluding Paused /
+ * AutoPaused time). Previously the UI computed duration as `endedAt -
+ * startedAt`, which over-counted any time the user sat at a red light or
+ * forgot to stop the session — bug fix.
+ *
+ * Backfill: legacy rows get `endedAt - startedAt`, identical to what the UI
+ * was already showing pre-fix, so existing history doesn't visually shift.
+ * New sessions persist the true value from [com.silverbp.android.exercise.
+ * ExerciseSessionLiveStore.SessionLive.activeDurationMillis].
+ *
+ * Sync wire format is NOT bumped — see [com.silverbp.android.sync.Phase2Mappers]
+ * which keeps the iOS-byte-identical tag layout and falls back to
+ * `endedAt - startedAt` on incoming records that lack the new field.
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/12.json` after building.
+ */
+internal val MIGRATION_11_12: Migration = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `exercise_session` ADD COLUMN `activeDurationMillis` INTEGER NOT NULL DEFAULT 0",
+        )
+        db.execSQL(
+            "UPDATE `exercise_session` SET `activeDurationMillis` = `endedAt` - `startedAt`",
+        )
     }
 }

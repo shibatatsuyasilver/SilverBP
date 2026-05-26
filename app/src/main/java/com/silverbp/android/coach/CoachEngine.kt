@@ -99,7 +99,7 @@ class CoachEngine(
 
         val recentExercise = exercise.observeRange(sevenDaysAgo, now).first()
         val aerobicMin = recentExercise.sumOf {
-            ((it.endedAt.toEpochMilli() - it.startedAt.toEpochMilli()) / 60_000L).toInt()
+            (it.activeDurationMillis / 60_000L).toInt()
         }
 
         val sleepRows = coachRepo.sleepRange(sevenDaysAgo.toEpochMilli(), now.toEpochMilli())

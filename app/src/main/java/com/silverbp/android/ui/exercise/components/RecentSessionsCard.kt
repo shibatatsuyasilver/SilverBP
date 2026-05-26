@@ -30,7 +30,6 @@ import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.ui.exercise.colorForKind
-import java.time.Duration
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -68,7 +67,7 @@ fun RecentSessionsCard(
 private fun SessionRow(session: ExerciseSession, onClick: () -> Unit) {
     val zone = ZoneId.systemDefault()
     val fmt = DateTimeFormatter.ofPattern("MM/dd HH:mm", Locale.TAIWAN).withZone(zone)
-    val durationMs = Duration.between(session.startedAt, session.endedAt).toMillis()
+    val durationMs = session.activeDurationMillis
     val color = colorForKind(session.kind)
 
     Row(

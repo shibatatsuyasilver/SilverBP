@@ -40,7 +40,6 @@ import androidx.lifecycle.viewmodel.initializer
 import com.silverbp.android.R
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.ui.exercise.components.StatsCard
-import java.time.Duration
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -117,9 +116,7 @@ fun ExerciseDetailScreen(
             StatsCard(
                 distance = ExerciseMath.formatDistance(s.distanceMeters),
                 distanceLabel = stringResource(R.string.exercise_distance),
-                duration = ExerciseMath.formatDuration(
-                    Duration.between(s.startedAt, s.endedAt).toMillis()
-                ),
+                duration = ExerciseMath.formatDuration(s.activeDurationMillis),
                 durationLabel = stringResource(R.string.exercise_duration),
                 pace = ExerciseMath.formatPace(s.averagePaceSecPerKm),
                 paceLabel = stringResource(R.string.exercise_avg_pace),

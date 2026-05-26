@@ -302,6 +302,7 @@ class TodayExerciseTaskGeneratorTest {
         kind = kind,
         startedAt = startedAt,
         endedAt = endedAt,
+        activeDurationMillis = (endedAt.toEpochMilli() - startedAt.toEpochMilli()).coerceAtLeast(0L),
         distanceMeters = 0.0,
     )
 }
