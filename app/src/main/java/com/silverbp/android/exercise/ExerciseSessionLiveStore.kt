@@ -42,6 +42,14 @@ data class SessionLive(
     /** Wall-clock millis of the most recent appendPoint call (for duration accrual). */
     val lastSampleAtMillis: Long,
     val lastResumeAtMillis: Long,
+    /**
+     * Wall-clock millis when we last entered Paused / AutoPaused. Null while
+     * Running or Finished. Used by [LocationTrackingService] to surface an
+     * idle-reminder heads-up notification once continuous pause time crosses
+     * [IDLE_REMINDER_THRESHOLD_MS]. Reset via [acknowledgeIdleReminder] when
+     * the user dismisses that reminder with "Keep going".
+     */
+    val pausedSinceMillis: Long?,
 )
 
 /**
@@ -79,6 +87,7 @@ class ExerciseSessionLiveStore {
             lastMovementAtMillis = nowMs,
             lastSampleAtMillis = nowMs,
             lastResumeAtMillis = nowMs,
+            pausedSinceMillis = null,
         )
     }
 
@@ -157,6 +166,16 @@ class ExerciseSessionLiveStore {
             else -> cur.runState
         }
 
+        // pausedSinceMillis tracks how long we've been continuously in
+        // Paused/AutoPaused — feeds the 10 min idle reminder. Use the
+        // wall-clock arg (not sample.timeMs) since the service's idle check
+        // also reads System.currentTimeMillis(); the two clocks must match.
+        val nextPausedSince = when {
+            nextRunState == RunState.AutoPaused && cur.runState == RunState.Running -> wallClockNowMs
+            nextRunState == RunState.Running && cur.runState == RunState.AutoPaused -> null
+            else -> cur.pausedSinceMillis
+        }
+
         // Active duration only accrues while we believe the user is moving — match
         // the prior behaviour (Running) and exclude time spent AutoPaused.
         val durationDeltaMs = if (cur.runState == RunState.Running) {
@@ -174,6 +193,7 @@ class ExerciseSessionLiveStore {
             paceSecPerKm = ExerciseMath.paceSecPerKm(newDuration, newDistance),
             lastMovementAtMillis = nextLastMovement,
             lastSampleAtMillis = nowMs,
+            pausedSinceMillis = nextPausedSince,
         )
     }
 
@@ -182,7 +202,13 @@ class ExerciseSessionLiveStore {
         // Manual pause overrides AutoPaused too — once the user taps Pause,
         // auto-resume must not silently undo that intent.
         if (cur.runState != RunState.Running && cur.runState != RunState.AutoPaused) return
-        _flow.value = cur.copy(runState = RunState.Paused)
+        // Reset the idle-reminder countdown from this manual-pause moment so
+        // a user transitioning AutoPaused → Paused doesn't immediately trip
+        // the reminder using the older AutoPaused timestamp.
+        _flow.value = cur.copy(
+            runState = RunState.Paused,
+            pausedSinceMillis = System.currentTimeMillis(),
+        )
     }
 
     fun resume() {
@@ -194,6 +220,7 @@ class ExerciseSessionLiveStore {
             lastMovementAtMillis = nowMs,
             lastSampleAtMillis = nowMs,
             lastResumeAtMillis = nowMs,
+            pausedSinceMillis = null,
         )
     }
 
@@ -221,8 +248,20 @@ class ExerciseSessionLiveStore {
             hcRecordId = null,
         )
         val points = cur.routePoints
-        _flow.value = cur.copy(runState = RunState.Finished)
+        _flow.value = cur.copy(runState = RunState.Finished, pausedSinceMillis = null)
         return session to points
+    }
+
+    /**
+     * Called when the user taps "Keep going" on the idle-reminder notification.
+     * Restarts the 10-minute idle countdown without changing runState — the
+     * session stays Paused/AutoPaused but the next reminder won't fire for
+     * another [IDLE_REMINDER_THRESHOLD_MS].
+     */
+    fun acknowledgeIdleReminder(nowMs: Long = System.currentTimeMillis()) {
+        val cur = _flow.value ?: return
+        if (cur.runState != RunState.Paused && cur.runState != RunState.AutoPaused) return
+        _flow.value = cur.copy(pausedSinceMillis = nowMs)
     }
 
     fun clear() {
@@ -235,5 +274,11 @@ class ExerciseSessionLiveStore {
         const val MAX_INSTANT_SPEED_MPS = 30f
         const val MOVING_SPEED_MPS = 0.3f
         const val AUTO_PAUSE_WINDOW_MS = 8_000L
+        /**
+         * Continuous Paused/AutoPaused duration after which the service
+         * surfaces a heads-up reminder asking the user whether to keep going
+         * or finish-and-save the session.
+         */
+        const val IDLE_REMINDER_THRESHOLD_MS = 10 * 60_000L
     }
 }

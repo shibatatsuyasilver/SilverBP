@@ -43,6 +43,18 @@ object ExerciseNotification {
     const val NOTIF_ID = 4242
 
     /**
+     * Separate channel + ID for the idle-reminder heads-up notification. Lives
+     * alongside (not replacing) the ongoing foreground notification — both are
+     * shown when the user has been paused for [ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS].
+     *
+     * Importance must be HIGH (not LOW like the foreground channel) so the
+     * heads-up overlay actually pops; channel importance is locked after
+     * creation, which is why we can't reuse [CHANNEL_ID].
+     */
+    const val IDLE_REMINDER_CHANNEL_ID = "exercise_idle_reminder"
+    const val IDLE_REMINDER_NOTIF_ID = 4243
+
+    /**
      * Boolean Intent extra MainActivity reads to know that the Stop button on
      * the notification (lock screen or shade or Atomic Island) was pressed.
      * MainActivity calls [com.silverbp.android.di.ServiceLocator.exerciseController]
@@ -57,6 +69,8 @@ object ExerciseNotification {
     private const val RC_PAUSE = 2
     private const val RC_RESUME = 3
     private const val RC_STOP = 4
+    private const val RC_IDLE_CONTINUE = 5
+    private const val RC_IDLE_STOP_REVIEW = 6
 
     private const val BIG_PICTURE_MAX_WIDTH_PX = 1024
     private const val BIG_PICTURE_ASPECT = 0.5f             // 2:1
@@ -86,6 +100,77 @@ object ExerciseNotification {
             enableVibration(false)
         }
         mgr.createNotificationChannel(channel)
+    }
+
+    /**
+     * Creates the heads-up channel used by [buildIdleReminder]. Separate from
+     * [CHANNEL_ID] because channel importance is locked after first creation
+     * and the foreground channel is intentionally LOW (silent per-second
+     * refresh); this one needs HIGH so the reminder actually surfaces.
+     */
+    fun createIdleReminderChannel(ctx: Context) {
+        val mgr = ctx.getSystemService<NotificationManager>() ?: return
+        if (mgr.getNotificationChannel(IDLE_REMINDER_CHANNEL_ID) != null) return
+        val channel = NotificationChannel(
+            IDLE_REMINDER_CHANNEL_ID,
+            ctx.getString(R.string.exercise_notification_idle_channel),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = ctx.getString(R.string.exercise_notification_idle_channel_desc)
+            setShowBadge(false)
+            enableVibration(true)
+        }
+        mgr.createNotificationChannel(channel)
+    }
+
+    /**
+     * Heads-up reminder shown when an active session has been continuously in
+     * Paused / AutoPaused for [ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS].
+     * Lives on its own channel + id so it co-exists with the ongoing
+     * foreground notification (which keeps showing live stats). Two actions:
+     *
+     *  - "Keep going" → broadcasts [LocationTrackingService.ACTION_IDLE_CONTINUE],
+     *    which restarts the idle countdown without changing runState.
+     *  - "Finish & save" → routes through [stopAndReviewPendingIntent] → the
+     *    same MainActivity deep-link as the foreground Stop action.
+     */
+    fun buildIdleReminder(ctx: Context, live: SessionLive): Notification {
+        val smallIconRes: Int
+        val accentColor: Int
+        when (live.kind) {
+            ActivityKind.Running -> {
+                smallIconRes = R.drawable.ic_notification_run
+                accentColor = 0xFFD32F2F.toInt()
+            }
+            else -> {
+                smallIconRes = R.drawable.ic_notification_walk
+                accentColor = 0xFF2E7D32.toInt()
+            }
+        }
+        val minutes = (ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS / 60_000L).toInt()
+        return NotificationCompat.Builder(ctx, IDLE_REMINDER_CHANNEL_ID)
+            .setSmallIcon(smallIconRes)
+            .setColor(accentColor)
+            .setColorized(false)
+            .setContentTitle(ctx.getString(R.string.exercise_notification_idle_title))
+            .setContentText(ctx.getString(R.string.exercise_notification_idle_body, minutes))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setOngoing(false)
+            .setContentIntent(openSessionPendingIntent(ctx))
+            .addAction(
+                android.R.drawable.ic_media_play,
+                ctx.getString(R.string.exercise_notification_idle_action_continue),
+                servicePi(ctx, LocationTrackingService.ACTION_IDLE_CONTINUE, RC_IDLE_CONTINUE),
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                ctx.getString(R.string.exercise_notification_idle_action_finish),
+                stopAndReviewPendingIntent(ctx, RC_IDLE_STOP_REVIEW),
+            )
+            .build()
     }
 
     fun build(ctx: Context, live: SessionLive?): Notification {
@@ -154,7 +239,8 @@ object ExerciseNotification {
         // Style choice:
         //  - API 36+ : ProgressStyle so OriginOS 6 / Pixel / Samsung surface
         //    the notification in their respective OEM Live-Update island. The
-        //    big route picture is sacrificed; full route is one tap away.
+        //    big route picture is sacrificed on the main notification; we
+        //    bring it back on the lock screen via setPublicVersion below.
         //  - API < 36: BigPictureStyle with route polyline as big image.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA && live != null) {
             // OEM islands compact the notification to a short label + tracker
@@ -166,6 +252,26 @@ object ExerciseNotification {
             val isPaused = live.runState == RunState.Paused || live.runState == RunState.AutoPaused
             builder.setShortCriticalText(if (isPaused) "⏸ $duration" else duration)
             applyProgressStyle(builder, live, thumbBmp, title, buildSummary(ctx, live))
+
+            // ProgressStyle replaces the bigPicture slot, so the lock-screen
+            // card on Android 16+ loses the route map. Bring it back via
+            // setPublicVersion: a separate BigPictureStyle notification the
+            // lockscreen renderer uses in place of the redacted view when
+            // visibility == VISIBILITY_PRIVATE. The main notification keeps
+            // ProgressStyle for the atomic island and unlocked shade; the
+            // public version handles the lock screen exclusively. Only flip
+            // to PRIVATE when we actually have a publicVersion to attach —
+            // otherwise the system would redact us with a generic placeholder.
+            if (bigBmp != null) {
+                builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                builder.setPublicVersion(
+                    buildLockScreenVariant(
+                        ctx, live, title, body,
+                        smallIconRes, accentColor,
+                        thumbBmp, bigBmp,
+                    ),
+                )
+            }
         } else if (bigBmp != null) {
             builder.setStyle(
                 NotificationCompat.BigPictureStyle()
@@ -177,6 +283,61 @@ object ExerciseNotification {
         }
 
         return builder.build()
+    }
+
+    /**
+     * Builds the Android 16+ lock-screen variant returned by
+     * `setPublicVersion(...)`. Mirrors the main notification's identity
+     * fields (icon, color, title, body, subtext, large icon, actions, content
+     * intent) but swaps the style to `BigPictureStyle` so the route polyline
+     * appears as a Google-Maps-style mini map on the lock-screen card. The
+     * main notification keeps `ProgressStyle` for atomic-island docking; the
+     * lock-screen renderer pulls this variant instead.
+     *
+     * Visibility must be `PUBLIC` on this variant — otherwise the system
+     * would redact it again and we'd recurse into a placeholder.
+     *
+     * Reuses the same cached `bigBmp` / `thumbBmp` references the main
+     * builder uses; `NotificationManager` keeps both alive until the next
+     * `notify(...)`, so the existing recycle-prev-cache pattern in
+     * `obtainBitmaps` is unaffected.
+     */
+    private fun buildLockScreenVariant(
+        ctx: Context,
+        live: SessionLive,
+        title: String,
+        body: String,
+        smallIconRes: Int,
+        accentColor: Int,
+        thumbBmp: Bitmap?,
+        bigBmp: Bitmap,
+    ): Notification {
+        val b = NotificationCompat.Builder(ctx, CHANNEL_ID)
+            .setSmallIcon(smallIconRes)
+            .setColor(accentColor)
+            .setColorized(false)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(openSessionPendingIntent(ctx))
+            .setStyle(
+                NotificationCompat.BigPictureStyle()
+                    .bigPicture(bigBmp)
+                    .bigLargeIcon(null as Bitmap?)
+                    .setBigContentTitle(title)
+                    .setSummaryText(buildSummary(ctx, live)),
+            )
+        if (thumbBmp != null) b.setLargeIcon(thumbBmp)
+        if (live.runState == RunState.Paused || live.runState == RunState.AutoPaused) {
+            b.setSubText(ctx.getString(R.string.exercise_notification_subtext_paused))
+        }
+        addToggleAction(ctx, b, live)
+        addStopAction(ctx, b)
+        return b.build()
     }
 
     // ─── Title / body / summary ───────────────────────────────────────────
@@ -310,18 +471,28 @@ object ExerciseNotification {
         // user lands on the Summary screen for save/discard. MainActivity
         // calls controller.stop() itself; the service shuts down as a
         // side-effect of that call.
+        builder.addAction(
+            android.R.drawable.ic_menu_close_clear_cancel,
+            ctx.getString(R.string.exercise_notification_action_stop),
+            stopAndReviewPendingIntent(ctx, RC_STOP),
+        )
+    }
+
+    /**
+     * Shared PendingIntent for any "stop the session and route to the Summary
+     * screen" action. Used by both the foreground notification's Stop button
+     * ([addStopAction]) and the idle-reminder notification's "Finish & save"
+     * button ([buildIdleReminder]). Distinct [requestCode] per caller is
+     * required so FLAG_UPDATE_CURRENT updates each slot independently.
+     */
+    private fun stopAndReviewPendingIntent(ctx: Context, requestCode: Int): PendingIntent {
         val intent = Intent(ctx, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             putExtra(EXTRA_STOP_AND_REVIEW, true)
         }
-        val pi = PendingIntent.getActivity(
-            ctx, RC_STOP, intent,
+        return PendingIntent.getActivity(
+            ctx, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        builder.addAction(
-            android.R.drawable.ic_menu_close_clear_cancel,
-            ctx.getString(R.string.exercise_notification_action_stop),
-            pi,
         )
     }
 

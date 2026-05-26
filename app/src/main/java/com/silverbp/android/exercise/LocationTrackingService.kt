@@ -56,12 +56,22 @@ class LocationTrackingService : LifecycleService() {
 
     private var trackingStarted = false
 
+    /**
+     * One-shot guard so we don't keep re-posting the heads-up reminder on
+     * every 1 s tick once the user has crossed the idle threshold. Cleared
+     * when runState transitions out of Paused/AutoPaused (the loop's else
+     * branch) or when the user explicitly taps "Keep going"
+     * ([ACTION_IDLE_CONTINUE]).
+     */
+    @Volatile private var idleReminderShown = false
+
     override fun onCreate() {
         super.onCreate()
         fusedClient = LocationServices.getFusedLocationProviderClient(this)
         sensorManager = getSystemService()
         stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
         ExerciseNotification.createChannel(this)
+        ExerciseNotification.createIdleReminderChannel(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -81,6 +91,14 @@ class LocationTrackingService : LifecycleService() {
             }
             ACTION_PAUSE -> liveStore.pause()
             ACTION_RESUME -> liveStore.resume()
+            ACTION_IDLE_CONTINUE -> {
+                liveStore.acknowledgeIdleReminder()
+                runCatching {
+                    NotificationManagerCompat.from(this)
+                        .cancel(ExerciseNotification.IDLE_REMINDER_NOTIF_ID)
+                }
+                idleReminderShown = false
+            }
             ACTION_STOP -> {
                 stopTracking()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -131,12 +149,43 @@ class LocationTrackingService : LifecycleService() {
             while (isActive) {
                 delay(1_000L)
                 if (!trackingStarted) break
+                val live = liveStore.flow.value
                 runCatching {
                     nm.notify(
                         ExerciseNotification.NOTIF_ID,
-                        ExerciseNotification.build(this@LocationTrackingService, liveStore.flow.value),
+                        ExerciseNotification.build(this@LocationTrackingService, live),
                     )
                 }
+                maybeUpdateIdleReminder(nm, live)
+            }
+        }
+    }
+
+    /**
+     * Surfaces the heads-up idle-reminder notification once continuous
+     * Paused/AutoPaused time crosses [ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS],
+     * and cancels it as soon as runState transitions back out of paused
+     * (manual Resume, auto-resume on movement, or Stop).
+     */
+    private fun maybeUpdateIdleReminder(nm: NotificationManagerCompat, live: SessionLive?) {
+        val paused = live != null &&
+            (live.runState == RunState.Paused || live.runState == RunState.AutoPaused)
+        val pausedSince = live?.pausedSinceMillis
+        when {
+            paused && pausedSince != null &&
+                (System.currentTimeMillis() - pausedSince) >= ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS &&
+                !idleReminderShown -> {
+                runCatching {
+                    nm.notify(
+                        ExerciseNotification.IDLE_REMINDER_NOTIF_ID,
+                        ExerciseNotification.buildIdleReminder(this, live!!),
+                    )
+                }
+                idleReminderShown = true
+            }
+            !paused && idleReminderShown -> {
+                runCatching { nm.cancel(ExerciseNotification.IDLE_REMINDER_NOTIF_ID) }
+                idleReminderShown = false
             }
         }
     }
@@ -146,6 +195,11 @@ class LocationTrackingService : LifecycleService() {
         runCatching { fusedClient.removeLocationUpdates(locationCallback) }
         sensorManager?.unregisterListener(stepListener)
         trackingStarted = false
+        runCatching {
+            NotificationManagerCompat.from(this)
+                .cancel(ExerciseNotification.IDLE_REMINDER_NOTIF_ID)
+        }
+        idleReminderShown = false
     }
 
     override fun onDestroy() {
@@ -158,6 +212,13 @@ class LocationTrackingService : LifecycleService() {
         const val ACTION_PAUSE = "com.silverbp.android.exercise.PAUSE"
         const val ACTION_RESUME = "com.silverbp.android.exercise.RESUME"
         const val ACTION_STOP = "com.silverbp.android.exercise.STOP"
+        /**
+         * User tapped "Keep going" on the idle-reminder heads-up notification:
+         * restart the 10 min countdown without changing runState. Session
+         * stays Paused/AutoPaused; the next reminder won't fire for another
+         * [ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS].
+         */
+        const val ACTION_IDLE_CONTINUE = "com.silverbp.android.exercise.IDLE_CONTINUE"
         const val EXTRA_KIND = "extra_kind"
     }
 }

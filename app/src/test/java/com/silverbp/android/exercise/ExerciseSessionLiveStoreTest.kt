@@ -2,6 +2,8 @@ package com.silverbp.android.exercise
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
@@ -178,6 +180,112 @@ class ExerciseSessionLiveStoreTest {
             BASE_MS + 4_000,
         )
         assertNotNull(store.flow.value!!.paceSecPerKm)
+    }
+
+    // ─── idle reminder bookkeeping ──────────────────────────────────────────
+
+    @Test
+    fun `start sets pausedSinceMillis to null`() {
+        val store = newStore()
+        assertNull(store.flow.value!!.pausedSinceMillis)
+    }
+
+    @Test
+    fun `manual pause sets pausedSinceMillis and resume clears it`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, speedMps = 3.0f), BASE_MS + 1_000)
+        store.pause()
+        assertNotNull(store.flow.value!!.pausedSinceMillis)
+
+        store.resume()
+        assertNull(store.flow.value!!.pausedSinceMillis)
+    }
+
+    @Test
+    fun `auto-pause records pausedSinceMillis using the wall-clock arg`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, speedMps = 3.0f), BASE_MS + 1_000)
+        store.appendSample(sample(BASE_MS + 10_000, speedMps = 0f), BASE_MS + 10_000)
+        val live = store.flow.value!!
+        assertEquals(RunState.AutoPaused, live.runState)
+        // Wall-clock arg is used so the LocationTrackingService 10 min idle
+        // check can compare with System.currentTimeMillis() apples-to-apples.
+        assertEquals(BASE_MS + 10_000, live.pausedSinceMillis)
+    }
+
+    @Test
+    fun `auto-resume on movement clears pausedSinceMillis`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, TAIPEI_LAT, TAIPEI_LON, speedMps = 3.0f), BASE_MS + 1_000)
+        store.appendSample(sample(BASE_MS + 10_000, TAIPEI_LAT, TAIPEI_LON, speedMps = 0f), BASE_MS + 10_000)
+        assertNotNull(store.flow.value!!.pausedSinceMillis)
+
+        store.appendSample(
+            sample(BASE_MS + 13_000, TAIPEI_LAT + DEG_PER_100M, TAIPEI_LON, speedMps = 3.0f),
+            BASE_MS + 13_000,
+        )
+        assertNull(store.flow.value!!.pausedSinceMillis)
+    }
+
+    @Test
+    fun `manual pause from AutoPaused refreshes pausedSinceMillis`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, speedMps = 3.0f), BASE_MS + 1_000)
+        store.appendSample(sample(BASE_MS + 10_000, speedMps = 0f), BASE_MS + 10_000)
+        val autoPausedAt = store.flow.value!!.pausedSinceMillis!!
+
+        store.pause()  // uses System.currentTimeMillis(), distinct from the wall-clock arg above
+        val manualPausedAt = store.flow.value!!.pausedSinceMillis!!
+        // Strictly newer (or at worst equal) — never older. Guards against
+        // the bug where transitioning AutoPaused → Paused would immediately
+        // re-trip the idle reminder using the older AutoPaused timestamp.
+        assertTrue(
+            "manual pause should refresh pausedSinceMillis (autoPausedAt=$autoPausedAt, manualPausedAt=$manualPausedAt)",
+            manualPausedAt >= autoPausedAt,
+        )
+    }
+
+    @Test
+    fun `acknowledgeIdleReminder pushes pausedSinceMillis forward`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, speedMps = 3.0f), BASE_MS + 1_000)
+        store.appendSample(sample(BASE_MS + 10_000, speedMps = 0f), BASE_MS + 10_000)
+        val before = store.flow.value!!.pausedSinceMillis!!
+
+        val ackAt = before + 5 * 60_000L  // user tapped "Keep going" 5 min into the pause
+        store.acknowledgeIdleReminder(nowMs = ackAt)
+
+        val after = store.flow.value!!.pausedSinceMillis!!
+        assertEquals(ackAt, after)
+        assertNotEquals(before, after)
+        // runState must NOT change — user is acknowledging, not resuming.
+        assertEquals(RunState.AutoPaused, store.flow.value!!.runState)
+    }
+
+    @Test
+    fun `acknowledgeIdleReminder is a no-op when Running`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, speedMps = 3.0f), BASE_MS + 1_000)
+        assertEquals(RunState.Running, store.flow.value!!.runState)
+        assertNull(store.flow.value!!.pausedSinceMillis)
+
+        store.acknowledgeIdleReminder(nowMs = BASE_MS + 60_000)
+
+        // Running state shouldn't suddenly acquire a paused timestamp.
+        assertNull(store.flow.value!!.pausedSinceMillis)
+        assertEquals(RunState.Running, store.flow.value!!.runState)
+    }
+
+    @Test
+    fun `snapshotAndFinish clears pausedSinceMillis`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, speedMps = 3.0f), BASE_MS + 1_000)
+        store.pause()
+        assertNotNull(store.flow.value!!.pausedSinceMillis)
+
+        store.snapshotAndFinish(Instant.ofEpochMilli(BASE_MS + 5_000))
+        assertNull(store.flow.value!!.pausedSinceMillis)
+        assertEquals(RunState.Finished, store.flow.value!!.runState)
     }
 
     private companion object {

@@ -137,6 +137,12 @@
     <string name="exercise_notification_action_resume">繼續</string>
     <string name="exercise_notification_action_stop">停止</string>
     <string name="exercise_notification_subtext_paused">已暫停</string>
+    <string name="exercise_notification_idle_channel">閒置提醒</string>
+    <string name="exercise_notification_idle_channel_desc">運動 session 暫停過久時的提醒通知。</string>
+    <string name="exercise_notification_idle_title">還在運動嗎？</string>
+    <string name="exercise_notification_idle_body">已暫停 %1$d 分鐘，要繼續還是結束保存？</string>
+    <string name="exercise_notification_idle_action_continue">繼續</string>
+    <string name="exercise_notification_idle_action_finish">結束並保存</string>
     <string name="settings_manage_medications_button">管理服藥</string>
     <string name="settings_manage_medications_hint">新增、編輯或刪除教練追蹤的藥物與保健食品。</string>
     <string name="exercise_location_permission_title">需要位置權限</string>
