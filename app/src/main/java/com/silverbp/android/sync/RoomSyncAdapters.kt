@@ -3,6 +3,7 @@ package com.silverbp.android.sync
 import android.util.Log
 import com.silverbp.android.core.db.AchievementDao
 import com.silverbp.android.core.db.BpDao
+import com.silverbp.android.core.db.ChatDao
 import com.silverbp.android.core.db.CoachPlanDao
 import com.silverbp.android.core.db.DietDao
 import com.silverbp.android.core.db.ExerciseDao
@@ -10,6 +11,7 @@ import com.silverbp.android.core.db.MedicationDao
 import com.silverbp.android.core.db.MedicationDoseDao
 import com.silverbp.android.core.db.MedicationScheduleDao
 import com.silverbp.android.core.db.SleepDao
+import com.silverbp.android.core.db.SyncDao
 import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.engine.HlcClock
 import com.silverbp.android.sync.engine.SyncEntityType
@@ -104,6 +106,13 @@ class CombinedRoomSyncSource(
     private val sleepLogMapper: SleepLogSyncMapper,
     private val dietCheckMapper: DietCheckSyncMapper,
     private val clock: HlcClock,
+    // Backup-only dependencies — optional so existing LAN sync callers
+    // (PairingViewModel) compile without supplying these. Required by
+    // [snapshotAll]; the standard [recordsSince] path doesn't touch them.
+    private val chatDao: ChatDao? = null,
+    private val chatSessionMapper: ChatSessionSyncMapper? = null,
+    private val chatMessageMapper: ChatMessageSyncMapper? = null,
+    private val syncDao: SyncDao? = null,
 ) : SyncRecordSource {
 
     override suspend fun recordsSince(
@@ -217,6 +226,120 @@ class CombinedRoomSyncSource(
     /** Mints a fresh HLC for legacy rows and reuses the stored one otherwise. */
     private fun hlcFor(stored: String): Hlc =
         if (stored == "0".repeat(32) || stored == "0") clock.next() else Hlc(stored)
+
+    // ============================================================
+    // Backup snapshot — full table dump for .sbpbk export
+    // ============================================================
+    //
+    // 與 [recordsSince] 的差異:
+    //  - 不受 `limit` 限制 — 發送全部列(備份必須完整)
+    //  - 忽略 peer cursor — peerLastHlcSeen 概念在備份場景沒意義
+    //  - 包含 [SyncEntityType.CHAT_SESSION] / [SyncEntityType.CHAT_MESSAGE]
+    //    (chat tables 目前不參與 LAN sync)
+    //  - 包含 tombstones — 讓還原時能正確帶上「已刪除」狀態
+    //
+    // 三個 chat/sync 依賴 (chatDao / chatSessionMapper / chatMessageMapper / syncDao)
+    // 必須在建構時提供;LAN sync 的 PairingViewModel 路徑可以不提供.
+    //
+    // [includeChat] = false 時,跳過聊天表(備份匯出 UI 的「不備份聊天歷史」勾選).
+
+    suspend fun snapshotAll(includeChat: Boolean = true): List<SyncRecord> {
+        val out = ArrayList<SyncRecord>()
+
+        // 1. bp_reading
+        for (row in bpDao.observeAll().first()) {
+            out += bpMapper.encode(row, hlcFor(row.hlcUpdatedAt))
+        }
+
+        // 2. exercise_session
+        for (session in exerciseDao.observeAll().first()) {
+            out += exerciseSessionMapper.encode(session, hlcFor(session.hlcUpdatedAt))
+        }
+
+        // 3. medication
+        for (med in medicationDao.observeAll().first()) {
+            out += medicationMapper.encode(med, hlcFor(med.hlcUpdatedAt))
+        }
+
+        // 4. medication_schedule
+        for (sched in medicationScheduleDao.all()) {
+            out += medicationScheduleMapper.encode(sched, hlcFor(sched.hlcUpdatedAt))
+        }
+
+        // 5. medication_dose
+        for (dose in medicationDoseDao.all()) {
+            out += medicationDoseMapper.encode(dose, hlcFor(dose.hlcUpdatedAt))
+        }
+
+        // 6. daily_step_log
+        for (log in achievementDao.listAllStepLogs()) {
+            out += dailyStepLogMapper.encode(log, hlcFor(log.hlcUpdatedAt))
+        }
+
+        // 7. achievement
+        for (medal in achievementDao.listAll()) {
+            out += achievementMapper.encode(medal, hlcFor(medal.hlcUpdatedAt))
+        }
+
+        // 8a. coach_plan — before tasks for FK order
+        for (plan in coachPlanDao.listAllPlans()) {
+            out += coachPlanMapper.encode(plan, hlcFor(plan.hlcUpdatedAt))
+        }
+
+        // 8b. coach_task
+        for (task in coachPlanDao.listAllTasks()) {
+            out += coachTaskMapper.encode(task, hlcFor(task.hlcUpdatedAt))
+        }
+
+        // 9. sleep_log
+        for (s in sleepDao.listAll()) {
+            out += sleepLogMapper.encode(s, hlcFor(s.hlcUpdatedAt))
+        }
+
+        // 10. diet_check
+        for (d in dietDao.listAll()) {
+            out += dietCheckMapper.encode(d, hlcFor(d.hlcUpdatedAt))
+        }
+
+        // 11. chat_session + chat_message (Backup-only — 不參與 LAN sync)
+        if (includeChat && chatDao != null && chatSessionMapper != null && chatMessageMapper != null) {
+            // Sessions first so child messages' FK resolves on import.
+            val sessions = chatDao.observeAllSessions().first()
+            for (s in sessions) {
+                val sessionEntity = chatDao.getSession(s.id) ?: continue
+                out += chatSessionMapper.encode(sessionEntity, clock.next())
+            }
+            for (s in sessions) {
+                for (msg in chatDao.messagesFor(s.id)) {
+                    out += chatMessageMapper.encode(msg, clock.next())
+                }
+            }
+        }
+
+        // 12. route_point — last, can be voluminous
+        for (point in exerciseDao.allPoints()) {
+            out += routePointMapper.encode(point, hlcFor(point.hlcUpdatedAt))
+        }
+
+        // 13. tombstones — convert to deletedAt!=null SyncRecord so import can
+        // replay the deletes via existing apply paths.
+        if (syncDao != null) {
+            val tombstones = syncDao.tombstonesSince("0".repeat(32))
+            for (t in tombstones) {
+                val type = SyncEntityType.entries.firstOrNull { it.tableName == t.entityType }
+                    ?: continue // 未知 type — 跳過(forward-compat).
+                out += SyncRecord(
+                    type = type,
+                    pk = t.pk,
+                    hlc = Hlc(t.hlc),
+                    deletedAt = t.deletedAt,
+                    payload = emptyMap(),
+                )
+            }
+        }
+
+        return out
+    }
 }
 
 /**
@@ -237,6 +360,12 @@ class CombinedRoomSyncSink(
     private val coachTaskMapper: CoachTaskSyncMapper,
     private val sleepLogMapper: SleepLogSyncMapper,
     private val dietCheckMapper: DietCheckSyncMapper,
+    // Backup-only mappers. Provided by BackupManager; LAN-sync caller leaves
+    // these null and the corresponding record types silently drop as
+    // forward-compat.
+    private val chatSessionMapper: ChatSessionSyncMapper? = null,
+    private val chatMessageMapper: ChatMessageSyncMapper? = null,
+    private val settingsKvMapper: SettingsKvSyncMapper? = null,
 ) : SyncRecordSink {
     private val perTypeCount = java.util.concurrent.ConcurrentHashMap<SyncEntityType, Int>()
     override suspend fun apply(record: SyncRecord) {
@@ -255,9 +384,12 @@ class CombinedRoomSyncSink(
                 SyncEntityType.COACH_TASK -> coachTaskMapper.apply(record)
                 SyncEntityType.SLEEP_LOG -> sleepLogMapper.apply(record)
                 SyncEntityType.DIET_CHECK -> dietCheckMapper.apply(record)
+                SyncEntityType.CHAT_SESSION -> chatSessionMapper?.apply(record)
+                SyncEntityType.CHAT_MESSAGE -> chatMessageMapper?.apply(record)
+                SyncEntityType.SETTINGS_KV -> settingsKvMapper?.apply(record)
                 else -> {
                     // Forward-compat: silently drop record types this build
-                    // doesn't yet understand (e.g. CHAT_*).
+                    // doesn't yet understand (e.g. future BLOB_META).
                 }
             }
         } catch (t: Throwable) {

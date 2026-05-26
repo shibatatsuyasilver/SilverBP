@@ -68,6 +68,10 @@ object Routes {
     // Cross-device sync pairing — opened from SettingsScreen's "跨裝置同步" row.
     const val SYNC_PAIRING = "sync/pairing"
 
+    // Backup / restore — encrypted .sbpbk snapshot export/import flow.
+    // Opened from SettingsScreen's "資料備份" row.
+    const val BACKUP = "backup"
+
     // First-launch nickname capture. Routed from AppNavHost when
     // UserSettings.didOnboard is false; clears itself from the back stack on
     // completion so users cannot navigate back into it.

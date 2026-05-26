@@ -134,6 +134,9 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.lifecycle.process)
 
+    // Argon2id KDF for the recovery-code KEK in encrypted backup snapshots.
+    implementation(libs.argon2kt)
+
     implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.androidx.camera.core)

@@ -33,6 +33,7 @@ healthConnect = "1.1.0-alpha07"
 vico = "2.0.0-alpha.28"
 coil = "2.7.0"
 okhttp = "4.12.0"
+argon2kt = "1.6.0"
 
 hiltNavigationCompose = "1.2.0"
 
@@ -104,6 +105,10 @@ vico-core = { group = "com.patrykandpatrick.vico", name = "core", version.ref = 
 
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+
+# Argon2id KDF used to derive the recovery-code KEK for encrypted backups.
+# Bundles libargon2 .so for Android ABIs; ~500 KB APK impact.
+argon2kt = { group = "com.lambdapioneer.argon2kt", name = "argon2kt", version.ref = "argon2kt" }
 
 androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 

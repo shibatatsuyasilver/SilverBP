@@ -15,7 +15,7 @@ import java.io.ByteArrayOutputStream
  * unit tests + `BPSharingTests` exercises both decoders against the same
  * binary blob to guarantee interop.
  */
-internal object Cbor {
+object Cbor {
     const val MT_UINT = 0
     const val MT_NINT = 1
     const val MT_BYTES = 2
@@ -32,7 +32,7 @@ internal object Cbor {
 }
 
 /** Streaming CBOR writer. Output retrievable via [toByteArray]. */
-internal class CborWriter {
+class CborWriter {
     private val buf = ByteArrayOutputStream()
 
     fun writeUInt(value: Long) {
@@ -115,7 +115,7 @@ internal class CborWriter {
 }
 
 /** Streaming CBOR reader. Throws [IllegalStateException] on unexpected types. */
-internal class CborReader(private val bytes: ByteArray) {
+class CborReader(private val bytes: ByteArray) {
     private var pos = 0
 
     val remaining: Int get() = bytes.size - pos

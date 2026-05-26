@@ -164,6 +164,12 @@ fun AppNavHost() {
                 onClose = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onOpenSyncPairing = { rootNav.navigate(Routes.SYNC_PAIRING) },
                 onOpenManageMedications = { rootNav.navigate(Routes.COACH_MANAGE_MEDICATIONS) },
+                onOpenBackup = { rootNav.navigate(Routes.BACKUP) },
+            )
+        }
+        composable(Routes.BACKUP) {
+            com.silverbp.android.ui.backup.BackupScreen(
+                onBack = { rootNav.popBackStack() },
             )
         }
         composable(Routes.REPORT) {

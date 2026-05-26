@@ -23,12 +23,19 @@ import com.silverbp.android.recognition.ModelLoadStatus
 import com.silverbp.android.security.DbKeyStore
 import com.silverbp.android.security.LockManager
 import com.silverbp.android.settings.UserSettingsRepository
+import com.silverbp.android.BuildConfig
+import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
+import com.silverbp.android.sync.ChatMessageSyncMapper
+import com.silverbp.android.sync.ChatSessionSyncMapper
 import com.silverbp.android.sync.CoachPlanSyncMapper
 import com.silverbp.android.sync.CoachTaskSyncMapper
+import com.silverbp.android.sync.CombinedRoomSyncSink
+import com.silverbp.android.sync.CombinedRoomSyncSource
 import com.silverbp.android.sync.DailyStepLogSyncMapper
 import com.silverbp.android.sync.DietCheckSyncMapper
+import com.silverbp.android.sync.SettingsKvSyncMapper
 import com.silverbp.android.sync.SleepLogSyncMapper
 import com.silverbp.android.sync.ExerciseSessionSyncMapper
 import com.silverbp.android.sync.MedicationDoseSyncMapper
@@ -221,5 +228,91 @@ object ServiceLocator {
 
     val syncCoordinator: SyncCoordinator by lazy {
         SyncCoordinator(deviceId = syncDeviceId, keyStore = pairingKeyStore)
+    }
+
+    // ============================================================
+    // Backup (encrypted .sbpbk snapshot)
+    // ============================================================
+
+    val chatSessionSyncMapper: ChatSessionSyncMapper by lazy {
+        ChatSessionSyncMapper(database.chatDao())
+    }
+
+    val chatMessageSyncMapper: ChatMessageSyncMapper by lazy {
+        ChatMessageSyncMapper(database.chatDao())
+    }
+
+    val settingsKvSyncMapper: SettingsKvSyncMapper by lazy {
+        SettingsKvSyncMapper(userSettings)
+    }
+
+    /**
+     * Encrypted snapshot export/import orchestrator.
+     *
+     * Factories(rather than direct instances) for source/sink let BackupManager
+     * build fresh combined adapters per export round — they hold ref to DAOs
+     * which are safe to re-resolve from [database].
+     */
+    val backupManager: BackupManager by lazy {
+        BackupManager(
+            database = database,
+            sourceFactory = {
+                CombinedRoomSyncSource(
+                    bpDao = database.bpDao(),
+                    exerciseDao = database.exerciseDao(),
+                    medicationDao = database.medicationDao(),
+                    medicationScheduleDao = database.medicationScheduleDao(),
+                    medicationDoseDao = database.medicationDoseDao(),
+                    achievementDao = database.achievementDao(),
+                    coachPlanDao = database.coachPlanDao(),
+                    sleepDao = database.sleepDao(),
+                    dietDao = database.dietDao(),
+                    bpMapper = bpReadingSyncMapper,
+                    exerciseSessionMapper = exerciseSessionSyncMapper,
+                    routePointMapper = routePointSyncMapper,
+                    medicationMapper = medicationSyncMapper,
+                    medicationScheduleMapper = medicationScheduleSyncMapper,
+                    medicationDoseMapper = medicationDoseSyncMapper,
+                    dailyStepLogMapper = dailyStepLogSyncMapper,
+                    achievementMapper = achievementSyncMapper,
+                    coachPlanMapper = coachPlanSyncMapper,
+                    coachTaskMapper = coachTaskSyncMapper,
+                    sleepLogMapper = sleepLogSyncMapper,
+                    dietCheckMapper = dietCheckSyncMapper,
+                    clock = syncCoordinator.clock,
+                    chatDao = database.chatDao(),
+                    chatSessionMapper = chatSessionSyncMapper,
+                    chatMessageMapper = chatMessageSyncMapper,
+                    syncDao = database.syncDao(),
+                )
+            },
+            sinkFactory = {
+                CombinedRoomSyncSink(
+                    bpMapper = bpReadingSyncMapper,
+                    exerciseSessionMapper = exerciseSessionSyncMapper,
+                    routePointMapper = routePointSyncMapper,
+                    medicationMapper = medicationSyncMapper,
+                    medicationScheduleMapper = medicationScheduleSyncMapper,
+                    medicationDoseMapper = medicationDoseSyncMapper,
+                    dailyStepLogMapper = dailyStepLogSyncMapper,
+                    achievementMapper = achievementSyncMapper,
+                    coachPlanMapper = coachPlanSyncMapper,
+                    coachTaskMapper = coachTaskSyncMapper,
+                    sleepLogMapper = sleepLogSyncMapper,
+                    dietCheckMapper = dietCheckSyncMapper,
+                    chatSessionMapper = chatSessionSyncMapper,
+                    chatMessageMapper = chatMessageSyncMapper,
+                    settingsKvMapper = settingsKvSyncMapper,
+                )
+            },
+            settingsKvMapper = settingsKvSyncMapper,
+            hlcClock = syncCoordinator.clock,
+            localNodeIdHex = "%016x".format(pairingKeyStore.loadOrCreateNodeId()),
+            appVersionName = BuildConfig.VERSION_NAME,
+            appVersionCode = BuildConfig.VERSION_CODE,
+            // Room schema version — keep in lock-step with SilverBpDatabase.
+            // 升 schema 時改這裡(備份檔頭會記下,匯入時做相容處理).
+            schemaVersion = 12,
+        )
     }
 }

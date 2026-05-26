@@ -75,6 +75,7 @@ fun SettingsScreen(
     onClose: () -> Unit = {},
     onOpenSyncPairing: () -> Unit = {},
     onOpenManageMedications: () -> Unit = {},
+    onOpenBackup: () -> Unit = {},
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -596,6 +597,21 @@ fun SettingsScreen(
                 Spacer(Modifier.size(8.dp))
                 Text(
                     stringResource(R.string.settings_sync_pair_help),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            // Backup / Restore — encrypted .sbpbk snapshot export/import to
+            // user's chosen storage (Google Drive, iCloud, local file).
+            // Survives uninstall; cross-device + cross-platform with iOS BPCoach.
+            SectionCard("資料備份") {
+                Button(
+                    onClick = onOpenBackup,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("匯出 / 匯入備份") }
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    "把所有紀錄打包成加密快照, 存到雲端或本機檔案. 換手機或重灌可以還原.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

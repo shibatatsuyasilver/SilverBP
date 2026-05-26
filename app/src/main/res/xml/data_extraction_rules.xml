@@ -1,19 +1,40 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Primary Auto Backup + device-transfer rules for API 31+.
+
+    cloud-backup: backed up to the user's Google Drive (E2E-encrypted on
+    devices with screen lock). Skipped when the user has no encryption
+    capabilities (disableIfNoEncryptionCapabilities) so health data is never
+    sent to Drive without on-device key derivation.
+
+    device-transfer: phone-to-phone migration (no quota). Includes the LLM
+    model files since the user is the same person on the same network.
+
+    SilverBpBackupAgent additionally drops silverbp.db* from the cloud-backup
+    when the DB is SQLCipher-encrypted — Keystore keys are wiped on uninstall
+    so the ciphertext would not be decryptable on a fresh install.
 -->
 <data-extraction-rules>
-    <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <include domain="database" path="silverbp.db" />
+        <include domain="database" path="silverbp.db-wal" />
+        <include domain="database" path="silverbp.db-shm" />
+        <include domain="file" path="datastore/user_settings.preferences_pb" />
+
+        <exclude domain="file" path="models/" />
+        <exclude domain="file" path="photos/" />
+        <exclude domain="database" path="silverbp.db-journal" />
     </cloud-backup>
-    <!--
+
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <include domain="database" path="silverbp.db" />
+        <include domain="database" path="silverbp.db-wal" />
+        <include domain="database" path="silverbp.db-shm" />
+        <include domain="file" path="datastore/user_settings.preferences_pb" />
+        <!-- Phone-to-phone has no quota — bring the LLM weights too. -->
+        <include domain="file" path="models/" />
+        <include domain="file" path="photos/" />
+
+        <exclude domain="database" path="silverbp.db-journal" />
     </device-transfer>
-    -->
 </data-extraction-rules>
