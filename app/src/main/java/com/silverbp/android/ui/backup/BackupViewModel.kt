@@ -169,15 +169,24 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
     // Auto-backup state
     // ============================================================
 
-    /** Whether a periodic or one-shot AutoBackupWorker is currently running/enqueued. */
+    /**
+     * Whether an AutoBackupWorker is currently running.
+     *
+     * Discrimination matters because **periodic workers sit in ENQUEUED between
+     * runs** — that's their idle state, not "in progress". One-shot workers,
+     * by contrast, are ENQUEUED only briefly before transitioning to RUNNING,
+     * so we treat their ENQUEUED as "about to run".
+     */
     val autoBackupRunning: StateFlow<Boolean> = run {
         val wm = WorkManager.getInstance(ctx)
         val periodic = wm.getWorkInfosForUniqueWorkFlow(AutoBackupWorker.UNIQUE_NAME)
         val once = wm.getWorkInfosForUniqueWorkFlow("${AutoBackupWorker.UNIQUE_NAME}.once")
         combine(periodic, once) { a, b ->
-            (a + b).any { wi ->
-                wi.state == WorkInfo.State.RUNNING || wi.state == WorkInfo.State.ENQUEUED
+            val periodicRunning = a.any { it.state == WorkInfo.State.RUNNING }
+            val onceActive = b.any {
+                it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED
             }
+            periodicRunning || onceActive
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     }
 
