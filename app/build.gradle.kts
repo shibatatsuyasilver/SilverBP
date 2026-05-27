@@ -160,6 +160,12 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
 
+    // Google auth + Drive auto-backup (encrypted .sbpbk → Drive appDataFolder).
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.play.services.auth)
+
     implementation(libs.vico.compose.m3)
     implementation(libs.vico.core)
 

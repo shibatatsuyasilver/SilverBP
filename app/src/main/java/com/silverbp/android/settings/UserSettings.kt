@@ -1,5 +1,6 @@
 package com.silverbp.android.settings
 
+import com.silverbp.android.backup.auto.AutoBackupFrequency
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
 import com.silverbp.android.recognition.ModelCatalog
@@ -9,7 +10,6 @@ import com.silverbp.android.recognition.VisionBackendOverride
 data class UserSettings(
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
     val enableHealthConnect: Boolean = false,
-    val enableCloudSync: Boolean = false,        // stub — feature deferred (matches iOS)
     val didOnboard: Boolean = false,
     val modelDownloaded: Boolean = false,
 
@@ -119,4 +119,26 @@ data class UserSettings(
     val appLockEnabled: Boolean = false,
     /** Grace period before a foregrounded app re-locks. 60 s default (elderly-friendly). */
     val appLockTimeoutSeconds: Int = 60,
+
+    /**
+     * Auto-backup cadence to Google Drive (appDataFolder).
+     * [AutoBackupFrequency.Off] means the user has not opted into auto-backup
+     * (or has turned it off again); the manual export/import flow remains
+     * available regardless.
+     */
+    val autoBackupFrequency: AutoBackupFrequency = AutoBackupFrequency.Off,
+    /** Linked Google account email; blank when none. UI shows this in the account row. */
+    val googleAccountEmail: String = "",
+    /**
+     * Stable Google account identifier (sub claim). Persisted alongside the
+     * email because emails can change; the scheduler authorizes with this id
+     * to make sure we keep targeting the same Drive even after a rename.
+     */
+    val googleAccountId: String = "",
+    /** Epoch ms of the last successful upload, 0 when no backup has succeeded yet. */
+    val lastBackupAtMs: Long = 0L,
+    /** Last failure message; blank when last attempt succeeded (or none yet). */
+    val lastBackupError: String = "",
+    /** Epoch ms of the last failure, 0 when no failure has been recorded. */
+    val lastBackupErrorAtMs: Long = 0L,
 )

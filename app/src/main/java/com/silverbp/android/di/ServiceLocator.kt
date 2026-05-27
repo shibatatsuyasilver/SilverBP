@@ -25,6 +25,10 @@ import com.silverbp.android.security.LockManager
 import com.silverbp.android.settings.UserSettingsRepository
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.backup.BackupManager
+import com.silverbp.android.backup.auto.AutoBackupScheduler
+import com.silverbp.android.backup.auto.GoogleAuthClient
+import com.silverbp.android.backup.auto.GoogleDriveBackupClient
+import okhttp3.OkHttpClient
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
 import com.silverbp.android.sync.ChatMessageSyncMapper
@@ -253,6 +257,30 @@ object ServiceLocator {
      * build fresh combined adapters per export round — they hold ref to DAOs
      * which are safe to re-resolve from [database].
      */
+    // ============================================================
+    // Auto-backup to Google Drive (appDataFolder)
+    // ============================================================
+
+    /**
+     * Shared OkHttp client for the Drive REST upload/list/delete/download
+     * calls. Has its own dispatcher pool — we don't share with any other
+     * subsystem because Drive uploads can stall on slow networks and we
+     * don't want them blocking unrelated HTTP work.
+     */
+    private val driveHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
+    val googleAuthClient: GoogleAuthClient by lazy { GoogleAuthClient(context) }
+    val googleDriveBackupClient: GoogleDriveBackupClient by lazy {
+        GoogleDriveBackupClient(driveHttpClient)
+    }
+    val autoBackupScheduler: AutoBackupScheduler by lazy { AutoBackupScheduler(context) }
+
     val backupManager: BackupManager by lazy {
         BackupManager(
             database = database,

@@ -5,9 +5,11 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
+import com.silverbp.android.backup.auto.AutoBackupFrequency
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
 import com.silverbp.android.security.DbKeyStore
@@ -37,7 +39,6 @@ class UserSettingsRepository(private val context: Context) {
     private object Keys {
         val GUIDELINE = stringPreferencesKey("guideline")
         val HC = booleanPreferencesKey("enable_health_connect")
-        val CLOUD = booleanPreferencesKey("enable_cloud_sync")
         val ONBOARD = booleanPreferencesKey("did_onboard")
         val MODEL_DOWNLOADED = booleanPreferencesKey("model_downloaded")
         val BACKEND = stringPreferencesKey("recognition_backend")
@@ -63,6 +64,16 @@ class UserSettingsRepository(private val context: Context) {
         val ACCEPTED_POLICY_VERSION = intPreferencesKey("accepted_policy_version")
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         val APP_LOCK_TIMEOUT = intPreferencesKey("app_lock_timeout_seconds")
+
+        // Auto-backup (Google Drive appDataFolder). FREQ is the user-facing
+        // cadence; ACCOUNT_* identify the linked Google account; LAST_BACKUP_*
+        // back the status row in BackupScreen.
+        val AUTO_BACKUP_FREQ = stringPreferencesKey("auto_backup_frequency")
+        val GOOGLE_ACCOUNT_EMAIL = stringPreferencesKey("google_account_email")
+        val GOOGLE_ACCOUNT_ID = stringPreferencesKey("google_account_id")
+        val LAST_BACKUP_AT_MS = longPreferencesKey("last_backup_at_ms")
+        val LAST_BACKUP_ERROR = stringPreferencesKey("last_backup_error")
+        val LAST_BACKUP_ERROR_AT_MS = longPreferencesKey("last_backup_error_at_ms")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -71,7 +82,6 @@ class UserSettingsRepository(private val context: Context) {
                 ?.let { runCatching { HypertensionGuideline.fromRaw(it) }.getOrNull() }
                 ?: HypertensionGuideline.Taiwan2022,
             enableHealthConnect = prefs[Keys.HC] ?: false,
-            enableCloudSync = prefs[Keys.CLOUD] ?: false,
             didOnboard = prefs[Keys.ONBOARD] ?: false,
             modelDownloaded = prefs[Keys.MODEL_DOWNLOADED] ?: false,
             recognitionBackend = prefs[Keys.BACKEND]
@@ -101,6 +111,12 @@ class UserSettingsRepository(private val context: Context) {
             acceptedPolicyVersion = prefs[Keys.ACCEPTED_POLICY_VERSION] ?: 0,
             appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: false,
             appLockTimeoutSeconds = prefs[Keys.APP_LOCK_TIMEOUT] ?: 60,
+            autoBackupFrequency = AutoBackupFrequency.fromRaw(prefs[Keys.AUTO_BACKUP_FREQ]),
+            googleAccountEmail = prefs[Keys.GOOGLE_ACCOUNT_EMAIL] ?: "",
+            googleAccountId = prefs[Keys.GOOGLE_ACCOUNT_ID] ?: "",
+            lastBackupAtMs = prefs[Keys.LAST_BACKUP_AT_MS] ?: 0L,
+            lastBackupError = prefs[Keys.LAST_BACKUP_ERROR] ?: "",
+            lastBackupErrorAtMs = prefs[Keys.LAST_BACKUP_ERROR_AT_MS] ?: 0L,
         )
     }
 
@@ -109,9 +125,6 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setHealthConnectEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.HC] = enabled }
-    }
-    suspend fun setCloudSyncEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.CLOUD] = enabled }
     }
     suspend fun setDidOnboard(value: Boolean) {
         context.dataStore.edit { it[Keys.ONBOARD] = value }
@@ -191,6 +204,41 @@ class UserSettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.APP_LOCK_TIMEOUT] = v.coerceIn(0, 600) }
     }
 
+    // ============================================================
+    // Auto-backup (Google Drive) setters
+    // ============================================================
+
+    suspend fun setAutoBackupFrequency(v: AutoBackupFrequency) {
+        context.dataStore.edit { it[Keys.AUTO_BACKUP_FREQ] = v.raw }
+    }
+    suspend fun setGoogleAccount(email: String, id: String) {
+        context.dataStore.edit {
+            it[Keys.GOOGLE_ACCOUNT_EMAIL] = email
+            it[Keys.GOOGLE_ACCOUNT_ID] = id
+        }
+    }
+    suspend fun clearGoogleAccount() {
+        context.dataStore.edit {
+            it.remove(Keys.GOOGLE_ACCOUNT_EMAIL)
+            it.remove(Keys.GOOGLE_ACCOUNT_ID)
+        }
+    }
+    /** Worker writes both timestamp + clears prior error on success. */
+    suspend fun recordBackupSuccess(atMs: Long) {
+        context.dataStore.edit {
+            it[Keys.LAST_BACKUP_AT_MS] = atMs
+            it[Keys.LAST_BACKUP_ERROR] = ""
+            it[Keys.LAST_BACKUP_ERROR_AT_MS] = 0L
+        }
+    }
+    /** Worker writes error text + timestamp on failure; leaves last-success untouched. */
+    suspend fun recordBackupFailure(message: String, atMs: Long) {
+        context.dataStore.edit {
+            it[Keys.LAST_BACKUP_ERROR] = message
+            it[Keys.LAST_BACKUP_ERROR_AT_MS] = atMs
+        }
+    }
+
     /**
      * Rewrite the sensitive free-text fields so their on-disk form matches the
      * current [DbKeyStore.isDbEncrypted] marker. Called by the app-lock
@@ -234,6 +282,10 @@ class UserSettingsRepository(private val context: Context) {
         prefs[Keys.MODEL_ID]?.let { out[Keys.MODEL_ID.name] = KvValue.T(it) }
         prefs[Keys.GEMINI_MODEL]?.let { out[Keys.GEMINI_MODEL.name] = KvValue.T(it) }
         prefs[Keys.VISION_OVERRIDE]?.let { out[Keys.VISION_OVERRIDE.name] = KvValue.T(it) }
+        // Auto-backup frequency is the only auto-backup key that's portable
+        // across devices — restoring on a new phone should remember the user's
+        // preferred cadence even though the Google account link must be redone.
+        prefs[Keys.AUTO_BACKUP_FREQ]?.let { out[Keys.AUTO_BACKUP_FREQ.name] = KvValue.T(it) }
 
         // sensitive strings — reveal to plaintext for backup; AES-GCM container
         // protects the snapshot file as a whole.
@@ -256,7 +308,6 @@ class UserSettingsRepository(private val context: Context) {
 
         // booleans
         prefs[Keys.HC]?.let { out[Keys.HC.name] = KvValue.B(it) }
-        prefs[Keys.CLOUD]?.let { out[Keys.CLOUD.name] = KvValue.B(it) }
         prefs[Keys.ONBOARD]?.let { out[Keys.ONBOARD.name] = KvValue.B(it) }
         prefs[Keys.MODEL_DOWNLOADED]?.let { out[Keys.MODEL_DOWNLOADED.name] = KvValue.B(it) }
         prefs[Keys.SPECULATIVE_DECODING]?.let { out[Keys.SPECULATIVE_DECODING.name] = KvValue.B(it) }
@@ -296,6 +347,7 @@ class UserSettingsRepository(private val context: Context) {
                 Keys.MODEL_ID.name -> if (value is KvValue.T) prefs[Keys.MODEL_ID] = value.value
                 Keys.GEMINI_MODEL.name -> if (value is KvValue.T) prefs[Keys.GEMINI_MODEL] = value.value
                 Keys.VISION_OVERRIDE.name -> if (value is KvValue.T) prefs[Keys.VISION_OVERRIDE] = value.value
+                Keys.AUTO_BACKUP_FREQ.name -> if (value is KvValue.T) prefs[Keys.AUTO_BACKUP_FREQ] = value.value
 
                 // sensitive strings — re-protect with this device's Keystore alias.
                 Keys.GEMINI_KEY.name -> if (value is KvValue.T) prefs[Keys.GEMINI_KEY] = protect(value.value)
@@ -307,7 +359,6 @@ class UserSettingsRepository(private val context: Context) {
 
                 // booleans
                 Keys.HC.name -> if (value is KvValue.B) prefs[Keys.HC] = value.value
-                Keys.CLOUD.name -> if (value is KvValue.B) prefs[Keys.CLOUD] = value.value
                 Keys.ONBOARD.name -> if (value is KvValue.B) prefs[Keys.ONBOARD] = value.value
                 Keys.MODEL_DOWNLOADED.name -> if (value is KvValue.B) prefs[Keys.MODEL_DOWNLOADED] = value.value
                 Keys.SPECULATIVE_DECODING.name -> if (value is KvValue.B) prefs[Keys.SPECULATIVE_DECODING] = value.value

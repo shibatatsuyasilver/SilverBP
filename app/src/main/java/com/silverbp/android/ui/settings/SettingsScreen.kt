@@ -558,13 +558,6 @@ fun SettingsScreen(
                         } else vm.disableHealthConnect()
                     },
                 )
-                HorizontalDivider()
-                ToggleRow(
-                    label = stringResource(R.string.cloud_sync) + "  " + stringResource(R.string.cloud_sync_unavailable),
-                    checked = state.enableCloudSync,
-                    onChange = vm::setCloudSync,
-                    enabled = false,
-                )
             }
 
             // Daily step goal + medal notifications

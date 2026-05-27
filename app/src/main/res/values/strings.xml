@@ -65,8 +65,6 @@
     <string name="guideline_jnc_8">JNC 8</string>
     <string name="integration_section">Integrations</string>
     <string name="health_connect">Health Connect</string>
-    <string name="cloud_sync">Cloud sync</string>
-    <string name="cloud_sync_unavailable">(Coming soon)</string>
     <string name="about_section">About</string>
     <string name="about_model">This app uses Gemma 4 E4B vision model under Apache License 2.0.</string>
     <string name="not_medical_device">⚠️ This app is not a medical device. Information is for personal health reference only.</string>
@@ -495,6 +493,44 @@
     <string name="app_lock_prompt_title">Unlock SilverBP</string>
     <string name="app_lock_prompt_subtitle">Use your fingerprint, face, or device PIN/password.</string>
     <string name="app_lock_error">Couldn\'t verify — tap Unlock to try again.</string>
+
+    <!-- Backup screen: auto-backup (Google Drive) -->
+    <string name="backup_auto_section_title">Auto-backup</string>
+    <string name="backup_auto_section_help">Link a Google account and SilverBP will upload your encrypted .sbpbk snapshot to that account\'s app-private Drive space on the cadence you pick.</string>
+    <string name="backup_auto_account_label">Google account</string>
+    <string name="backup_auto_account_unlinked">Not linked</string>
+    <string name="backup_auto_connect_button">Link Google account</string>
+    <string name="backup_auto_switch_account">Switch account</string>
+    <string name="backup_auto_disconnect">Disconnect</string>
+    <string name="backup_auto_disconnect_title">Disconnect Google?</string>
+    <string name="backup_auto_disconnect_msg">Auto-backup will turn off. Existing files in Drive are kept, but SilverBP can no longer upload new ones.</string>
+    <string name="backup_auto_frequency_label">Backup frequency</string>
+    <string name="backup_auto_freq_off">Off</string>
+    <string name="backup_auto_freq_daily">Daily</string>
+    <string name="backup_auto_freq_weekly">Weekly</string>
+    <string name="backup_auto_freq_monthly">Monthly</string>
+    <string name="backup_auto_run_now">Back up now</string>
+    <string name="backup_auto_status_never">No backup yet</string>
+    <string name="backup_auto_status_success">Last backup: %1$s · OK</string>
+    <string name="backup_auto_status_failure">Last backup failed: %1$s</string>
+    <string name="backup_auto_running">Backing up…</string>
+    <string name="backup_auto_disabled_hint">Link a Google account and set up a recovery code before enabling auto-backup.</string>
+    <string name="backup_auto_drive_warning">Note: uninstalling SilverBP removes backups from Drive (Google policy). Keep a written copy of your recovery code.</string>
+    <string name="backup_auto_recovery_required_title">Recovery code required</string>
+    <string name="backup_auto_recovery_required_msg">The auto-backup encryption key is derived from the recovery code. You must enter it on a new device to restore — please finish setting up the recovery code first.</string>
+    <string name="backup_auto_recovery_required_continue">Continue to recovery code setup</string>
+
+    <!-- Backup screen: recovery code copy button -->
+    <string name="backup_recovery_copy">Copy</string>
+    <string name="backup_recovery_copied">Copied to clipboard</string>
+
+    <!-- Backup screen: restore from Google Drive -->
+    <string name="backup_drive_restore_button">Restore from Google Drive</string>
+    <string name="backup_drive_restore_title">Restore from Google Drive</string>
+    <string name="backup_drive_restore_empty">No backups in Drive.</string>
+    <string name="backup_drive_restore_loading">Loading backup list…</string>
+    <string name="backup_drive_restore_select">Select a backup to restore</string>
+    <string name="backup_drive_restore_size">%1$s · %2$s</string>
 
     <!-- Settings: Security section (app-lock + at-rest encryption toggle) -->
     <string name="settings_security_section">Security</string>

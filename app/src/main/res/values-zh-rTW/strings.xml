@@ -65,8 +65,6 @@
     <string name="guideline_jnc_8">JNC 8</string>
     <string name="integration_section">整合</string>
     <string name="health_connect">Health Connect</string>
-    <string name="cloud_sync">雲端同步</string>
-    <string name="cloud_sync_unavailable">(尚未實作)</string>
     <string name="about_section">關於</string>
     <string name="about_model">本 App 使用 Gemma 4 E4B 視覺模型,依 Apache License 2.0 授權。</string>
     <string name="not_medical_device">⚠️ 本 App 並非醫療裝置;資訊僅供個人健康參考。</string>
@@ -495,6 +493,44 @@
     <string name="app_lock_prompt_title">解鎖 SilverBP</string>
     <string name="app_lock_prompt_subtitle">使用指紋、臉部或裝置 PIN／密碼。</string>
     <string name="app_lock_error">驗證失敗 — 點「解鎖」再試一次。</string>
+
+    <!-- 備份頁:自動備份 (Google Drive) -->
+    <string name="backup_auto_section_title">自動備份</string>
+    <string name="backup_auto_section_help">連結 Google 帳號後,加密 .sbpbk 會自動上傳到該帳號 Drive 的 App 私有空間,並依下面的頻率重複執行。</string>
+    <string name="backup_auto_account_label">Google 帳號</string>
+    <string name="backup_auto_account_unlinked">尚未連結</string>
+    <string name="backup_auto_connect_button">連結 Google 帳號</string>
+    <string name="backup_auto_switch_account">切換帳號</string>
+    <string name="backup_auto_disconnect">解除連結</string>
+    <string name="backup_auto_disconnect_title">解除 Google 連結?</string>
+    <string name="backup_auto_disconnect_msg">自動備份會關閉. Drive 上既有的備份檔不會被刪除, 但這個 App 之後無法上傳新檔.</string>
+    <string name="backup_auto_frequency_label">備份頻率</string>
+    <string name="backup_auto_freq_off">關閉</string>
+    <string name="backup_auto_freq_daily">每日</string>
+    <string name="backup_auto_freq_weekly">每週</string>
+    <string name="backup_auto_freq_monthly">每月</string>
+    <string name="backup_auto_run_now">立即備份</string>
+    <string name="backup_auto_status_never">尚未備份</string>
+    <string name="backup_auto_status_success">上次備份: %1$s · 成功</string>
+    <string name="backup_auto_status_failure">上次備份失敗: %1$s</string>
+    <string name="backup_auto_running">備份中…</string>
+    <string name="backup_auto_disabled_hint">請先連結 Google 帳號並建立恢復碼才能開啟自動備份.</string>
+    <string name="backup_auto_drive_warning">提醒: 解除安裝 App 會讓 Drive 上的備份檔被 Google 清掉. 請務必另外抄寫恢復碼.</string>
+    <string name="backup_auto_recovery_required_title">需要恢復碼</string>
+    <string name="backup_auto_recovery_required_msg">自動備份的加密金鑰由恢復碼推導. 換新手機要還原時必須輸入這串字元, 請先完成恢復碼設定.</string>
+    <string name="backup_auto_recovery_required_continue">繼續設定恢復碼</string>
+
+    <!-- 備份頁:恢復碼複製 -->
+    <string name="backup_recovery_copy">複製</string>
+    <string name="backup_recovery_copied">已複製到剪貼簿</string>
+
+    <!-- 備份頁:從 Google Drive 還原 -->
+    <string name="backup_drive_restore_button">從 Google Drive 還原</string>
+    <string name="backup_drive_restore_title">從 Google Drive 還原</string>
+    <string name="backup_drive_restore_empty">Drive 上沒有備份檔.</string>
+    <string name="backup_drive_restore_loading">讀取備份清單中…</string>
+    <string name="backup_drive_restore_select">選擇一份備份還原</string>
+    <string name="backup_drive_restore_size">%1$s · %2$s</string>
 
     <!-- 設定頁:安全性區塊(App 鎖定 + 本機加密) -->
     <string name="settings_security_section">安全性</string>

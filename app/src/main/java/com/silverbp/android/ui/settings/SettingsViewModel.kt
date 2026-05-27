@@ -67,8 +67,6 @@ class SettingsViewModel(
         }
     }
 
-    fun setCloudSync(enabled: Boolean) { viewModelScope.launch { repo.setCloudSyncEnabled(enabled) } }
-
     fun setRecognitionBackend(b: RecognitionBackend) {
         viewModelScope.launch { repo.setRecognitionBackend(b) }
     }
