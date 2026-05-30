@@ -37,6 +37,12 @@ data class ModelVariant(
 }
 
 object ModelCatalog {
+    // SHA-256 hashes are the HuggingFace LFS OIDs of the resolved download
+    // targets (the OID *is* the file's sha256), captured 2026-05-30. They are
+    // verified after download by ModelDownloader. NOTE: litert-community has
+    // re-uploaded these files in place before; if upstream changes the file, the
+    // download will fail "sha256 mismatch" until the hash here is refreshed
+    // (`curl -sIL <resolve-url> | grep -i x-linked-etag`, or `shasum -a 256`).
     val variants: List<ModelVariant> = listOf(
         ModelVariant(
             id = "gemma-4-E2B-it",
@@ -49,6 +55,7 @@ object ModelCatalog {
             supportsVision = true,
             supportsSpeculativeDecoding = true,
             notes = "推薦給多數裝置 (約 0.7 GB GPU 記憶體)。MTP 加速 ~2x decode。",
+            sha256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
         ),
         ModelVariant(
             id = "gemma-4-E4B-it",
@@ -59,6 +66,7 @@ object ModelCatalog {
             supportsVision = true,
             supportsSpeculativeDecoding = true,
             notes = "需 GPU 記憶體較多 (旗艦機如 S24 Ultra)。MTP 加速 ~2x decode。",
+            sha256 = "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
         ),
         ModelVariant(
             id = "gemma-3n-E4B-it",
@@ -69,6 +77,9 @@ object ModelCatalog {
             supportsVision = true,
             supportsSpeculativeDecoding = false,
             notes = "與 iOS 版一致的模型 (.task 格式)。",
+            // Gated repo (Google license) — LFS OID isn't exposed unauthenticated.
+            // Fill from your authenticated download: `shasum -a 256 <file>`.
+            sha256 = null,
         ),
     )
 
