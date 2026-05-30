@@ -83,10 +83,16 @@ class LocationTrackingService : LifecycleService() {
                 ensureForeground()
                 if (!trackingStarted) {
                     liveStore.start(kind, Instant.now(), stepBaseline = null)
-                    startLocationUpdates()
-                    startStepCounter()
-                    startNotificationRefresh()
-                    trackingStarted = true
+                    if (startLocationUpdates()) {
+                        startStepCounter()
+                        startNotificationRefresh()
+                        trackingStarted = true
+                    } else {
+                        // Permission failure already surfaced via liveStore.error;
+                        // tear down the foreground we just started.
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
                 }
             }
             ACTION_PAUSE -> liveStore.pause()
@@ -121,7 +127,8 @@ class LocationTrackingService : LifecycleService() {
         }
     }
 
-    private fun startLocationUpdates() {
+    /** Returns true if updates were requested; false (and surfaces an error) on permission loss. */
+    private fun startLocationUpdates(): Boolean {
         // 3s cadence + minDistance=0 mirrors iOS BPExercise; jitter is absorbed by
         // LiveStore's accuracy/age/speed filters and the 8 s auto-pause window.
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3_000L)
@@ -130,11 +137,15 @@ class LocationTrackingService : LifecycleService() {
             .setMaxUpdateDelayMillis(3_000L)
             .setWaitForAccurateLocation(false)
             .build()
-        try {
+        return try {
             fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
+            true
         } catch (_: SecurityException) {
-            // Permission revoked between Start tap and service start; bail out.
-            stopSelf()
+            // Permission revoked between Start tap and service start. Surface it
+            // to the UI (which shows why it can't track instead of silently
+            // bouncing); setError() also drops the half-started live session.
+            liveStore.setError(LiveError.LocationPermissionRevoked)
+            false
         }
     }
 
@@ -171,8 +182,14 @@ class LocationTrackingService : LifecycleService() {
         val paused = live != null &&
             (live.runState == RunState.Paused || live.runState == RunState.AutoPaused)
         val pausedSince = live?.pausedSinceMillis
+        // Don't even attempt the notify() when POST_NOTIFICATIONS is denied —
+        // mirrors MedalNotifier's check-before-notify pattern and keeps
+        // idleReminderShown honest (we never mark it shown if it can't show).
+        val canNotify = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
         when {
-            paused && pausedSince != null &&
+            canNotify && paused && pausedSince != null &&
                 (System.currentTimeMillis() - pausedSince) >= ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS &&
                 !idleReminderShown -> {
                 runCatching {

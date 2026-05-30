@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseController
 import com.silverbp.android.exercise.ExerciseSessionLiveStore
+import com.silverbp.android.exercise.LiveError
 import com.silverbp.android.exercise.RunState
 import com.silverbp.android.exercise.SessionLive
 import kotlinx.coroutines.flow.StateFlow
@@ -15,10 +16,15 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class ExerciseSessionViewModel(
     private val controller: ExerciseController = ServiceLocator.exerciseController,
-    liveStore: ExerciseSessionLiveStore = ServiceLocator.exerciseLiveStore,
+    private val liveStore: ExerciseSessionLiveStore = ServiceLocator.exerciseLiveStore,
 ) : ViewModel() {
 
     val state: StateFlow<SessionLive?> = liveStore.flow
+
+    /** Non-null when tracking aborted (e.g. location permission revoked). */
+    val error: StateFlow<LiveError?> = liveStore.error
+
+    fun clearError() = liveStore.setError(null)
 
     fun pause() = controller.pause()
     fun resume() = controller.resume()

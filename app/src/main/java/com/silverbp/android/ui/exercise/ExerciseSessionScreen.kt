@@ -21,12 +21,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -64,7 +66,15 @@ fun ExerciseSessionScreen(
     vm: ExerciseSessionViewModel = viewModel(),
 ) {
     val live by vm.state.collectAsStateWithLifecycle()
+    val error by vm.error.collectAsStateWithLifecycle()
     KeepScreenOn()
+
+    if (error != null) {
+        // Tracking aborted (e.g. location permission revoked at start) — explain
+        // why instead of silently bouncing back to the home screen.
+        SessionErrorScreen(onClose = { vm.clearError(); onClose() })
+        return
+    }
 
     if (live == null) {
         // No active session — service may have failed to start. Bounce back.
@@ -75,12 +85,22 @@ fun ExerciseSessionScreen(
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
-        SessionMap(
-            live = live!!,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-        )
+        ) {
+            SessionMap(
+                live = live!!,
+                modifier = Modifier.fillMaxSize(),
+            )
+            GpsSignalBanner(
+                live = live!!,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp),
+            )
+        }
 
         SessionStats(live!!)
 
@@ -94,6 +114,61 @@ fun ExerciseSessionScreen(
         )
     }
 }
+
+@Composable
+private fun SessionErrorScreen(onClose: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            stringResource(R.string.exercise_location_permission_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.exercise_location_denied),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = onClose) {
+            Text(stringResource(R.string.cancel))
+        }
+    }
+}
+
+/** Faint banner shown when no fresh GPS fix has arrived for a while mid-run. */
+@Composable
+private fun GpsSignalBanner(live: SessionLive, modifier: Modifier = Modifier) {
+    val stale by produceState(
+        initialValue = false,
+        live.lastSampleAtMillis,
+        live.runState,
+    ) {
+        while (true) {
+            value = live.runState == RunState.Running &&
+                (System.currentTimeMillis() - live.lastSampleAtMillis) > GPS_STALE_THRESHOLD_MS
+            kotlinx.coroutines.delay(2_000L)
+        }
+    }
+    if (!stale) return
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = MaterialTheme.shapes.small,
+        tonalElevation = 4.dp,
+    ) {
+        Text(
+            stringResource(R.string.exercise_gps_weak),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    }
+}
+
+private const val GPS_STALE_THRESHOLD_MS = 15_000L
 
 private const val FOLLOW_ZOOM = 17f
 

@@ -146,6 +146,7 @@
     <string name="exercise_location_permission_title">需要位置權限</string>
     <string name="exercise_location_permission_body">SilverBP 需要精確位置才能記錄您的走路/跑步路徑。</string>
     <string name="exercise_location_denied">GPS 權限被拒,無法記錄路徑。</string>
+    <string name="exercise_gps_weak">GPS 訊號微弱,定位等待中…</string>
     <string name="exercise_no_play_services">本裝置無 Google Play Services,地圖無法顯示。</string>
     <string name="exercise_history_empty">尚無紀錄。點擊「開始」記錄第一次運動。</string>
     <string name="exercise_recent_sessions">最近紀錄</string>

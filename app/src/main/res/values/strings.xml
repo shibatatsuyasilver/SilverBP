@@ -146,6 +146,7 @@
     <string name="exercise_location_permission_title">Location permission required</string>
     <string name="exercise_location_permission_body">SilverBP needs precise location to record your walk/run path.</string>
     <string name="exercise_location_denied">Location permission denied — cannot record your path.</string>
+    <string name="exercise_gps_weak">Weak GPS signal — waiting for a fix…</string>
     <string name="exercise_no_play_services">Google Play Services unavailable on this device. Maps cannot render.</string>
     <string name="exercise_history_empty">No sessions yet. Tap Start to record your first walk or run.</string>
     <string name="exercise_recent_sessions">Recent sessions</string>

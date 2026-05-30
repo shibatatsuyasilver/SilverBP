@@ -53,6 +53,15 @@ data class SessionLive(
 )
 
 /**
+ * A hard failure that aborted an in-progress session. Sealed so the UI can
+ * map each case to a specific, localized message.
+ */
+sealed interface LiveError {
+    /** Location permission was missing/revoked when the service tried to track. */
+    data object LocationPermissionRevoked : LiveError
+}
+
+/**
  * Process-wide singleton holding the live state of the active session.
  *
  * - Service writes via [start] / [appendPoint] / [pause] / [resume] / [snapshotAndFinish].
@@ -71,7 +80,24 @@ class ExerciseSessionLiveStore {
     private val _flow = MutableStateFlow<SessionLive?>(null)
     val flow: StateFlow<SessionLive?> = _flow.asStateFlow()
 
+    /**
+     * Surfaces a hard failure that aborted tracking (e.g. the location
+     * permission was revoked between Start and service launch). The service
+     * sets it; the session screen shows it instead of silently bouncing back.
+     * Latest-wins StateFlow so it survives the brief window before the UI
+     * subscribes. Cleared on [start] and [clear].
+     */
+    private val _error = MutableStateFlow<LiveError?>(null)
+    val error: StateFlow<LiveError?> = _error.asStateFlow()
+
+    /** An error means there's no usable live session, so drop it as we set the flag. */
+    fun setError(error: LiveError?) {
+        _error.value = error
+        if (error != null) _flow.value = null
+    }
+
     fun start(kind: ActivityKind, startedAt: Instant, stepBaseline: Long?) {
+        _error.value = null
         val nowMs = startedAt.toEpochMilli()
         _flow.value = SessionLive(
             id = UUID.randomUUID(),
@@ -267,6 +293,7 @@ class ExerciseSessionLiveStore {
 
     fun clear() {
         _flow.value = null
+        _error.value = null
     }
 
     companion object {
