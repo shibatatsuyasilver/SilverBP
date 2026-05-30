@@ -18,6 +18,7 @@ import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSessionLiveStore
 import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.StepCounterReader
+import com.silverbp.android.health.HealthConnectBpBridge
 import com.silverbp.android.health.HealthConnectBridge
 import com.silverbp.android.recognition.ModelLoadStatus
 import com.silverbp.android.security.DbKeyStore
@@ -28,6 +29,7 @@ import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.backup.auto.AutoBackupScheduler
 import com.silverbp.android.backup.auto.GoogleAuthClient
 import com.silverbp.android.backup.auto.GoogleDriveBackupClient
+import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
@@ -78,7 +80,16 @@ object ServiceLocator {
 
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 
-    val bpRepository: BpRepository by lazy { BpRepository(database.bpDao()) }
+    val bpRepository: BpRepository by lazy {
+        BpRepository(
+            dao = database.bpDao(),
+            healthConnect = healthConnectBpBridge,
+            // Coarse gate: only mirror to Health Connect when the user has the
+            // integration switched on. The bridge still independently checks
+            // the BP write permission before inserting.
+            healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+        )
+    }
 
     val chatRepository: ChatRepository by lazy { ChatRepository(database.chatDao()) }
 
@@ -91,6 +102,8 @@ object ServiceLocator {
     }
 
     val healthConnectBridge: HealthConnectBridge by lazy { HealthConnectBridge(context) }
+
+    val healthConnectBpBridge: HealthConnectBpBridge by lazy { HealthConnectBpBridge(context) }
 
     val exerciseLiveStore: ExerciseSessionLiveStore by lazy { ExerciseSessionLiveStore() }
 

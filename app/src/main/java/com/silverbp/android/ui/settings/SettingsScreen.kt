@@ -1,8 +1,6 @@
 package com.silverbp.android.ui.settings
 
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -85,16 +83,21 @@ fun SettingsScreen(
     var hfToken by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val hcReadPerms = remember { ServiceLocator.healthConnectExerciseBridge.readPermissions }
-    // On Android 14+ (UPSIDE_DOWN_CAKE) Health Connect is OS-integrated and
-    // its permissions are real Android runtime permissions — request them via
-    // the standard contract. The HC SDK 1.1.0-alpha07 contract still launches
-    // the legacy `androidx.health.ACTION_REQUEST_PERMISSIONS` action which has
-    // no handler on built-in HC (silent no-op).
-    val hcModernLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { results -> vm.onHealthConnectGrantResult(results.filterValues { it }.keys) }
-    val hcLegacyLauncher = rememberLauncherForActivityResult(
+    // Core Health Connect permissions the master toggle requests in one sheet:
+    //   • steps READ      — medals / step backfill
+    //   • exercise WRITE  — finished workouts (+route) mirror to HC
+    //   • blood-pressure WRITE — readings flow into Google Health / other apps
+    // Sleep & diet reads stay behind their own Coach toggles further down.
+    val hcCorePerms = remember {
+        ServiceLocator.healthConnectExerciseBridge.readPermissions +
+            ServiceLocator.healthConnectExerciseBridge.permissions +
+            ServiceLocator.healthConnectBpBridge.permissions
+    }
+    // 1.1.0's request contract is platform-aware: it delegates to the built-in
+    // Health Connect module on Android 14+ and the standalone HC app on
+    // Android 13, so one launcher covers both. (The old dual-launcher hack
+    // existed only because alpha07's contract was a silent no-op on built-in HC.)
+    val hcLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted -> vm.onHealthConnectGrantResult(granted) }
 
@@ -549,13 +552,8 @@ fun SettingsScreen(
                     label = stringResource(R.string.health_connect),
                     checked = state.enableHealthConnect,
                     onChange = { newValue ->
-                        if (newValue) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                hcModernLauncher.launch(hcReadPerms.toTypedArray())
-                            } else {
-                                hcLegacyLauncher.launch(hcReadPerms)
-                            }
-                        } else vm.disableHealthConnect()
+                        if (newValue) hcLauncher.launch(hcCorePerms)
+                        else vm.disableHealthConnect()
                     },
                 )
             }
@@ -701,29 +699,17 @@ private fun SleepTrackingRow(
     onEnable: (Set<String>) -> Unit,
     onDisable: () -> Unit,
 ) {
-    val ctx = LocalContext.current
     val perms = remember { ServiceLocator.healthConnectBridge.sleepReadPermissions }
-    // Modern (Android 14+): HC permissions are real Android runtime perms.
-    // Older: route through HC SDK's legacy contract. Mirrors HC steps wiring.
-    val modernLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { results -> onEnable(results.filterValues { it }.keys) }
-    val legacyLauncher = rememberLauncherForActivityResult(
+    // Single platform-aware contract (see master toggle): one launcher covers
+    // the built-in HC module (Android 14+) and the standalone HC app (13).
+    val launcher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted -> onEnable(granted) }
 
     ToggleRow(
         label = stringResource(R.string.coach_settings_sleep_tracking),
         checked = enabled,
-        onChange = { newValue ->
-            if (newValue) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    modernLauncher.launch(perms.toTypedArray())
-                } else {
-                    legacyLauncher.launch(perms)
-                }
-            } else onDisable()
-        },
+        onChange = { newValue -> if (newValue) launcher.launch(perms) else onDisable() },
     )
     Text(
         stringResource(R.string.coach_settings_sleep_tracking_hint),
@@ -737,27 +723,15 @@ private fun DietTrackingRow(
     onEnable: (Set<String>) -> Unit,
     onDisable: () -> Unit,
 ) {
-    val ctx = LocalContext.current
     val perms = remember { ServiceLocator.healthConnectBridge.nutritionReadPermissions }
-    val modernLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { results -> onEnable(results.filterValues { it }.keys) }
-    val legacyLauncher = rememberLauncherForActivityResult(
+    val launcher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted -> onEnable(granted) }
 
     ToggleRow(
         label = stringResource(R.string.coach_settings_diet_tracking),
         checked = enabled,
-        onChange = { newValue ->
-            if (newValue) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    modernLauncher.launch(perms.toTypedArray())
-                } else {
-                    legacyLauncher.launch(perms)
-                }
-            } else onDisable()
-        },
+        onChange = { newValue -> if (newValue) launcher.launch(perms) else onDisable() },
     )
     Text(
         stringResource(R.string.coach_settings_diet_tracking_hint),

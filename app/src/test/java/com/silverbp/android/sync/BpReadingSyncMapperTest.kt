@@ -151,6 +151,8 @@ class BpReadingSyncMapperTest {
         override suspend fun update(r: BpReadingEntity) { rows[r.id] = r }
         override suspend fun delete(id: String) { rows.remove(id) }
         override suspend fun count(): Int = rows.size
+        override suspend fun findUnmirrored(): List<BpReadingEntity> =
+            rows.values.filter { it.hcRecordId == null }
     }
 
     private class FakeSyncDao : SyncDao {

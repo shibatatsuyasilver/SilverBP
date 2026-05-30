@@ -34,6 +34,7 @@ fun BpReading.toEntity() = BpReadingEntity(
     medicationId = medicationId?.toString(),
     createdAt = createdAt.toEpochMilli(),
     updatedAt = updatedAt.toEpochMilli(),
+    hcRecordId = hcRecordId,
 )
 
 fun BpReadingEntity.toDomain() = BpReading(
@@ -54,6 +55,7 @@ fun BpReadingEntity.toDomain() = BpReading(
     medicationId = medicationId?.let(UUID::fromString),
     createdAt = Instant.ofEpochMilli(createdAt),
     updatedAt = Instant.ofEpochMilli(updatedAt),
+    hcRecordId = hcRecordId,
 )
 
 fun UserProfile.toEntity() = UserProfileEntity(

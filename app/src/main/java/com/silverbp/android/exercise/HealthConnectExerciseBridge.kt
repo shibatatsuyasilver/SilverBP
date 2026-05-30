@@ -8,6 +8,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -130,8 +131,13 @@ class HealthConnectExerciseBridge(private val context: Context) {
                 } else {
                     null
                 },
-                metadata = Metadata(
-                    recordingMethod = Metadata.RECORDING_METHOD_ACTIVELY_RECORDED,
+                // 1.1.0 stable made the raw Metadata constructor internal:
+                // recording method is now chosen via a factory. clientRecordId
+                // = our session id makes Health Connect upsert (not duplicate)
+                // when the same session is edited and re-saved.
+                metadata = Metadata.activelyRecorded(
+                    device = Device(type = Device.TYPE_PHONE),
+                    clientRecordId = session.id.toString(),
                 ),
             )
             c.insertRecords(listOf(record)).recordIdsList.firstOrNull()

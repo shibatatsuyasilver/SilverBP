@@ -32,6 +32,10 @@ interface BpDao {
 
     @Query("SELECT COUNT(*) FROM bp_reading")
     suspend fun count(): Int
+
+    /** Readings not yet mirrored to Health Connect — the retry/backfill set. */
+    @Query("SELECT * FROM bp_reading WHERE hcRecordId IS NULL ORDER BY timestamp ASC")
+    suspend fun findUnmirrored(): List<BpReadingEntity>
 }
 
 @Dao

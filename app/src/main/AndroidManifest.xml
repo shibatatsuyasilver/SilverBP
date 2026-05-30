@@ -31,7 +31,8 @@
     <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
 
     <!-- Health Connect (matches iOS HealthKit toggle; toggled in Settings) -->
-    <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" />
+    <!-- BP is written (one-way mirror) so readings flow into Google Health;
+         we don't read BP back yet, so no READ_BLOOD_PRESSURE. -->
     <uses-permission android:name="android.permission.health.WRITE_BLOOD_PRESSURE" />
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE_ROUTE" />

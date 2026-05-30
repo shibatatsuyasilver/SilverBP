@@ -84,9 +84,9 @@ private fun RationaleScreen(onClose: () -> Unit) {
 
             Spacer(Modifier.size(8.dp))
 
-            Text("讀寫運動 / 血壓", fontWeight = FontWeight.Medium)
+            Text("寫入運動 / 血壓", fontWeight = FontWeight.Medium)
             Text(
-                "在你進行運動量測或新增血壓紀錄時,可選擇性同步到 Health Connect,讓其他健康 app 也能讀取(由你自行控制)。",
+                "在你完成一次運動或新增血壓紀錄時,可選擇性寫入 Health Connect,讓 Google Health 等其他健康 app 也能讀取(由你自行控制,可隨時關閉)。",
                 style = MaterialTheme.typography.bodyMedium,
             )
 

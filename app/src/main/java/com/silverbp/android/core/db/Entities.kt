@@ -26,6 +26,14 @@ data class BpReadingEntity(
     val updatedAt: Long,
     /** Packed HLC string for cross-device LWW. Lex-sortable; defaults to "0" pre-sync. */
     val hlcUpdatedAt: String = "0",
+    /**
+     * Health Connect record id once this reading has been mirrored, else null.
+     * Null marks the row as "not yet mirrored" so [com.silverbp.android.health.
+     * BpSyncWorker] can retry it. Device-local: never synced or backed up (a
+     * fresh device re-mirrors and gets its own id), see [com.silverbp.android.
+     * sync.BpReadingSyncMapper].
+     */
+    val hcRecordId: String? = null,
 )
 
 @Entity(tableName = "user_profile")

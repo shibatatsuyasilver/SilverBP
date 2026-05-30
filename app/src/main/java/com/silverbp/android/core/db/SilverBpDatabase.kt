@@ -32,7 +32,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         SyncDeviceEntity::class,
         SyncOutboxEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -86,6 +86,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_9_10,
                 MIGRATION_10_11,
                 MIGRATION_11_12,
+                MIGRATION_12_13,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -545,5 +546,23 @@ internal val MIGRATION_11_12: Migration = object : Migration(11, 12) {
         db.execSQL(
             "UPDATE `exercise_session` SET `activeDurationMillis` = `endedAt` - `startedAt`",
         )
+    }
+}
+
+/**
+ * v12 → v13: add `hcRecordId` (nullable TEXT) to `bp_reading`. Tracks whether a
+ * reading has been mirrored to Health Connect so [com.silverbp.android.health.
+ * BpSyncWorker] can retry the ones that haven't (null = pending). Existing rows
+ * migrate to NULL → they get mirrored on the next sync pass.
+ *
+ * Device-local: NOT carried in sync/backup (see [com.silverbp.android.sync.
+ * BpReadingSyncMapper]), so a restored reading on a fresh device re-mirrors and
+ * acquires that device's own record id.
+ *
+ * SQL must match Room's generated schema; see `app/schemas/.../13.json`.
+ */
+internal val MIGRATION_12_13: Migration = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `bp_reading` ADD COLUMN `hcRecordId` TEXT")
     }
 }

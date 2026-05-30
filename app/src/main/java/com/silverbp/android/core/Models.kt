@@ -50,6 +50,11 @@ data class BpReading(
     val medicationId: UUID? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
+    /**
+     * Android-only: Health Connect record id once mirrored (null = pending).
+     * Not part of the cross-platform schema; iOS has no equivalent.
+     */
+    val hcRecordId: String? = null,
 )
 
 data class UserProfile(
