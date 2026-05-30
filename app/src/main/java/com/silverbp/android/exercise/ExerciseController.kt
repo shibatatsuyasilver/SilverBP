@@ -42,6 +42,26 @@ class ExerciseController(
         liveStore.clear()
     }
 
+    /** A persisted session orphaned by a process kill, or null. */
+    fun recoverableCheckpoint(): SessionLive? = liveStore.recoverableCheckpoint()
+
+    /**
+     * Resume an orphaned session: re-seat it into the LiveStore (Paused) and
+     * re-attach the foreground service. The session screen then shows it; the
+     * user taps Resume to keep going.
+     */
+    fun restore() {
+        val live = liveStore.recoverableCheckpoint() ?: return
+        liveStore.restore(live)
+        val intent = Intent(context, LocationTrackingService::class.java).apply {
+            action = LocationTrackingService.ACTION_RESTORE
+        }
+        ContextCompat.startForegroundService(context, intent)
+    }
+
+    /** Drop an orphaned checkpoint the user chose not to resume. */
+    fun discardCheckpoint() = liveStore.clear()
+
     private fun sendAction(actionName: String) {
         val intent = Intent(context, LocationTrackingService::class.java).apply {
             action = actionName

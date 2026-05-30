@@ -89,6 +89,12 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        // Let JVM unit tests call android.util.Log etc. without "not mocked"
+        // crashes (e.g. SessionCheckpointStore logs on its swallowed error paths).
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

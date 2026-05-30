@@ -80,23 +80,21 @@ class LocationTrackingService : LifecycleService() {
             ACTION_START -> {
                 val kindRaw = intent.getStringExtra(EXTRA_KIND) ?: ActivityKind.Walking.raw
                 val kind = ActivityKind.fromRaw(kindRaw)
-                ensureForeground()
                 if (!trackingStarted) {
                     liveStore.start(kind, Instant.now(), stepBaseline = null)
-                    if (startLocationUpdates()) {
-                        startStepCounter()
-                        startNotificationRefresh()
-                        trackingStarted = true
-                    } else {
-                        // Permission failure already surfaced via liveStore.error;
-                        // tear down the foreground we just started.
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
-                    }
+                    beginTracking()
                 }
             }
-            ACTION_PAUSE -> liveStore.pause()
-            ACTION_RESUME -> liveStore.resume()
+            ACTION_RESTORE -> {
+                // liveStore already holds the checkpoint-recovered (Paused)
+                // session; re-attach GPS/steps without creating a new session.
+                if (!trackingStarted && liveStore.flow.value != null) {
+                    beginTracking()
+                    liveStore.persist()
+                }
+            }
+            ACTION_PAUSE -> { liveStore.pause(); liveStore.persist() }
+            ACTION_RESUME -> { liveStore.resume(); liveStore.persist() }
             ACTION_IDLE_CONTINUE -> {
                 liveStore.acknowledgeIdleReminder()
                 runCatching {
@@ -112,6 +110,23 @@ class LocationTrackingService : LifecycleService() {
             }
         }
         return START_STICKY
+    }
+
+    /** Bring up the foreground notification + GPS/steps. Returns false (and stops) on permission loss. */
+    private fun beginTracking(): Boolean {
+        ensureForeground()
+        return if (startLocationUpdates()) {
+            startStepCounter()
+            startNotificationRefresh()
+            trackingStarted = true
+            true
+        } else {
+            // Permission failure already surfaced via liveStore.error; tear down
+            // the foreground we just started.
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            false
+        }
     }
 
     private fun ensureForeground() {
@@ -157,6 +172,7 @@ class LocationTrackingService : LifecycleService() {
     private fun startNotificationRefresh() {
         val nm = NotificationManagerCompat.from(this)
         lifecycleScope.launch {
+            var tick = 0
             while (isActive) {
                 delay(1_000L)
                 if (!trackingStarted) break
@@ -168,6 +184,9 @@ class LocationTrackingService : LifecycleService() {
                     )
                 }
                 maybeUpdateIdleReminder(nm, live)
+                // Checkpoint roughly every 10 s so a process kill loses at most a
+                // few route points, not the whole session.
+                if (++tick % 10 == 0) liveStore.persist()
             }
         }
     }
@@ -226,6 +245,8 @@ class LocationTrackingService : LifecycleService() {
 
     companion object {
         const val ACTION_START = "com.silverbp.android.exercise.START"
+        /** Re-attach tracking to a session already restored into the LiveStore. */
+        const val ACTION_RESTORE = "com.silverbp.android.exercise.RESTORE"
         const val ACTION_PAUSE = "com.silverbp.android.exercise.PAUSE"
         const val ACTION_RESUME = "com.silverbp.android.exercise.RESUME"
         const val ACTION_STOP = "com.silverbp.android.exercise.STOP"

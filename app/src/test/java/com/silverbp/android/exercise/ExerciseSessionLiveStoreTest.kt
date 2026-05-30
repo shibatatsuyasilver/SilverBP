@@ -65,6 +65,22 @@ class ExerciseSessionLiveStoreTest {
     }
 
     @Test
+    fun `distance does not jump across a long gap between fixes`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, TAIPEI_LAT, TAIPEI_LON), BASE_MS + 1_000)
+        // A fix 60 s later, 100 m away — a GPS dropout/tunnel, or the service
+        // killed and the session restored from a checkpoint. The straight-line
+        // teleport must NOT accrue as distance.
+        store.appendSample(
+            sample(BASE_MS + 61_000, TAIPEI_LAT + DEG_PER_100M, TAIPEI_LON),
+            BASE_MS + 61_000,
+        )
+        val live = store.flow.value!!
+        assertEquals(2, live.routePoints.size)
+        assertEquals(0.0, live.accumulatedDistanceMeters, 1e-6)
+    }
+
+    @Test
     fun `8s of stillness flips to AutoPaused not Paused`() {
         val store = newStore()
         // Seed: one moving sample so lastMovementAtMillis is set.

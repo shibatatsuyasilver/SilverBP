@@ -149,6 +149,8 @@
     <string name="exercise_gps_weak">Weak GPS signal — waiting for a fix…</string>
     <string name="exercise_no_play_services">Google Play Services unavailable on this device. Maps cannot render.</string>
     <string name="exercise_history_empty">No sessions yet. Tap Start to record your first walk or run.</string>
+    <string name="exercise_recover_title">Unfinished session</string>
+    <string name="exercise_recover_body">A previous session didn\'t finish. Resume it, or discard it?</string>
     <string name="exercise_recent_sessions">Recent sessions</string>
     <string name="exercise_summary_title">Session summary</string>
     <string name="exercise_note_hint">Note (optional)</string>

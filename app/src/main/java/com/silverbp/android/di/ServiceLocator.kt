@@ -16,6 +16,7 @@ import com.silverbp.android.core.db.SilverBpDatabase
 import com.silverbp.android.exercise.ExerciseController
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSessionLiveStore
+import com.silverbp.android.exercise.SessionCheckpointStore
 import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.StepCounterReader
 import com.silverbp.android.health.HealthConnectBpBridge
@@ -105,7 +106,13 @@ object ServiceLocator {
 
     val healthConnectBpBridge: HealthConnectBpBridge by lazy { HealthConnectBpBridge(context) }
 
-    val exerciseLiveStore: ExerciseSessionLiveStore by lazy { ExerciseSessionLiveStore() }
+    private val sessionCheckpointStore: SessionCheckpointStore by lazy {
+        SessionCheckpointStore(java.io.File(context.filesDir, "exercise/session-checkpoint.json"))
+    }
+
+    val exerciseLiveStore: ExerciseSessionLiveStore by lazy {
+        ExerciseSessionLiveStore(sessionCheckpointStore)
+    }
 
     val exerciseRepository: ExerciseRepository by lazy {
         ExerciseRepository(database.exerciseDao(), healthConnectExerciseBridge) {

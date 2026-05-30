@@ -3,6 +3,7 @@ package com.silverbp.android.ui.exercise
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,9 +58,12 @@ fun ExerciseHomeScreen(
     val settings by ServiceLocator.userSettings.flow
         .collectAsStateWithLifecycle(initialValue = UserSettings())
 
+    val recoverable by vm.recoverable.collectAsStateWithLifecycle()
+
     LifecycleResumeEffect(Unit) {
         ServiceLocator.achievementStore.launchRefresh()
         vm.refreshWeekSteps()
+        vm.checkRecoverable()
         onPauseOrDispose { }
     }
 
@@ -71,6 +75,16 @@ fun ExerciseHomeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (recoverable != null) {
+                RecoverSessionCard(
+                    onResume = {
+                        vm.resumeRecoverable()
+                        onStartSession()
+                    },
+                    onDiscard = vm::discardRecoverable,
+                )
+            }
+
             KindPicker(
                 selected = state.selectedKind,
                 onSelect = vm::selectKind,
@@ -121,6 +135,36 @@ fun ExerciseHomeScreen(
             onTap = onOpenMedals,
             modifier = Modifier.align(Alignment.TopCenter),
         )
+    }
+}
+
+@Composable
+private fun RecoverSessionCard(onResume: () -> Unit, onDiscard: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.exercise_recover_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.exercise_recover_body),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(onClick = onDiscard, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.exercise_discard))
+                }
+                Button(onClick = onResume, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.exercise_resume))
+                }
+            }
+        }
     }
 }
 

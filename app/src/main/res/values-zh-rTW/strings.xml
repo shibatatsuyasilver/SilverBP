@@ -149,6 +149,8 @@
     <string name="exercise_gps_weak">GPS 訊號微弱,定位等待中…</string>
     <string name="exercise_no_play_services">本裝置無 Google Play Services,地圖無法顯示。</string>
     <string name="exercise_history_empty">尚無紀錄。點擊「開始」記錄第一次運動。</string>
+    <string name="exercise_recover_title">尚未結束的運動</string>
+    <string name="exercise_recover_body">上次的運動沒有正常結束,要繼續還是捨棄?</string>
     <string name="exercise_recent_sessions">最近紀錄</string>
     <string name="exercise_summary_title">運動摘要</string>
     <string name="exercise_note_hint">備註 (選填)</string>

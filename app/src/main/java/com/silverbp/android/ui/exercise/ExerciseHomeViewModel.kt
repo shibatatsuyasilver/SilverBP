@@ -4,15 +4,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ActivityKind
+import com.silverbp.android.exercise.ExerciseController
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.exercise.HealthConnectExerciseBridge
+import com.silverbp.android.exercise.SessionLive
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -39,11 +44,16 @@ data class ExerciseHomeUiState(
 class ExerciseHomeViewModel(
     private val repo: ExerciseRepository = ServiceLocator.exerciseRepository,
     private val healthConnect: HealthConnectExerciseBridge = ServiceLocator.healthConnectExerciseBridge,
+    private val controller: ExerciseController = ServiceLocator.exerciseController,
 ) : ViewModel() {
 
     private val kindFlow = MutableStateFlow(ActivityKind.Walking)
     private val rangeFlow = MutableStateFlow(ExerciseRange.Last30)
     private val weekStepFlow = MutableStateFlow<Int?>(null)
+
+    /** A session orphaned by a process kill, surfaced as a resume/discard prompt. */
+    private val _recoverable = MutableStateFlow<SessionLive?>(null)
+    val recoverable: StateFlow<SessionLive?> = _recoverable.asStateFlow()
 
     val state: StateFlow<ExerciseHomeUiState> = combine(
         repo.observeAll(),
@@ -117,6 +127,24 @@ class ExerciseHomeViewModel(
 
     init {
         refreshWeekSteps()
+    }
+
+    /** Check for an orphaned session (off the main thread — it reads a file). */
+    fun checkRecoverable() {
+        viewModelScope.launch {
+            _recoverable.value = withContext(Dispatchers.IO) { controller.recoverableCheckpoint() }
+        }
+    }
+
+    /** Re-attach the orphaned session and let the caller open the session screen. */
+    fun resumeRecoverable() {
+        controller.restore()
+        _recoverable.value = null
+    }
+
+    fun discardRecoverable() {
+        controller.discardCheckpoint()
+        _recoverable.value = null
     }
 
     fun selectKind(kind: ActivityKind) { kindFlow.value = kind }

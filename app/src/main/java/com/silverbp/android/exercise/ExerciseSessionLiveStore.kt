@@ -75,7 +75,10 @@ sealed interface LiveError {
  * moving sample auto-resumes back to Running. Manual Paused (user tap) is
  * sticky and only exits via [resume].
  */
-class ExerciseSessionLiveStore {
+class ExerciseSessionLiveStore(
+    /** Optional crash-recovery persistence; null in unit tests (no Android file). */
+    private val checkpoint: SessionCheckpointStore? = null,
+) {
 
     private val _flow = MutableStateFlow<SessionLive?>(null)
     val flow: StateFlow<SessionLive?> = _flow.asStateFlow()
@@ -98,6 +101,7 @@ class ExerciseSessionLiveStore {
 
     fun start(kind: ActivityKind, startedAt: Instant, stepBaseline: Long?) {
         _error.value = null
+        checkpoint?.clear() // a fresh session supersedes any stale orphan
         val nowMs = startedAt.toEpochMilli()
         _flow.value = SessionLive(
             id = UUID.randomUUID(),
@@ -178,7 +182,12 @@ class ExerciseSessionLiveStore {
         )
 
         val prev = cur.routePoints.lastOrNull()
-        val deltaMeters = if (prev == null) 0.0
+        // Don't accrue a straight-line jump across a long gap between fixes — a
+        // tunnel/GPS dropout, or the service being killed and the session
+        // restored from a checkpoint. Such a teleport would massively inflate
+        // distance; breaking the track there is the safer estimate.
+        val gapMs = if (prev != null) nowMs - prev.timestamp.toEpochMilli() else 0L
+        val deltaMeters = if (prev == null || gapMs > MAX_DISTANCE_GAP_MS) 0.0
         else ExerciseMath.haversineMeters(prev.lat, prev.lon, newPoint.lat, newPoint.lon)
 
         val moving = speed != null && speed >= MOVING_SPEED_MPS
@@ -276,8 +285,36 @@ class ExerciseSessionLiveStore {
         )
         val points = cur.routePoints
         _flow.value = cur.copy(runState = RunState.Finished, pausedSinceMillis = null)
+        // The session is finished and awaiting a save/discard decision; it is no
+        // longer "in progress", so drop the checkpoint (don't offer to resume a
+        // finished session if the app is killed on the summary screen).
+        checkpoint?.clear()
         return session to points
     }
+
+    /** Write the current live session to the crash-recovery checkpoint (no-op if idle). */
+    fun persist() {
+        val cur = _flow.value ?: return
+        checkpoint?.save(cur)
+    }
+
+    /**
+     * Re-seat a session recovered from a checkpoint. Forced to Paused so the
+     * first GPS fix after recovery doesn't accrue distance across the kill gap
+     * (the user taps Resume to continue). Does not re-save — the service
+     * re-persists on its next tick.
+     */
+    fun restore(live: SessionLive) {
+        _error.value = null
+        _flow.value = live.copy(
+            runState = RunState.Paused,
+            pausedSinceMillis = System.currentTimeMillis(),
+        )
+    }
+
+    /** A persisted orphan session, only when nothing is live in memory. */
+    fun recoverableCheckpoint(): SessionLive? =
+        if (_flow.value == null) checkpoint?.load() else null
 
     /**
      * Called when the user taps "Keep going" on the idle-reminder notification.
@@ -294,6 +331,7 @@ class ExerciseSessionLiveStore {
     fun clear() {
         _flow.value = null
         _error.value = null
+        checkpoint?.clear()
     }
 
     companion object {
@@ -302,6 +340,9 @@ class ExerciseSessionLiveStore {
         const val MAX_INSTANT_SPEED_MPS = 30f
         const val MOVING_SPEED_MPS = 0.3f
         const val AUTO_PAUSE_WINDOW_MS = 8_000L
+        /** Skip the straight-line distance delta when fixes are >45 s apart
+         *  (GPS dropout or a checkpoint-restored session resuming). */
+        const val MAX_DISTANCE_GAP_MS = 45_000L
         /**
          * Continuous Paused/AutoPaused duration after which the service
          * surfaces a heads-up reminder asking the user whether to keep going
