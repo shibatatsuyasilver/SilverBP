@@ -471,7 +471,16 @@ private fun PhaseRow(phase: BackupManager.Phase) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         is BackupManager.Phase.Success -> {
-            Text("完成 — 共 ${phase.recordCount} 筆紀錄, ${formatSize(phase.byteCount)}.")
+            Column {
+                Text("完成 — 共 ${phase.recordCount} 筆紀錄, ${formatSize(phase.byteCount)}.")
+                if (phase.skippedCount > 0) {
+                    Text(
+                        "⚠ 有 ${phase.skippedCount} 筆無法匯入(可能格式不符或關聯缺失),已略過.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
         }
         is BackupManager.Phase.Failure -> {
             Text(

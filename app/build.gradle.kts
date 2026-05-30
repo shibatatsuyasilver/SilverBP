@@ -94,6 +94,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // Bundle the exported Room schema JSONs as androidTest assets so
+    // MigrationTestHelper (RoomMigrationTest) can validate each migration.
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
 }
 
 kotlin {
@@ -183,4 +189,20 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// A release build must ship a real Maps key, else the exercise map renders
+// blank. Checked only when a release artifact is actually assembled, so a fresh
+// clone can still build debug/test without the key. See RELEASE.md for how to
+// obtain and restrict the key (release SHA-1 + applicationId).
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+    doFirst {
+        if (mapsApiKey.isBlank()) {
+            throw GradleException(
+                "MAPS_API_KEY is missing in local.properties — a release build would ship a blank " +
+                    "exercise map. Add it (restricted to the release SHA-1 + applicationId " +
+                    "com.silverbp.android) before building. See RELEASE.md.",
+            )
+        }
+    }
 }

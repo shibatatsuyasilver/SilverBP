@@ -42,7 +42,16 @@ class BackupManager(
         data class Encoding(val progress: Float) : Phase()
         object Encrypting : Phase()
         object Writing : Phase()
-        data class Success(val byteCount: Long, val recordCount: Int) : Phase()
+        /**
+         * [recordCount] = records successfully applied. On import [skippedCount]
+         * is how many records the sink rejected (logged + skipped) so the UI can
+         * warn the user instead of implying a clean restore. 0 on export.
+         */
+        data class Success(
+            val byteCount: Long,
+            val recordCount: Int,
+            val skippedCount: Int = 0,
+        ) : Phase()
         data class Failure(val error: Throwable) : Phase()
     }
 
@@ -202,6 +211,13 @@ class BackupManager(
             // 4. 解碼 payload(manifest + records).
             _importPhase.value = Phase.Encoding(0.5f)
             val (_, records) = BackupCodec.decodePayload(plaintext)
+            // 完整性檢查:解出的筆數必須等於 header 宣告的筆數。AEAD 已經會擋掉
+            // 截斷的密文,這層是對 codec/邏輯錯誤的縱深防禦,避免靜默少匯入。
+            if (records.size != header.recordCount) {
+                throw IOException(
+                    "備份檔不完整:預期 ${header.recordCount} 筆,實際解出 ${records.size} 筆",
+                )
+            }
             _importPhase.value = Phase.Encoding(1f)
 
             // 5. (可選) Replace 模式: 在 transaction 內清空 sync 表.
@@ -213,19 +229,25 @@ class BackupManager(
             _importPhase.value = Phase.Writing
             val sink = sinkFactory()
             var appliedCount = 0
+            var skippedCount = 0
             for (record in records) {
                 try {
                     sink.apply(record)
                     hlcClock.observe(record.hlc) // 推進高水位線
                     appliedCount++
                 } catch (t: Throwable) {
+                    skippedCount++
                     Log.w(TAG, "skip record ${record.type} pk=${record.pk}: $t")
                 }
+            }
+            if (skippedCount > 0) {
+                Log.w(TAG, "import applied $appliedCount, skipped $skippedCount of ${records.size}")
             }
 
             _importPhase.value = Phase.Success(
                 byteCount = parsed.payloadCiphertext.size.toLong(),
                 recordCount = appliedCount,
+                skippedCount = skippedCount,
             )
         } catch (t: Throwable) {
             Log.e(TAG, "import failed", t)
