@@ -635,4 +635,14 @@
     <string name="backup_rotate_dialog_title">重新產生恢復碼?</string>
     <string name="backup_rotate_warning">舊的恢復碼會失效. 既有的 .sbpbk 備份檔在新裝置/重灌後將無法用恢復碼開啟(只能用原本生成它的裝置的 Keystore). 確定繼續?</string>
     <string name="backup_rotate_confirm">確定</string>
+
+    <!-- Coach sleep — Health Connect manual re-sync -->
+    <string name="coach_sleep_sync_section">Health Connect 同步</string>
+    <string name="coach_sleep_sync_button">從 Health Connect 重新同步</string>
+    <string name="coach_sleep_syncing">同步中…</string>
+    <string name="coach_sleep_sync_synced">已從 Health Connect 讀到 %1$d 晚的睡眠。</string>
+    <string name="coach_sleep_sync_nodata">Health Connect 裡這 14 天沒有可讀的睡眠資料。</string>
+    <string name="coach_sleep_sync_needs_permission">尚未授予睡眠讀取權限,所以讀不到資料。</string>
+    <string name="coach_sleep_sync_grant">授予睡眠權限</string>
+    <string name="coach_sleep_sync_failed">同步失敗,請稍後再試。</string>
 </resources>

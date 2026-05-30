@@ -8,6 +8,8 @@ import com.silverbp.android.coach.CoachPlan
 import com.silverbp.android.coach.CoachRepository
 import com.silverbp.android.coach.CoachTask
 import com.silverbp.android.coach.LifestyleModule
+import com.silverbp.android.coach.NutritionBackfillWorker
+import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.coach.TodayExerciseTaskGenerator
 import com.silverbp.android.coach.WeeklyLifestyleLogs
 import com.silverbp.android.coach.TodayTaskOverlay
@@ -118,6 +120,21 @@ class CoachViewModel(
                 val plan = engine.generateWeeklyPlan(weekStart = currentWeekStart())
                 coachRepo.savePlan(plan)
             }
+        }
+    }
+
+    /**
+     * Re-pull Health Connect sleep/nutrition whenever the Coach screen resumes —
+     * not only on app cold start. Without this, sleep logged overnight wouldn't
+     * appear until the process was fully restarted. Workers self-no-op when the
+     * toggle is off or the permission is missing.
+     */
+    fun refreshHealthConnectBackfills() {
+        viewModelScope.launch {
+            val s = runCatching { userSettings.flow.first() }.getOrNull() ?: return@launch
+            val ctx = ServiceLocator.context
+            if (s.enableCoach && s.sleepTrackingEnabled) SleepBackfillWorker.enqueue(ctx)
+            if (s.enableCoach && s.dietTrackingEnabled) NutritionBackfillWorker.enqueue(ctx)
         }
     }
 

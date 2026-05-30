@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
@@ -42,6 +43,13 @@ fun CoachScreen(
     vm: CoachViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+
+    // Re-pull HC sleep/nutrition each time the Coach tab is shown, so data
+    // logged overnight appears without a full app restart.
+    LifecycleResumeEffect(Unit) {
+        vm.refreshHealthConnectBackfills()
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         topBar = {

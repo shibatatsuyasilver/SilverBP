@@ -635,4 +635,14 @@
     <string name="backup_rotate_dialog_title">Regenerate recovery code?</string>
     <string name="backup_rotate_warning">The old recovery code will stop working. Existing .sbpbk backups can\'t be opened with a recovery code on new devices / after reinstall (only the original device\'s Keystore can). Continue?</string>
     <string name="backup_rotate_confirm">OK</string>
+
+    <!-- Coach sleep — Health Connect manual re-sync -->
+    <string name="coach_sleep_sync_section">Health Connect sync</string>
+    <string name="coach_sleep_sync_button">Re-sync from Health Connect</string>
+    <string name="coach_sleep_syncing">Syncing…</string>
+    <string name="coach_sleep_sync_synced">Read %1$d night(s) of sleep from Health Connect.</string>
+    <string name="coach_sleep_sync_nodata">No readable sleep data in Health Connect for the last 14 days.</string>
+    <string name="coach_sleep_sync_needs_permission">Sleep read permission isn\'t granted, so nothing can be read.</string>
+    <string name="coach_sleep_sync_grant">Grant sleep permission</string>
+    <string name="coach_sleep_sync_failed">Sync failed — please try again.</string>
 </resources>
