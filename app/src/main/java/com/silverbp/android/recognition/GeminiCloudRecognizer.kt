@@ -79,14 +79,23 @@ class GeminiCloudRecognizer(
             .post(payload.toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: java.io.IOException) {
+            // No connectivity, DNS failure, or timeout — distinct from a bad
+            // payload so the UI can tell the user it's a connection problem.
+            android.util.Log.w(TAG, "[Cloud] network failure: ${e.javaClass.simpleName}: ${e.message}")
+            throw BpExtractionError.NetworkError
+        }
         val responseBody = response.body?.string().orEmpty()
         if (!response.isSuccessful) {
             android.util.Log.e(
                 TAG,
                 "[Cloud] HTTP ${response.code} model=$modelId body: ${responseBody.take(500)}",
             )
-            throw BpExtractionError.InvalidJson
+            // Surface the status so the UI can distinguish quota (429) / bad key
+            // (401/403) from a transient server error.
+            throw BpExtractionError.ApiError(response.code)
         }
 
         val parsed = try {

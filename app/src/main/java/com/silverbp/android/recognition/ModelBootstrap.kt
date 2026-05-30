@@ -114,7 +114,9 @@ object ModelBootstrap {
         scope.launch {
             try {
                 status.set(ModelLoadPhase.Downloading(0f, variant.id))
-                downloader.download(variant, sha256, hfToken).collect { p ->
+                // Prefer an explicit override, else the catalog's pinned hash.
+                // When both are null the downloader skips verification.
+                downloader.download(variant, sha256 ?: variant.sha256, hfToken).collect { p ->
                     status.set(ModelLoadPhase.Downloading(p.fraction, variant.id))
                 }
                 preload(context.applicationContext, variant)

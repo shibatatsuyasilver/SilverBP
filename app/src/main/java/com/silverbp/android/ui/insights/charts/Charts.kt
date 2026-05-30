@@ -95,12 +95,25 @@ fun ScatterChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
         EmptyChart(stringResource(R.string.chart_need_5), modifier.height(220.dp))
         return
     }
-    val xMin = 50; val xMax = 110; val yMin = 80; val yMax = 190
+    // Axes follow the actual data (padded), not a fixed window — otherwise
+    // hypertensive-crisis readings (systolic > 190, common for elderly users)
+    // fall outside the old hard-coded 50–110 / 80–190 box and vanish off-canvas.
+    val xs = readings.map { it.diastolic }
+    val ys = readings.map { it.systolic }
+    val xMin = (xs.min() - 5).coerceAtLeast(30)
+    val xMax = (xs.max() + 5).coerceAtMost(170)
+    val yMin = (ys.min() - 10).coerceAtLeast(40)
+    val yMax = (ys.max() + 10).coerceAtMost(270)
     Canvas(modifier = modifier.height(220.dp).padding(8.dp)) {
         readings.forEach { r ->
             val color = if (r.partOfDay.raw == "morning") SbpLine else DbpLine
+            // coerceIn is belt-and-suspenders: with data-driven bounds every
+            // point is already in range, but a degenerate single-value axis
+            // would otherwise push a point to the canvas edge rather than off it.
             val cx = mapX(r.diastolic.toLong(), xMin.toLong(), xMax.toLong(), size.width)
+                .coerceIn(0f, size.width)
             val cy = mapY(r.systolic.toDouble(), yMin, yMax, size.height)
+                .coerceIn(0f, size.height)
             drawCircle(color.copy(alpha = 0.7f), radius = 6f, center = androidx.compose.ui.geometry.Offset(cx, cy))
         }
         val effect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))

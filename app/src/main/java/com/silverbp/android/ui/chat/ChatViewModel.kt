@@ -262,7 +262,14 @@ class ChatViewModel(
                     repo.updateAssistantText(assistantId, fallback)
                 }
             } catch (t: Throwable) {
-                val msg = "回應失敗: ${t.message ?: t.javaClass.simpleName}"
+                // Network failures (no connectivity, DNS, timeout) reach here for
+                // the Cloud backend — show a plain, actionable message rather than
+                // a raw Java exception string for elderly users.
+                val msg = if (t is java.io.IOException) {
+                    "網路連線失敗,請確認連線後再試"
+                } else {
+                    "回應失敗: ${t.message ?: t.javaClass.simpleName}"
+                }
                 repo.updateAssistantText(assistantId, msg)
                 _ui.update { it.copy(errorMessage = msg) }
             } finally {

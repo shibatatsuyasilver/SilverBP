@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -73,10 +75,26 @@ fun ReportScreen(
             Button(
                 onClick = { vm.generate { /* file ready in state */ } },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = state.readings.isNotEmpty(),
+                enabled = state.readings.isNotEmpty() && !state.isGenerating,
             ) {
-                Icon(Icons.Filled.Description, null)
-                Text("  ${stringResource(R.string.generate_report)}")
+                if (state.isGenerating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Text("  ${stringResource(R.string.generate_report)}…")
+                } else {
+                    Icon(Icons.Filled.Description, null)
+                    Text("  ${stringResource(R.string.generate_report)}")
+                }
+            }
+
+            state.errorMessage?.let { error ->
+                Text(
+                    error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
 
             state.generatedFile?.let { file ->

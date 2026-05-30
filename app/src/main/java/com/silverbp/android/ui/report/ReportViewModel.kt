@@ -26,6 +26,8 @@ data class ReportUiState(
     val range: ReportRange = ReportRange.Last30,
     val readings: List<BpReading> = emptyList(),
     val generatedFile: File? = null,
+    val isGenerating: Boolean = false,
+    val errorMessage: String? = null,
 )
 
 class ReportViewModel(
@@ -34,31 +36,48 @@ class ReportViewModel(
 
     private val rangeFlow = MutableStateFlow(ReportRange.Last30)
     private val generatedFlow = MutableStateFlow<File?>(null)
+    private val generatingFlow = MutableStateFlow(false)
+    private val errorFlow = MutableStateFlow<String?>(null)
 
     val state: StateFlow<ReportUiState> = combine(
         repo.observeAll(),
         rangeFlow,
         generatedFlow,
-    ) { all, range, file ->
+        generatingFlow,
+        errorFlow,
+    ) { all, range, file, generating, error ->
         val (from, to) = boundsFor(range)
         val filtered = all.filter { it.timestamp in from..to }
-        ReportUiState(range, filtered, file)
+        ReportUiState(range, filtered, file, generating, error)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReportUiState())
 
     fun setRange(r: ReportRange) {
         rangeFlow.value = r
         generatedFlow.value = null
+        errorFlow.value = null
     }
 
     fun generate(onReady: (File) -> Unit) {
+        if (generatingFlow.value) return
         viewModelScope.launch {
-            val (from, to) = boundsFor(rangeFlow.value)
-            val all = repo.observeAll().first()
-            val readings = all.filter { it.timestamp in from..to }
-            val file = com.silverbp.android.reporting.PdfReportRenderer(ServiceLocator.context)
-                .render(readings, from = from, to = to)
-            generatedFlow.value = file
-            onReady(file)
+            generatingFlow.value = true
+            errorFlow.value = null
+            try {
+                val (from, to) = boundsFor(rangeFlow.value)
+                val all = repo.observeAll().first()
+                val readings = all.filter { it.timestamp in from..to }
+                val file = com.silverbp.android.reporting.PdfReportRenderer(ServiceLocator.context)
+                    .render(readings, from = from, to = to)
+                generatedFlow.value = file
+                onReady(file)
+            } catch (t: Throwable) {
+                // Disk full / no write permission / renderer failure: never let
+                // the tap silently no-op — surface a plain message.
+                android.util.Log.w("ReportViewModel", "PDF generation failed", t)
+                errorFlow.value = "報告產生失敗,請確認儲存空間後再試"
+            } finally {
+                generatingFlow.value = false
+            }
         }
     }
 

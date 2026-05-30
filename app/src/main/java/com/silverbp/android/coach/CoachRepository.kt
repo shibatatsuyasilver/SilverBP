@@ -160,6 +160,33 @@ class CoachRepository(
         }
     }
 
+    /**
+     * Live weekly logging rows for the three non-Exercise module rings, in one
+     * flow so the Coach screen's `combine` stays at five arms. Diet/Sleep
+     * completion is *derived from the logged rows themselves* (like Exercise is
+     * derived from sessions and Medication from doses) — the `coach_task`
+     * `completedAtMillis` column is never set for Diet/Sleep, so deriving rings
+     * from it left them permanently stuck at 0.
+     *
+     * Reactive: re-emits the instant the user logs diet/sleep or marks a dose,
+     * because [observeMedicationWeeklyProgressPerMed], [DietDao.observeRange]
+     * and [SleepDao.observeRange] are all Room-observed.
+     */
+    fun observeWeeklyLifestyleLogs(
+        weekStartDate: LocalDate,
+        zone: ZoneId,
+    ): Flow<WeeklyLifestyleLogs> {
+        val weekStartMillis = weekStartDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        val weekEndMillis = weekStartDate.plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
+        return combine(
+            observeMedicationWeeklyProgressPerMed(weekStartDate, zone),
+            diets.observeRange(weekStartMillis, weekEndMillis),
+            sleeps.observeRange(weekStartMillis, weekEndMillis),
+        ) { perMed, dietRows, sleepRows ->
+            WeeklyLifestyleLogs(perMed = perMed, dietDays = dietRows, sleepDays = sleepRows)
+        }
+    }
+
     companion object {
         /**
          * Count this medication's weekly target — for each day of the week
@@ -191,4 +218,15 @@ data class MedicationPerMedProgress(
     val medicationName: String,
     val taken: Int,
     val scheduled: Int,
+)
+
+/**
+ * Raw weekly logging rows for the non-Exercise module rings. Completion is
+ * computed by the caller from these rows (Diet: a day counts when sodium isn't
+ * "high"; Sleep: a day counts when duration ≥ the plan's sleep target).
+ */
+data class WeeklyLifestyleLogs(
+    val perMed: List<MedicationPerMedProgress>,
+    val dietDays: List<DietCheckEntity>,
+    val sleepDays: List<SleepLogEntity>,
 )

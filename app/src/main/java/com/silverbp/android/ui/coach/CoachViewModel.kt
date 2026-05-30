@@ -2,16 +2,17 @@ package com.silverbp.android.ui.coach
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.silverbp.android.coach.Adherence
 import com.silverbp.android.coach.CoachEngine
 import com.silverbp.android.coach.CoachNarrator
 import com.silverbp.android.coach.CoachPlan
 import com.silverbp.android.coach.CoachRepository
 import com.silverbp.android.coach.CoachTask
 import com.silverbp.android.coach.LifestyleModule
-import com.silverbp.android.coach.MedicationPerMedProgress
 import com.silverbp.android.coach.TodayExerciseTaskGenerator
+import com.silverbp.android.coach.WeeklyLifestyleLogs
 import com.silverbp.android.coach.TodayTaskOverlay
+import com.silverbp.android.core.db.DietCheckEntity
+import com.silverbp.android.core.db.SleepLogEntity
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseRepository
@@ -33,6 +34,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+/** Fallback nightly sleep target (7h) when the plan carries no Sleep task. */
+private const val DEFAULT_SLEEP_TARGET_MIN = 7 * 60
+
 /**
  * Pure helper for the Exercise weekly-progress row: counts the distinct
  * local-zone calendar dates on which there is at least one [ExerciseSession].
@@ -46,6 +50,21 @@ internal fun countDistinctExerciseDays(
     .map { it.startedAt.atZone(zone).toLocalDate() }
     .distinct()
     .size
+
+/**
+ * Diet ring numerator: a logged day counts when sodium isn't "high" — the same
+ * threshold the weekly report uses for `sodiumDaysOver` (CoachEngine). Pure +
+ * `internal` for direct unit testing.
+ */
+internal fun countDietDoneDays(dietDays: List<DietCheckEntity>): Int =
+    dietDays.count { it.sodiumLevelRaw != "high" }
+
+/**
+ * Sleep ring numerator: a logged day counts when duration meets [targetMin].
+ * Pure + `internal` for direct unit testing.
+ */
+internal fun countSleepDoneDays(sleepDays: List<SleepLogEntity>, targetMin: Int): Int =
+    sleepDays.count { it.durationMin >= targetMin }
 
 /**
  * Coach ViewModel.
@@ -104,17 +123,17 @@ class CoachViewModel(
     val state: StateFlow<CoachUiState> = combine(
         coachRepo.observeCurrentPlan(nowMillis),
         exerciseRepo.observeRange(weekStart(), weekEnd()),
-        coachRepo.observeMedicationWeeklyProgressPerMed(
+        coachRepo.observeWeeklyLifestyleLogs(
             weekStartDate = currentWeekStart(),
             zone = zone,
         ),
         _narration,
         _overlay,
-    ) { plan, weekSessions, medProgressPerMed, narration, overlay ->
+    ) { plan, weekSessions, lifestyleLogs, narration, overlay ->
         if (plan == null) {
             CoachUiState.Loading
         } else {
-            val ready = buildReadyState(plan, weekSessions, medProgressPerMed, overlay)
+            val ready = buildReadyState(plan, weekSessions, lifestyleLogs, overlay)
             ready.todayTaskId?.let { id ->
                 if (id != lastNarratedTaskId) {
                     lastNarratedTaskId = id
@@ -164,7 +183,7 @@ class CoachViewModel(
     private suspend fun buildReadyState(
         plan: CoachPlan,
         weekSessions: List<ExerciseSession>,
-        medProgressPerMed: List<MedicationPerMedProgress>,
+        lifestyleLogs: WeeklyLifestyleLogs,
         overlay: KeyedOverlay?,
     ): CoachUiState.Ready {
         val today = todayDayOffset(plan)
@@ -174,11 +193,11 @@ class CoachViewModel(
         // targetValue (e.g. sodium 2000 mg) leaks into the exercise UI.
         val priorityToday = todayExercise
         val isRestDay = priorityToday == null
-        // Diet / Sleep still source their X/Y from coach_task; Exercise is now
-        // sourced from distinct exercise-days this week (see baseModules below).
-        // Medication is rendered as one row per active medication, sourced
-        // from medication_dose × medication_schedule (live).
-        val adherence = coachRepo.adherenceForPlan(plan.id).associateBy { it.module }
+        // All four module rings are now derived from live logged data, not from
+        // `coach_task.completedAtMillis`: Exercise from distinct session-days,
+        // Medication from doses, Diet/Sleep from their own week's log rows
+        // (see baseModules below). The Exercise task's completion flag is still
+        // mirrored back to Room for the weekly-report adherence aggregate.
 
         val todayDate = LocalDate.now(clock.withZone(zone))
         val todaySessions = weekSessions.filter {
@@ -200,6 +219,18 @@ class CoachViewModel(
             }
         }
 
+        // Diet: a day counts when sodium is not "high" — the same threshold the
+        // weekly report uses for `sodiumDaysOver` (CoachEngine). Sleep: a day
+        // counts when logged duration meets the plan's sleep target (hours →
+        // minutes), defaulting to 7h if the plan has no Sleep task.
+        val sleepTargetMin = plan.tasks
+            .firstOrNull { it.module == LifestyleModule.Sleep }
+            ?.targetValue
+            ?.let { (it * 60).toInt() }
+            ?: DEFAULT_SLEEP_TARGET_MIN
+        val dietDoneDays = countDietDoneDays(lifestyleLogs.dietDays)
+        val sleepDoneDays = countSleepDoneDays(lifestyleLogs.sleepDays, sleepTargetMin)
+
         val baseModules = listOf(
             ModuleRowUi(
                 moduleKey = ModuleKey.Exercise,
@@ -207,10 +238,20 @@ class CoachViewModel(
                 completed = countDistinctExerciseDays(weekSessions, zone),
                 target = 7,
             ),
-            moduleRow(LifestyleModule.Diet, "Diet", adherence[LifestyleModule.Diet]),
-            moduleRow(LifestyleModule.Sleep, "Sleep", adherence[LifestyleModule.Sleep]),
+            ModuleRowUi(
+                moduleKey = ModuleKey.Diet,
+                displayName = "Diet",
+                completed = dietDoneDays,
+                target = 7,
+            ),
+            ModuleRowUi(
+                moduleKey = ModuleKey.Sleep,
+                displayName = "Sleep",
+                completed = sleepDoneDays,
+                target = 7,
+            ),
         )
-        val medRows = medProgressPerMed.map { p ->
+        val medRows = lifestyleLogs.perMed.map { p ->
             ModuleRowUi(
                 moduleKey = ModuleKey.Medication,
                 displayName = p.medicationName,
@@ -266,25 +307,6 @@ class CoachViewModel(
                     .coerceAtMost(cap)
                     .toInt()
             }
-    }
-
-    private fun moduleRow(
-        module: LifestyleModule,
-        displayName: String,
-        adherence: Adherence?,
-    ): ModuleRowUi {
-        val key = when (module) {
-            LifestyleModule.Exercise -> ModuleKey.Exercise
-            LifestyleModule.Diet -> ModuleKey.Diet
-            LifestyleModule.Sleep -> ModuleKey.Sleep
-            LifestyleModule.Medication -> ModuleKey.Medication
-        }
-        return ModuleRowUi(
-            moduleKey = key,
-            displayName = displayName,
-            completed = adherence?.completed ?: 0,
-            target = adherence?.scheduled ?: 0,
-        )
     }
 
     private fun formatTarget(value: Double): String =

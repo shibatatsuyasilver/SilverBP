@@ -18,4 +18,10 @@ sealed class BpExtractionError(message: String) : RuntimeException(message) {
     data object MissingFields : BpExtractionError("missingFields")
     data class LowConfidence(val confidence: Double) : BpExtractionError("lowConfidence:$confidence")
     data object ModelNotLoaded : BpExtractionError("modelNotLoaded")
+
+    /** No connectivity / DNS failure / timeout reaching the cloud API. */
+    data object NetworkError : BpExtractionError("networkError")
+
+    /** Cloud API returned a non-2xx status (401/403 bad key, 429 quota, 5xx). */
+    data class ApiError(val code: Int) : BpExtractionError("apiError:$code")
 }

@@ -195,22 +195,28 @@ fun CaptureScreen(
                 modifier = Modifier.align(Alignment.TopCenter),
             )
 
-            ShutterButton(
-                onClick = {
-                    val capture = imageCapture ?: return@ShutterButton
-                    capturePhoto(context, capture) { bmp ->
-                        if (bmp != null) {
-                            vm.processCapturedImage(bmp) { onCaptured("draft") }
-                        } else {
-                            CaptureSessionHolder.put(
-                                BpReadingDraft(timestamp = Instant.now(), source = Source.Manual),
-                            )
-                            onCaptured("draft")
+            // Shutter only when the camera permission is actually granted —
+            // without this gate the button sits on top of the permission-denied
+            // prompt and taps silently no-op (imageCapture is null). The top bar
+            // stays visible so "pick photo" / "manual entry" remain reachable.
+            if (hasPermission) {
+                ShutterButton(
+                    onClick = {
+                        val capture = imageCapture ?: return@ShutterButton
+                        capturePhoto(context, capture) { bmp ->
+                            if (bmp != null) {
+                                vm.processCapturedImage(bmp) { onCaptured("draft") }
+                            } else {
+                                CaptureSessionHolder.put(
+                                    BpReadingDraft(timestamp = Instant.now(), source = Source.Manual),
+                                )
+                                onCaptured("draft")
+                            }
                         }
-                    }
-                },
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
-            )
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
+                )
+            }
         }
     }
 }

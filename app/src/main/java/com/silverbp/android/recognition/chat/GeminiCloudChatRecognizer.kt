@@ -104,7 +104,10 @@ class GeminiCloudChatRecognizer(
                         TAG,
                         "[Cloud] stream failed: ${t.javaClass.simpleName}: ${t.message}; trying non-stream",
                     )
-                    runCatching { generateContentOnce(payload) }.getOrNull().orEmpty()
+                    // No inner catch: if the non-stream retry also fails (e.g.
+                    // network down) let it propagate so ChatViewModel surfaces a
+                    // localized network error instead of an empty "(no content)" bubble.
+                    generateContentOnce(payload)
                 }
             val cleaned = stripCotPreambleIfPresent(raw)
             if (cleaned.isNotEmpty()) emit(cleaned)

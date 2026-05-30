@@ -22,6 +22,16 @@ data class ModelVariant(
      */
     val supportsSpeculativeDecoding: Boolean,
     val notes: String,
+    /**
+     * Lowercase hex SHA-256 of the downloaded file. When non-null,
+     * [ModelDownloader.download] verifies the bytes after download and aborts
+     * on mismatch (supply-chain / corrupt-download guard). Null = no check.
+     *
+     * To populate for an LFS-hosted HuggingFace file, the OID *is* the SHA-256:
+     *   curl -sI -H "Authorization: Bearer $HF_TOKEN" <resolve-url> | grep -i x-linked-etag
+     * or compute locally once downloaded: `shasum -a 256 <file>`.
+     */
+    val sha256: String? = null,
 ) {
     val approxSizeGB: Double get() = approxSizeBytes / 1_073_741_824.0
 }

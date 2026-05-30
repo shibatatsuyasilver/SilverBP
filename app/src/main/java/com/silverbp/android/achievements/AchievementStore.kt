@@ -118,7 +118,11 @@ class AchievementStore(
 
         // 3. Build stats.
         val sessionCount = achievementDao.sessionCount()
-        val lifetime = achievementDao.totalLoggedSteps()
+        // Lifetime = logged daily totals + tracked-session steps, matching the
+        // documented [AchievementStats.lifetimeSteps] contract. Tracked sessions
+        // are counted as bonus toward cumulative medals (intentional gamification);
+        // totalSessionSteps() was previously defined but never summed in.
+        val lifetime = achievementDao.totalLoggedSteps() + achievementDao.totalSessionSteps()
         val streak = computeCurrentStreak(zone, dailyGoal)
         val stats = AchievementStats(
             todaySteps = todaySteps,

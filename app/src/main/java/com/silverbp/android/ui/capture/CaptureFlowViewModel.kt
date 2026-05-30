@@ -95,6 +95,19 @@ class CaptureFlowViewModel(
                 _phase.value = CapturePhase.Error("辨識信心度過低 (${(e.confidence * 100).toInt()}%),請重拍或手動輸入")
                 // still allow downstream manual entry with photo attached
                 CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = bitmap, source = Source.Manual))
+            } catch (e: BpExtractionError.NetworkError) {
+                Log.w(TAG, "[Capture] network error")
+                _phase.value = CapturePhase.Error("無網路連線,請確認連線後再試,或先手動輸入")
+                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = bitmap, source = Source.Manual))
+            } catch (e: BpExtractionError.ApiError) {
+                Log.w(TAG, "[Capture] api error ${e.code}")
+                val msg = when (e.code) {
+                    429 -> "Gemini 用量已達上限,請稍後再試或先手動輸入"
+                    401, 403 -> "Gemini API key 無效,請至「設定」檢查"
+                    else -> "雲端辨識失敗 (HTTP ${e.code}),請重試或先手動輸入"
+                }
+                _phase.value = CapturePhase.Error(msg)
+                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = bitmap, source = Source.Manual))
             } catch (e: Exception) {
                 Log.w(TAG, "[Capture] extract threw: $e")
                 _phase.value = CapturePhase.Error("辨識失敗:${e.message ?: "未知錯誤"}")
