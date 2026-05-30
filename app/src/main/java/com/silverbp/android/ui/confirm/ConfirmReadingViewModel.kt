@@ -36,6 +36,9 @@ class ConfirmReadingViewModel(
 
     private var editingId: UUID? = null
 
+    /** True when this screen is editing an existing reading (vs. confirming a new one). */
+    val isEditing: Boolean get() = editingId != null
+
     /**
      * Initialise from a navigation argument:
      *  - "new"   → blank manual draft
@@ -100,6 +103,16 @@ class ConfirmReadingViewModel(
                 Log.e(TAG, "[Confirm] save failed: ${e.message}", e)
                 throw e
             }
+        }
+    }
+
+    /** Delete the reading being edited (no-op for a new/unsaved draft). */
+    fun delete(onDone: () -> Unit) {
+        val id = editingId ?: return onDone()
+        viewModelScope.launch {
+            runCatching { repo.delete(id) }
+                .onFailure { Log.e(TAG, "[Confirm] delete failed: ${it.message}", it) }
+            onDone()
         }
     }
 

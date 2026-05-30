@@ -549,4 +549,36 @@
     <string name="settings_app_lock_need_credential">Set a device screen lock (PIN, password, or biometric) before enabling this.</string>
     <string name="settings_app_lock_open_security">Open security settings</string>
     <string name="settings_app_lock_failed">Couldn\'t change app lock. Your data was left unchanged.</string>
+
+    <!-- Delete affordances (history + confirm-reading) -->
+    <string name="action_delete">Delete</string>
+    <string name="delete_reading_confirm_title">Delete reading?</string>
+    <string name="delete_reading_confirm_message">This reading will be permanently deleted.</string>
+    <string name="delete_reading_undo">Undo</string>
+    <string name="reading_deleted">Reading deleted</string>
+    <!-- Accessibility -->
+    <string name="a11y_filter_readings">Filter readings</string>
+    <string name="a11y_view_reading_details">View reading details</string>
+    <string name="a11y_blood_pressure_reading">Blood pressure reading</string>
+    <!-- Loading / error states -->
+    <string name="loading_readings">Loading readings…</string>
+    <string name="error_load_failed">Failed to load readings</string>
+    <!-- History screen -->
+    <string name="history_filter_date">Date</string>
+    <string name="history_filter_sort">Sort</string>
+    <string name="history_readings_count">%1$d readings</string>
+    <string name="history_day_mean">Avg %1$d/%2$d</string>
+    <string name="history_reading_pulse">Pulse %1$d</string>
+    <!-- Confirm-reading screen -->
+    <string name="confirm_reading_title_edit">Edit reading</string>
+    <string name="confirm_reading_title_new">Confirm reading</string>
+    <string name="confirm_reading_section_reading">Reading</string>
+    <string name="confirm_reading_section_tags">Tags</string>
+    <string name="confirm_reading_tag_time_of_day">Time of day</string>
+    <string name="confirm_reading_tag_arm">Arm</string>
+    <string name="confirm_reading_tag_posture">Posture</string>
+    <string name="confirm_reading_section_notes">Notes</string>
+    <string name="confirm_reading_notes_placeholder">(Optional)</string>
+    <string name="confirm_reading_validation_error">Please enter a valid reading (60 &lt; systolic &lt; 260, 30 &lt; diastolic &lt; 160, and diastolic &lt; systolic)</string>
+    <string name="confirm_reading_timestamp_label">Time</string>
 </resources>

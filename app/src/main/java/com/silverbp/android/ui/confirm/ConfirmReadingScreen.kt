@@ -16,11 +16,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -84,7 +89,10 @@ fun ConfirmReadingScreen(
         readingIdArg != null && readingIdArg != "new" && readingIdArg != "draft" &&
             runCatching { UUID.fromString(readingIdArg) }.isSuccess
     }
-    val titleText = if (isEditing) "編輯讀數" else "確認讀數"
+    val titleText = stringResource(
+        if (isEditing) R.string.confirm_reading_title_edit else R.string.confirm_reading_title_new,
+    )
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -96,6 +104,15 @@ fun ConfirmReadingScreen(
                     }
                 },
                 actions = {
+                    if (isEditing) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                     TextButton(
                         enabled = draft.isValid,
                         onClick = { vm.save(onSaved) },
@@ -132,7 +149,7 @@ fun ConfirmReadingScreen(
                 }
             }
 
-            SectionCard("讀數") {
+            SectionCard(stringResource(R.string.confirm_reading_section_reading)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     NumberField(
                         label = stringResource(R.string.systolic_full),
@@ -166,10 +183,10 @@ fun ConfirmReadingScreen(
                 }
             }
 
-            SectionCard("標記") {
+            SectionCard(stringResource(R.string.confirm_reading_section_tags)) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SegmentedRow(
-                        title = "時段",
+                        title = stringResource(R.string.confirm_reading_tag_time_of_day),
                         options = listOf(
                             PartOfDay.Morning to stringResource(R.string.part_morning),
                             PartOfDay.Evening to stringResource(R.string.part_evening),
@@ -178,7 +195,7 @@ fun ConfirmReadingScreen(
                         onSelect = { v -> vm.update { it.copy(partOfDay = v) } },
                     )
                     SegmentedRow(
-                        title = "手臂",
+                        title = stringResource(R.string.confirm_reading_tag_arm),
                         options = listOf(
                             Arm.Left to stringResource(R.string.arm_left),
                             Arm.Right to stringResource(R.string.arm_right),
@@ -187,7 +204,7 @@ fun ConfirmReadingScreen(
                         onSelect = { v -> vm.update { it.copy(arm = v) } },
                     )
                     SegmentedRow(
-                        title = "姿勢",
+                        title = stringResource(R.string.confirm_reading_tag_posture),
                         options = listOf(
                             Posture.Sitting to stringResource(R.string.posture_sitting),
                             Posture.Supine to stringResource(R.string.posture_supine),
@@ -209,11 +226,11 @@ fun ConfirmReadingScreen(
                 }
             }
 
-            SectionCard("備註") {
+            SectionCard(stringResource(R.string.confirm_reading_section_notes)) {
                 OutlinedTextField(
                     value = draft.note,
                     onValueChange = { v -> vm.update { it.copy(note = v) } },
-                    placeholder = { Text("(選填)") },
+                    placeholder = { Text(stringResource(R.string.confirm_reading_notes_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 5,
@@ -222,7 +239,7 @@ fun ConfirmReadingScreen(
 
             if (!draft.isValid) {
                 Text(
-                    "請輸入有效讀數 (60 < 收縮壓 < 260,30 < 舒張壓 < 160,且舒張壓 < 收縮壓)",
+                    stringResource(R.string.confirm_reading_validation_error),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -230,6 +247,30 @@ fun ConfirmReadingScreen(
 
             Spacer(Modifier.size(8.dp))
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.delete_reading_confirm_title)) },
+            text = { Text(stringResource(R.string.delete_reading_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    vm.delete(onSaved)
+                }) {
+                    Text(
+                        stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 
@@ -284,7 +325,11 @@ private fun TimestampRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("時間", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            stringResource(R.string.confirm_reading_timestamp_label),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+        )
         OutlinedButton(onClick = { showDate = true }) {
             Text(fmt.format(timestamp))
         }

@@ -9,6 +9,7 @@ import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.ModelLoadStatus
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
@@ -16,6 +17,8 @@ data class TodayUiState(
     val latest: BpReading? = null,
     val totalCount: Int = 0,
     val modelPhase: ModelLoadPhase = ModelLoadPhase.Idle,
+    val isLoading: Boolean = true,
+    val error: Boolean = false,
 )
 
 class TodayViewModel(
@@ -31,6 +34,9 @@ class TodayViewModel(
             latest = all.firstOrNull(),
             totalCount = all.size,
             modelPhase = phase,
+            isLoading = false,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
+    }
+        .catch { emit(TodayUiState(isLoading = false, error = true)) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
 }

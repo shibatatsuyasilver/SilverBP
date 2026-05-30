@@ -8,6 +8,7 @@ import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -41,6 +42,8 @@ data class HistoryUiState(
     val range: DateRange = DateRange.All,
     val sort: SortOrder = SortOrder.Newest,
     val grouped: List<DayGroup> = emptyList(),
+    val isLoading: Boolean = true,
+    val error: Boolean = false,
 )
 
 data class DayGroup(
@@ -75,13 +78,20 @@ class HistoryViewModel(
             }
             .sortedByDescending { if (sort == SortOrder.Newest) it.date else LocalDate.MIN }
             .let { if (sort == SortOrder.Oldest) it.sortedBy { g -> g.date } else it }
-        HistoryUiState(range, sort, groups)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
+        HistoryUiState(range = range, sort = sort, grouped = groups, isLoading = false)
+    }
+        .catch { emit(HistoryUiState(isLoading = false, error = true)) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
 
     fun setRange(r: DateRange) { rangeFlow.value = r }
     fun setSort(s: SortOrder) { sortFlow.value = s }
 
     fun delete(id: UUID) {
         viewModelScope.launch { repo.delete(id) }
+    }
+
+    /** Re-insert a just-deleted reading (Snackbar undo). Same id → restores in place. */
+    fun restore(reading: BpReading) {
+        viewModelScope.launch { repo.upsert(reading) }
     }
 }

@@ -549,4 +549,36 @@
     <string name="settings_app_lock_need_credential">啟用前請先設定裝置螢幕鎖(PIN、密碼或指紋)。</string>
     <string name="settings_app_lock_open_security">開啟安全性設定</string>
     <string name="settings_app_lock_failed">無法變更 App 鎖定,資料維持原狀。</string>
+
+    <!-- Delete affordances (history + confirm-reading) -->
+    <string name="action_delete">刪除</string>
+    <string name="delete_reading_confirm_title">刪除此筆讀數?</string>
+    <string name="delete_reading_confirm_message">此筆讀數將被永久刪除。</string>
+    <string name="delete_reading_undo">復原</string>
+    <string name="reading_deleted">讀數已刪除</string>
+    <!-- Accessibility -->
+    <string name="a11y_filter_readings">篩選讀數</string>
+    <string name="a11y_view_reading_details">查看讀數詳細資訊</string>
+    <string name="a11y_blood_pressure_reading">血壓讀數</string>
+    <!-- Loading / error states -->
+    <string name="loading_readings">讀取中…</string>
+    <string name="error_load_failed">讀數載入失敗</string>
+    <!-- History screen -->
+    <string name="history_filter_date">日期</string>
+    <string name="history_filter_sort">排序</string>
+    <string name="history_readings_count">%1$d 筆</string>
+    <string name="history_day_mean">均 %1$d/%2$d</string>
+    <string name="history_reading_pulse">脈 %1$d</string>
+    <!-- Confirm-reading screen -->
+    <string name="confirm_reading_title_edit">編輯讀數</string>
+    <string name="confirm_reading_title_new">確認讀數</string>
+    <string name="confirm_reading_section_reading">讀數</string>
+    <string name="confirm_reading_section_tags">標記</string>
+    <string name="confirm_reading_tag_time_of_day">時段</string>
+    <string name="confirm_reading_tag_arm">手臂</string>
+    <string name="confirm_reading_tag_posture">姿勢</string>
+    <string name="confirm_reading_section_notes">備註</string>
+    <string name="confirm_reading_notes_placeholder">(選填)</string>
+    <string name="confirm_reading_validation_error">請輸入有效讀數 (60 &lt; 收縮壓 &lt; 260,30 &lt; 舒張壓 &lt; 160,且舒張壓 &lt; 收縮壓)</string>
+    <string name="confirm_reading_timestamp_label">時間</string>
 </resources>

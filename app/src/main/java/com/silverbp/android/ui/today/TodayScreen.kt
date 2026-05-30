@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -97,12 +98,25 @@ fun TodayScreen(
             ModelLoadBanner(phase = state.modelPhase)
             Spacer(Modifier.height(4.dp))
 
-            val latest = state.latest
-            if (latest == null) {
-                EmptyTodayState()
-            } else {
-                LatestReadingCard(latest, modifier = Modifier.padding(horizontal = 16.dp))
-                Spacer(Modifier.height(24.dp))
+            when {
+                state.isLoading -> Box(
+                    modifier = Modifier.fillMaxWidth().padding(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator() }
+                state.error -> Box(
+                    modifier = Modifier.fillMaxWidth().padding(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.error_load_failed),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                state.latest == null -> EmptyTodayState()
+                else -> {
+                    LatestReadingCard(state.latest!!, modifier = Modifier.padding(horizontal = 16.dp))
+                    Spacer(Modifier.height(24.dp))
+                }
             }
         }
     }
