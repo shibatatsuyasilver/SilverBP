@@ -581,4 +581,55 @@
     <string name="confirm_reading_notes_placeholder">(Optional)</string>
     <string name="confirm_reading_validation_error">Please enter a valid reading (60 &lt; systolic &lt; 260, 30 &lt; diastolic &lt; 160, and diastolic &lt; systolic)</string>
     <string name="confirm_reading_timestamp_label">Time</string>
+
+    <!-- Settings backup entry -->
+    <string name="settings_backup_button_label">Export / Import backup</string>
+    <string name="settings_backup_description">Bundle all records into an encrypted snapshot, stored in the cloud or a local file. Restore with your recovery code when switching phones or reinstalling.</string>
+    <!-- Backup screen -->
+    <string name="backup_screen_title">Data backup</string>
+    <string name="backup_back">Back</string>
+    <string name="backup_close">Close</string>
+    <string name="backup_intro_description">Bundle all your blood-pressure, exercise, medication and Coach records into an encrypted snapshot, stored in the cloud or a local file of your choice. Restore with your recovery code when switching phones or reinstalling.</string>
+    <string name="backup_export_encrypted_title">Export encrypted backup</string>
+    <string name="backup_export_button">Export backup (.sbpbk)</string>
+    <string name="backup_export_first_time_note">The first export generates a 52-character recovery code — you must write it down and keep it safe. Without it you can\'t open the backup after switching devices or reinstalling.</string>
+    <string name="backup_restore_title">Restore from backup</string>
+    <string name="backup_import_button">Import backup file</string>
+    <string name="backup_restore_description">Read a .sbpbk file back on a new device or after reinstalling. Merges with local data by default; advanced mode can clear and re-import instead.</string>
+    <string name="backup_recovery_management_title">Recovery code management</string>
+    <string name="backup_recovery_view_again">View recovery code again</string>
+    <string name="backup_recovery_regenerate">Regenerate recovery code</string>
+    <string name="backup_recovery_regenerate_warning">Regenerating makes existing backup files unopenable on new devices (only the original device\'s Keystore can open them).</string>
+    <string name="backup_phase_collecting">Collecting data… (%1$d records)</string>
+    <string name="backup_phase_encoding">Encoding…</string>
+    <string name="backup_phase_encrypting">Encrypting…</string>
+    <string name="backup_phase_writing">Writing file…</string>
+    <string name="backup_phase_success">Done — %1$d records, %2$s.</string>
+    <string name="backup_phase_skipped">⚠ %1$d records couldn\'t be imported (format mismatch or missing references); skipped.</string>
+    <string name="backup_phase_failure">Failed: %1$s</string>
+    <string name="backup_recovery_code_title">Your recovery code</string>
+    <string name="backup_code_write_down">Write down the 52 characters below (in 13 groups). You\'ll need to enter them after switching devices or reinstalling to restore the backup.</string>
+    <string name="backup_code_charset_note">Note: I→1, L→1, O→0, U→V — unclear characters are auto-corrected, but copying them correctly is best.</string>
+    <string name="backup_code_copied_next">Copied — next</string>
+    <string name="backup_verify_title">Verify your recovery code</string>
+    <string name="backup_verify_group_prompt">Enter group %1$d (of 13 groups, 4 characters each):</string>
+    <string name="backup_code_incorrect">Incorrect, please try again.</string>
+    <string name="backup_export_options_title">Export options</string>
+    <string name="backup_export_options_instruction">Choose what to include. After confirming, a system file picker opens so you can choose where to save it (Google Drive / local / share…)</string>
+    <string name="backup_export_include_chat">Include chat history</string>
+    <string name="backup_choose_location">Choose export location</string>
+    <string name="backup_import_dialog_title">Import backup</string>
+    <string name="backup_recovery_instruction">Enter the recovery code (leave blank on the same device — the system tries Keystore first):</string>
+    <string name="backup_recovery_placeholder">52 characters — required for reinstall / new phone; leave blank on the same device</string>
+    <string name="backup_import_mode_title">Merge mode</string>
+    <string name="backup_import_mode_merge">Merge with local (default, per-record LWW)</string>
+    <string name="backup_import_mode_replace">Clear local and import (advanced)</string>
+    <string name="backup_start_import">Start import</string>
+    <string name="backup_drive_restore_file_title">Restore from Drive %1$s</string>
+    <string name="backup_back_to_list">Back to list</string>
+    <string name="backup_recovery_none_yet">No recovery code yet. Export a backup once to generate it.</string>
+    <string name="backup_recovery_save_warning">Keep it somewhere safe — you must enter these characters to restore the backup after reinstalling or switching devices.</string>
+    <string name="backup_rotate_dialog_title">Regenerate recovery code?</string>
+    <string name="backup_rotate_warning">The old recovery code will stop working. Existing .sbpbk backups can\'t be opened with a recovery code on new devices / after reinstall (only the original device\'s Keystore can). Continue?</string>
+    <string name="backup_rotate_confirm">OK</string>
 </resources>

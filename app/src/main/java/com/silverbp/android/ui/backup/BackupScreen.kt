@@ -125,10 +125,10 @@ fun BackupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("資料備份") },
+                title = { Text(stringResource(R.string.backup_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.backup_back))
                     }
                 },
             )
@@ -143,7 +143,7 @@ fun BackupScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "把所有血壓、運動、用藥與 Coach 記錄打包成加密快照, 存到你選擇的雲端或本機檔案. 換手機或重灌時可用恢復碼還原.",
+                stringResource(R.string.backup_intro_description),
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -281,13 +281,13 @@ fun BackupScreen(
             // 匯出加密備份 (manual SAF flow — unchanged)
             // ============================================================
 
-            Text("匯出加密備份", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.backup_export_encrypted_title), style = MaterialTheme.typography.titleMedium)
             Button(
                 onClick = { dialog = Dialog.Export },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("匯出備份 (.sbpbk)") }
+            ) { Text(stringResource(R.string.backup_export_button)) }
             Text(
-                "首次匯出會產生 52 字元恢復碼 — 必須抄寫保存. 換裝置/重灌後沒有它就無法解開備份.",
+                stringResource(R.string.backup_export_first_time_note),
                 style = MaterialTheme.typography.bodySmall,
             )
 
@@ -297,11 +297,11 @@ fun BackupScreen(
             // 從備份還原 (SAF + new Drive restore)
             // ============================================================
 
-            Text("從備份還原", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.backup_restore_title), style = MaterialTheme.typography.titleMedium)
             Button(
                 onClick = { dialog = Dialog.Import },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("匯入備份檔") }
+            ) { Text(stringResource(R.string.backup_import_button)) }
             if (hasAccount) {
                 OutlinedButton(
                     onClick = {
@@ -312,7 +312,7 @@ fun BackupScreen(
                 ) { Text(stringResource(R.string.backup_drive_restore_button)) }
             }
             Text(
-                "可在新裝置或重灌後讀回 .sbpbk 檔. 預設與本機資料合併, 進階模式可改為清空後匯入.",
+                stringResource(R.string.backup_restore_description),
                 style = MaterialTheme.typography.bodySmall,
             )
 
@@ -322,18 +322,18 @@ fun BackupScreen(
             // 恢復碼管理 (existing)
             // ============================================================
 
-            Text("恢復碼管理", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.backup_recovery_management_title), style = MaterialTheme.typography.titleMedium)
             OutlinedButton(
                 onClick = { dialog = Dialog.ViewRecovery },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = vm.storedRecoveryCode() != null,
-            ) { Text("再看一次恢復碼") }
+            ) { Text(stringResource(R.string.backup_recovery_view_again)) }
             OutlinedButton(
                 onClick = { dialog = Dialog.RotateRecovery },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("重新產生恢復碼") }
+            ) { Text(stringResource(R.string.backup_recovery_regenerate)) }
             Text(
-                "重新產生會讓既有的備份檔在新裝置上無法開啟(只能在原裝置以 Keystore 路徑解開).",
+                stringResource(R.string.backup_recovery_regenerate_warning),
                 style = MaterialTheme.typography.bodySmall,
             )
 
@@ -370,16 +370,16 @@ fun BackupScreen(
             )
             Dialog.RotateRecovery -> AlertDialog(
                 onDismissRequest = { dialog = Dialog.None },
-                title = { Text("重新產生恢復碼?") },
-                text = { Text("舊的恢復碼會失效. 既有的 .sbpbk 備份檔在新裝置/重灌後將無法用恢復碼開啟(只能用原本生成它的裝置的 Keystore). 確定繼續?") },
+                title = { Text(stringResource(R.string.backup_rotate_dialog_title)) },
+                text = { Text(stringResource(R.string.backup_rotate_warning)) },
                 confirmButton = {
                     TextButton(onClick = {
                         vm.rotateRecoveryCode()
                         dialog = Dialog.Export
-                    }) { Text("確定") }
+                    }) { Text(stringResource(R.string.backup_rotate_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { dialog = Dialog.None }) { Text("取消") }
+                    TextButton(onClick = { dialog = Dialog.None }) { Text(stringResource(R.string.cancel)) }
                 },
             )
             Dialog.RecoveryGate -> RecoveryGateDialog(
@@ -418,7 +418,7 @@ fun BackupScreen(
                     }) { Text(stringResource(R.string.backup_auto_disconnect)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { dialog = Dialog.None }) { Text("取消") }
+                    TextButton(onClick = { dialog = Dialog.None }) { Text(stringResource(R.string.cancel)) }
                 },
             )
             Dialog.DriveRestore -> DriveRestoreDialog(
@@ -455,27 +455,27 @@ private fun PhaseRow(phase: BackupManager.Phase) {
     HorizontalDivider()
     when (phase) {
         is BackupManager.Phase.Collecting -> {
-            Text("收集資料中… (${phase.recordCount} 筆)")
+            Text(stringResource(R.string.backup_phase_collecting, phase.recordCount))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         is BackupManager.Phase.Encoding -> {
-            Text("編碼中…")
+            Text(stringResource(R.string.backup_phase_encoding))
             LinearProgressIndicator(progress = { phase.progress }, modifier = Modifier.fillMaxWidth())
         }
         BackupManager.Phase.Encrypting -> {
-            Text("加密中…")
+            Text(stringResource(R.string.backup_phase_encrypting))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         BackupManager.Phase.Writing -> {
-            Text("寫入檔案中…")
+            Text(stringResource(R.string.backup_phase_writing))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         is BackupManager.Phase.Success -> {
             Column {
-                Text("完成 — 共 ${phase.recordCount} 筆紀錄, ${formatSize(phase.byteCount)}.")
+                Text(stringResource(R.string.backup_phase_success, phase.recordCount, formatSize(phase.byteCount)))
                 if (phase.skippedCount > 0) {
                     Text(
-                        "⚠ 有 ${phase.skippedCount} 筆無法匯入(可能格式不符或關聯缺失),已略過.",
+                        stringResource(R.string.backup_phase_skipped, phase.skippedCount),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -484,7 +484,7 @@ private fun PhaseRow(phase: BackupManager.Phase) {
         }
         is BackupManager.Phase.Failure -> {
             Text(
-                "失敗: ${phase.error.localizedMessage ?: phase.error::class.simpleName}",
+                stringResource(R.string.backup_phase_failure, phase.error.localizedMessage ?: (phase.error::class.simpleName ?: "")),
                 color = MaterialTheme.colorScheme.error,
             )
         }
@@ -550,10 +550,10 @@ private fun ExportDialog(
             }
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("你的恢復碼") },
+                title = { Text(stringResource(R.string.backup_recovery_code_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("請抄寫下面 52 個字元(分成 13 組). 換裝置或重灌後須輸入這串字元才能還原備份.")
+                        Text(stringResource(R.string.backup_code_write_down))
                         RecoveryCodeBlock(
                             grouped = pendingCode?.let(vm::grouped) ?: "…",
                             enabled = pendingCode != null,
@@ -565,7 +565,7 @@ private fun ExportDialog(
                             },
                         )
                         Text(
-                            "提醒: I→1, L→1, O→0, U→V — 看不清楚的字元都會自動容錯, 但建議直接抄正確.",
+                            stringResource(R.string.backup_code_charset_note),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -574,10 +574,10 @@ private fun ExportDialog(
                     TextButton(
                         onClick = { step = ExportStep.VerifyCode },
                         enabled = pendingCode != null,
-                    ) { Text("已抄寫, 下一步") }
+                    ) { Text(stringResource(R.string.backup_code_copied_next)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onDismiss) { Text("取消") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 },
             )
         }
@@ -588,10 +588,10 @@ private fun ExportDialog(
             var error by remember { mutableStateOf(false) }
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("驗證你抄寫的恢復碼") },
+                title = { Text(stringResource(R.string.backup_verify_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("請輸入第 ${verifyGroupIndex + 1} 組(共 13 組, 每組 4 字元):")
+                        Text(stringResource(R.string.backup_verify_group_prompt, verifyGroupIndex + 1))
                         OutlinedTextField(
                             value = input,
                             onValueChange = { input = it.uppercase(); error = false },
@@ -599,7 +599,7 @@ private fun ExportDialog(
                             isError = error,
                         )
                         if (error) {
-                            Text("不正確, 請再試一次.", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.backup_code_incorrect), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -611,10 +611,10 @@ private fun ExportDialog(
                         } else {
                             error = true
                         }
-                    }) { Text("確認") }
+                    }) { Text(stringResource(R.string.confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onDismiss) { Text("取消") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 },
             )
         }
@@ -622,12 +622,12 @@ private fun ExportDialog(
         ExportStep.Options -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("匯出選項") },
+                title = { Text(stringResource(R.string.backup_export_options_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("選擇要包含的內容. 完成後會跳出系統檔案選擇器讓你決定存放位置(Google Drive / 本機 / 分享…)")
+                        Text(stringResource(R.string.backup_export_options_instruction))
                         ToggleLine(
-                            label = "包含聊天歷史",
+                            label = stringResource(R.string.backup_export_include_chat),
                             checked = includeChat,
                             onChange = { includeChat = it },
                         )
@@ -637,10 +637,10 @@ private fun ExportDialog(
                     TextButton(onClick = {
                         val fileName = "SilverBP-Backup-${nowFileTimestamp()}.sbpbk"
                         launcher.launch(fileName)
-                    }) { Text("選擇匯出位置") }
+                    }) { Text(stringResource(R.string.backup_choose_location)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onDismiss) { Text("取消") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 },
             )
         }
@@ -685,10 +685,10 @@ private fun RecoveryGateDialog(
                     TextButton(
                         onClick = { step = GateStep.VerifyCode },
                         enabled = pendingCode != null,
-                    ) { Text("已抄寫, 下一步") }
+                    ) { Text(stringResource(R.string.backup_code_copied_next)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onDismiss) { Text("取消") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 },
             )
         }
@@ -698,10 +698,10 @@ private fun RecoveryGateDialog(
             var error by remember { mutableStateOf(false) }
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("驗證你抄寫的恢復碼") },
+                title = { Text(stringResource(R.string.backup_verify_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("請輸入第 ${verifyGroupIndex + 1} 組(共 13 組, 每組 4 字元):")
+                        Text(stringResource(R.string.backup_verify_group_prompt, verifyGroupIndex + 1))
                         OutlinedTextField(
                             value = input,
                             onValueChange = { input = it.uppercase(); error = false },
@@ -709,7 +709,7 @@ private fun RecoveryGateDialog(
                             isError = error,
                         )
                         if (error) {
-                            Text("不正確, 請再試一次.", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.backup_code_incorrect), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -721,10 +721,10 @@ private fun RecoveryGateDialog(
                         } else {
                             error = true
                         }
-                    }) { Text("確認") }
+                    }) { Text(stringResource(R.string.confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onDismiss) { Text("取消") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 },
             )
         }
@@ -818,31 +818,31 @@ private fun ImportDialog(
     if (step == ImportStep.Confirm) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("匯入備份") },
+            title = { Text(stringResource(R.string.backup_import_dialog_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("輸入恢復碼(同裝置可留空, 系統會先試 Keystore 解開):")
+                    Text(stringResource(R.string.backup_recovery_instruction))
                     OutlinedTextField(
                         value = passphrase,
                         onValueChange = { passphrase = it.uppercase() },
                         singleLine = true,
-                        label = { Text("52 字元 — 重灌 / 換手機請輸入；同裝置未重灌可留空") },
+                        label = { Text(stringResource(R.string.backup_recovery_placeholder)) },
                     )
                     HorizontalDivider()
-                    Text("合併模式")
+                    Text(stringResource(R.string.backup_import_mode_title))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
                             selected = mode == BackupManager.ImportMode.Merge,
                             onClick = { mode = BackupManager.ImportMode.Merge },
                         )
-                        Text("合併到本機(預設, 各筆紀錄走 LWW)")
+                        Text(stringResource(R.string.backup_import_mode_merge))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
                             selected = mode == BackupManager.ImportMode.Replace,
                             onClick = { mode = BackupManager.ImportMode.Replace },
                         )
-                        Text("清空本機後匯入(進階)")
+                        Text(stringResource(R.string.backup_import_mode_replace))
                     }
                 }
             },
@@ -855,10 +855,10 @@ private fun ImportDialog(
                         mode = mode,
                     )
                     onDismiss()
-                }) { Text("開始匯入") }
+                }) { Text(stringResource(R.string.backup_start_import)) }
             },
             dismissButton = {
-                TextButton(onClick = onDismiss) { Text("取消") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -925,37 +925,37 @@ private fun DriveRestoreDialog(
                 }
             },
             confirmButton = {
-                TextButton(onClick = onDismiss) { Text("關閉") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.backup_close)) }
             },
         )
     } else {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("從 Drive 還原 ${sel.name}") },
+            title = { Text(stringResource(R.string.backup_drive_restore_file_title, sel.name)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("輸入恢復碼(同裝置可留空, 系統會先試 Keystore 解開):")
+                    Text(stringResource(R.string.backup_recovery_instruction))
                     OutlinedTextField(
                         value = passphrase,
                         onValueChange = { passphrase = it.uppercase() },
                         singleLine = true,
-                        label = { Text("52 字元 — 重灌 / 換手機請輸入；同裝置未重灌可留空") },
+                        label = { Text(stringResource(R.string.backup_recovery_placeholder)) },
                     )
                     HorizontalDivider()
-                    Text("合併模式")
+                    Text(stringResource(R.string.backup_import_mode_title))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
                             selected = mode == BackupManager.ImportMode.Merge,
                             onClick = { mode = BackupManager.ImportMode.Merge },
                         )
-                        Text("合併到本機(預設, 各筆紀錄走 LWW)")
+                        Text(stringResource(R.string.backup_import_mode_merge))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
                             selected = mode == BackupManager.ImportMode.Replace,
                             onClick = { mode = BackupManager.ImportMode.Replace },
                         )
-                        Text("清空本機後匯入(進階)")
+                        Text(stringResource(R.string.backup_import_mode_replace))
                     }
                 }
             },
@@ -967,10 +967,10 @@ private fun DriveRestoreDialog(
                         mode = mode,
                     )
                     onDismiss()
-                }) { Text("開始匯入") }
+                }) { Text(stringResource(R.string.backup_start_import)) }
             },
             dismissButton = {
-                TextButton(onClick = { selected = null }) { Text("返回清單") }
+                TextButton(onClick = { selected = null }) { Text(stringResource(R.string.backup_back_to_list)) }
             },
         )
     }
@@ -1001,22 +1001,22 @@ private fun ViewRecoveryDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("你的恢復碼") },
+        title = { Text(stringResource(R.string.backup_recovery_code_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (code.isBlank()) {
-                    Text("尚未產生恢復碼. 先匯出一次備份就會生成.")
+                    Text(stringResource(R.string.backup_recovery_none_yet))
                 } else {
                     RecoveryCodeBlock(grouped = grouped, enabled = true, onCopy = onCopy)
                     Text(
-                        "請保存在安全的地方 — 重灌或換裝置時必須輸入這串字元才能還原備份.",
+                        stringResource(R.string.backup_recovery_save_warning),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("關閉") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.backup_close)) }
         },
     )
 }

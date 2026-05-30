@@ -581,4 +581,55 @@
     <string name="confirm_reading_notes_placeholder">(選填)</string>
     <string name="confirm_reading_validation_error">請輸入有效讀數 (60 &lt; 收縮壓 &lt; 260,30 &lt; 舒張壓 &lt; 160,且舒張壓 &lt; 收縮壓)</string>
     <string name="confirm_reading_timestamp_label">時間</string>
+
+    <!-- Settings backup entry -->
+    <string name="settings_backup_button_label">匯出 / 匯入備份</string>
+    <string name="settings_backup_description">把所有紀錄打包成加密快照, 存到雲端或本機檔案. 換手機或重灌可以還原.</string>
+    <!-- Backup screen -->
+    <string name="backup_screen_title">資料備份</string>
+    <string name="backup_back">返回</string>
+    <string name="backup_close">關閉</string>
+    <string name="backup_intro_description">把所有血壓、運動、用藥與 Coach 記錄打包成加密快照, 存到你選擇的雲端或本機檔案. 換手機或重灌時可用恢復碼還原.</string>
+    <string name="backup_export_encrypted_title">匯出加密備份</string>
+    <string name="backup_export_button">匯出備份 (.sbpbk)</string>
+    <string name="backup_export_first_time_note">首次匯出會產生 52 字元恢復碼 — 必須抄寫保存. 換裝置/重灌後沒有它就無法解開備份.</string>
+    <string name="backup_restore_title">從備份還原</string>
+    <string name="backup_import_button">匯入備份檔</string>
+    <string name="backup_restore_description">可在新裝置或重灌後讀回 .sbpbk 檔. 預設與本機資料合併, 進階模式可改為清空後匯入.</string>
+    <string name="backup_recovery_management_title">恢復碼管理</string>
+    <string name="backup_recovery_view_again">再看一次恢復碼</string>
+    <string name="backup_recovery_regenerate">重新產生恢復碼</string>
+    <string name="backup_recovery_regenerate_warning">重新產生會讓既有的備份檔在新裝置上無法開啟(只能在原裝置以 Keystore 路徑解開).</string>
+    <string name="backup_phase_collecting">收集資料中… (%1$d 筆)</string>
+    <string name="backup_phase_encoding">編碼中…</string>
+    <string name="backup_phase_encrypting">加密中…</string>
+    <string name="backup_phase_writing">寫入檔案中…</string>
+    <string name="backup_phase_success">完成 — 共 %1$d 筆紀錄, %2$s.</string>
+    <string name="backup_phase_skipped">⚠ 有 %1$d 筆無法匯入(可能格式不符或關聯缺失),已略過.</string>
+    <string name="backup_phase_failure">失敗: %1$s</string>
+    <string name="backup_recovery_code_title">你的恢復碼</string>
+    <string name="backup_code_write_down">請抄寫下面 52 個字元(分成 13 組). 換裝置或重灌後須輸入這串字元才能還原備份.</string>
+    <string name="backup_code_charset_note">提醒: I→1, L→1, O→0, U→V — 看不清楚的字元都會自動容錯, 但建議直接抄正確.</string>
+    <string name="backup_code_copied_next">已抄寫, 下一步</string>
+    <string name="backup_verify_title">驗證你抄寫的恢復碼</string>
+    <string name="backup_verify_group_prompt">請輸入第 %1$d 組(共 13 組, 每組 4 字元):</string>
+    <string name="backup_code_incorrect">不正確, 請再試一次.</string>
+    <string name="backup_export_options_title">匯出選項</string>
+    <string name="backup_export_options_instruction">選擇要包含的內容. 完成後會跳出系統檔案選擇器讓你決定存放位置(Google Drive / 本機 / 分享…)</string>
+    <string name="backup_export_include_chat">包含聊天歷史</string>
+    <string name="backup_choose_location">選擇匯出位置</string>
+    <string name="backup_import_dialog_title">匯入備份</string>
+    <string name="backup_recovery_instruction">輸入恢復碼(同裝置可留空, 系統會先試 Keystore 解開):</string>
+    <string name="backup_recovery_placeholder">52 字元 — 重灌 / 換手機請輸入；同裝置未重灌可留空</string>
+    <string name="backup_import_mode_title">合併模式</string>
+    <string name="backup_import_mode_merge">合併到本機(預設, 各筆紀錄走 LWW)</string>
+    <string name="backup_import_mode_replace">清空本機後匯入(進階)</string>
+    <string name="backup_start_import">開始匯入</string>
+    <string name="backup_drive_restore_file_title">從 Drive 還原 %1$s</string>
+    <string name="backup_back_to_list">返回清單</string>
+    <string name="backup_recovery_none_yet">尚未產生恢復碼. 先匯出一次備份就會生成.</string>
+    <string name="backup_recovery_save_warning">請保存在安全的地方 — 重灌或換裝置時必須輸入這串字元才能還原備份.</string>
+    <string name="backup_rotate_dialog_title">重新產生恢復碼?</string>
+    <string name="backup_rotate_warning">舊的恢復碼會失效. 既有的 .sbpbk 備份檔在新裝置/重灌後將無法用恢復碼開啟(只能用原本生成它的裝置的 Keystore). 確定繼續?</string>
+    <string name="backup_rotate_confirm">確定</string>
 </resources>

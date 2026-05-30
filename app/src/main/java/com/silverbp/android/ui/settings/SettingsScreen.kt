@@ -636,14 +636,14 @@ fun SettingsScreen(
             // Backup / Restore — encrypted .sbpbk snapshot export/import to
             // user's chosen storage (Google Drive, iCloud, local file).
             // Survives uninstall; cross-device + cross-platform with iOS BPCoach.
-            SectionCard("資料備份") {
+            SectionCard(stringResource(R.string.backup_screen_title)) {
                 Button(
                     onClick = onOpenBackup,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("匯出 / 匯入備份") }
+                ) { Text(stringResource(R.string.settings_backup_button_label)) }
                 Spacer(Modifier.size(8.dp))
                 Text(
-                    "把所有紀錄打包成加密快照, 存到雲端或本機檔案. 換手機或重灌可以還原.",
+                    stringResource(R.string.settings_backup_description),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
