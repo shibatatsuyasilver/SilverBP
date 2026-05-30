@@ -138,7 +138,7 @@ class ExerciseHomeViewModel(
 
     /** Re-attach the orphaned session and let the caller open the session screen. */
     fun resumeRecoverable() {
-        controller.restore()
+        _recoverable.value?.let { controller.restore(it) }
         _recoverable.value = null
     }
 
