@@ -54,6 +54,7 @@ object Routes {
     // from TodayScreen's gear icon; Report is opened from InsightsScreen's
     // bottom button. Both hide the bottom NavigationBar while active.
     const val SETTINGS = "settings"
+    const val SETTINGS_ADVANCED = "settings/advanced"
     const val REPORT = "report"
 
     // Coach sub-routes hosted by the root NavHost (hide bottom bar while active).

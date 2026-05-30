@@ -15,12 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -63,17 +59,6 @@ import com.silverbp.android.R
 import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
-import com.silverbp.android.recognition.BpPrompt
-import com.silverbp.android.recognition.DeviceCapabilities
-import com.silverbp.android.recognition.GeminiCloudRecognizer
-import com.silverbp.android.recognition.ModelBootstrap
-import com.silverbp.android.recognition.ModelCatalog
-import com.silverbp.android.recognition.ModelDownloader
-import com.silverbp.android.recognition.ModelLoadPhase
-import com.silverbp.android.recognition.ModelVariant
-import com.silverbp.android.recognition.RecognitionBackend
-import com.silverbp.android.recognition.VisionBackendOverride
-import com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA
 import com.silverbp.android.ui.coach.formatTime
 import com.silverbp.android.ui.components.SectionCard
 import java.time.DayOfWeek
@@ -86,13 +71,12 @@ fun SettingsScreen(
     onOpenSyncPairing: () -> Unit = {},
     onOpenManageMedications: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
+    onOpenAdvanced: () -> Unit = {},
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     val appLockStatus by vm.appLockStatus.collectAsStateWithLifecycle()
-    val modelPhase by ServiceLocator.modelLoadStatus.phase.collectAsStateWithLifecycle()
-    var hfToken by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
     // Core Health Connect permissions the master toggle requests in one sheet:
@@ -191,321 +175,8 @@ fun SettingsScreen(
                 }
             }
 
-            // ===== Recognition backend (Local / Cloud) =====
-            SectionCard(stringResource(R.string.settings_recognition_section)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = state.recognitionBackend == RecognitionBackend.Local,
-                        onClick = { vm.setRecognitionBackend(RecognitionBackend.Local) },
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Column {
-                        Text(stringResource(R.string.settings_backend_local_title), fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.settings_backend_local_desc), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = state.recognitionBackend == RecognitionBackend.Cloud,
-                        onClick = { vm.setRecognitionBackend(RecognitionBackend.Cloud) },
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Column {
-                        Text(stringResource(R.string.settings_backend_cloud_title), fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.settings_backend_cloud_desc), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = state.recognitionBackend == RecognitionBackend.AICore,
-                        onClick = { vm.setRecognitionBackend(RecognitionBackend.AICore) },
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Column {
-                        Text(
-                            stringResource(R.string.settings_backend_aicore_title),
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            stringResource(R.string.settings_backend_aicore_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            }
-
-            // ===== Local model picker (when Local backend active) =====
-            if (state.recognitionBackend == RecognitionBackend.Local) {
-                SectionCard(stringResource(R.string.settings_local_model_section)) {
-                    val downloader = remember { ModelDownloader(context) }
-                    ModelCatalog.variants.forEach { variant ->
-                        val isSelected = state.selectedModelId == variant.id
-                        val isDownloaded = downloader.isDownloaded(variant)
-                        // Surface progress on the row whose variant is actually downloading,
-                        // not just the currently-selected one (user often taps 下載 on a
-                        // non-selected variant first).
-                        val rowDownloadFraction = (modelPhase as? ModelLoadPhase.Downloading)
-                            ?.takeIf { it.variantId == variant.id || (it.variantId == null && isSelected) }
-                            ?.fraction
-                        val rowLoading = modelPhase is ModelLoadPhase.Loading && isSelected
-                        ModelVariantRow(
-                            variant = variant,
-                            isSelected = isSelected,
-                            isDownloaded = isDownloaded,
-                            onSelect = {
-                                vm.setSelectedModelId(variant.id)
-                                ModelBootstrap.switchTo(context, variant)
-                            },
-                            onDownload = {
-                                ModelBootstrap.downloadAndPreload(context, variant, hfToken.takeIf { it.isNotBlank() })
-                            },
-                            inProgress = rowDownloadFraction != null || rowLoading,
-                            downloadFraction = rowDownloadFraction,
-                        )
-                        HorizontalDivider()
-                    }
-
-                    // Failure surfaces inline so the user knows why a load broke,
-                    // but routine status (Idle/Loading/Ready) is conveyed by the row's
-                    // own "已下載"/"下載中…" + per-row progress bar.
-                    (modelPhase as? ModelLoadPhase.Failed)?.let { failed ->
-                        Spacer(Modifier.size(6.dp))
-                        Text(
-                            stringResource(R.string.model_failed, failed.message),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = hfToken,
-                        onValueChange = { hfToken = it },
-                        label = { Text(stringResource(R.string.settings_hf_token_label)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    Text(
-                        stringResource(R.string.settings_hf_token_help),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-
-                SectionCard(stringResource(R.string.settings_advanced_section)) {
-                    Text(stringResource(R.string.settings_max_tokens_label), fontWeight = FontWeight.Medium)
-                    Text(
-                        stringResource(R.string.settings_max_tokens_help),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    MaxTokensDropdown(
-                        selected = state.maxNumTokens,
-                        onSelect = { vm.setMaxNumTokens(it) },
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Button(
-                        onClick = { ModelBootstrap.reloadCurrentVariant(context) },
-                        enabled = !ServiceLocator.modelLoadStatus.isBusy,
-                    ) { Text(stringResource(R.string.settings_apply_reload)) }
-
-                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
-
-                    Text(stringResource(R.string.settings_vision_backend_label), fontWeight = FontWeight.Medium)
-                    Text(
-                        stringResource(R.string.settings_vision_backend_help),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    val socHint = remember { DeviceCapabilities.currentSocModel() }
-                    VisionBackendDropdown(
-                        selected = state.visionBackendOverride,
-                        socHint = socHint,
-                        onSelect = { vm.setVisionBackendOverride(it) },
-                    )
-
-                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
-
-                    val selectedVariant = remember(state.selectedModelId) {
-                        ModelCatalog.byId(state.selectedModelId)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_speculative_label), fontWeight = FontWeight.Medium)
-                            Text(
-                                if (selectedVariant.supportsSpeculativeDecoding) {
-                                    stringResource(R.string.settings_speculative_supported_help)
-                                } else {
-                                    stringResource(
-                                        R.string.settings_speculative_unsupported_help,
-                                        selectedVariant.displayName,
-                                    )
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        Switch(
-                            checked = state.enableSpeculativeDecoding,
-                            onCheckedChange = { vm.setEnableSpeculativeDecoding(it) },
-                            enabled = selectedVariant.supportsSpeculativeDecoding,
-                        )
-                    }
-
-                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            stringResource(R.string.settings_ocr_prompt_label),
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = { vm.setSystemPrompt("") }) {
-                            Text(stringResource(R.string.settings_action_reset))
-                        }
-                    }
-                    Text(
-                        stringResource(R.string.settings_ocr_prompt_help),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    OutlinedTextField(
-                        value = state.systemPrompt,
-                        onValueChange = { vm.setSystemPrompt(it) },
-                        placeholder = { Text(BpPrompt.defaultSystem.take(120) + "…") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 6,
-                        maxLines = 14,
-                    )
-                }
-            }
-
-            // ===== Cloud (Gemini) configuration =====
-            if (state.recognitionBackend == RecognitionBackend.Cloud) {
-                SectionCard(stringResource(R.string.settings_gemini_section)) {
-                    OutlinedTextField(
-                        value = state.geminiApiKey,
-                        onValueChange = { vm.setGeminiApiKey(it) },
-                        label = { Text(stringResource(R.string.settings_gemini_api_label)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    GeminiModelDropdown(
-                        selected = state.geminiModel,
-                        onSelect = { vm.setGeminiModel(it) },
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        stringResource(R.string.settings_gemini_help),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-
-            // ===== AICore (Gemini Nano) configuration =====
-            if (state.recognitionBackend == RecognitionBackend.AICore) {
-                SectionCard(stringResource(R.string.settings_aicore_section)) {
-                    Text(
-                        stringResource(R.string.settings_aicore_help),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    val socHint = remember { DeviceCapabilities.currentSocModel() }
-                    if (socHint.isNotEmpty()) {
-                        Text(
-                            stringResource(R.string.settings_aicore_soc, socHint),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                    Spacer(Modifier.size(6.dp))
-                    when (val phase = modelPhase) {
-                        is ModelLoadPhase.Downloading -> {
-                            val pct = (phase.fraction * 100f).toInt().coerceIn(0, 100)
-                            LinearProgressIndicator(
-                                progress = { phase.fraction },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Text(
-                                stringResource(R.string.settings_aicore_downloading, pct),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                        is ModelLoadPhase.Loading -> {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                            Text(
-                                stringResource(R.string.settings_aicore_warming),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                        is ModelLoadPhase.Ready -> {
-                            Text(
-                                stringResource(R.string.settings_aicore_ready),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                        is ModelLoadPhase.Failed -> {
-                            Text(
-                                stringResource(R.string.settings_aicore_failed, phase.message),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                        ModelLoadPhase.Idle -> {
-                            Text(
-                                stringResource(R.string.settings_aicore_idle),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    }
-                    Spacer(Modifier.size(8.dp))
-                    Button(
-                        onClick = { ModelBootstrap.preloadAICore(context) },
-                        enabled = !ServiceLocator.modelLoadStatus.isBusy,
-                    ) { Text(stringResource(R.string.settings_aicore_check_button)) }
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        stringResource(R.string.settings_aicore_unavailable_help),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-
             // ===== Chat settings (applies to all backends) =====
             SectionCard(stringResource(R.string.settings_chat_section)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.settings_chat_persona_label),
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = { vm.setChatPersona("") }) {
-                        Text(stringResource(R.string.settings_action_reset))
-                    }
-                }
-                Text(
-                    stringResource(R.string.settings_chat_persona_help),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Spacer(Modifier.size(4.dp))
-                OutlinedTextField(
-                    value = state.chatPersona,
-                    onValueChange = { vm.setChatPersona(it) },
-                    placeholder = { Text(CHAT_SYSTEM_PERSONA.take(120) + "…") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    maxLines = 12,
-                )
-                HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 ToggleRow(
                     label = stringResource(R.string.settings_chat_include_records),
                     checked = state.chatIncludeRecordsContext,
@@ -703,6 +374,15 @@ fun SettingsScreen(
                 }
             }
 
+            // Advanced — recognition engine / AI models / prompts live in a
+            // sub-screen to keep this everyday screen uncluttered.
+            SectionCard(stringResource(R.string.settings_advanced_screen_title)) {
+                Button(
+                    onClick = onOpenAdvanced,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.settings_advanced_entry_button)) }
+            }
+
             // About
             SectionCard(stringResource(R.string.about_section)) {
                 Text(stringResource(R.string.about_model), style = MaterialTheme.typography.bodySmall)
@@ -867,161 +547,6 @@ private fun LocationPermissionRow() {
                 context.startActivity(intent)
             }) {
                 Text(stringResource(R.string.exercise_settings_open_app_settings))
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelVariantRow(
-    variant: ModelVariant,
-    isSelected: Boolean,
-    isDownloaded: Boolean,
-    onSelect: () -> Unit,
-    onDownload: () -> Unit,
-    inProgress: Boolean,
-    downloadFraction: Float? = null,
-) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = isSelected, onClick = onSelect, enabled = isDownloaded)
-            Spacer(Modifier.size(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(variant.displayName, fontWeight = FontWeight.Medium)
-                Text(
-                    "%.2f GB · %s".format(variant.approxSizeGB, variant.notes),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (isDownloaded) {
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                stringResource(R.string.model_chip_downloaded),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(),
-                    )
-                }
-            }
-            if (!isDownloaded) {
-                TextButton(onClick = onDownload, enabled = !inProgress) {
-                    Text(
-                        stringResource(
-                            if (inProgress) R.string.model_button_downloading
-                            else R.string.model_button_download,
-                        ),
-                    )
-                }
-            }
-        }
-        if (downloadFraction != null) {
-            val pct = (downloadFraction * 100f).toInt().coerceIn(0, 100)
-            Spacer(Modifier.size(4.dp))
-            LinearProgressIndicator(
-                progress = { downloadFraction },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                stringResource(R.string.model_download_progress, pct),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        } else if (inProgress) {
-            Spacer(Modifier.size(4.dp))
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-    }
-}
-
-@Composable
-private fun GeminiModelDropdown(selected: String, onSelect: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Column {
-        OutlinedTextField(
-            value = selected,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.settings_gemini_model_label)) },
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }
-            },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            GeminiCloudRecognizer.SUPPORTED_MODELS.forEach { id ->
-                DropdownMenuItem(
-                    text = { Text(id) },
-                    onClick = { onSelect(id); expanded = false },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MaxTokensDropdown(selected: Int, onSelect: (Int) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = listOf(1024, 1536, 2048, 3072, 4096)
-    Column {
-        OutlinedTextField(
-            value = selected.toString(),
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.settings_max_tokens_dropdown)) },
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }
-            },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { v ->
-                DropdownMenuItem(
-                    text = { Text(v.toString()) },
-                    onClick = { onSelect(v); expanded = false },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VisionBackendDropdown(
-    selected: VisionBackendOverride,
-    socHint: String,
-    onSelect: (VisionBackendOverride) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val display = when (selected) {
-        VisionBackendOverride.Auto ->
-            if (socHint.isNotEmpty()) "Auto (SoC=$socHint)" else "Auto"
-        VisionBackendOverride.ForceGPU -> "Force GPU"
-        VisionBackendOverride.ForceCPU -> "Force CPU"
-    }
-    Column {
-        OutlinedTextField(
-            value = display,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.settings_vision_backend_dropdown)) },
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "▲" else "▼") }
-            },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            VisionBackendOverride.entries.forEach { v ->
-                val label = when (v) {
-                    VisionBackendOverride.Auto ->
-                        if (socHint.isNotEmpty()) "Auto (SoC=$socHint)" else "Auto"
-                    VisionBackendOverride.ForceGPU -> "Force GPU"
-                    VisionBackendOverride.ForceCPU -> "Force CPU"
-                }
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    onClick = { onSelect(v); expanded = false },
-                )
             }
         }
     }

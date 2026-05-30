@@ -392,6 +392,9 @@
 
     <!-- 設定頁:進階(模型微調) -->
     <string name="settings_advanced_section">進階設定</string>
+    <string name="settings_advanced_screen_title">進階設定</string>
+    <string name="settings_advanced_entry_button">辨識引擎、AI 模型與提示詞</string>
+    <string name="settings_model_tuning_section">模型微調</string>
     <string name="settings_max_tokens_label">Max tokens (KV cache)</string>
     <string name="settings_max_tokens_help">影響 GPU 記憶體用量與輸出長度。改值後請按下方按鈕重新載入模型。</string>
     <string name="settings_apply_reload">套用並重新載入模型</string>

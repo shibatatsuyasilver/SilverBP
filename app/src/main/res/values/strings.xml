@@ -392,6 +392,9 @@
 
     <!-- Settings — advanced (model tuning) -->
     <string name="settings_advanced_section">Advanced</string>
+    <string name="settings_advanced_screen_title">Advanced settings</string>
+    <string name="settings_advanced_entry_button">Recognition engine, AI models &amp; prompts</string>
+    <string name="settings_model_tuning_section">Model tuning</string>
     <string name="settings_max_tokens_label">Max tokens (KV cache)</string>
     <string name="settings_max_tokens_help">Affects GPU memory usage and output length. Tap the button below to reload the model after changing.</string>
     <string name="settings_apply_reload">Apply and reload model</string>
