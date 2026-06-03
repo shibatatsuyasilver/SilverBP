@@ -356,6 +356,7 @@ class TodayExerciseTaskGeneratorTest {
             override suspend fun update(r: BpReadingEntity) = error("unused")
             override suspend fun delete(id: String) = error("unused")
             override suspend fun count(): Int = error("unused")
+            override suspend fun findUnmirrored() = error("unused")
         })
 
     private fun fakeRecognizer(response: String, ready: Boolean = true) = object : ChatRecognizer {
