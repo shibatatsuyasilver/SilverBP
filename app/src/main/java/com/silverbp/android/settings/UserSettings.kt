@@ -1,6 +1,7 @@
 package com.silverbp.android.settings
 
 import com.silverbp.android.backup.auto.AutoBackupFrequency
+import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
 import com.silverbp.android.recognition.ModelCatalog
@@ -77,6 +78,19 @@ data class UserSettings(
      */
     val enableCoach: Boolean = true,
 
+    /**
+     * Daily coach reminder. Defaults reproduce the legacy hardcoded behaviour
+     * (every day at 07:00) so existing users see no change.
+     *  - [reminderEnabled]: master switch for the daily task notification.
+     *  - [reminderHour] / [reminderMinute]: wall-clock firing time.
+     *  - [reminderDaysMask]: ISO-day mask (see [DayOfWeekMask]) of weekdays to
+     *    fire on. The worker still runs daily but no-ops on excluded days.
+     */
+    val reminderEnabled: Boolean = true,
+    val reminderHour: Int = 7,
+    val reminderMinute: Int = 0,
+    val reminderDaysMask: Int = DayOfWeekMask.ALL,
+
     /** Weekly aerobic-minute target (WHO 2020 default). Used by [com.silverbp.android.coach.CoachEngine]. */
     val weeklyAerobicMinTarget: Int = 150,
     /** Daily sodium ceiling in mg (AHA default 2000). */
@@ -141,4 +155,16 @@ data class UserSettings(
     val lastBackupError: String = "",
     /** Epoch ms of the last failure, 0 when no failure has been recorded. */
     val lastBackupErrorAtMs: Long = 0L,
+
+    /**
+     * Goal profile captured during onboarding (Phase 4) and read by
+     * [com.silverbp.android.coach.CoachEngine] to shape the weekly plan.
+     * Enum-backed fields store the enum raw ([com.silverbp.android.settings.PrimaryGoal] etc.);
+     * "" / 0 mean unset, so pre-existing users keep the engine defaults.
+     */
+    val primaryGoal: String = "",
+    val experienceLevel: String = "",
+    /** Preferred exercise days/week; 0 = unset → engine falls back to its default cadence. */
+    val weeklyAvailabilityDays: Int = 0,
+    val trainingStyle: String = "",
 )

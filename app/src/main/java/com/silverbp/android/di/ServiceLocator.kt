@@ -5,6 +5,7 @@ import com.silverbp.android.achievements.AchievementStore
 import com.silverbp.android.achievements.StepBaselineStore
 import com.silverbp.android.chat.ChatRepository
 import com.silverbp.android.coach.BpAnomalyWatcher
+import com.silverbp.android.coach.BpWorkoutAssociationRepository
 import com.silverbp.android.coach.CoachEngine
 import com.silverbp.android.coach.CoachNarrator
 import com.silverbp.android.coach.CoachRepository
@@ -25,6 +26,10 @@ import com.silverbp.android.recognition.ModelLoadStatus
 import com.silverbp.android.security.DbKeyStore
 import com.silverbp.android.security.LockManager
 import com.silverbp.android.settings.UserSettingsRepository
+import com.silverbp.android.strength.ExerciseLibraryRepository
+import com.silverbp.android.strength.StrengthSeed
+import com.silverbp.android.strength.StrengthWorkoutLiveStore
+import com.silverbp.android.strength.StrengthWorkoutRepository
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.backup.auto.AutoBackupScheduler
@@ -34,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
+import com.silverbp.android.sync.BpWorkoutAssociationSyncMapper
 import com.silverbp.android.sync.ChatMessageSyncMapper
 import com.silverbp.android.sync.ChatSessionSyncMapper
 import com.silverbp.android.sync.CoachPlanSyncMapper
@@ -42,6 +48,9 @@ import com.silverbp.android.sync.CombinedRoomSyncSink
 import com.silverbp.android.sync.CombinedRoomSyncSource
 import com.silverbp.android.sync.DailyStepLogSyncMapper
 import com.silverbp.android.sync.DietCheckSyncMapper
+import com.silverbp.android.sync.ExerciseCatalogItemSyncMapper
+import com.silverbp.android.sync.SetLogSyncMapper
+import com.silverbp.android.sync.StrengthWorkoutSessionSyncMapper
 import com.silverbp.android.sync.SettingsKvSyncMapper
 import com.silverbp.android.sync.SleepLogSyncMapper
 import com.silverbp.android.sync.ExerciseSessionSyncMapper
@@ -124,6 +133,30 @@ object ServiceLocator {
         ExerciseController(context, exerciseLiveStore)
     }
 
+    // ============================================================
+    // Strength training (v13)
+    // ============================================================
+
+    val exerciseLibraryRepository: ExerciseLibraryRepository by lazy {
+        ExerciseLibraryRepository(database.exerciseLibraryDao())
+    }
+
+    val strengthWorkoutRepository: StrengthWorkoutRepository by lazy {
+        StrengthWorkoutRepository(database.strengthWorkoutDao(), database.exerciseLibraryDao())
+    }
+
+    /** In-memory holder for the in-progress strength workout. */
+    val strengthWorkoutLiveStore: StrengthWorkoutLiveStore by lazy { StrengthWorkoutLiveStore() }
+
+    /**
+     * One-time seed of the exercise move library. Idempotent — no-ops once the
+     * table is populated. Call from the library/workout entry ViewModel before
+     * first read (there is no global one-time init hook for this module yet).
+     */
+    suspend fun ensureSeeded() {
+        StrengthSeed.seedIfEmpty(database.exerciseLibraryDao())
+    }
+
     private val stepCounterReader: StepCounterReader by lazy { StepCounterReader(context) }
 
     private val stepBaselineStore: StepBaselineStore by lazy { StepBaselineStore(context) }
@@ -150,6 +183,10 @@ object ServiceLocator {
         )
     }
 
+    val bpWorkoutAssociationRepository: BpWorkoutAssociationRepository by lazy {
+        BpWorkoutAssociationRepository(database.bpWorkoutAssociationDao())
+    }
+
     val coachEngine: CoachEngine by lazy {
         CoachEngine(
             bp = bpRepository,
@@ -165,6 +202,7 @@ object ServiceLocator {
         TodayExerciseTaskGenerator(
             summaryProvider = ExerciseRepoSummaryProvider(exerciseRepository),
             chatFactory = { ChatRecognizerFactory.current() },
+            bp = bpRepository,
         )
     }
 
@@ -236,6 +274,22 @@ object ServiceLocator {
 
     val dietCheckSyncMapper: DietCheckSyncMapper by lazy {
         DietCheckSyncMapper(database.dietDao())
+    }
+
+    val exerciseCatalogItemSyncMapper: ExerciseCatalogItemSyncMapper by lazy {
+        ExerciseCatalogItemSyncMapper(database.exerciseLibraryDao(), database.syncDao())
+    }
+
+    val strengthWorkoutSessionSyncMapper: StrengthWorkoutSessionSyncMapper by lazy {
+        StrengthWorkoutSessionSyncMapper(database.strengthWorkoutDao(), database.syncDao())
+    }
+
+    val setLogSyncMapper: SetLogSyncMapper by lazy {
+        SetLogSyncMapper(database.strengthWorkoutDao())
+    }
+
+    val bpWorkoutAssociationSyncMapper: BpWorkoutAssociationSyncMapper by lazy {
+        BpWorkoutAssociationSyncMapper(database.bpWorkoutAssociationDao(), database.syncDao())
     }
 
     /**
@@ -328,10 +382,17 @@ object ServiceLocator {
                     sleepLogMapper = sleepLogSyncMapper,
                     dietCheckMapper = dietCheckSyncMapper,
                     clock = syncCoordinator.clock,
+                    exerciseLibraryDao = database.exerciseLibraryDao(),
+                    strengthWorkoutDao = database.strengthWorkoutDao(),
+                    exerciseCatalogItemMapper = exerciseCatalogItemSyncMapper,
+                    strengthWorkoutSessionMapper = strengthWorkoutSessionSyncMapper,
+                    setLogMapper = setLogSyncMapper,
                     chatDao = database.chatDao(),
                     chatSessionMapper = chatSessionSyncMapper,
                     chatMessageMapper = chatMessageSyncMapper,
                     syncDao = database.syncDao(),
+                    bpWorkoutAssociationDao = database.bpWorkoutAssociationDao(),
+                    bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
                 )
             },
             sinkFactory = {
@@ -348,9 +409,13 @@ object ServiceLocator {
                     coachTaskMapper = coachTaskSyncMapper,
                     sleepLogMapper = sleepLogSyncMapper,
                     dietCheckMapper = dietCheckSyncMapper,
+                    exerciseCatalogItemMapper = exerciseCatalogItemSyncMapper,
+                    strengthWorkoutSessionMapper = strengthWorkoutSessionSyncMapper,
+                    setLogMapper = setLogSyncMapper,
                     chatSessionMapper = chatSessionSyncMapper,
                     chatMessageMapper = chatMessageSyncMapper,
                     settingsKvMapper = settingsKvSyncMapper,
+                    bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
                 )
             },
             settingsKvMapper = settingsKvSyncMapper,
@@ -360,7 +425,7 @@ object ServiceLocator {
             appVersionCode = BuildConfig.VERSION_CODE,
             // Room schema version — keep in lock-step with SilverBpDatabase.
             // 升 schema 時改這裡(備份檔頭會記下,匯入時做相容處理).
-            schemaVersion = 12,
+            schemaVersion = 14,
         )
     }
 }

@@ -25,6 +25,7 @@ fun StatsCard(
     steps: String?,
     stepsLabel: String,
     modifier: Modifier = Modifier,
+    showSteps: Boolean = true,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -43,7 +44,13 @@ fun StatsCard(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 StatColumn(pace, paceLabel, Modifier.weight(1f))
-                StatColumn(steps ?: "—", stepsLabel, Modifier.weight(1f))
+                // Cycling has no step sensor; hide the steps slot so it doesn't
+                // read as a misleading "0 steps". A spacer keeps pace left-aligned.
+                if (showSteps) {
+                    StatColumn(steps ?: "—", stepsLabel, Modifier.weight(1f))
+                } else {
+                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                }
             }
         }
     }

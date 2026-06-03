@@ -74,6 +74,16 @@ class CoachRepository(
         plans.setCompleted(taskId, completedAtMillis)
     }
 
+    /** Move a task to a different day-of-week. Pass null to clear the override. */
+    suspend fun moveTask(taskId: String, newDayOffset: Int?) {
+        plans.moveTask(taskId, newDayOffset)
+    }
+
+    /** Mark a task skipped/un-skipped. Skipped tasks stay in the adherence denominator. */
+    suspend fun markSkipped(taskId: String, skipped: Boolean) {
+        plans.markSkipped(taskId, skipped)
+    }
+
     suspend fun adherenceForCurrentPlan(nowMillis: Long): List<Adherence> {
         val plan = plans.currentPlan(nowMillis) ?: return emptyList()
         return adherenceForPlan(plan.id)

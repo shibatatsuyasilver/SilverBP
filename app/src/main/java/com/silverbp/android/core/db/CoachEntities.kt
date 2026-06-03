@@ -49,6 +49,9 @@ data class CoachTaskEntity(
     val intensityRaw: String,
     val safetyHold: Boolean,
     val completedAt: Long?,
+    val skipped: Boolean = false,
+    /** null = keep the original [dayOffset]; non-null = user-moved target day. */
+    val movedDayOffset: Int? = null,
     val hlcUpdatedAt: String = "0",
 )
 

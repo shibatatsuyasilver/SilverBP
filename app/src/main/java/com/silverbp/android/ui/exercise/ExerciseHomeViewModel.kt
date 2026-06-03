@@ -2,6 +2,9 @@ package com.silverbp.android.ui.exercise
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.coach.CoachRepository
+import com.silverbp.android.coach.CoachTask
+import com.silverbp.android.coach.LifestyleModule
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseController
@@ -9,6 +12,8 @@ import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.SessionLive
+import com.silverbp.android.strength.StrengthWorkoutRepository
+import com.silverbp.android.strength.StrengthWorkoutSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,20 +36,29 @@ data class ExerciseHomeUiState(
     val selectedKind: ActivityKind = ActivityKind.Walking,
     val recent: List<ExerciseSession> = emptyList(),
     val range: ExerciseRange = ExerciseRange.Last30,
-    // (date, walkingMeters, runningMeters), zero-filled across the active range.
-    val dailyDistanceByKind: List<Triple<LocalDate, Double, Double>> = emptyList(),
+    // (date, perKindMeters), zero-filled across the active range. Per-kind
+    // metres come from the day's [ActivityKind] → distance map; kinds with no
+    // session that day are simply absent from the map.
+    val dailyDistanceByKind: List<Pair<LocalDate, Map<ActivityKind, Double>>> = emptyList(),
     val paceSeriesByKind: Map<ActivityKind, List<Pair<Instant, Double>>> = emptyMap(),
     val kindCounts: Map<ActivityKind, Int> = emptyMap(),
     val totalDistanceMeters: Double = 0.0,
     val totalDurationMillis: Long = 0L,
     val sessionCount: Int = 0,
     val weekStepCount: Int = 0,
+    // Today's coach exercise task (null = rest day or no plan), surfaced on the
+    // hub's 課表 section. Strength sessions feed the 歷史 section alongside cardio.
+    val todayExerciseTask: CoachTask? = null,
+    val hasPlan: Boolean = false,
+    val strengthSessions: List<StrengthWorkoutSession> = emptyList(),
 )
 
 class ExerciseHomeViewModel(
     private val repo: ExerciseRepository = ServiceLocator.exerciseRepository,
     private val healthConnect: HealthConnectExerciseBridge = ServiceLocator.healthConnectExerciseBridge,
     private val controller: ExerciseController = ServiceLocator.exerciseController,
+    private val coachRepo: CoachRepository = ServiceLocator.coachRepository,
+    private val strengthRepo: StrengthWorkoutRepository = ServiceLocator.strengthWorkoutRepository,
 ) : ViewModel() {
 
     private val kindFlow = MutableStateFlow(ActivityKind.Walking)
@@ -55,12 +69,21 @@ class ExerciseHomeViewModel(
     private val _recoverable = MutableStateFlow<SessionLive?>(null)
     val recoverable: StateFlow<SessionLive?> = _recoverable.asStateFlow()
 
+    // Plan + strength sessions are pre-combined into one flow so the outer
+    // combine stays within Kotlin's typed (≤5 flows) overloads.
+    private val hubExtrasFlow = combine(
+        coachRepo.observeCurrentPlan(System.currentTimeMillis()),
+        strengthRepo.observeAllSessions(),
+    ) { plan, strengthSessions -> plan to strengthSessions }
+
     val state: StateFlow<ExerciseHomeUiState> = combine(
         repo.observeAll(),
         kindFlow,
         rangeFlow,
         weekStepFlow,
-    ) { all, kind, range, hcWeekSteps ->
+        hubExtrasFlow,
+    ) { all, kind, range, hcWeekSteps, hubExtras ->
+        val (plan, strengthSessions) = hubExtras
         val now = Instant.now()
         val cutoff = range.days?.let { now.minus(it, ChronoUnit.DAYS) }
         val filtered = if (cutoff == null) all else all.filter { it.startedAt.isAfter(cutoff) }
@@ -75,22 +98,17 @@ class ExerciseHomeViewModel(
         val rangeEndDate = LocalDate.now(zone)
         val daySpan = ChronoUnit.DAYS.between(rangeStartDate, rangeEndDate).toInt() + 1
 
-        // Per-kind distance per day. Walking and Running are tracked separately so
-        // the bar chart and the heatmap can render both colours instead of tinting
+        // Per-kind distance per day. Each kind is tracked separately so the bar
+        // chart and the heatmap can render every colour instead of tinting
         // combined data with whichever kind chip is currently selected.
         val byDateKind: Map<LocalDate, Map<ActivityKind, Double>> = filtered
             .groupBy { it.startedAt.atZone(zone).toLocalDate() }
             .mapValues { (_, list) ->
                 list.groupBy { it.kind }.mapValues { (_, ses) -> ses.sumOf { it.distanceMeters } }
             }
-        val dailyByKind: List<Triple<LocalDate, Double, Double>> = (0 until daySpan).map { offset ->
+        val dailyByKind: List<Pair<LocalDate, Map<ActivityKind, Double>>> = (0 until daySpan).map { offset ->
             val d = rangeStartDate.plusDays(offset.toLong())
-            val perKind = byDateKind[d].orEmpty()
-            Triple(
-                d,
-                perKind[ActivityKind.Walking] ?: 0.0,
-                perKind[ActivityKind.Running] ?: 0.0,
-            )
+            d to byDateKind[d].orEmpty()
         }
 
         val paceByKind: Map<ActivityKind, List<Pair<Instant, Double>>> = filtered
@@ -111,6 +129,17 @@ class ExerciseHomeViewModel(
             all.filter { it.startedAt.isAfter(weekCutoff) }.sumOf { it.stepCount ?: 0 }
         }
 
+        // Today's exercise task: the Exercise-module task whose dayOffset matches
+        // today relative to the plan's local-zone week start. Null on rest days.
+        val todayTask = plan?.let { p ->
+            val weekStart = Instant.ofEpochMilli(p.weekStartMillis).atZone(zone).toLocalDate()
+            val todayOffset = (LocalDate.now(zone).toEpochDay() - weekStart.toEpochDay())
+                .toInt().coerceIn(0, 6)
+            p.tasks.firstOrNull {
+                it.module == LifestyleModule.Exercise && it.dayOffset == todayOffset
+            }
+        }
+
         ExerciseHomeUiState(
             selectedKind = kind,
             recent = all.take(3),
@@ -122,6 +151,9 @@ class ExerciseHomeViewModel(
             totalDurationMillis = totalDuration,
             sessionCount = filtered.size,
             weekStepCount = weekSteps,
+            todayExerciseTask = todayTask,
+            hasPlan = plan != null,
+            strengthSessions = strengthSessions,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseHomeUiState())
 

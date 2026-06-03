@@ -3,6 +3,8 @@ package com.silverbp.android.ui.settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,14 +18,17 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -34,7 +39,9 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,11 +54,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
+import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.BpPrompt
@@ -65,7 +74,10 @@ import com.silverbp.android.recognition.ModelVariant
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA
+import com.silverbp.android.ui.coach.formatTime
 import com.silverbp.android.ui.components.SectionCard
+import java.time.DayOfWeek
+import java.time.format.TextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -546,6 +558,35 @@ fun SettingsScreen(
                 }
             }
 
+            // Coach daily reminder — time + weekday selection. Defaults reproduce
+            // the legacy daily-07:00 behaviour. Only meaningful while Coach is on.
+            if (state.enableCoach) {
+                SectionCard(stringResource(R.string.coach_reminder_section)) {
+                    ToggleRow(
+                        label = stringResource(R.string.coach_reminder_enable),
+                        checked = state.reminderEnabled,
+                        onChange = vm::setReminderEnabled,
+                    )
+                    Text(
+                        stringResource(R.string.coach_reminder_enable_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (state.reminderEnabled) {
+                        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                        ReminderTimeRow(
+                            hour = state.reminderHour,
+                            minute = state.reminderMinute,
+                            onChange = { h, m -> vm.setReminderTime(h, m) },
+                        )
+                        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                        ReminderDaysRow(
+                            mask = state.reminderDaysMask,
+                            onChange = vm::setReminderDaysMask,
+                        )
+                    }
+                }
+            }
+
             // Integrations
             SectionCard(stringResource(R.string.integration_section)) {
                 ToggleRow(
@@ -994,5 +1035,78 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     ) {
         Text(label, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderTimeRow(hour: Int, minute: Int, onChange: (Int, Int) -> Unit) {
+    var showPicker by remember { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.coach_reminder_time_label),
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedButton(onClick = { showPicker = true }) {
+            Text(formatTime(hour, minute))
+        }
+    }
+    if (showPicker) {
+        val pickerState = rememberTimePickerState(
+            initialHour = hour,
+            initialMinute = minute,
+            is24Hour = true,
+        )
+        Dialog(onDismissRequest = { showPicker = false }) {
+            Card(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    TimePicker(state = pickerState)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showPicker = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(onClick = {
+                            onChange(pickerState.hour, pickerState.minute)
+                            showPicker = false
+                        }) { Text(stringResource(R.string.save)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderDaysRow(mask: Int, onChange: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(R.string.coach_reminder_days_label), fontWeight = FontWeight.Medium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            DayOfWeek.values().forEach { dow ->
+                FilterChip(
+                    selected = DayOfWeekMask.contains(mask, dow),
+                    onClick = { onChange(DayOfWeekMask.toggle(mask, dow)) },
+                    label = {
+                        Text(dow.getDisplayName(TextStyle.SHORT, java.util.Locale.getDefault()))
+                    },
+                )
+            }
+        }
+        if (DayOfWeekMask.isEmpty(mask)) {
+            Text(
+                stringResource(R.string.coach_reminder_days_none),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }

@@ -53,8 +53,6 @@ fun ExerciseTrendsCard(
             ChartSubCard(stringResource(R.string.exercise_trends_distance)) {
                 DailyDistanceStackedBarChart(
                     daily = state.dailyDistanceByKind,
-                    walkingColor = colorForKind(ActivityKind.Walking),
-                    runningColor = colorForKind(ActivityKind.Running),
                     modifier = Modifier.fillMaxWidth(),
                     emptyLabel = stringResource(R.string.exercise_trends_empty),
                 )
@@ -72,8 +70,6 @@ fun ExerciseTrendsCard(
                 KindDistributionDonut(
                     counts = state.kindCounts,
                     modifier = Modifier.fillMaxWidth(),
-                    walkingLabel = stringResource(R.string.exercise_kind_walking),
-                    runningLabel = stringResource(R.string.exercise_kind_running),
                     emptyLabel = stringResource(R.string.exercise_trends_empty),
                 )
             }
@@ -161,15 +157,20 @@ private fun KindLegend() {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LegendDot(
-            color = colorForKind(ActivityKind.Walking),
-            label = stringResource(R.string.exercise_kind_walking),
-        )
-        LegendDot(
-            color = colorForKind(ActivityKind.Running),
-            label = stringResource(R.string.exercise_kind_running),
-        )
+        ActivityKind.entries.forEach { kind ->
+            LegendDot(
+                color = colorForKind(kind),
+                label = stringResource(kindLabelRes(kind)),
+            )
+        }
     }
+}
+
+private fun kindLabelRes(kind: ActivityKind): Int = when (kind) {
+    ActivityKind.Walking -> R.string.exercise_kind_walking
+    ActivityKind.Running -> R.string.exercise_kind_running
+    ActivityKind.BriskWalking -> R.string.exercise_kind_brisk_walking
+    ActivityKind.Cycling -> R.string.exercise_kind_cycling
 }
 
 @Composable

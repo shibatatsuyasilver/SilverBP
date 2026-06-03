@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -121,6 +122,36 @@ class SettingsViewModel(
             } else {
                 CoachReminderScheduler.cancelAll(ServiceLocator.context)
             }
+        }
+    }
+
+    fun setReminderEnabled(v: Boolean) {
+        viewModelScope.launch {
+            repo.setReminderEnabled(v)
+            rescheduleReminders()
+        }
+    }
+    fun setReminderTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            repo.setReminderTime(hour, minute)
+            rescheduleReminders()
+        }
+    }
+    fun setReminderDaysMask(mask: Int) {
+        viewModelScope.launch {
+            repo.setReminderDaysMask(mask)
+            rescheduleReminders()
+        }
+    }
+
+    /**
+     * Re-align the daily worker after a reminder-pref edit. Re-reads prefs via
+     * [CoachReminderScheduler.scheduleAll] so the next fire matches the new
+     * time/mask. No-op when Coach is disabled (the worker is already cancelled).
+     */
+    private suspend fun rescheduleReminders() {
+        if (repo.flow.first().enableCoach) {
+            CoachReminderScheduler.scheduleAll(ServiceLocator.context)
         }
     }
 

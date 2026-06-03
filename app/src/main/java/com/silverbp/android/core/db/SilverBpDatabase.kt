@@ -31,8 +31,12 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         TombstoneEntity::class,
         SyncDeviceEntity::class,
         SyncOutboxEntity::class,
+        ExerciseCatalogItemEntity::class,
+        StrengthWorkoutSessionEntity::class,
+        SetLogEntity::class,
+        BpWorkoutAssociationEntity::class,
     ],
-    version = 13,
+    version = 15,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -49,6 +53,9 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun dietDao(): DietDao
     abstract fun medicationDoseDao(): MedicationDoseDao
     abstract fun syncDao(): SyncDao
+    abstract fun exerciseLibraryDao(): ExerciseLibraryDao
+    abstract fun strengthWorkoutDao(): StrengthWorkoutDao
+    abstract fun bpWorkoutAssociationDao(): BpWorkoutAssociationDao
 
     companion object {
         const val DB_NAME = "silverbp.db"
@@ -87,6 +94,8 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_10_11,
                 MIGRATION_11_12,
                 MIGRATION_12_13,
+                MIGRATION_13_14,
+                MIGRATION_14_15,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -564,5 +573,125 @@ internal val MIGRATION_11_12: Migration = object : Migration(11, 12) {
 internal val MIGRATION_12_13: Migration = object : Migration(12, 13) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `bp_reading` ADD COLUMN `hcRecordId` TEXT")
+    }
+}
+
+/**
+ * v13 → v14: introduce the strength-training data layer — `exercise_catalog_item`
+ * (the seeded move library + favorites), `strength_workout_session`, and
+ * `set_log` (per-set log, cascade-deleted with its session). Pure CREATE TABLE —
+ * existing rows are not touched.
+ *
+ * Column types/order, NOT NULL, PK, FK and the set_log index must match Room's
+ * generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/14.json` after building. Kotlin-level
+ * defaults (isFavorite = false, skipped = false, hlcUpdatedAt = "0") do NOT
+ * emit a SQL DEFAULT — Room renders them as plain NOT NULL — so none are added
+ * here.
+ */
+internal val MIGRATION_13_14: Migration = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `exercise_catalog_item` (
+              `id` TEXT NOT NULL,
+              `name` TEXT NOT NULL,
+              `bodyPart` TEXT NOT NULL,
+              `muscleGroupsJson` TEXT NOT NULL,
+              `description` TEXT NOT NULL,
+              `isFavorite` INTEGER NOT NULL,
+              `createdAt` INTEGER NOT NULL,
+              `updatedAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `strength_workout_session` (
+              `id` TEXT NOT NULL,
+              `startedAt` INTEGER NOT NULL,
+              `endedAt` INTEGER NOT NULL,
+              `note` TEXT NOT NULL,
+              `difficultyRaw` TEXT,
+              `createdAt` INTEGER NOT NULL,
+              `updatedAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `set_log` (
+              `id` TEXT NOT NULL,
+              `workoutSessionId` TEXT NOT NULL,
+              `exerciseId` TEXT NOT NULL,
+              `setNumber` INTEGER NOT NULL,
+              `reps` INTEGER NOT NULL,
+              `weightKg` REAL,
+              `isCompleted` INTEGER NOT NULL,
+              `skipped` INTEGER NOT NULL,
+              `notes` TEXT NOT NULL,
+              `createdAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              PRIMARY KEY(`id`),
+              FOREIGN KEY(`workoutSessionId`) REFERENCES `strength_workout_session`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_set_log_workoutSessionId` " +
+                "ON `set_log` (`workoutSessionId`)"
+        )
+    }
+}
+
+/**
+ * v14 → v15: BP↔workout deep-linking (Phase 6). Creates `bp_workout_association`
+ * (a pre/post BP reading linked to a cardio or strength session, no FK so the
+ * link survives un-synced peers) and adds `skipped` / `movedDayOffset` to
+ * `coach_task` for the skip/move task actions.
+ *
+ * ADD COLUMN on a NOT NULL column needs a SQL DEFAULT, so `skipped` is added
+ * with `DEFAULT 0`; the nullable `movedDayOffset` needs none. The new table's
+ * `hlcUpdatedAt` is NOT NULL with no SQL DEFAULT to match Room's render of the
+ * Kotlin-level `= "0"` default (mirrors set_log in MIGRATION_13_14).
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/15.json` after building.
+ */
+internal val MIGRATION_14_15: Migration = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `bp_workout_association` (
+              `id` TEXT NOT NULL,
+              `bpReadingId` TEXT NOT NULL,
+              `sessionId` TEXT NOT NULL,
+              `sessionType` TEXT NOT NULL,
+              `contextType` TEXT NOT NULL,
+              `createdAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_bp_workout_association_sessionId` " +
+                "ON `bp_workout_association` (`sessionId`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_bp_workout_association_bpReadingId` " +
+                "ON `bp_workout_association` (`bpReadingId`)"
+        )
+        db.execSQL(
+            "ALTER TABLE `coach_task` ADD COLUMN `skipped` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `coach_task` ADD COLUMN `movedDayOffset` INTEGER"
+        )
     }
 }

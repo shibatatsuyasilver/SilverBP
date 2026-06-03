@@ -106,8 +106,12 @@
     <!-- Exercise -->
     <string name="exercise_kind_walking">Walking</string>
     <string name="exercise_kind_running">Running</string>
+    <string name="exercise_kind_brisk_walking">Brisk walking</string>
+    <string name="exercise_kind_cycling">Cycling</string>
     <string name="exercise_start_walking">Start walking</string>
     <string name="exercise_start_running">Start running</string>
+    <string name="exercise_start_brisk_walking">Start brisk walking</string>
+    <string name="exercise_start_cycling">Start cycling</string>
     <string name="exercise_pause">Pause</string>
     <string name="exercise_resume">Resume</string>
     <string name="exercise_stop">Stop</string>
@@ -126,6 +130,8 @@
     <string name="exercise_notification_channel_desc">Foreground notification while a walk/run is being recorded.</string>
     <string name="exercise_notification_title_walk">Recording walk</string>
     <string name="exercise_notification_title_run">Recording run</string>
+    <string name="exercise_notification_title_brisk_walk">Recording brisk walk</string>
+    <string name="exercise_notification_title_cycle">Recording ride</string>
     <string name="exercise_notification_paused_suffix"> · Paused</string>
     <string name="exercise_recording_body_with_pace">%1$s · %2$s · %3$s</string>
     <string name="exercise_recording_body_paused">⏸ %1$s · %2$s</string>

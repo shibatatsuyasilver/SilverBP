@@ -21,7 +21,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -44,25 +43,24 @@ private val EmptyHint = Color(0xFF8E8E93)
 private val GridColor = Color(0xFFBDBDBD)
 
 /**
- * Stacked daily-distance bar chart. Each day shows walking metres at the
- * bottom and running metres on top, both scaled against a shared "nice
- * ceiling" Y-axis. The two-colour stack replaces the previous single-tint
+ * Stacked daily-distance bar chart. Each day stacks every activity kind's
+ * metres in [ActivityKind.entries] order, each scaled against a shared "nice
+ * ceiling" Y-axis. The multi-colour stack replaces the previous single-tint
  * design so the chart no longer turns solid red just because the user
  * picked the Running chip before starting a session.
  */
 @Composable
 fun DailyDistanceStackedBarChart(
-    daily: List<Triple<LocalDate, Double, Double>>,
-    walkingColor: Color,
-    runningColor: Color,
+    daily: List<Pair<LocalDate, Map<ActivityKind, Double>>>,
     modifier: Modifier = Modifier,
     emptyLabel: String,
 ) {
-    if (daily.isEmpty() || daily.all { it.second <= 0.0 && it.third <= 0.0 }) {
+    if (daily.isEmpty() || daily.all { (_, perKind) -> perKind.values.all { it <= 0.0 } }) {
         EmptyChart(emptyLabel, modifier.height(200.dp))
         return
     }
-    val maxMeters = daily.maxOf { it.second + it.third }.coerceAtLeast(1.0)
+    val maxMeters = daily.maxOf { (_, perKind) -> perKind.values.sum() }.coerceAtLeast(1.0)
+    val kindColors = ActivityKind.entries.associateWith { colorForKind(it) }
     val niceMax = niceCeilingMeters(maxMeters)
     val topLabel = formatDistanceTick(niceMax)
     val bottomLabel = "0"
@@ -79,9 +77,9 @@ fun DailyDistanceStackedBarChart(
         daily.size <= 92 -> 7
         else -> 14
     }
-    val xLayouts: List<androidx.compose.ui.text.TextLayoutResult?> = daily.mapIndexed { i, triple ->
+    val xLayouts: List<androidx.compose.ui.text.TextLayoutResult?> = daily.mapIndexed { i, (date, _) ->
         if (i % xLabelEvery == 0) {
-            val text = triple.first.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, locale)
+            val text = date.dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, locale)
             measurer.measure(text, labelStyle)
         } else null
     }
@@ -125,23 +123,21 @@ fun DailyDistanceStackedBarChart(
         val slot = chartWidth / n
         val barWidth = (slot * 0.7f).coerceAtLeast(2f)
         val plotHeight = chartBottom - chartTop
-        daily.forEachIndexed { i, (_, walking, running) ->
+        daily.forEachIndexed { i, (_, perKind) ->
             val left = chartLeft + i * slot + (slot - barWidth) / 2f
-            val walkH = if (walking > 0) (walking / niceMax * plotHeight).toFloat().coerceAtLeast(1f) else 0f
-            val runH = if (running > 0) (running / niceMax * plotHeight).toFloat().coerceAtLeast(1f) else 0f
-            if (walkH > 0f) {
+            // Stack every kind from the bottom up, in enum order, so colours
+            // are consistent across days.
+            var stackedH = 0f
+            ActivityKind.entries.forEach { kind ->
+                val meters = perKind[kind] ?: 0.0
+                if (meters <= 0.0) return@forEach
+                val segH = (meters / niceMax * plotHeight).toFloat().coerceAtLeast(1f)
                 drawRect(
-                    color = walkingColor,
-                    topLeft = Offset(left, chartBottom - walkH),
-                    size = Size(barWidth, walkH),
+                    color = kindColors.getValue(kind),
+                    topLeft = Offset(left, chartBottom - stackedH - segH),
+                    size = Size(barWidth, segH),
                 )
-            }
-            if (runH > 0f) {
-                drawRect(
-                    color = runningColor,
-                    topLeft = Offset(left, chartBottom - walkH - runH),
-                    size = Size(barWidth, runH),
-                )
+                stackedH += segH
             }
             xLayouts[i]?.let { layout ->
                 val centerX = chartLeft + i * slot + slot / 2f
@@ -281,10 +277,7 @@ fun PaceLineChart(
                 Canvas(Modifier.size(8.dp)) { drawCircle(c) }
                 Spacer(Modifier.size(4.dp))
                 Text(
-                    stringResource(
-                        if (kind == ActivityKind.Walking) R.string.exercise_kind_walking
-                        else R.string.exercise_kind_running,
-                    ),
+                    stringResource(kindLabelRes(kind)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -297,8 +290,6 @@ fun PaceLineChart(
 fun KindDistributionDonut(
     counts: Map<ActivityKind, Int>,
     modifier: Modifier = Modifier,
-    walkingLabel: String,
-    runningLabel: String,
     emptyLabel: String,
 ) {
     val total = counts.values.sum().toFloat()
@@ -306,10 +297,7 @@ fun KindDistributionDonut(
         EmptyChart(emptyLabel, modifier.height(160.dp))
         return
     }
-    val order: List<Pair<ActivityKind, Color>> = listOf(
-        ActivityKind.Walking to colorForKind(ActivityKind.Walking),
-        ActivityKind.Running to colorForKind(ActivityKind.Running),
-    )
+    val order: List<Pair<ActivityKind, Color>> = ActivityKind.entries.map { it to colorForKind(it) }
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Canvas(modifier = Modifier.size(140.dp).padding(8.dp)) {
             var startAngle = -90f
@@ -335,10 +323,7 @@ fun KindDistributionDonut(
                 val n = counts[kind] ?: 0
                 if (n == 0) return@forEach
                 val pct = (n / total * 100f).toInt()
-                val label = when (kind) {
-                    ActivityKind.Walking -> walkingLabel
-                    ActivityKind.Running -> runningLabel
-                }
+                val label = stringResource(kindLabelRes(kind))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Canvas(Modifier.size(10.dp)) { drawCircle(color) }
                     Spacer(Modifier.size(6.dp))
@@ -350,24 +335,24 @@ fun KindDistributionDonut(
 }
 
 /**
- * Heatmap of per-day exercise volume. Each cell's hue is the day's
- * walking/running mix (pure walking → green, pure running → red, blended
- * in between) and the cell's alpha grows with total distance vs the
- * range max — so a busy walking day stays green instead of being painted
- * red just because it's the busiest cell on the grid.
+ * Heatmap of per-day exercise volume. Each cell's hue is the day's dominant
+ * activity kind (the kind with the most metres that day) and the cell's alpha
+ * grows with total distance vs the range max — so a busy walking day stays
+ * green instead of being painted darkest just because it's the busiest cell
+ * on the grid.
  */
 @Composable
 fun ContributionCalendar(
-    daily: List<Triple<LocalDate, Double, Double>>,
+    daily: List<Pair<LocalDate, Map<ActivityKind, Double>>>,
     modifier: Modifier = Modifier,
     emptyLabel: String,
 ) {
-    if (daily.isEmpty() || daily.all { it.second <= 0.0 && it.third <= 0.0 }) {
+    if (daily.isEmpty() || daily.all { (_, perKind) -> perKind.values.all { it <= 0.0 } }) {
         EmptyChart(emptyLabel, modifier.height(160.dp))
         return
     }
     val sorted = daily.sortedBy { it.first }
-    val maxMeters = sorted.maxOf { it.second + it.third }.coerceAtLeast(1.0)
+    val maxMeters = sorted.maxOf { (_, perKind) -> perKind.values.sum() }.coerceAtLeast(1.0)
     val firstDay = sorted.first().first
     // Java DayOfWeek: Monday=1..Sunday=7. Row 0 is Monday, row 6 is Sunday.
     val padBefore = firstDay.dayOfWeek.value - 1
@@ -383,8 +368,7 @@ fun ContributionCalendar(
     val dayLayouts = dayLabels.map { measurer.measure(it, labelStyle) }
     val labelColW = dayLayouts.maxOf { it.size.width }.toFloat()
 
-    val walkingColor = colorForKind(ActivityKind.Walking)
-    val runningColor = colorForKind(ActivityKind.Running)
+    val kindColors = ActivityKind.entries.associateWith { colorForKind(it) }
     val emptyCellColor = Color(0xFFEFEFEF)
 
     Canvas(modifier = modifier.height(160.dp).padding(8.dp)) {
@@ -411,14 +395,17 @@ fun ContributionCalendar(
             val row = idx % 7
             val dayIdx = idx - padBefore
             if (dayIdx !in sorted.indices) continue
-            val (_, walk, run) = sorted[dayIdx]
-            val sum = walk + run
+            val (_, perKind) = sorted[dayIdx]
+            val sum = perKind.values.sum()
             val color = if (sum <= 0.0) {
                 emptyCellColor
             } else {
-                val kindRatio = (run / sum).toFloat().coerceIn(0f, 1f)
+                // Tint by the day's dominant kind (most metres), alpha by total
+                // volume vs the range max. Blending N colours muddies into grey,
+                // so the dominant-kind hue stays legible.
+                val dominant = perKind.maxByOrNull { it.value }!!.key
                 val intensity = (sum / maxMeters).toFloat().coerceIn(0.25f, 1f)
-                lerp(walkingColor, runningColor, kindRatio).copy(alpha = intensity)
+                kindColors.getValue(dominant).copy(alpha = intensity)
             }
             drawRect(
                 color = color,
@@ -446,4 +433,11 @@ private fun mapYFlipped(y: Double, min: Double, max: Double, h: Float): Float {
     val t = (y - min) / (max - min)
     // Flip: smaller y (faster pace) → top of canvas.
     return (t * h).toFloat()
+}
+
+private fun kindLabelRes(kind: ActivityKind): Int = when (kind) {
+    ActivityKind.Walking -> R.string.exercise_kind_walking
+    ActivityKind.Running -> R.string.exercise_kind_running
+    ActivityKind.BriskWalking -> R.string.exercise_kind_brisk_walking
+    ActivityKind.Cycling -> R.string.exercise_kind_cycling
 }

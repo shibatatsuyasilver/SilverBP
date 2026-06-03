@@ -6,7 +6,9 @@ import java.util.UUID
 /** Match iOS BPExercise.ActivityKind. */
 enum class ActivityKind(val raw: String) {
     Walking("walking"),
-    Running("running");
+    Running("running"),
+    BriskWalking("brisk_walking"),
+    Cycling("cycling");
 
     companion object {
         fun fromRaw(s: String): ActivityKind = entries.first { it.raw == s }

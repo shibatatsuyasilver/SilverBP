@@ -70,3 +70,29 @@ data class NarrationUi(
     val text: String,
     val isStreaming: Boolean = false,
 )
+
+/**
+ * Weekly calendar view of the current [com.silverbp.android.coach.CoachPlan].
+ * Seven [WeekDayUi] columns (Mon..Sun), each carrying the tasks that land on
+ * that day after honoring per-task [WeekTaskUi.movedDayOffset].
+ */
+data class WeeklyPlanUi(
+    val days: List<WeekDayUi>,
+    /** Index 0..6 of today within the week, or null when today is outside this plan's week. */
+    val todayIndex: Int?,
+)
+
+/** One Mon..Sun column. [dayOffset] is 0..6 from the week start. */
+data class WeekDayUi(
+    val dayOffset: Int,
+    val tasks: List<WeekTaskUi>,
+)
+
+/** One task chip inside a [WeekDayUi]. */
+data class WeekTaskUi(
+    val id: String,
+    val title: String,
+    val moduleKey: ModuleKey,
+    val completed: Boolean,
+    val skipped: Boolean,
+)

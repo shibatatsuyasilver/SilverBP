@@ -142,6 +142,14 @@ object ExerciseNotification {
                 smallIconRes = R.drawable.ic_notification_run
                 accentColor = 0xFFD32F2F.toInt()
             }
+            ActivityKind.BriskWalking -> {
+                smallIconRes = R.drawable.ic_notification_walk
+                accentColor = 0xFF00897B.toInt()
+            }
+            ActivityKind.Cycling -> {
+                smallIconRes = R.drawable.ic_notification_bike
+                accentColor = 0xFF0288D1.toInt()
+            }
             else -> {
                 smallIconRes = R.drawable.ic_notification_walk
                 accentColor = 0xFF2E7D32.toInt()
@@ -202,6 +210,14 @@ object ExerciseNotification {
             ActivityKind.Running -> {
                 smallIconRes = R.drawable.ic_notification_run
                 accentColor = 0xFFD32F2F.toInt()  // red-700, matches RouteBitmapRenderer
+            }
+            ActivityKind.BriskWalking -> {
+                smallIconRes = R.drawable.ic_notification_walk
+                accentColor = 0xFF00897B.toInt()  // teal-600, matches RouteBitmapRenderer
+            }
+            ActivityKind.Cycling -> {
+                smallIconRes = R.drawable.ic_notification_bike
+                accentColor = 0xFF0288D1.toInt()  // light-blue-700, matches RouteBitmapRenderer
             }
             else -> {
                 smallIconRes = R.drawable.ic_notification_walk
@@ -347,6 +363,8 @@ object ExerciseNotification {
         val base = when (live.kind) {
             ActivityKind.Walking -> ctx.getString(R.string.exercise_notification_title_walk)
             ActivityKind.Running -> ctx.getString(R.string.exercise_notification_title_run)
+            ActivityKind.BriskWalking -> ctx.getString(R.string.exercise_notification_title_brisk_walk)
+            ActivityKind.Cycling -> ctx.getString(R.string.exercise_notification_title_cycle)
         }
         val pausedSuffix = if (includePausedSuffix && (live.runState == RunState.Paused || live.runState == RunState.AutoPaused)) {
             ctx.getString(R.string.exercise_notification_paused_suffix)

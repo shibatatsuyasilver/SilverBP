@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.maps.model.CameraPosition
@@ -42,6 +43,7 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.silverbp.android.R
+import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.exercise.RoutePoint
@@ -51,12 +53,19 @@ import com.silverbp.android.ui.exercise.components.StatsCard
 fun ExerciseSummaryScreen(
     onSaved: () -> Unit,
     onDiscard: () -> Unit,
+    onMeasureBp: () -> Unit = {},
     vm: ExerciseSummaryViewModel = viewModel(),
 ) {
     val saving by vm.saving.collectAsStateWithLifecycle()
+    val hasRecentPostBp by vm.hasRecentPostBp.collectAsStateWithLifecycle()
     val session = vm.session
     val points = vm.points
     var note by remember { mutableStateOf(session?.note ?: "") }
+
+    LifecycleResumeEffect(Unit) {
+        vm.refreshHasRecentPostBp()
+        onPauseOrDispose { }
+    }
 
     if (session == null) {
         // No snapshot — bounce back.
@@ -99,6 +108,7 @@ fun ExerciseSummaryScreen(
             paceLabel = stringResource(R.string.exercise_avg_pace),
             steps = session.stepCount?.toString(),
             stepsLabel = stringResource(R.string.exercise_steps),
+            showSteps = session.kind != ActivityKind.Cycling,
         )
 
         OutlinedTextField(
@@ -106,6 +116,11 @@ fun ExerciseSummaryScreen(
             onValueChange = { note = it },
             label = { Text(stringResource(R.string.exercise_note_hint)) },
             modifier = Modifier.fillMaxWidth(),
+        )
+
+        PostWorkoutBpCard(
+            hasRecentPostBp = hasRecentPostBp,
+            onMeasureBp = onMeasureBp,
         )
 
         androidx.compose.foundation.layout.Row(

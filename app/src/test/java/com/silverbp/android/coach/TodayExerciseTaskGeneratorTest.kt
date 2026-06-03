@@ -1,6 +1,11 @@
 package com.silverbp.android.coach
 
 import com.silverbp.android.chat.ChatMessage
+import com.silverbp.android.core.BpReading
+import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.db.BpDao
+import com.silverbp.android.core.db.BpReadingEntity
+import com.silverbp.android.core.db.toEntity
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.recognition.chat.ChatRecognizer
@@ -17,6 +22,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
@@ -265,7 +271,92 @@ class TodayExerciseTaskGeneratorTest {
         assertEquals(ActivityKind.Running, s.lastKind)
     }
 
+    // --- BP-aware "measure first" hint (Phase 6) ---
+
+    private val fixedNow = Instant.parse("2026-05-07T10:00:00Z")
+    private val fixedClock = Clock.fixed(fixedNow, ZoneId.of("UTC"))
+
+    @Test
+    fun `high recent BP forces measure-first hint and overrides LLM subtitle`() = runTest {
+        // A crisis-level reading in the last 24h → gate BLOCK → hint shown.
+        val gen = TodayExerciseTaskGenerator(
+            summaryProvider = { emptySummary },
+            chatFactory = { fakeRecognizer("""{"title":"今天先 18 分鐘","subtitle":"從家門口開始"}""") },
+            bp = fakeBpRepo(listOf(reading(systolic = 190, diastolic = 120, at = fixedNow))),
+            clock = fixedClock,
+        )
+        val result = gen.generate(plan, baseTask, settings)
+        assertEquals("今天先 18 分鐘", result.title)
+        assertEquals("先量血壓再開始", result.subtitle)
+        assertTrue(result.isLlmGenerated)
+    }
+
+    @Test
+    fun `no recent BP forces measure-first hint on fallback path`() = runTest {
+        // Empty BP → gate CAUTION (measure first) → hint even when LLM not ready.
+        val gen = TodayExerciseTaskGenerator(
+            summaryProvider = { emptySummary },
+            chatFactory = { fakeRecognizer("ignored", ready = false) },
+            bp = fakeBpRepo(emptyList()),
+            clock = fixedClock,
+        )
+        val result = gen.generate(plan, baseTask, settings)
+        assertEquals(baseTask.title, result.title)
+        assertEquals("先量血壓再開始", result.subtitle)
+        assertFalse(result.isLlmGenerated)
+    }
+
+    @Test
+    fun `normal recent BP keeps the LLM subtitle and adds no hint`() = runTest {
+        val gen = TodayExerciseTaskGenerator(
+            summaryProvider = { emptySummary },
+            chatFactory = { fakeRecognizer("""{"title":"今天先 18 分鐘","subtitle":"從家門口開始"}""") },
+            bp = fakeBpRepo(listOf(reading(systolic = 120, diastolic = 78, at = fixedNow))),
+            clock = fixedClock,
+        )
+        val result = gen.generate(plan, baseTask, settings)
+        assertEquals("從家門口開始", result.subtitle)
+    }
+
+    @Test
+    fun `high recent BP shows hint even on safety-hold task`() = runTest {
+        val gen = TodayExerciseTaskGenerator(
+            summaryProvider = { error("summary should not be requested for safety-hold task") },
+            chatFactory = { error("chat should not be invoked for safety-hold task") },
+            bp = fakeBpRepo(listOf(reading(systolic = 190, diastolic = 120, at = fixedNow))),
+            clock = fixedClock,
+        )
+        val result = gen.generate(plan, baseTask.copy(safetyHold = true), settings)
+        assertEquals(baseTask.title, result.title)
+        assertEquals("先量血壓再開始", result.subtitle)
+        assertFalse(result.isLlmGenerated)
+    }
+
     // --- Test helpers ---
+
+    private fun reading(systolic: Int, diastolic: Int, at: Instant) = BpReading(
+        systolic = systolic,
+        diastolic = diastolic,
+        timestamp = at,
+    )
+
+    private fun fakeBpRepo(readings: List<BpReading>): BpRepository =
+        BpRepository(object : BpDao {
+            override fun observeRange(from: Long, to: Long): Flow<List<BpReadingEntity>> =
+                flowOf(
+                    readings
+                        .filter { it.timestamp.toEpochMilli() in from..to }
+                        .map { it.toEntity() },
+                )
+
+            override fun observeLatest() = error("unused")
+            override fun observeAll() = error("unused")
+            override suspend fun findById(id: String): BpReadingEntity? = error("unused")
+            override suspend fun insert(r: BpReadingEntity) = error("unused")
+            override suspend fun update(r: BpReadingEntity) = error("unused")
+            override suspend fun delete(id: String) = error("unused")
+            override suspend fun count(): Int = error("unused")
+        })
 
     private fun fakeRecognizer(response: String, ready: Boolean = true) = object : ChatRecognizer {
         override fun isReady(): Boolean = ready

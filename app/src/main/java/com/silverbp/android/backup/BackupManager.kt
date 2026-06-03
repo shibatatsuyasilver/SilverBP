@@ -281,14 +281,14 @@ class BackupManager(
         entropy.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
 
     /**
-     * Replace 模式: 在 transaction 內清空 17 個 sync 表 + tombstones.
+     * Replace 模式: 在 transaction 內清空 21 個 sync 表 + tombstones.
      * 不碰 sync_device / sync_outbox(LAN 配對狀態) 與 user_settings DataStore.
      */
     private fun clearSyncTables() {
         database.runInTransaction {
             val db = database.openHelper.writableDatabase
             // CASCADE 會帶走子表(route_point, medication_schedule, coach_task,
-            // chat_message, reading_tag),所以順序不嚴格但這樣寫比較清楚.
+            // set_log, chat_message, reading_tag),所以順序不嚴格但這樣寫比較清楚.
             db.execSQL("DELETE FROM reading_tag")
             db.execSQL("DELETE FROM tag")
             db.execSQL("DELETE FROM route_point")
@@ -302,6 +302,10 @@ class BackupManager(
             db.execSQL("DELETE FROM coach_plan")
             db.execSQL("DELETE FROM sleep_log")
             db.execSQL("DELETE FROM diet_check")
+            db.execSQL("DELETE FROM set_log")
+            db.execSQL("DELETE FROM strength_workout_session")
+            db.execSQL("DELETE FROM exercise_catalog_item")
+            db.execSQL("DELETE FROM bp_workout_association")
             db.execSQL("DELETE FROM chat_message")
             db.execSQL("DELETE FROM chat_session")
             db.execSQL("DELETE FROM bp_reading")

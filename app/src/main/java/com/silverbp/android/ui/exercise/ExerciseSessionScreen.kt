@@ -55,6 +55,7 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.silverbp.android.R
+import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.exercise.RunState
 import com.silverbp.android.exercise.SessionLive
@@ -281,10 +282,13 @@ private fun SessionStats(live: SessionLive) {
             value = ExerciseMath.formatPace(live.paceSecPerKm),
             label = stringResource(R.string.exercise_pace),
         )
-        StatCell(
-            value = (live.stepCount ?: 0).toString(),
-            label = stringResource(R.string.exercise_steps),
-        )
+        // Cycling has no step sensor; omit the steps cell so it doesn't show 0.
+        if (live.kind != ActivityKind.Cycling) {
+            StatCell(
+                value = (live.stepCount ?: 0).toString(),
+                label = stringResource(R.string.exercise_steps),
+            )
+        }
     }
 }
 

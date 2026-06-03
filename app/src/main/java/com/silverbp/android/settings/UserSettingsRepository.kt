@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import com.silverbp.android.backup.auto.AutoBackupFrequency
+import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
 import com.silverbp.android.security.DbKeyStore
@@ -55,6 +56,10 @@ class UserSettingsRepository(private val context: Context) {
         val CHAT_PERSONA = stringPreferencesKey("chat_persona")
         val CHAT_INCLUDE_RECORDS = booleanPreferencesKey("chat_include_records")
         val ENABLE_COACH = booleanPreferencesKey("enable_coach")
+        val REMINDER_ENABLED = booleanPreferencesKey("coach_reminder_enabled")
+        val REMINDER_HOUR = intPreferencesKey("coach_reminder_hour")
+        val REMINDER_MINUTE = intPreferencesKey("coach_reminder_minute")
+        val REMINDER_DAYS_MASK = intPreferencesKey("coach_reminder_days_mask")
         val WEEKLY_AEROBIC_MIN = intPreferencesKey("weekly_aerobic_min")
         val DAILY_SODIUM_MG = intPreferencesKey("daily_sodium_mg")
         val TARGET_SLEEP_HOURS = floatPreferencesKey("target_sleep_hours")
@@ -74,6 +79,12 @@ class UserSettingsRepository(private val context: Context) {
         val LAST_BACKUP_AT_MS = longPreferencesKey("last_backup_at_ms")
         val LAST_BACKUP_ERROR = stringPreferencesKey("last_backup_error")
         val LAST_BACKUP_ERROR_AT_MS = longPreferencesKey("last_backup_error_at_ms")
+
+        // Goal profile (onboarding Phase 4) — feeds CoachEngine plan generation.
+        val PRIMARY_GOAL = stringPreferencesKey("primary_goal")
+        val EXPERIENCE_LEVEL = stringPreferencesKey("experience_level")
+        val WEEKLY_AVAILABILITY_DAYS = intPreferencesKey("weekly_availability_days")
+        val TRAINING_STYLE = stringPreferencesKey("training_style")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -102,6 +113,10 @@ class UserSettingsRepository(private val context: Context) {
             chatPersona = reveal(prefs[Keys.CHAT_PERSONA] ?: ""),
             chatIncludeRecordsContext = prefs[Keys.CHAT_INCLUDE_RECORDS] ?: true,
             enableCoach = prefs[Keys.ENABLE_COACH] ?: true,
+            reminderEnabled = prefs[Keys.REMINDER_ENABLED] ?: true,
+            reminderHour = prefs[Keys.REMINDER_HOUR] ?: 7,
+            reminderMinute = prefs[Keys.REMINDER_MINUTE] ?: 0,
+            reminderDaysMask = prefs[Keys.REMINDER_DAYS_MASK] ?: DayOfWeekMask.ALL,
             weeklyAerobicMinTarget = prefs[Keys.WEEKLY_AEROBIC_MIN] ?: 150,
             dailySodiumTargetMg = prefs[Keys.DAILY_SODIUM_MG] ?: 2000,
             targetSleepHours = prefs[Keys.TARGET_SLEEP_HOURS] ?: 7.0f,
@@ -117,6 +132,10 @@ class UserSettingsRepository(private val context: Context) {
             lastBackupAtMs = prefs[Keys.LAST_BACKUP_AT_MS] ?: 0L,
             lastBackupError = prefs[Keys.LAST_BACKUP_ERROR] ?: "",
             lastBackupErrorAtMs = prefs[Keys.LAST_BACKUP_ERROR_AT_MS] ?: 0L,
+            primaryGoal = prefs[Keys.PRIMARY_GOAL] ?: "",
+            experienceLevel = prefs[Keys.EXPERIENCE_LEVEL] ?: "",
+            weeklyAvailabilityDays = prefs[Keys.WEEKLY_AVAILABILITY_DAYS] ?: 0,
+            trainingStyle = prefs[Keys.TRAINING_STYLE] ?: "",
         )
     }
 
@@ -174,6 +193,18 @@ class UserSettingsRepository(private val context: Context) {
     suspend fun setEnableCoach(v: Boolean) {
         context.dataStore.edit { it[Keys.ENABLE_COACH] = v }
     }
+    suspend fun setReminderEnabled(v: Boolean) {
+        context.dataStore.edit { it[Keys.REMINDER_ENABLED] = v }
+    }
+    suspend fun setReminderTime(hour: Int, minute: Int) {
+        context.dataStore.edit {
+            it[Keys.REMINDER_HOUR] = hour.coerceIn(0, 23)
+            it[Keys.REMINDER_MINUTE] = minute.coerceIn(0, 59)
+        }
+    }
+    suspend fun setReminderDaysMask(mask: Int) {
+        context.dataStore.edit { it[Keys.REMINDER_DAYS_MASK] = mask and DayOfWeekMask.ALL }
+    }
     suspend fun setWeeklyAerobicMinTarget(v: Int) {
         context.dataStore.edit { it[Keys.WEEKLY_AEROBIC_MIN] = v.coerceIn(60, 600) }
     }
@@ -195,6 +226,19 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setAcceptedPolicyVersion(v: Int) {
         context.dataStore.edit { it[Keys.ACCEPTED_POLICY_VERSION] = v }
+    }
+
+    suspend fun setPrimaryGoal(v: PrimaryGoal) {
+        context.dataStore.edit { it[Keys.PRIMARY_GOAL] = v.raw }
+    }
+    suspend fun setExperienceLevel(v: ExperienceLevel) {
+        context.dataStore.edit { it[Keys.EXPERIENCE_LEVEL] = v.raw }
+    }
+    suspend fun setWeeklyAvailabilityDays(v: Int) {
+        context.dataStore.edit { it[Keys.WEEKLY_AVAILABILITY_DAYS] = v.coerceIn(0, 7) }
+    }
+    suspend fun setTrainingStyle(v: TrainingStyle) {
+        context.dataStore.edit { it[Keys.TRAINING_STYLE] = v.raw }
     }
 
     suspend fun setAppLockEnabled(v: Boolean) {
@@ -282,6 +326,9 @@ class UserSettingsRepository(private val context: Context) {
         prefs[Keys.MODEL_ID]?.let { out[Keys.MODEL_ID.name] = KvValue.T(it) }
         prefs[Keys.GEMINI_MODEL]?.let { out[Keys.GEMINI_MODEL.name] = KvValue.T(it) }
         prefs[Keys.VISION_OVERRIDE]?.let { out[Keys.VISION_OVERRIDE.name] = KvValue.T(it) }
+        prefs[Keys.PRIMARY_GOAL]?.let { out[Keys.PRIMARY_GOAL.name] = KvValue.T(it) }
+        prefs[Keys.EXPERIENCE_LEVEL]?.let { out[Keys.EXPERIENCE_LEVEL.name] = KvValue.T(it) }
+        prefs[Keys.TRAINING_STYLE]?.let { out[Keys.TRAINING_STYLE.name] = KvValue.T(it) }
         // Auto-backup frequency is the only auto-backup key that's portable
         // across devices — restoring on a new phone should remember the user's
         // preferred cadence even though the Google account link must be redone.
@@ -315,6 +362,7 @@ class UserSettingsRepository(private val context: Context) {
         prefs[Keys.DID_OFFER_NOTIF_PROMPT]?.let { out[Keys.DID_OFFER_NOTIF_PROMPT.name] = KvValue.B(it) }
         prefs[Keys.CHAT_INCLUDE_RECORDS]?.let { out[Keys.CHAT_INCLUDE_RECORDS.name] = KvValue.B(it) }
         prefs[Keys.ENABLE_COACH]?.let { out[Keys.ENABLE_COACH.name] = KvValue.B(it) }
+        prefs[Keys.REMINDER_ENABLED]?.let { out[Keys.REMINDER_ENABLED.name] = KvValue.B(it) }
         prefs[Keys.SLEEP_TRACKING]?.let { out[Keys.SLEEP_TRACKING.name] = KvValue.B(it) }
         prefs[Keys.DIET_TRACKING]?.let { out[Keys.DIET_TRACKING.name] = KvValue.B(it) }
         prefs[Keys.APP_LOCK_ENABLED]?.let { out[Keys.APP_LOCK_ENABLED.name] = KvValue.B(it) }
@@ -322,10 +370,14 @@ class UserSettingsRepository(private val context: Context) {
         // ints
         prefs[Keys.MAX_NUM_TOKENS]?.let { out[Keys.MAX_NUM_TOKENS.name] = KvValue.I(it) }
         prefs[Keys.DAILY_STEP_GOAL]?.let { out[Keys.DAILY_STEP_GOAL.name] = KvValue.I(it) }
+        prefs[Keys.REMINDER_HOUR]?.let { out[Keys.REMINDER_HOUR.name] = KvValue.I(it) }
+        prefs[Keys.REMINDER_MINUTE]?.let { out[Keys.REMINDER_MINUTE.name] = KvValue.I(it) }
+        prefs[Keys.REMINDER_DAYS_MASK]?.let { out[Keys.REMINDER_DAYS_MASK.name] = KvValue.I(it) }
         prefs[Keys.WEEKLY_AEROBIC_MIN]?.let { out[Keys.WEEKLY_AEROBIC_MIN.name] = KvValue.I(it) }
         prefs[Keys.DAILY_SODIUM_MG]?.let { out[Keys.DAILY_SODIUM_MG.name] = KvValue.I(it) }
         prefs[Keys.ACCEPTED_POLICY_VERSION]?.let { out[Keys.ACCEPTED_POLICY_VERSION.name] = KvValue.I(it) }
         prefs[Keys.APP_LOCK_TIMEOUT]?.let { out[Keys.APP_LOCK_TIMEOUT.name] = KvValue.I(it) }
+        prefs[Keys.WEEKLY_AVAILABILITY_DAYS]?.let { out[Keys.WEEKLY_AVAILABILITY_DAYS.name] = KvValue.I(it) }
 
         // floats
         prefs[Keys.TARGET_SLEEP_HOURS]?.let { out[Keys.TARGET_SLEEP_HOURS.name] = KvValue.F(it) }
@@ -348,6 +400,9 @@ class UserSettingsRepository(private val context: Context) {
                 Keys.GEMINI_MODEL.name -> if (value is KvValue.T) prefs[Keys.GEMINI_MODEL] = value.value
                 Keys.VISION_OVERRIDE.name -> if (value is KvValue.T) prefs[Keys.VISION_OVERRIDE] = value.value
                 Keys.AUTO_BACKUP_FREQ.name -> if (value is KvValue.T) prefs[Keys.AUTO_BACKUP_FREQ] = value.value
+                Keys.PRIMARY_GOAL.name -> if (value is KvValue.T) prefs[Keys.PRIMARY_GOAL] = value.value
+                Keys.EXPERIENCE_LEVEL.name -> if (value is KvValue.T) prefs[Keys.EXPERIENCE_LEVEL] = value.value
+                Keys.TRAINING_STYLE.name -> if (value is KvValue.T) prefs[Keys.TRAINING_STYLE] = value.value
 
                 // sensitive strings — re-protect with this device's Keystore alias.
                 Keys.GEMINI_KEY.name -> if (value is KvValue.T) prefs[Keys.GEMINI_KEY] = protect(value.value)
@@ -366,6 +421,7 @@ class UserSettingsRepository(private val context: Context) {
                 Keys.DID_OFFER_NOTIF_PROMPT.name -> if (value is KvValue.B) prefs[Keys.DID_OFFER_NOTIF_PROMPT] = value.value
                 Keys.CHAT_INCLUDE_RECORDS.name -> if (value is KvValue.B) prefs[Keys.CHAT_INCLUDE_RECORDS] = value.value
                 Keys.ENABLE_COACH.name -> if (value is KvValue.B) prefs[Keys.ENABLE_COACH] = value.value
+                Keys.REMINDER_ENABLED.name -> if (value is KvValue.B) prefs[Keys.REMINDER_ENABLED] = value.value
                 Keys.SLEEP_TRACKING.name -> if (value is KvValue.B) prefs[Keys.SLEEP_TRACKING] = value.value
                 Keys.DIET_TRACKING.name -> if (value is KvValue.B) prefs[Keys.DIET_TRACKING] = value.value
                 Keys.APP_LOCK_ENABLED.name -> if (value is KvValue.B) prefs[Keys.APP_LOCK_ENABLED] = value.value
@@ -373,10 +429,14 @@ class UserSettingsRepository(private val context: Context) {
                 // ints
                 Keys.MAX_NUM_TOKENS.name -> if (value is KvValue.I) prefs[Keys.MAX_NUM_TOKENS] = value.value
                 Keys.DAILY_STEP_GOAL.name -> if (value is KvValue.I) prefs[Keys.DAILY_STEP_GOAL] = value.value.coerceIn(2_000, 30_000)
+                Keys.REMINDER_HOUR.name -> if (value is KvValue.I) prefs[Keys.REMINDER_HOUR] = value.value.coerceIn(0, 23)
+                Keys.REMINDER_MINUTE.name -> if (value is KvValue.I) prefs[Keys.REMINDER_MINUTE] = value.value.coerceIn(0, 59)
+                Keys.REMINDER_DAYS_MASK.name -> if (value is KvValue.I) prefs[Keys.REMINDER_DAYS_MASK] = value.value and DayOfWeekMask.ALL
                 Keys.WEEKLY_AEROBIC_MIN.name -> if (value is KvValue.I) prefs[Keys.WEEKLY_AEROBIC_MIN] = value.value.coerceIn(60, 600)
                 Keys.DAILY_SODIUM_MG.name -> if (value is KvValue.I) prefs[Keys.DAILY_SODIUM_MG] = value.value.coerceIn(1000, 4000)
                 Keys.ACCEPTED_POLICY_VERSION.name -> if (value is KvValue.I) prefs[Keys.ACCEPTED_POLICY_VERSION] = value.value
                 Keys.APP_LOCK_TIMEOUT.name -> if (value is KvValue.I) prefs[Keys.APP_LOCK_TIMEOUT] = value.value.coerceIn(0, 600)
+                Keys.WEEKLY_AVAILABILITY_DAYS.name -> if (value is KvValue.I) prefs[Keys.WEEKLY_AVAILABILITY_DAYS] = value.value.coerceIn(0, 7)
 
                 // floats
                 Keys.TARGET_SLEEP_HOURS.name -> if (value is KvValue.F) prefs[Keys.TARGET_SLEEP_HOURS] = value.value.coerceIn(4f, 12f)

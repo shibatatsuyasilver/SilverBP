@@ -34,6 +34,7 @@ import com.silverbp.android.ui.coach.components.WeeklyProgressCard
 @Composable
 fun CoachScreen(
     onOpenWeeklyReport: () -> Unit = {},
+    onOpenWeeklyPlan: () -> Unit = {},
     onOpenLogDiet: () -> Unit = {},
     onOpenLogSleep: () -> Unit = {},
     onOpenLogMedication: () -> Unit = {},
@@ -67,6 +68,7 @@ fun CoachScreen(
                 state = s,
                 onStartExercise = onStartExercise,
                 onOpenWeeklyReport = onOpenWeeklyReport,
+                onOpenWeeklyPlan = onOpenWeeklyPlan,
                 onOpenLogDiet = onOpenLogDiet,
                 onOpenLogSleep = onOpenLogSleep,
                 onOpenLogMedication = onOpenLogMedication,
@@ -83,6 +85,7 @@ private fun ReadyContent(
     state: CoachUiState.Ready,
     onStartExercise: () -> Unit,
     onOpenWeeklyReport: () -> Unit,
+    onOpenWeeklyPlan: () -> Unit,
     onOpenLogDiet: () -> Unit,
     onOpenLogSleep: () -> Unit,
     onOpenLogMedication: () -> Unit,
@@ -114,6 +117,13 @@ private fun ReadyContent(
         }
 
         WeeklyProgressCard(state = state.weeklyProgress)
+
+        OutlinedButton(
+            onClick = onOpenWeeklyPlan,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.coach_view_weekly_plan))
+        }
 
         OutlinedButton(
             onClick = onOpenWeeklyReport,

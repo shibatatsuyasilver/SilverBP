@@ -1,6 +1,8 @@
 package com.silverbp.android.coach
 
 import com.silverbp.android.chat.ChatMessage
+import com.silverbp.android.core.BpReading
+import com.silverbp.android.core.BpRepository
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
@@ -31,6 +33,8 @@ import java.time.temporal.ChronoUnit
 class TodayExerciseTaskGenerator(
     private val summaryProvider: RecentExerciseSummaryProvider,
     private val chatFactory: suspend () -> ChatRecognizer,
+    private val bp: BpRepository? = null,
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) {
 
     suspend fun generate(
@@ -38,20 +42,25 @@ class TodayExerciseTaskGenerator(
         baseTask: CoachTask,
         settings: UserSettings,
     ): TodayTaskOverlay {
+        // BP-aware "measure first" hint, shown whenever recent BP does not clear
+        // the workout gate (not ALLOW). Takes precedence over the LLM subtitle so
+        // the safety nudge is never paraphrased away. Null = no hint.
+        val bpHint = bpGateHint()
+
         if (baseTask.safetyHold) {
             return TodayTaskOverlay(
                 title = baseTask.title,
-                subtitle = null,
+                subtitle = bpHint,
                 isLlmGenerated = false,
             )
         }
 
         val summary = runCatching { summaryProvider.get(settings) }.getOrNull()
-            ?: return fallback(baseTask)
+            ?: return fallback(baseTask, bpHint)
 
         val recognizer = runCatching { chatFactory() }.getOrNull()
         if (recognizer == null || !recognizer.isReady()) {
-            return fallback(baseTask)
+            return fallback(baseTask, bpHint)
         }
 
         val raw = runCatching {
@@ -63,11 +72,11 @@ class TodayExerciseTaskGenerator(
             val sb = StringBuilder()
             recognizer.chat(listOf(sys, user)).collect { delta -> sb.append(delta) }
             sb.toString()
-        }.getOrNull() ?: return fallback(baseTask)
+        }.getOrNull() ?: return fallback(baseTask, bpHint)
 
-        val parsed = parseJson(raw) ?: return fallback(baseTask)
-        val title = parsed.title.trim().takeIf { it.isNotEmpty() } ?: return fallback(baseTask)
-        val subtitle = parsed.subtitle?.trim()?.takeIf { it.isNotEmpty() }
+        val parsed = parseJson(raw) ?: return fallback(baseTask, bpHint)
+        val title = parsed.title.trim().takeIf { it.isNotEmpty() } ?: return fallback(baseTask, bpHint)
+        val subtitle = bpHint ?: parsed.subtitle?.trim()?.takeIf { it.isNotEmpty() }
         return TodayTaskOverlay(
             title = title,
             subtitle = subtitle,
@@ -75,9 +84,24 @@ class TodayExerciseTaskGenerator(
         )
     }
 
-    private fun fallback(baseTask: CoachTask): TodayTaskOverlay = TodayTaskOverlay(
+    /**
+     * "先量血壓再開始" when the last 24 h of BP do not clear the workout gate
+     * (any verdict other than [WorkoutBpGate.Allow], which includes missing
+     * data). Returns null when BP is unavailable or the gate is ALLOW.
+     */
+    private suspend fun bpGateHint(): String? {
+        val repo = bp ?: return null
+        val now = clock.instant()
+        val recent: List<BpReading> = runCatching {
+            repo.observeRange(now.minus(24, ChronoUnit.HOURS), now).first()
+        }.getOrNull() ?: return null
+        return if (CoachEngine.shouldAllowWorkout(recent, now) is WorkoutBpGate.Allow) null
+        else BP_MEASURE_HINT
+    }
+
+    private fun fallback(baseTask: CoachTask, bpHint: String? = null): TodayTaskOverlay = TodayTaskOverlay(
         title = baseTask.title,
-        subtitle = null,
+        subtitle = bpHint,
         isLlmGenerated = false,
     )
 
@@ -114,6 +138,10 @@ class TodayExerciseTaskGenerator(
 
     companion object {
         private val JSON = Json { ignoreUnknownKeys = true; isLenient = true }
+
+        // User-facing safety nudge (Traditional-Chinese), emitted directly like
+        // the engine's gate reasons. Kept in sync with R.string.bpworkout_today_measure_first.
+        private const val BP_MEASURE_HINT = "先量血壓再開始"
     }
 }
 

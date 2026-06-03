@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.viewmodel.initializer
 import com.silverbp.android.R
+import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.ui.exercise.components.StatsCard
 import java.time.ZoneId
@@ -122,6 +123,7 @@ fun ExerciseDetailScreen(
                 paceLabel = stringResource(R.string.exercise_avg_pace),
                 steps = s.stepCount?.toString(),
                 stepsLabel = stringResource(R.string.exercise_steps),
+                showSteps = s.kind != ActivityKind.Cycling,
             )
 
             if (s.note.isNotBlank()) {

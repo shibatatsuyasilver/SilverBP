@@ -35,6 +35,7 @@ import com.silverbp.android.ui.coach.CoachLogDietScreen
 import com.silverbp.android.ui.coach.CoachLogMedicationScreen
 import com.silverbp.android.ui.coach.CoachLogSleepScreen
 import com.silverbp.android.ui.coach.CoachScreen
+import com.silverbp.android.ui.coach.CoachWeeklyPlanScreen
 import com.silverbp.android.ui.coach.CoachWeeklyReportScreen
 import com.silverbp.android.ui.coach.MedicationEditScreen
 import com.silverbp.android.ui.coach.MedicationManageScreen
@@ -45,9 +46,12 @@ import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
 import com.silverbp.android.ui.history.HistoryScreen
 import com.silverbp.android.ui.insights.InsightsScreen
+import com.silverbp.android.ui.onboarding.LinkAccountScreen
 import com.silverbp.android.ui.onboarding.OnboardingNicknameScreen
 import com.silverbp.android.ui.report.ReportScreen
 import com.silverbp.android.ui.settings.SettingsScreen
+import com.silverbp.android.ui.strength.WorkoutSessionScreen
+import com.silverbp.android.ui.strength.WorkoutSummaryScreen
 import com.silverbp.android.ui.today.TodayScreen
 
 @Composable
@@ -66,6 +70,23 @@ fun AppNavHost() {
     LaunchedEffect(needsOnboarding) {
         if (needsOnboarding == true) {
             rootNav.navigate(Routes.ONBOARDING) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    // Chained second gate (Phase 5): once onboarding is satisfied, require a
+    // linked Google account so data is backed up to Drive. Hard gate — a user
+    // without a Google account cannot pass. Chained AFTER needsOnboarding so it
+    // never fires while still un-onboarded; once googleAccountEmail is set it
+    // becomes false and never re-fires.
+    val needsGoogleSignIn: Boolean? = rootSettings?.let {
+        needsOnboarding == false && it.googleAccountEmail.isBlank()
+    }
+    LaunchedEffect(needsGoogleSignIn) {
+        if (needsGoogleSignIn == true) {
+            rootNav.navigate(Routes.ONBOARDING_LINK) {
                 popUpTo(Routes.HOME) { inclusive = true }
                 launchSingleTop = true
             }
@@ -105,6 +126,16 @@ fun AppNavHost() {
                 },
             )
         }
+        composable(Routes.ONBOARDING_LINK) {
+            LinkAccountScreen(
+                onLinked = {
+                    rootNav.navigate(Routes.HOME) {
+                        popUpTo(Routes.ONBOARDING_LINK) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
         composable(Routes.CAPTURE) {
             CaptureScreen(
                 onCaptured = { readingId -> rootNav.navigate(Routes.confirmEdit(readingId)) },
@@ -137,6 +168,21 @@ fun AppNavHost() {
         }
         composable(Routes.EXERCISE_SUMMARY) {
             ExerciseSummaryScreen(
+                onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onDiscard = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+            )
+        }
+        composable(Routes.STRENGTH_SESSION) {
+            WorkoutSessionScreen(
+                onFinished = {
+                    rootNav.navigate(Routes.STRENGTH_SUMMARY) {
+                        popUpTo(Routes.STRENGTH_SESSION) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Routes.STRENGTH_SUMMARY) {
+            WorkoutSummaryScreen(
                 onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onDiscard = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
             )
@@ -183,6 +229,9 @@ fun AppNavHost() {
         // Coach sub-routes — modal-style, hide bottom bar like Settings/Report.
         composable(Routes.COACH_WEEKLY_REPORT) {
             CoachWeeklyReportScreen(onClose = { rootNav.popBackStack() })
+        }
+        composable(Routes.COACH_WEEKLY_PLAN) {
+            CoachWeeklyPlanScreen(onClose = { rootNav.popBackStack() })
         }
         composable(Routes.COACH_LOG_DIET) {
             CoachLogDietScreen(onClose = { rootNav.popBackStack() })
@@ -316,6 +365,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
     composable(TabDestination.Coach.route) {
         CoachScreen(
             onOpenWeeklyReport = { rootNav.navigate(Routes.COACH_WEEKLY_REPORT) },
+            onOpenWeeklyPlan = { rootNav.navigate(Routes.COACH_WEEKLY_PLAN) },
             onOpenLogDiet = { rootNav.navigate(Routes.COACH_LOG_DIET) },
             onOpenLogSleep = { rootNav.navigate(Routes.COACH_LOG_SLEEP) },
             onOpenLogMedication = { rootNav.navigate(Routes.COACH_LOG_MEDICATION) },
@@ -325,6 +375,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
     composable(TabDestination.Exercise.route) {
         ExerciseHomeScreen(
             onStartSession = { rootNav.navigate(Routes.EXERCISE_SESSION) },
+            onStartStrengthSession = { rootNav.navigate(Routes.STRENGTH_SESSION) },
             onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
             onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
         )

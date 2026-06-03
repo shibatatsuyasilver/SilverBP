@@ -78,6 +78,9 @@ data class CoachTask(
     val intensity: TaskIntensity = TaskIntensity.Light,
     val safetyHold: Boolean = false,
     val completedAtMillis: Long? = null,
+    val skipped: Boolean = false,
+    /** null = keep [dayOffset]; non-null = user-moved target day. */
+    val movedDayOffset: Int? = null,
 )
 
 @Serializable

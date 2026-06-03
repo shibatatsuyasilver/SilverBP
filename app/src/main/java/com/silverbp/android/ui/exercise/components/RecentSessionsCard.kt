@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -86,8 +88,7 @@ private fun SessionRow(session: ExerciseSession, onClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = if (session.kind == ActivityKind.Walking)
-                    Icons.AutoMirrored.Filled.DirectionsWalk else Icons.AutoMirrored.Filled.DirectionsRun,
+                imageVector = iconForKind(session.kind),
                 contentDescription = null,
                 tint = Color.White,
             )
@@ -108,4 +109,11 @@ private fun SessionRow(session: ExerciseSession, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodyLarge,
         )
     }
+}
+
+private fun iconForKind(kind: ActivityKind): ImageVector = when (kind) {
+    ActivityKind.Walking -> Icons.AutoMirrored.Filled.DirectionsWalk
+    ActivityKind.Running -> Icons.AutoMirrored.Filled.DirectionsRun
+    ActivityKind.BriskWalking -> Icons.AutoMirrored.Filled.DirectionsWalk
+    ActivityKind.Cycling -> Icons.AutoMirrored.Filled.DirectionsBike
 }

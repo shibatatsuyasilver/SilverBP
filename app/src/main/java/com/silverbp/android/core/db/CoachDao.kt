@@ -54,6 +54,12 @@ interface CoachPlanDao {
     @Query("UPDATE coach_task SET completedAt = :ts WHERE id = :id")
     suspend fun setCompleted(id: String, ts: Long?)
 
+    @Query("UPDATE coach_task SET movedDayOffset = :newDay WHERE id = :id")
+    suspend fun moveTask(id: String, newDay: Int?)
+
+    @Query("UPDATE coach_task SET skipped = :skipped WHERE id = :id")
+    suspend fun markSkipped(id: String, skipped: Boolean)
+
     @Query(
         """
         SELECT moduleRaw AS moduleRaw,

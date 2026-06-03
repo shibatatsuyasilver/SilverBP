@@ -114,6 +114,9 @@ class HealthConnectExerciseBridge(private val context: Context) {
                 exerciseType = when (session.kind) {
                     ActivityKind.Walking -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
                     ActivityKind.Running -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
+                    // No "moderately paced walking" HC type; brisk walking is plain walking.
+                    ActivityKind.BriskWalking -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
+                    ActivityKind.Cycling -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING
                 },
                 title = session.note.takeIf { it.isNotBlank() },
                 exerciseRoute = if (points.size >= 2) {

@@ -106,8 +106,12 @@
     <!-- Exercise -->
     <string name="exercise_kind_walking">走路</string>
     <string name="exercise_kind_running">跑步</string>
+    <string name="exercise_kind_brisk_walking">健走</string>
+    <string name="exercise_kind_cycling">騎車</string>
     <string name="exercise_start_walking">開始走路</string>
     <string name="exercise_start_running">開始跑步</string>
+    <string name="exercise_start_brisk_walking">開始健走</string>
+    <string name="exercise_start_cycling">開始騎車</string>
     <string name="exercise_pause">暫停</string>
     <string name="exercise_resume">繼續</string>
     <string name="exercise_stop">停止</string>
@@ -126,6 +130,8 @@
     <string name="exercise_notification_channel_desc">運動 session 進行中的常駐通知。</string>
     <string name="exercise_notification_title_walk">記錄走路中</string>
     <string name="exercise_notification_title_run">記錄跑步中</string>
+    <string name="exercise_notification_title_brisk_walk">記錄健走中</string>
+    <string name="exercise_notification_title_cycle">記錄騎車中</string>
     <string name="exercise_notification_paused_suffix"> · 已暫停</string>
     <string name="exercise_recording_body_with_pace">%1$s · %2$s · %3$s</string>
     <string name="exercise_recording_body_paused">⏸ %1$s · %2$s</string>

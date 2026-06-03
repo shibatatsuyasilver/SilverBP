@@ -22,6 +22,8 @@ internal object RouteBitmapRenderer {
     private const val CURRENT_RING_COLOR = Color.WHITE
     private const val WALK_STROKE_COLOR = 0xFF2E7D32.toInt() // green-800
     private const val RUN_STROKE_COLOR = 0xFFD32F2F.toInt()  // red-700
+    private const val BRISK_WALK_STROKE_COLOR = 0xFF00897B.toInt() // teal-600
+    private const val CYCLE_STROKE_COLOR = 0xFF0288D1.toInt()      // light-blue-700
     private const val PAUSED_STROKE_ALPHA = 0x80              // 50 %
 
     private const val STROKE_WIDTH_DP = 4f
@@ -151,11 +153,13 @@ internal object RouteBitmapRenderer {
         canvas.drawCircle(cx, cy, CURRENT_RADIUS_DP * density, ring)
     }
 
-    /** Walk = green, Run = red; desaturate via alpha when paused. */
+    /** Walk = green, Run = red, BriskWalk = teal, Cycle = blue; desaturate via alpha when paused. */
     fun strokeColorFor(kind: ActivityKind, runState: RunState): Int {
         val base = when (kind) {
             ActivityKind.Walking -> WALK_STROKE_COLOR
             ActivityKind.Running -> RUN_STROKE_COLOR
+            ActivityKind.BriskWalking -> BRISK_WALK_STROKE_COLOR
+            ActivityKind.Cycling -> CYCLE_STROKE_COLOR
         }
         val paused = runState == RunState.Paused || runState == RunState.AutoPaused
         return if (paused) (base and 0x00FFFFFF) or (PAUSED_STROKE_ALPHA shl 24) else base

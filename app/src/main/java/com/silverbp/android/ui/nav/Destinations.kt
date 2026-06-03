@@ -39,6 +39,12 @@ object Routes {
     const val EXERCISE_SESSION = "exercise/session"
     const val EXERCISE_SUMMARY = "exercise/summary"
     fun exerciseDetail(id: String) = "exercise/detail/$id"
+
+    // Strength workout flow — root-level so the bottom bar hides while active,
+    // mirroring EXERCISE_SESSION/EXERCISE_SUMMARY. The library + exercise detail
+    // live inside the Exercise hub tab, so they need no root routes.
+    const val STRENGTH_SESSION = "strength/session"
+    const val STRENGTH_SUMMARY = "strength/summary"
     const val EXERCISE_DETAIL_PATTERN = "exercise/detail/{exerciseId}"
     const val ARG_EXERCISE_ID = "exerciseId"
 
@@ -54,6 +60,7 @@ object Routes {
     // Entry points are inside the Coach tab; later iterations may also link from
     // notifications via deep links.
     const val COACH_WEEKLY_REPORT = "coach/weekly-report"
+    const val COACH_WEEKLY_PLAN = "coach/weekly-plan"
     const val COACH_LOG_DIET = "coach/log-diet"
     const val COACH_LOG_SLEEP = "coach/log-sleep"
     const val COACH_LOG_MEDICATION = "coach/log-medication"
@@ -76,4 +83,9 @@ object Routes {
     // UserSettings.didOnboard is false; clears itself from the back stack on
     // completion so users cannot navigate back into it.
     const val ONBOARDING = "onboarding"
+
+    // First-launch Google sign-in gate (Phase 5). Routed from AppNavHost after
+    // onboarding is complete but while UserSettings.googleAccountEmail is blank.
+    // Hard gate — clears itself from the back stack once the account is linked.
+    const val ONBOARDING_LINK = "onboarding/link"
 }

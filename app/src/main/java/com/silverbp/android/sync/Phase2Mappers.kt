@@ -450,6 +450,8 @@ class MedicationDoseSyncMapper(
  *   7: intensityRaw          (string)
  *   8: safetyHold            (bool)
  *   9: completedAtMs         (int?)
+ *  10: skipped               (bool)
+ *  11: movedDayOffset        (int?)
  *
  * ### sleep_log payload
  *   1: durationMin           (int)
@@ -518,6 +520,8 @@ class CoachTaskSyncMapper(
             7 to SyncValue.Text(entity.intensityRaw),
             8 to SyncValue.Bool(entity.safetyHold),
             9 to (entity.completedAt?.let { SyncValue.Int64(it) } ?: SyncValue.Null),
+            10 to SyncValue.Bool(entity.skipped),
+            11 to (entity.movedDayOffset?.let { SyncValue.Int64(it.toLong()) } ?: SyncValue.Null),
         )
         return SyncRecord(
             type = SyncEntityType.COACH_TASK,
@@ -547,6 +551,10 @@ class CoachTaskSyncMapper(
             intensityRaw = (p[7] as? SyncValue.Text)?.value ?: "light",
             safetyHold = (p[8] as? SyncValue.Bool)?.value ?: false,
             completedAt = (p[9] as? SyncValue.Int64)?.value,
+            // Tags 10/11 added later — peers that predate them fall back to the
+            // entity defaults (not skipped, no move) for backward compatibility.
+            skipped = (p[10] as? SyncValue.Bool)?.value ?: false,
+            movedDayOffset = (p[11] as? SyncValue.Int64)?.value?.toInt(),
             hlcUpdatedAt = record.hlc.packed,
         )
         dao.insertTasks(listOf(entity))

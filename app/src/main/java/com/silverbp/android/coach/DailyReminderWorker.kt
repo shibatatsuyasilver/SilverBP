@@ -28,6 +28,13 @@ class DailyReminderWorker(
     override suspend fun doWork(): Result {
         val s = runCatching { ServiceLocator.userSettings.flow.first() }.getOrNull()
         if (s?.enableCoach != true) return Result.success()
+        // Honor the user's reminder prefs: master toggle + weekday mask. The
+        // worker runs daily but skips notifying on excluded days. (Re-scheduling
+        // moves the next-fire instant; this guard covers same-period edits and
+        // the periodic 24h drift onto a now-excluded day.)
+        if (!s.reminderEnabled) return Result.success()
+        val todayDow = LocalDate.now(ZoneId.systemDefault()).dayOfWeek
+        if (!DayOfWeekMask.contains(s.reminderDaysMask, todayDow)) return Result.success()
 
         return runCatching {
             val now = Clock.systemDefaultZone().millis()

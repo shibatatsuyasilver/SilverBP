@@ -3,14 +3,17 @@ package com.silverbp.android.sync
 import android.util.Log
 import com.silverbp.android.core.db.AchievementDao
 import com.silverbp.android.core.db.BpDao
+import com.silverbp.android.core.db.BpWorkoutAssociationDao
 import com.silverbp.android.core.db.ChatDao
 import com.silverbp.android.core.db.CoachPlanDao
 import com.silverbp.android.core.db.DietDao
 import com.silverbp.android.core.db.ExerciseDao
+import com.silverbp.android.core.db.ExerciseLibraryDao
 import com.silverbp.android.core.db.MedicationDao
 import com.silverbp.android.core.db.MedicationDoseDao
 import com.silverbp.android.core.db.MedicationScheduleDao
 import com.silverbp.android.core.db.SleepDao
+import com.silverbp.android.core.db.StrengthWorkoutDao
 import com.silverbp.android.core.db.SyncDao
 import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.engine.HlcClock
@@ -106,6 +109,13 @@ class CombinedRoomSyncSource(
     private val sleepLogMapper: SleepLogSyncMapper,
     private val dietCheckMapper: DietCheckSyncMapper,
     private val clock: HlcClock,
+    // Strength-training tables (v13). Optional so older callers compile, but
+    // wired by both ServiceLocator (backup) and PairingViewModel (LAN sync).
+    private val exerciseLibraryDao: ExerciseLibraryDao? = null,
+    private val strengthWorkoutDao: StrengthWorkoutDao? = null,
+    private val exerciseCatalogItemMapper: ExerciseCatalogItemSyncMapper? = null,
+    private val strengthWorkoutSessionMapper: StrengthWorkoutSessionSyncMapper? = null,
+    private val setLogMapper: SetLogSyncMapper? = null,
     // Backup-only dependencies — optional so existing LAN sync callers
     // (PairingViewModel) compile without supplying these. Required by
     // [snapshotAll]; the standard [recordsSince] path doesn't touch them.
@@ -113,6 +123,10 @@ class CombinedRoomSyncSource(
     private val chatSessionMapper: ChatSessionSyncMapper? = null,
     private val chatMessageMapper: ChatMessageSyncMapper? = null,
     private val syncDao: SyncDao? = null,
+    // BP↔workout association (v14). Optional so older callers compile, but
+    // wired by both ServiceLocator (backup) and PairingViewModel (LAN sync).
+    private val bpWorkoutAssociationDao: BpWorkoutAssociationDao? = null,
+    private val bpWorkoutAssociationMapper: BpWorkoutAssociationSyncMapper? = null,
 ) : SyncRecordSource {
 
     override suspend fun recordsSince(
@@ -199,6 +213,46 @@ class CombinedRoomSyncSource(
             out += dietCheckMapper.encode(d, hlcFor(d.hlcUpdatedAt))
         }
 
+        // 11. exercise_catalog_item
+        var catalogCount = 0
+        if (exerciseLibraryDao != null && exerciseCatalogItemMapper != null) {
+            for (item in exerciseLibraryDao.allOnce()) {
+                if (out.size >= limit) return out
+                out += exerciseCatalogItemMapper.encode(item, hlcFor(item.hlcUpdatedAt))
+                catalogCount++
+            }
+        }
+
+        // 12a. strength_workout_session — before set_log so the FK on sets resolves.
+        var strengthSessionCount = 0
+        var setLogCount = 0
+        if (strengthWorkoutDao != null && strengthWorkoutSessionMapper != null && setLogMapper != null) {
+            val strengthSessions = strengthWorkoutDao.observeAllSessions().first()
+            for (s in strengthSessions) {
+                if (out.size >= limit) return out
+                out += strengthWorkoutSessionMapper.encode(s, hlcFor(s.hlcUpdatedAt))
+                strengthSessionCount++
+            }
+            // 12b. set_log
+            for (s in strengthSessions) {
+                for (set in strengthWorkoutDao.setsForSession(s.id)) {
+                    if (out.size >= limit) return out
+                    out += setLogMapper.encode(set, hlcFor(set.hlcUpdatedAt))
+                    setLogCount++
+                }
+            }
+        }
+
+        // 13. bp_workout_association
+        var assocCount = 0
+        if (bpWorkoutAssociationDao != null && bpWorkoutAssociationMapper != null) {
+            for (assoc in bpWorkoutAssociationDao.listAll()) {
+                if (out.size >= limit) return out
+                out += bpWorkoutAssociationMapper.encode(assoc, hlcFor(assoc.hlcUpdatedAt))
+                assocCount++
+            }
+        }
+
         val countAfterScalar = out.size
 
         // 8. route_point — emitted LAST so a single GPS-heavy session can't
@@ -217,6 +271,8 @@ class CombinedRoomSyncSource(
                 "sched=${schedules.size} dose=${doses.size} step=${stepLogs.size} " +
                 "ach=${achievements.size} plan=${coachPlans.size} " +
                 "task=${coachTasks.size} sleep=${sleeps.size} diet=${diets.size} " +
+                "catalog=$catalogCount strSession=$strengthSessionCount set=$setLogCount " +
+                "assoc=$assocCount " +
                 "route=${out.size - countAfterScalar} " +
                 "(total=${out.size}/limit=$limit)",
         )
@@ -301,6 +357,33 @@ class CombinedRoomSyncSource(
             out += dietCheckMapper.encode(d, hlcFor(d.hlcUpdatedAt))
         }
 
+        // 10a. exercise_catalog_item
+        if (exerciseLibraryDao != null && exerciseCatalogItemMapper != null) {
+            for (item in exerciseLibraryDao.allOnce()) {
+                out += exerciseCatalogItemMapper.encode(item, hlcFor(item.hlcUpdatedAt))
+            }
+        }
+
+        // 10b. strength_workout_session + set_log (session first for FK order)
+        if (strengthWorkoutDao != null && strengthWorkoutSessionMapper != null && setLogMapper != null) {
+            val strengthSessions = strengthWorkoutDao.observeAllSessions().first()
+            for (s in strengthSessions) {
+                out += strengthWorkoutSessionMapper.encode(s, hlcFor(s.hlcUpdatedAt))
+            }
+            for (s in strengthSessions) {
+                for (set in strengthWorkoutDao.setsForSession(s.id)) {
+                    out += setLogMapper.encode(set, hlcFor(set.hlcUpdatedAt))
+                }
+            }
+        }
+
+        // 10c. bp_workout_association
+        if (bpWorkoutAssociationDao != null && bpWorkoutAssociationMapper != null) {
+            for (assoc in bpWorkoutAssociationDao.listAll()) {
+                out += bpWorkoutAssociationMapper.encode(assoc, hlcFor(assoc.hlcUpdatedAt))
+            }
+        }
+
         // 11. chat_session + chat_message (Backup-only — 不參與 LAN sync)
         if (includeChat && chatDao != null && chatSessionMapper != null && chatMessageMapper != null) {
             // Sessions first so child messages' FK resolves on import.
@@ -360,12 +443,19 @@ class CombinedRoomSyncSink(
     private val coachTaskMapper: CoachTaskSyncMapper,
     private val sleepLogMapper: SleepLogSyncMapper,
     private val dietCheckMapper: DietCheckSyncMapper,
+    // Strength-training mappers (v13). Optional so older callers compile, but
+    // wired by both ServiceLocator (backup) and PairingViewModel (LAN sync).
+    private val exerciseCatalogItemMapper: ExerciseCatalogItemSyncMapper? = null,
+    private val strengthWorkoutSessionMapper: StrengthWorkoutSessionSyncMapper? = null,
+    private val setLogMapper: SetLogSyncMapper? = null,
     // Backup-only mappers. Provided by BackupManager; LAN-sync caller leaves
     // these null and the corresponding record types silently drop as
     // forward-compat.
     private val chatSessionMapper: ChatSessionSyncMapper? = null,
     private val chatMessageMapper: ChatMessageSyncMapper? = null,
     private val settingsKvMapper: SettingsKvSyncMapper? = null,
+    // BP↔workout association (v14). Optional so older callers compile.
+    private val bpWorkoutAssociationMapper: BpWorkoutAssociationSyncMapper? = null,
 ) : SyncRecordSink {
     private val perTypeCount = java.util.concurrent.ConcurrentHashMap<SyncEntityType, Int>()
     override suspend fun apply(record: SyncRecord) {
@@ -384,6 +474,10 @@ class CombinedRoomSyncSink(
                 SyncEntityType.COACH_TASK -> coachTaskMapper.apply(record)
                 SyncEntityType.SLEEP_LOG -> sleepLogMapper.apply(record)
                 SyncEntityType.DIET_CHECK -> dietCheckMapper.apply(record)
+                SyncEntityType.EXERCISE_CATALOG_ITEM -> exerciseCatalogItemMapper?.apply(record)
+                SyncEntityType.STRENGTH_WORKOUT_SESSION -> strengthWorkoutSessionMapper?.apply(record)
+                SyncEntityType.SET_LOG -> setLogMapper?.apply(record)
+                SyncEntityType.BP_WORKOUT_ASSOCIATION -> bpWorkoutAssociationMapper?.apply(record)
                 SyncEntityType.CHAT_SESSION -> chatSessionMapper?.apply(record)
                 SyncEntityType.CHAT_MESSAGE -> chatMessageMapper?.apply(record)
                 SyncEntityType.SETTINGS_KV -> settingsKvMapper?.apply(record)

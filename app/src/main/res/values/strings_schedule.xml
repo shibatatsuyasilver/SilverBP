@@ -1,0 +1,24 @@
+<resources>
+
+    <!-- Weekly plan (calendar) -->
+    <string name="coach_weekly_plan_title">本週計畫</string>
+    <string name="coach_view_weekly_plan">查看本週計畫</string>
+    <string name="coach_weekly_plan_empty">這一天沒有安排</string>
+    <string name="coach_weekly_plan_today">今天</string>
+    <string name="coach_weekly_plan_skipped">已跳過</string>
+
+    <!-- Per-task actions -->
+    <string name="coach_task_action_move">移至其他天</string>
+    <string name="coach_task_action_skip">標記為跳過</string>
+    <string name="coach_task_action_unskip">取消跳過</string>
+    <string name="coach_task_move_reset">放回原本的日子</string>
+
+    <!-- Reminder preferences -->
+    <string name="coach_reminder_section">每日提醒</string>
+    <string name="coach_reminder_enable">開啟每日提醒</string>
+    <string name="coach_reminder_enable_hint">在你選的時間與星期推送當天的任務提醒。</string>
+    <string name="coach_reminder_time_label">提醒時間</string>
+    <string name="coach_reminder_days_label">提醒星期</string>
+    <string name="coach_reminder_days_none">未選任何星期, 不會提醒。</string>
+
+</resources>

@@ -1,7 +1,6 @@
 package com.silverbp.android.ui.theme
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -16,14 +15,22 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    secondary = Secondary,
+    primary = ForgePrimary,
+    onPrimary = ForgeOnPrimary,
+    secondary = ForgeSecondary,
+    onSecondary = ForgeOnSecondary,
+    background = ForgeBackground,
+    surface = ForgeSurface,
+    surfaceVariant = ForgeSurfaceVariant,
+    onSurface = ForgeOnSurface,
+    onSurfaceVariant = ForgeOnSurfaceVariant,
+    outline = ForgeOutline,
 )
 
 @Composable
 fun SilverBpTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

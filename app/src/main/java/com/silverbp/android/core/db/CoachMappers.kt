@@ -39,6 +39,8 @@ fun CoachTask.toTaskEntity(): CoachTaskEntity = CoachTaskEntity(
     intensityRaw = intensity.raw,
     safetyHold = safetyHold,
     completedAt = completedAtMillis,
+    skipped = skipped,
+    movedDayOffset = movedDayOffset,
 )
 
 fun CoachPlanEntity.toDomain(tasks: List<CoachTaskEntity>): CoachPlan = CoachPlan(
@@ -64,4 +66,6 @@ fun CoachTaskEntity.toDomain(): CoachTask = CoachTask(
     intensity = TaskIntensity.fromRaw(intensityRaw),
     safetyHold = safetyHold,
     completedAtMillis = completedAt,
+    skipped = skipped,
+    movedDayOffset = movedDayOffset,
 )

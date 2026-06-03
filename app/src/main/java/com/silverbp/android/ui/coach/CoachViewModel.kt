@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -153,6 +154,54 @@ class CoachViewModel(
             ready.copy(narration = narration)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CoachUiState.Loading)
+
+    /**
+     * Weekly calendar projection of the current plan. Honors per-task
+     * [CoachTask.movedDayOffset] (a moved task shows on its new day) and keeps
+     * skipped tasks visible (flagged via [WeekTaskUi.skipped]). Null while no
+     * plan exists; drives the weekly-plan screen.
+     */
+    val weeklyPlan: StateFlow<WeeklyPlanUi?> =
+        coachRepo.observeCurrentPlan(nowMillis)
+            .map { plan -> plan?.let { buildWeeklyPlan(it) } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private fun buildWeeklyPlan(plan: CoachPlan): WeeklyPlanUi {
+        val byDay = plan.tasks.groupBy { it.movedDayOffset ?: it.dayOffset }
+        val days = (0..6).map { offset ->
+            WeekDayUi(
+                dayOffset = offset,
+                tasks = byDay[offset].orEmpty().map { it.toWeekTaskUi() },
+            )
+        }
+        val weekStart = Instant.ofEpochMilli(plan.weekStartMillis).atZone(zone).toLocalDate()
+        val rawOffset = (LocalDate.now(clock).toEpochDay() - weekStart.toEpochDay()).toInt()
+        val todayIndex = rawOffset.takeIf { it in 0..6 }
+        return WeeklyPlanUi(days = days, todayIndex = todayIndex)
+    }
+
+    private fun CoachTask.toWeekTaskUi(): WeekTaskUi = WeekTaskUi(
+        id = id,
+        title = title,
+        moduleKey = when (module) {
+            LifestyleModule.Exercise -> ModuleKey.Exercise
+            LifestyleModule.Diet -> ModuleKey.Diet
+            LifestyleModule.Sleep -> ModuleKey.Sleep
+            LifestyleModule.Medication -> ModuleKey.Medication
+        },
+        completed = completedAtMillis != null,
+        skipped = skipped,
+    )
+
+    /** Move a task to a different weekday. Pass null to clear the override. */
+    fun moveTask(taskId: String, newDayOffset: Int?) {
+        viewModelScope.launch { coachRepo.moveTask(taskId, newDayOffset) }
+    }
+
+    /** Toggle the skipped flag. Skipped tasks stay in the adherence denominator. */
+    fun setSkipped(taskId: String, skipped: Boolean) {
+        viewModelScope.launch { coachRepo.markSkipped(taskId, skipped) }
+    }
 
     private fun startTodayNarration(plan: CoachPlan, today: CoachTask) {
         narrationJob?.cancel()
@@ -300,7 +349,10 @@ class CoachViewModel(
         if (sessions.isEmpty()) return 0
         val cap = if (targetMin > 0) targetMin.toLong() * 2 else Long.MAX_VALUE
         return sessions
-            .filter { it.kind == ActivityKind.Walking || it.kind == ActivityKind.Running }
+            .filter {
+                it.kind == ActivityKind.Walking || it.kind == ActivityKind.Running ||
+                    it.kind == ActivityKind.BriskWalking || it.kind == ActivityKind.Cycling
+            }
             .sumOf { s ->
                 Duration.between(s.startedAt, s.endedAt).toMinutes()
                     .coerceAtLeast(0)
