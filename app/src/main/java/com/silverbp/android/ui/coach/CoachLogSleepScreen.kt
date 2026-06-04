@@ -159,7 +159,10 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
                         Spacer(Modifier.size(8.dp))
                         Button(
                             onClick = {
-                                permLauncher.launch(ServiceLocator.healthConnectBridge.sleepReadPermissions)
+                                val bridge = ServiceLocator.healthConnectBridge
+                                permLauncher.launch(
+                                    bridge.sleepReadPermissions + bridge.backgroundReadPermissions,
+                                )
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text(stringResource(R.string.coach_sleep_sync_grant)) }

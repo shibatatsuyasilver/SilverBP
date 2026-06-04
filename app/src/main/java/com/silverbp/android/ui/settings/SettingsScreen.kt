@@ -59,8 +59,10 @@ import com.silverbp.android.R
 import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.ui.coach.formatTime
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 
@@ -87,7 +89,9 @@ fun SettingsScreen(
     val hcCorePerms = remember {
         ServiceLocator.healthConnectExerciseBridge.readPermissions +
             ServiceLocator.healthConnectExerciseBridge.permissions +
-            ServiceLocator.healthConnectBpBridge.permissions
+            ServiceLocator.healthConnectBpBridge.permissions +
+            // Android 15+: the background step-sync worker reads nothing without this.
+            ServiceLocator.healthConnectBridge.backgroundReadPermissions
     }
     // 1.1.0's request contract is platform-aware: it delegates to the built-in
     // Health Connect module on Android 14+ and the standalone HC app on
@@ -130,11 +134,37 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
+            // Appearance — app color theme (System / Light / Dark)
+            StandardCard(title = stringResource(R.string.settings_appearance_title)) {
+                AppThemeMode.entries.forEach { mode ->
+                    val labelRes = when (mode) {
+                        AppThemeMode.System -> R.string.settings_theme_system
+                        AppThemeMode.Light -> R.string.settings_theme_light
+                        AppThemeMode.Dark -> R.string.settings_theme_dark
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = state.appThemeMode == mode,
+                            onClick = { vm.setAppThemeMode(mode) },
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(labelRes))
+                    }
+                }
+            }
+
             // Personalization — coach nickname (mirrors onboarding capture).
-            SectionCard(stringResource(R.string.settings_personalization_section)) {
+            StandardCard(title = stringResource(R.string.settings_personalization_section)) {
                 Text(
                     stringResource(R.string.settings_user_nickname_label),
                     fontWeight = FontWeight.Medium,
@@ -156,7 +186,7 @@ fun SettingsScreen(
             }
 
             // Hypertension guideline
-            SectionCard(stringResource(R.string.guideline_section)) {
+            StandardCard(title = stringResource(R.string.guideline_section)) {
                 HypertensionGuideline.entries.forEach { g ->
                     val labelRes = when (g) {
                         HypertensionGuideline.Taiwan2022 -> R.string.guideline_taiwan2022
@@ -176,7 +206,7 @@ fun SettingsScreen(
             }
 
             // ===== Chat settings (applies to all backends) =====
-            SectionCard(stringResource(R.string.settings_chat_section)) {
+            StandardCard(title = stringResource(R.string.settings_chat_section)) {
                 ToggleRow(
                     label = stringResource(R.string.settings_chat_include_records),
                     checked = state.chatIncludeRecordsContext,
@@ -189,7 +219,7 @@ fun SettingsScreen(
             }
 
             // Coach
-            SectionCard(stringResource(R.string.coach_settings_section)) {
+            StandardCard(title = stringResource(R.string.coach_settings_section)) {
                 ToggleRow(
                     label = stringResource(R.string.coach_settings_enable),
                     checked = state.enableCoach,
@@ -232,7 +262,7 @@ fun SettingsScreen(
             // Coach daily reminder — time + weekday selection. Defaults reproduce
             // the legacy daily-07:00 behaviour. Only meaningful while Coach is on.
             if (state.enableCoach) {
-                SectionCard(stringResource(R.string.coach_reminder_section)) {
+                StandardCard(title = stringResource(R.string.coach_reminder_section)) {
                     ToggleRow(
                         label = stringResource(R.string.coach_reminder_enable),
                         checked = state.reminderEnabled,
@@ -259,7 +289,7 @@ fun SettingsScreen(
             }
 
             // Integrations
-            SectionCard(stringResource(R.string.integration_section)) {
+            StandardCard(title = stringResource(R.string.integration_section)) {
                 ToggleRow(
                     label = stringResource(R.string.health_connect),
                     checked = state.enableHealthConnect,
@@ -271,7 +301,7 @@ fun SettingsScreen(
             }
 
             // Daily step goal + medal notifications
-            SectionCard(stringResource(R.string.medal_settings_section)) {
+            StandardCard(title = stringResource(R.string.medal_settings_section)) {
                 StepGoalRow(
                     goal = state.dailyStepGoal,
                     onChange = vm::setDailyStepGoal,
@@ -286,13 +316,13 @@ fun SettingsScreen(
             }
 
             // Location permission status (Exercise feature)
-            SectionCard(stringResource(R.string.exercise_settings_section)) {
+            StandardCard(title = stringResource(R.string.exercise_settings_section)) {
                 LocationPermissionRow()
             }
 
             // Cross-device sync — opens the QR-pairing flow for adding a paired
             // iPhone/Android peer over LAN. End-to-end Noise XK + SAS confirm.
-            SectionCard(stringResource(R.string.settings_sync_section)) {
+            StandardCard(title = stringResource(R.string.settings_sync_section)) {
                 Button(
                     onClick = onOpenSyncPairing,
                     modifier = Modifier.fillMaxWidth(),
@@ -307,7 +337,7 @@ fun SettingsScreen(
             // Backup / Restore — encrypted .sbpbk snapshot export/import to
             // user's chosen storage (Google Drive, iCloud, local file).
             // Survives uninstall; cross-device + cross-platform with iOS BPCoach.
-            SectionCard(stringResource(R.string.backup_screen_title)) {
+            StandardCard(title = stringResource(R.string.backup_screen_title)) {
                 Button(
                     onClick = onOpenBackup,
                     modifier = Modifier.fillMaxWidth(),
@@ -321,7 +351,7 @@ fun SettingsScreen(
 
             // Security — opt-in biometric/device-credential lock + at-rest
             // encryption. Default off; enabling runs the DB migration.
-            SectionCard(stringResource(R.string.settings_security_section)) {
+            StandardCard(title = stringResource(R.string.settings_security_section)) {
                 ToggleRow(
                     label = stringResource(R.string.settings_app_lock_label),
                     checked = state.appLockEnabled,
@@ -376,7 +406,7 @@ fun SettingsScreen(
 
             // Advanced — recognition engine / AI models / prompts live in a
             // sub-screen to keep this everyday screen uncluttered.
-            SectionCard(stringResource(R.string.settings_advanced_screen_title)) {
+            StandardCard(title = stringResource(R.string.settings_advanced_screen_title)) {
                 Button(
                     onClick = onOpenAdvanced,
                     modifier = Modifier.fillMaxWidth(),
@@ -384,7 +414,7 @@ fun SettingsScreen(
             }
 
             // About
-            SectionCard(stringResource(R.string.about_section)) {
+            StandardCard(title = stringResource(R.string.about_section)) {
                 Text(stringResource(R.string.about_model), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.size(6.dp))
                 Text(stringResource(R.string.not_medical_device), style = MaterialTheme.typography.bodySmall)
@@ -420,7 +450,11 @@ private fun SleepTrackingRow(
     onEnable: (Set<String>) -> Unit,
     onDisable: () -> Unit,
 ) {
-    val perms = remember { ServiceLocator.healthConnectBridge.sleepReadPermissions }
+    val perms = remember {
+        ServiceLocator.healthConnectBridge.sleepReadPermissions +
+            // Android 15+: lets the background sleep-backfill worker read.
+            ServiceLocator.healthConnectBridge.backgroundReadPermissions
+    }
     // Single platform-aware contract (see master toggle): one launcher covers
     // the built-in HC module (Android 14+) and the standalone HC app (13).
     val launcher = rememberLauncherForActivityResult(
@@ -444,7 +478,11 @@ private fun DietTrackingRow(
     onEnable: (Set<String>) -> Unit,
     onDisable: () -> Unit,
 ) {
-    val perms = remember { ServiceLocator.healthConnectBridge.nutritionReadPermissions }
+    val perms = remember {
+        ServiceLocator.healthConnectBridge.nutritionReadPermissions +
+            // Android 15+: lets the background nutrition-backfill worker read.
+            ServiceLocator.healthConnectBridge.backgroundReadPermissions
+    }
     val launcher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted -> onEnable(granted) }

@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -53,12 +52,12 @@ import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.strength.StrengthWorkoutSession
 import com.silverbp.android.ui.achievements.MedalUnlockBannerHost
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.exercise.components.ExerciseTrendsCard
 import com.silverbp.android.ui.exercise.components.MedalShowcaseCard
 import com.silverbp.android.ui.exercise.components.RecentSessionsCard
 import com.silverbp.android.ui.exercise.components.TodayStepsCard
-import com.silverbp.android.ui.theme.ForgeOnSecondary
-import com.silverbp.android.ui.theme.ForgeSecondary
+import com.silverbp.android.ui.theme.AppSpacing
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -95,7 +94,7 @@ fun ExerciseHomeScreen(
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             if (recoverable != null) {
-                Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Box(Modifier.padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap)) {
                     RecoverSessionCard(
                         onResume = {
                             vm.resumeRecoverable()
@@ -142,29 +141,21 @@ fun ExerciseHomeScreen(
 
 @Composable
 private fun RecoverSessionCard(onResume: () -> Unit, onDiscard: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                stringResource(R.string.exercise_recover_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                stringResource(R.string.exercise_recover_body),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedButton(onClick = onDiscard, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.exercise_discard))
-                }
-                Button(onClick = onResume, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.exercise_resume))
-                }
+    StandardCard(title = stringResource(R.string.exercise_recover_title)) {
+        Text(
+            stringResource(R.string.exercise_recover_body),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(AppSpacing.tight))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+        ) {
+            OutlinedButton(onClick = onDiscard, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.exercise_discard))
+            }
+            Button(onClick = onResume, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.exercise_resume))
             }
         }
     }
@@ -199,21 +190,21 @@ private fun PlanSection(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
         Button(
             onClick = { showPicker = true },
             colors = ButtonDefaults.buttonColors(
-                containerColor = ForgeSecondary,
-                contentColor = ForgeOnSecondary,
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary,
             ),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp),
         ) {
             Icon(Icons.Filled.PlayArrow, null)
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(AppSpacing.itemGap))
             Text(
                 stringResource(R.string.hub_start_training),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -283,34 +274,28 @@ private fun PlanSection(
 
 @Composable
 private fun TodayTaskCard(state: ExerciseHomeUiState) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                stringResource(R.string.hub_today_task_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            val task = state.todayExerciseTask
-            when {
-                task != null -> {
-                    Text(task.title, style = MaterialTheme.typography.bodyLarge)
-                    task.targetValue?.let { v ->
-                        Text(
-                            stringResource(R.string.hub_today_task_minutes, v.toInt()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+    StandardCard(title = stringResource(R.string.hub_today_task_title)) {
+        val task = state.todayExerciseTask
+        when {
+            task != null -> {
+                Text(task.title, style = MaterialTheme.typography.bodyLarge)
+                task.targetValue?.let { v ->
+                    Text(
+                        stringResource(R.string.hub_today_task_minutes, v.toInt()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                state.hasPlan -> Text(
-                    stringResource(R.string.hub_today_task_rest),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                else -> Text(
-                    stringResource(R.string.hub_today_task_none),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
+            state.hasPlan -> Text(
+                stringResource(R.string.hub_today_task_rest),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            else -> Text(
+                stringResource(R.string.hub_today_task_none),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -370,8 +355,8 @@ private fun HistorySection(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
         Text(
             stringResource(R.string.hub_history_cardio),
@@ -394,16 +379,14 @@ private fun HistorySection(
 
 @Composable
 private fun StrengthHistoryCard(sessions: List<StrengthWorkoutSession>) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (sessions.isEmpty()) {
-                Text(
-                    stringResource(R.string.hub_history_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                sessions.forEach { s -> StrengthSessionRow(s) }
-            }
+    StandardCard(verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap)) {
+        if (sessions.isEmpty()) {
+            Text(
+                stringResource(R.string.hub_history_empty),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            sessions.forEach { s -> StrengthSessionRow(s) }
         }
     }
 }
@@ -443,21 +426,19 @@ private fun labelResForKind(kind: ActivityKind): Int = when (kind) {
 
 @Composable
 private fun PermissionHint(denied: Boolean, onOpenSettings: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                stringResource(R.string.exercise_location_permission_title),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text(
-                if (denied) stringResource(R.string.exercise_location_denied)
-                else stringResource(R.string.exercise_location_permission_body),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            if (denied) {
-                OutlinedButton(onClick = onOpenSettings) {
-                    Text(stringResource(R.string.exercise_settings_open_app_settings))
-                }
+    StandardCard {
+        Text(
+            stringResource(R.string.exercise_location_permission_title),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            if (denied) stringResource(R.string.exercise_location_denied)
+            else stringResource(R.string.exercise_location_permission_body),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        if (denied) {
+            OutlinedButton(onClick = onOpenSettings) {
+                Text(stringResource(R.string.exercise_settings_open_app_settings))
             }
         }
     }

@@ -11,6 +11,7 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.security.DbCipherMigration
+import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.settings.UserSettingsRepository
 import com.silverbp.android.ui.lock.canDeviceAuthenticate
@@ -40,6 +41,8 @@ class SettingsViewModel(
     val hcPermissionDenied: Flow<Unit> = _hcDenied.receiveAsFlow()
 
     fun setGuideline(g: HypertensionGuideline) { viewModelScope.launch { repo.setGuideline(g) } }
+
+    fun setAppThemeMode(v: AppThemeMode) { viewModelScope.launch { repo.setAppThemeMode(v) } }
 
     /**
      * Called from the composable's permission-result callback after the user

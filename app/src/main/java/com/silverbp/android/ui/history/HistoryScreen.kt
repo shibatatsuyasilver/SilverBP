@@ -35,7 +35,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,8 +57,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
+import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -120,29 +121,22 @@ fun HistoryScreen(
             }
             else -> LazyColumn(
                 modifier = contentModifier,
-                contentPadding = PaddingValues(bottom = 16.dp),
+                contentPadding = PaddingValues(
+                    horizontal = AppSpacing.screenH,
+                    vertical = AppSpacing.screenV,
+                ),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
             ) {
-                state.grouped.forEach { group ->
-                    stickyHeader(key = "header-${group.date}") {
-                        DaySectionHeader(group)
-                    }
-                    items(
-                        count = group.readings.size,
-                        key = { idx -> group.readings[idx].id.toString() },
-                    ) { idx ->
-                        val reading = group.readings[idx]
-                        ReadingRow(
-                            reading = reading,
-                            onClick = { onEdit(reading.id.toString()) },
-                            onLongClick = { deleteTarget = reading },
-                        )
-                        if (idx < group.readings.size - 1) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                        }
-                    }
+                items(
+                    count = state.grouped.size,
+                    key = { idx -> "group-${state.grouped[idx].date}" },
+                ) { groupIdx ->
+                    val group = state.grouped[groupIdx]
+                    DaySectionCard(
+                        group = group,
+                        onEdit = { reading -> onEdit(reading.id.toString()) },
+                        onLongPress = { reading -> deleteTarget = reading },
+                    )
                 }
             }
         }
@@ -190,41 +184,42 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun DaySectionHeader(group: DayGroup) {
+private fun DaySectionCard(
+    group: DayGroup,
+    onEdit: (BpReading) -> Unit,
+    onLongPress: (BpReading) -> Unit,
+) {
     val dateFmt = DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.TAIWAN)
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+    StandardCard(
+        title = group.date.format(dateFmt),
+        titleTrailing = {
+            AssistChip(
+                onClick = {},
+                label = {
+                    Text(
+                        stringResource(R.string.history_readings_count, group.readings.size),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                colors = AssistChipDefaults.assistChipColors(),
+            )
+        },
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    group.date.format(dateFmt),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    stringResource(R.string.history_day_mean, group.meanSystolic, group.meanDiastolic),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.weight(1f))
-                AssistChip(
-                    onClick = {},
-                    label = {
-                        Text(
-                            stringResource(R.string.history_readings_count, group.readings.size),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(),
-                )
+        Text(
+            stringResource(R.string.history_day_mean, group.meanSystolic, group.meanDiastolic),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        group.readings.forEachIndexed { idx, reading ->
+            ReadingRow(
+                reading = reading,
+                onClick = { onEdit(reading) },
+                onLongClick = { onLongPress(reading) },
+            )
+            if (idx < group.readings.size - 1) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -244,13 +239,13 @@ private fun ReadingRow(reading: BpReading, onClick: () -> Unit, onLongClick: () 
             .heightIn(min = 56.dp)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .semantics(mergeDescendants = true) { role = Role.Button }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 "${reading.systolic} / ${reading.diastolic}",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {

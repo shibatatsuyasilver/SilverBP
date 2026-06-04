@@ -366,6 +366,12 @@
     <string name="onboarding_notifications_grant">允許通知</string>
     <string name="onboarding_notifications_skip">暫時不要</string>
 
+    <!-- 設定頁:外觀區塊 -->
+    <string name="settings_appearance_title">外觀</string>
+    <string name="settings_theme_system">跟隨系統</string>
+    <string name="settings_theme_light">淺色</string>
+    <string name="settings_theme_dark">深色</string>
+
     <!-- 設定頁:個人化區塊 -->
     <string name="settings_personalization_section">個人化</string>
     <string name="settings_user_nickname_label">教練如何稱呼您</string>
@@ -645,4 +651,20 @@
     <string name="coach_sleep_sync_needs_permission">尚未授予睡眠讀取權限,所以讀不到資料。</string>
     <string name="coach_sleep_sync_grant">授予睡眠權限</string>
     <string name="coach_sleep_sync_failed">同步失敗,請稍後再試。</string>
+
+    <!-- Today screen — Stitch-aligned greeting + category-derived Pro Tip (real data only) -->
+    <string name="today_greeting_morning">早安</string>
+    <string name="today_greeting_afternoon">午安</string>
+    <string name="today_greeting_evening">晚安</string>
+    <string name="today_readings_logged">已記錄 %1$d 筆量測</string>
+    <string name="today_protip_title">小提醒</string>
+    <string name="today_protip_normal">你的血壓看起來很健康,維持每天同一時間量測的習慣。</string>
+    <string name="today_protip_elevated">血壓略偏高,試著減少鹽分攝取,餐後散步一下。</string>
+    <string name="today_protip_stage1">屬於高血壓 1 期,建議每天固定時間量測,並與醫師分享趨勢。</string>
+    <string name="today_protip_stage2">屬於高血壓 2 期,請按時服藥並定期諮詢醫師。</string>
+    <string name="today_protip_crisis">血壓偏高,請休息幾分鐘後重新量測,若持續偏高請就醫。</string>
+    <string name="today_protip_hypotension">血壓偏低,起身請放慢並多補充水分;若感到頭暈請告知醫師。</string>
+
+    <!-- Insights — stat label (was hardcoded) -->
+    <string name="insights_stat_mean">平均</string>
 </resources>

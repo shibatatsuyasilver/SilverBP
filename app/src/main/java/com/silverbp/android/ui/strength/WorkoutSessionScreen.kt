@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.strength
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -34,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,7 +47,8 @@ import com.silverbp.android.R
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.strength.LiveExercise
 import com.silverbp.android.strength.SetLog
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.delay
 
 @Composable
@@ -83,8 +87,8 @@ fun WorkoutSessionScreen(
             .fillMaxSize()
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
         ProgressHeader(
             completedSets = workout.completedSets,
@@ -140,6 +144,7 @@ fun WorkoutSessionScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
+            shape = RoundedCornerShape(AppSpacing.cardCorner),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
             ),
@@ -150,7 +155,7 @@ fun WorkoutSessionScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppSpacing.itemGap))
     }
 }
 
@@ -160,23 +165,29 @@ private fun ProgressHeader(
     totalSets: Int,
     elapsedMillis: Long,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 stringResource(R.string.strength_session_progress, completedSets, totalSets),
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
                 ExerciseMath.formatDuration(elapsedMillis),
                 style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         LinearProgressIndicator(
             progress = { if (totalSets == 0) 0f else completedSets.toFloat() / totalSets },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(AppSpacing.tight)),
         )
     }
 }
@@ -187,13 +198,14 @@ private fun SetsCard(
     onAddSet: (reps: Int, weightKg: Double?) -> Unit,
     onToggleComplete: (setNumber: Int, completed: Boolean) -> Unit,
 ) {
-    SectionCard(title = exercise.exercise.bodyPart.labelZh) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            exercise.sets.forEach { set ->
-                SetRow(set = set, onToggleComplete = onToggleComplete)
-            }
-            SetInput(onAddSet = onAddSet)
+    StandardCard(
+        title = exercise.exercise.bodyPart.labelZh,
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+    ) {
+        exercise.sets.forEach { set ->
+            SetRow(set = set, onToggleComplete = onToggleComplete)
         }
+        SetInput(onAddSet = onAddSet)
     }
 }
 
@@ -202,8 +214,17 @@ private fun SetRow(
     set: SetLog,
     onToggleComplete: (setNumber: Int, completed: Boolean) -> Unit,
 ) {
+    val rowModifier = if (set.isCompleted) {
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(AppSpacing.tight * 3))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(horizontal = AppSpacing.itemGap, vertical = AppSpacing.tight)
+    } else {
+        Modifier.fillMaxWidth()
+    }
     Row(
-        Modifier.fillMaxWidth(),
+        rowModifier,
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -211,17 +232,32 @@ private fun SetRow(
             Text(
                 stringResource(R.string.strength_session_set_number, set.setNumber),
                 style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (set.isCompleted) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (set.isCompleted) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
             )
             Text(
                 setSummary(set),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (set.isCompleted) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
         }
         if (set.isCompleted) {
-            TextButton(onClick = { onToggleComplete(set.setNumber, false) }) {
+            TextButton(
+                onClick = { onToggleComplete(set.setNumber, false) },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+            ) {
                 Icon(Icons.Filled.Check, null)
-                Spacer(Modifier.size(4.dp))
+                Spacer(Modifier.size(AppSpacing.tight))
                 Text(stringResource(R.string.strength_session_completed_set))
             }
         } else {
@@ -241,11 +277,11 @@ private fun SetInput(onAddSet: (reps: Int, weightKg: Double?) -> Unit) {
     var weight by remember { mutableStateOf("") }
     Column(
         Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
@@ -288,7 +324,7 @@ private fun NavRow(
 ) {
     Row(
         Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         OutlinedButton(
             onClick = onPrev,

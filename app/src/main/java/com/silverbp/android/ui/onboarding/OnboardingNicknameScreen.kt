@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,6 +51,8 @@ import androidx.core.content.ContextCompat
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.settings.ExperienceLevel
 import com.silverbp.android.settings.PrimaryGoal
@@ -189,57 +194,57 @@ private fun ConsentStep(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(8.dp))
+        Spacer(Modifier.size(AppSpacing.itemGap))
         Text(
             stringResource(R.string.onboarding_welcome_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
         )
         Text(
             stringResource(R.string.onboarding_welcome_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.size(8.dp))
-        Text(
-            stringResource(R.string.not_medical_device),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        TextButton(
-            onClick = {
-                runCatching {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.onboarding_privacy_link))
+        StandardCard {
+            Text(
+                stringResource(R.string.not_medical_device),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(
+                onClick = {
+                    runCatching {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.onboarding_privacy_link))
+            }
         }
         Spacer(Modifier.weight(1f))
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
+                .padding(vertical = AppSpacing.tight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = consentChecked, onCheckedChange = onConsentChange)
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(AppSpacing.itemGap))
             Text(
                 stringResource(R.string.onboarding_accept),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        Button(
+        OnboardingHeroButton(
+            label = stringResource(R.string.onboarding_continue),
             onClick = onContinue,
             enabled = consentChecked,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.onboarding_continue))
-        }
+        )
     }
 }
 
@@ -267,13 +272,14 @@ private fun NotificationsStep(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(8.dp))
+        Spacer(Modifier.size(AppSpacing.itemGap))
         Text(
             stringResource(R.string.onboarding_notifications_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
         )
         Text(
             stringResource(R.string.onboarding_notifications_body),
@@ -281,7 +287,8 @@ private fun NotificationsStep(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.weight(1f))
-        Button(
+        OnboardingHeroButton(
+            label = stringResource(R.string.onboarding_notifications_grant),
             onClick = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -289,10 +296,8 @@ private fun NotificationsStep(
                     onContinue()
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.onboarding_notifications_grant))
-        }
+            enabled = true,
+        )
         TextButton(
             onClick = onContinue,
             modifier = Modifier.fillMaxWidth(),
@@ -313,41 +318,41 @@ private fun NicknameStep(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(8.dp))
+        Spacer(Modifier.size(AppSpacing.itemGap))
         Text(
             stringResource(R.string.onboarding_nickname_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
         )
         Text(
             stringResource(R.string.onboarding_nickname_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.size(8.dp))
-        OutlinedTextField(
-            value = nickname,
-            onValueChange = {
-                onNicknameChange(it.take(UserSettingsRepository.MAX_NICKNAME_LEN))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = { Text(stringResource(R.string.onboarding_nickname_hint)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            enabled = !saving,
-        )
+        StandardCard {
+            OutlinedTextField(
+                value = nickname,
+                onValueChange = {
+                    onNicknameChange(it.take(UserSettingsRepository.MAX_NICKNAME_LEN))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.onboarding_nickname_hint)) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                enabled = !saving,
+            )
+        }
 
         Spacer(Modifier.weight(1f))
 
-        Button(
+        OnboardingHeroButton(
+            label = stringResource(R.string.onboarding_done),
             onClick = onDone,
-            modifier = Modifier.fillMaxWidth(),
             enabled = !saving,
-        ) {
-            Text(stringResource(R.string.onboarding_done))
-        }
+        )
         TextButton(
             onClick = onSkip,
             modifier = Modifier.fillMaxWidth(),
@@ -358,7 +363,7 @@ private fun NicknameStep(
                 textAlign = TextAlign.Center,
             )
         }
-        Spacer(Modifier.size(4.dp))
+        Spacer(Modifier.size(AppSpacing.tight))
         Text(
             text = stringResource(R.string.onboarding_nickname_footnote),
             style = MaterialTheme.typography.bodySmall,
@@ -390,28 +395,31 @@ private fun GoalSelectionStep(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(8.dp))
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.size(AppSpacing.itemGap))
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
         Text(
             subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.size(8.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            chips()
+        StandardCard {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                chips()
+            }
         }
         Spacer(Modifier.weight(1f))
-        Button(
+        OnboardingHeroButton(
+            label = nextLabel,
             onClick = onNext,
-            modifier = Modifier.fillMaxWidth(),
             enabled = nextEnabled && !saving,
-        ) {
-            Text(nextLabel)
-        }
+        )
         TextButton(
             onClick = onBack,
             modifier = Modifier.fillMaxWidth(),
@@ -521,5 +529,35 @@ private fun TrainingStyleStep(
                 label = { Text(style.label) },
             )
         }
+    }
+}
+
+/**
+ * Full-width lime "hero" primary action used to advance each onboarding step
+ * (Continue / Done / Next). Pure styling wrapper around [Button] — preserves the
+ * caller's onClick/enabled wiring exactly.
+ */
+@Composable
+private fun OnboardingHeroButton(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.secondary,
+            contentColor = MaterialTheme.colorScheme.onSecondary,
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        )
     }
 }

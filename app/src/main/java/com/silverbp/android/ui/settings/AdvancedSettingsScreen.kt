@@ -56,7 +56,8 @@ import com.silverbp.android.recognition.ModelVariant
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
 
 /**
  * Technical AI / model configuration split out of the main Settings screen so
@@ -91,11 +92,15 @@ fun AdvancedSettingsScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             // ===== Recognition backend (Local / Cloud / AICore) =====
-            SectionCard(stringResource(R.string.settings_recognition_section)) {
+            StandardCard(title = stringResource(R.string.settings_recognition_section)) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -148,7 +153,7 @@ fun AdvancedSettingsScreen(
 
             // ===== Local model picker (when Local backend active) =====
             if (state.recognitionBackend == RecognitionBackend.Local) {
-                SectionCard(stringResource(R.string.settings_local_model_section)) {
+                StandardCard(title = stringResource(R.string.settings_local_model_section)) {
                     val downloader = remember { ModelDownloader(context) }
                     ModelCatalog.variants.forEach { variant ->
                         val isSelected = state.selectedModelId == variant.id
@@ -197,7 +202,7 @@ fun AdvancedSettingsScreen(
                     )
                 }
 
-                SectionCard(stringResource(R.string.settings_model_tuning_section)) {
+                StandardCard(title = stringResource(R.string.settings_model_tuning_section)) {
                     Text(stringResource(R.string.settings_max_tokens_label), fontWeight = FontWeight.Medium)
                     Text(
                         stringResource(R.string.settings_max_tokens_help),
@@ -286,7 +291,7 @@ fun AdvancedSettingsScreen(
 
             // ===== Cloud (Gemini) configuration =====
             if (state.recognitionBackend == RecognitionBackend.Cloud) {
-                SectionCard(stringResource(R.string.settings_gemini_section)) {
+                StandardCard(title = stringResource(R.string.settings_gemini_section)) {
                     OutlinedTextField(
                         value = state.geminiApiKey,
                         onValueChange = { vm.setGeminiApiKey(it) },
@@ -309,7 +314,7 @@ fun AdvancedSettingsScreen(
 
             // ===== AICore (Gemini Nano) configuration =====
             if (state.recognitionBackend == RecognitionBackend.AICore) {
-                SectionCard(stringResource(R.string.settings_aicore_section)) {
+                StandardCard(title = stringResource(R.string.settings_aicore_section)) {
                     Text(
                         stringResource(R.string.settings_aicore_help),
                         style = MaterialTheme.typography.bodySmall,
@@ -378,7 +383,7 @@ fun AdvancedSettingsScreen(
             }
 
             // ===== Chat persona (system-prompt override) =====
-            SectionCard(stringResource(R.string.settings_chat_section)) {
+            StandardCard(title = stringResource(R.string.settings_chat_section)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         stringResource(R.string.settings_chat_persona_label),

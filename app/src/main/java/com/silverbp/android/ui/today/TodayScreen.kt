@@ -13,41 +13,40 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.ui.components.BpReadingValue
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
+import com.silverbp.android.ui.theme.AppSpacing
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -61,12 +60,10 @@ fun TodayScreen(
     vm: TodayViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.today_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenSettings) {
@@ -84,7 +81,6 @@ fun TodayScreen(
                         )
                     }
                 },
-                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
@@ -93,10 +89,17 @@ fun TodayScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         ) {
             ModelLoadBanner(phase = state.modelPhase)
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppSpacing.tight))
+
+            Text(
+                text = stringResource(greetingRes()),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = AppSpacing.screenH),
+            )
 
             when {
                 state.isLoading -> Box(
@@ -114,8 +117,28 @@ fun TodayScreen(
                 }
                 state.latest == null -> EmptyTodayState()
                 else -> {
-                    LatestReadingCard(state.latest!!, modifier = Modifier.padding(horizontal = 16.dp))
-                    Spacer(Modifier.height(24.dp))
+                    val reading = state.latest!!
+                    LatestReadingCard(reading, modifier = Modifier.padding(horizontal = AppSpacing.screenH))
+
+                    Text(
+                        text = stringResource(R.string.today_readings_logged, state.totalCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = AppSpacing.screenH),
+                    )
+
+                    StandardCard(
+                        modifier = Modifier.padding(horizontal = AppSpacing.screenH),
+                        title = stringResource(R.string.today_protip_title),
+                    ) {
+                        Text(
+                            text = stringResource(proTipRes(reading.systolic, reading.diastolic)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    Spacer(Modifier.height(AppSpacing.sectionGap))
                 }
             }
         }
@@ -158,57 +181,70 @@ private fun LatestReadingCard(reading: BpReading, modifier: Modifier = Modifier)
     val zone = ZoneId.systemDefault()
     val fmt = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm", Locale.TAIWAN).withZone(zone)
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        ),
+    StandardCard(
+        modifier = modifier,
+        cornerRadius = AppSpacing.heroCorner,
+        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    categoryLabel(cat),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BpReadingValue(systolic = reading.systolic, diastolic = reading.diastolic)
-                Spacer(Modifier.size(4.dp))
-                Text(
-                    stringResource(R.string.mmhg),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-            }
-
-            reading.pulse?.let {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.MonitorHeart,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.size(6.dp))
-                    Text(
-                        "$it ${stringResource(R.string.bpm)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
+            Spacer(Modifier.size(8.dp))
             Text(
-                fmt.format(reading.timestamp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                categoryLabel(cat),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
             )
         }
+
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BpReadingValue(systolic = reading.systolic, diastolic = reading.diastolic)
+            Spacer(Modifier.size(4.dp))
+            Text(
+                stringResource(R.string.mmhg),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+        }
+
+        reading.pulse?.let {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.MonitorHeart,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.size(6.dp))
+                Text(
+                    "$it ${stringResource(R.string.bpm)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        Text(
+            fmt.format(reading.timestamp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
+}
+
+/** Time-of-day greeting chosen from the local hour. */
+private fun greetingRes(): Int = when (LocalTime.now().hour) {
+    in 0 until 12 -> R.string.today_greeting_morning
+    in 12..17 -> R.string.today_greeting_afternoon
+    else -> R.string.today_greeting_evening
+}
+
+/** Pro-tip body selected by the reading's BP classification. */
+private fun proTipRes(systolic: Int, diastolic: Int): Int = when (classify(systolic, diastolic)) {
+    BpCategory.Normal -> R.string.today_protip_normal
+    BpCategory.Elevated -> R.string.today_protip_elevated
+    BpCategory.Stage1 -> R.string.today_protip_stage1
+    BpCategory.Stage2 -> R.string.today_protip_stage2
+    BpCategory.HypertensiveCrisis -> R.string.today_protip_crisis
+    BpCategory.Hypotension -> R.string.today_protip_hypotension
 }

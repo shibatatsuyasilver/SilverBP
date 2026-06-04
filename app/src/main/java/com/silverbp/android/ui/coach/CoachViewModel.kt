@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.coach
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.coach.CoachEngine
@@ -8,14 +9,13 @@ import com.silverbp.android.coach.CoachPlan
 import com.silverbp.android.coach.CoachRepository
 import com.silverbp.android.coach.CoachTask
 import com.silverbp.android.coach.LifestyleModule
-import com.silverbp.android.coach.NutritionBackfillWorker
-import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.coach.TodayExerciseTaskGenerator
 import com.silverbp.android.coach.WeeklyLifestyleLogs
 import com.silverbp.android.coach.TodayTaskOverlay
 import com.silverbp.android.core.db.DietCheckEntity
 import com.silverbp.android.core.db.SleepLogEntity
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.health.classifySodium
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
@@ -126,15 +126,61 @@ class CoachViewModel(
     /**
      * Re-pull Health Connect sleep/nutrition whenever the Coach screen resumes —
      * not only on app cold start. Without this, sleep logged overnight wouldn't
-     * appear until the process was fully restarted. Workers self-no-op when the
-     * toggle is off or the permission is missing.
+     * appear until the process was fully restarted.
+     *
+     * Reads in the FOREGROUND (the Coach screen is visible) instead of enqueuing
+     * a background worker: Android 15+ (API 35/36) blocks Health Connect reads
+     * from background WorkManager jobs unless the app holds
+     * READ_HEALTH_DATA_IN_BACKGROUND. The background backfill workers were
+     * silently returning zero rows on Android 16 for exactly this reason, so the
+     * resume path now reads directly — data appears even for a user who only
+     * granted the foreground read. No-ops when the toggle/permission is missing.
      */
     fun refreshHealthConnectBackfills() {
         viewModelScope.launch {
             val s = runCatching { userSettings.flow.first() }.getOrNull() ?: return@launch
-            val ctx = ServiceLocator.context
-            if (s.enableCoach && s.sleepTrackingEnabled) SleepBackfillWorker.enqueue(ctx)
-            if (s.enableCoach && s.dietTrackingEnabled) NutritionBackfillWorker.enqueue(ctx)
+            Log.i(TAG_SYNC, "resume sync: enableCoach=${s.enableCoach} sleep=${s.sleepTrackingEnabled} diet=${s.dietTrackingEnabled}")
+            if (!s.enableCoach) return@launch
+            val bridge = ServiceLocator.healthConnectBridge
+            val today = LocalDate.now(zone)
+            val from = today.minusDays(13) // last 14 days, matches the backfill workers
+            val now = nowMillis
+            if (s.sleepTrackingEnabled) {
+                runCatching {
+                    val perm = bridge.hasSleepReadPermission()
+                    val rows = bridge.querySleep(from, today, zone)
+                    Log.i(TAG_SYNC, "sleep: hasPerm=$perm rows=${rows?.size} window=$from..$today")
+                    rows?.forEach { e ->
+                        Log.i(TAG_SYNC, "  sleep day=${e.dayStartMillis} min=${e.durationMin}")
+                        coachRepo.upsertSleep(
+                            SleepLogEntity(
+                                dayStart = e.dayStartMillis,
+                                durationMin = e.durationMin,
+                                sourceRaw = "hc",
+                                updatedAt = now,
+                            )
+                        )
+                    }
+                }.onFailure { Log.w(TAG_SYNC, "sleep sync failed", it) }
+            }
+            if (s.dietTrackingEnabled) {
+                runCatching {
+                    bridge.queryNutrition(from, today, zone)?.forEach { e ->
+                        val existing = coachRepo.dietForDay(e.dayStartMillis)
+                        // Never trample a manually-logged sodium value.
+                        if (existing != null && existing.sourceRaw == "manual") return@forEach
+                        coachRepo.upsertDiet(
+                            DietCheckEntity(
+                                dayStart = e.dayStartMillis,
+                                sodiumLevelRaw = classifySodium(e.sodiumMg),
+                                vegServings = existing?.vegServings ?: 0,
+                                sourceRaw = "hc",
+                                updatedAt = now,
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -403,4 +449,8 @@ class CoachViewModel(
 
     private fun weekEnd(): Instant =
         currentWeekStart().plusDays(7).atStartOfDay(zone).toInstant()
+
+    private companion object {
+        const val TAG_SYNC = "CoachHCSync"
+    }
 }

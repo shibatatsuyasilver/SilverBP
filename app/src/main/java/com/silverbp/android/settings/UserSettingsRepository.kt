@@ -39,6 +39,7 @@ class UserSettingsRepository(private val context: Context) {
 
     private object Keys {
         val GUIDELINE = stringPreferencesKey("guideline")
+        val APP_THEME_MODE = stringPreferencesKey("app_theme_mode")
         val HC = booleanPreferencesKey("enable_health_connect")
         val ONBOARD = booleanPreferencesKey("did_onboard")
         val MODEL_DOWNLOADED = booleanPreferencesKey("model_downloaded")
@@ -92,6 +93,7 @@ class UserSettingsRepository(private val context: Context) {
             guideline = prefs[Keys.GUIDELINE]
                 ?.let { runCatching { HypertensionGuideline.fromRaw(it) }.getOrNull() }
                 ?: HypertensionGuideline.Taiwan2022,
+            appThemeMode = AppThemeMode.fromRaw(prefs[Keys.APP_THEME_MODE]),
             enableHealthConnect = prefs[Keys.HC] ?: false,
             didOnboard = prefs[Keys.ONBOARD] ?: false,
             modelDownloaded = prefs[Keys.MODEL_DOWNLOADED] ?: false,
@@ -141,6 +143,9 @@ class UserSettingsRepository(private val context: Context) {
 
     suspend fun setGuideline(g: HypertensionGuideline) {
         context.dataStore.edit { it[Keys.GUIDELINE] = g.raw }
+    }
+    suspend fun setAppThemeMode(v: AppThemeMode) {
+        context.dataStore.edit { it[Keys.APP_THEME_MODE] = v.raw }
     }
     suspend fun setHealthConnectEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.HC] = enabled }
@@ -322,6 +327,7 @@ class UserSettingsRepository(private val context: Context) {
 
         // strings
         prefs[Keys.GUIDELINE]?.let { out[Keys.GUIDELINE.name] = KvValue.T(it) }
+        prefs[Keys.APP_THEME_MODE]?.let { out[Keys.APP_THEME_MODE.name] = KvValue.T(it) }
         prefs[Keys.BACKEND]?.let { out[Keys.BACKEND.name] = KvValue.T(it) }
         prefs[Keys.MODEL_ID]?.let { out[Keys.MODEL_ID.name] = KvValue.T(it) }
         prefs[Keys.GEMINI_MODEL]?.let { out[Keys.GEMINI_MODEL.name] = KvValue.T(it) }
@@ -395,6 +401,7 @@ class UserSettingsRepository(private val context: Context) {
             when (keyName) {
                 // strings
                 Keys.GUIDELINE.name -> if (value is KvValue.T) prefs[Keys.GUIDELINE] = value.value
+                Keys.APP_THEME_MODE.name -> if (value is KvValue.T) prefs[Keys.APP_THEME_MODE] = value.value
                 Keys.BACKEND.name -> if (value is KvValue.T) prefs[Keys.BACKEND] = value.value
                 Keys.MODEL_ID.name -> if (value is KvValue.T) prefs[Keys.MODEL_ID] = value.value
                 Keys.GEMINI_MODEL.name -> if (value is KvValue.T) prefs[Keys.GEMINI_MODEL] = value.value

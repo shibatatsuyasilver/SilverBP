@@ -39,6 +39,10 @@
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_NUTRITION" />
+    <!-- Android 15+ (API 35/36): reading Health Connect from a background
+         WorkManager job (sleep/nutrition/step backfill) returns nothing without
+         this. Foreground reads work without it; this re-enables the workers. -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
     </queries>

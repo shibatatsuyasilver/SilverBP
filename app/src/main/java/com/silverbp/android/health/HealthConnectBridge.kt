@@ -32,6 +32,17 @@ class HealthConnectBridge(private val context: Context) {
         HealthPermission.getReadPermission(NutritionRecord::class),
     )
 
+    /**
+     * Android 15+ (API 35/36) requires this to read Health Connect from a
+     * background context (our WorkManager backfill jobs). Request it alongside
+     * the per-type read permissions; reads from a background worker return
+     * nothing without it. NOT gated on by the has*Permission() checks — a user
+     * who only grants the foreground read still works via the in-app re-sync.
+     */
+    val backgroundReadPermissions: Set<String> = setOf(
+        "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND",
+    )
+
     private fun client(): HealthConnectClient? = runCatching {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return null

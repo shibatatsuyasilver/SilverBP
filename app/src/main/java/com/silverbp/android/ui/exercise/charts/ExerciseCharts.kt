@@ -39,9 +39,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val EmptyHint = Color(0xFF8E8E93)
-private val GridColor = Color(0xFFBDBDBD)
-
 /**
  * Stacked daily-distance bar chart. Each day stacks every activity kind's
  * metres in [ActivityKind.entries] order, each scaled against a shared "nice
@@ -65,7 +62,7 @@ fun DailyDistanceStackedBarChart(
     val topLabel = formatDistanceTick(niceMax)
     val bottomLabel = "0"
     val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(color = EmptyHint, fontSize = 10.sp)
+    val labelStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
     val topLayout = measurer.measure(topLabel, labelStyle)
     val bottomLayout = measurer.measure(bottomLabel, labelStyle)
 
@@ -85,6 +82,7 @@ fun DailyDistanceStackedBarChart(
     }
     val xLabelHeight = xLayouts.filterNotNull().maxOfOrNull { it.size.height }?.toFloat() ?: 0f
 
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant
     Canvas(modifier = modifier.height(200.dp).padding(8.dp)) {
         val gutter = topLayout.size.width.toFloat() + 6f
         val chartLeft = gutter
@@ -95,13 +93,13 @@ fun DailyDistanceStackedBarChart(
         val chartBottom = size.height - xLabelHeight - xLabelGap - 1f
 
         drawLine(
-            color = GridColor.copy(alpha = 0.4f),
+            color = gridColor.copy(alpha = 0.4f),
             start = Offset(chartLeft, chartBottom),
             end = Offset(chartRight, chartBottom),
             strokeWidth = 1f,
         )
         drawLine(
-            color = GridColor.copy(alpha = 0.25f),
+            color = gridColor.copy(alpha = 0.25f),
             start = Offset(chartLeft, chartTop),
             end = Offset(chartRight, chartTop),
             strokeWidth = 1f,
@@ -206,7 +204,7 @@ fun PaceLineChart(
     val sameDay = startDate == endDate
 
     val measurer = rememberTextMeasurer()
-    val axisStyle = TextStyle(color = EmptyHint, fontSize = 10.sp)
+    val axisStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
     val fastLayout = measurer.measure(ExerciseMath.formatPace(values.min()), axisStyle)
     val slowLayout = measurer.measure(ExerciseMath.formatPace(values.max()), axisStyle)
     val dirLayout = measurer.measure("快 ▲", axisStyle)
@@ -299,7 +297,7 @@ fun KindDistributionDonut(
     }
     val order: List<Pair<ActivityKind, Color>> = ActivityKind.entries.map { it to colorForKind(it) }
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Canvas(modifier = Modifier.size(140.dp).padding(8.dp)) {
+        Canvas(modifier = Modifier.size(120.dp).padding(8.dp)) {
             var startAngle = -90f
             order.forEach { (kind, color) ->
                 val n = counts[kind] ?: 0
@@ -317,7 +315,7 @@ fun KindDistributionDonut(
                 startAngle += sweep
             }
         }
-        Spacer(Modifier.size(12.dp))
+        Spacer(Modifier.size(20.dp))
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             order.forEach { (kind, color) ->
                 val n = counts[kind] ?: 0
@@ -364,12 +362,12 @@ fun ContributionCalendar(
         DayOfWeek.of(dow).getDisplayName(java.time.format.TextStyle.NARROW, locale)
     }
     val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(color = EmptyHint, fontSize = 10.sp)
+    val labelStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
     val dayLayouts = dayLabels.map { measurer.measure(it, labelStyle) }
     val labelColW = dayLayouts.maxOf { it.size.width }.toFloat()
 
     val kindColors = ActivityKind.entries.associateWith { colorForKind(it) }
-    val emptyCellColor = Color(0xFFEFEFEF)
+    val emptyCellColor = MaterialTheme.colorScheme.surfaceVariant
 
     Canvas(modifier = modifier.height(160.dp).padding(8.dp)) {
         val gap = 3f
@@ -419,7 +417,7 @@ fun ContributionCalendar(
 @Composable
 private fun EmptyChart(label: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = EmptyHint)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

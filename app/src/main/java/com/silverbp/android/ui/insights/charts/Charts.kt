@@ -40,8 +40,6 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-private val EmptyHint = androidx.compose.ui.graphics.Color(0xFF8E8E93)
-
 @Composable
 fun TimeSeriesChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
     if (readings.size < 2) {
@@ -104,6 +102,7 @@ fun ScatterChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
     val xMax = (xs.max() + 5).coerceAtMost(170)
     val yMin = (ys.min() - 10).coerceAtLeast(40)
     val yMax = (ys.max() + 10).coerceAtMost(270)
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant
     Canvas(modifier = modifier.height(220.dp).padding(8.dp)) {
         readings.forEach { r ->
             val color = if (r.partOfDay.raw == "morning") SbpLine else DbpLine
@@ -117,7 +116,7 @@ fun ScatterChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
             drawCircle(color.copy(alpha = 0.7f), radius = 6f, center = androidx.compose.ui.geometry.Offset(cx, cy))
         }
         val effect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))
-        drawLine(EmptyHint.copy(alpha = 0.2f), androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, size.height), strokeWidth = 1f, pathEffect = effect)
+        drawLine(gridColor.copy(alpha = 0.25f), androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, size.height), strokeWidth = 1f, pathEffect = effect)
     }
     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         LegendDot(SbpLine, stringResource(R.string.chart_legend_morning))
@@ -141,7 +140,7 @@ fun DistributionDonut(distribution: Map<BpCategory, Int>, modifier: Modifier = M
         BpCategory.Hypotension to CategoryHypotension,
     )
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Canvas(modifier = Modifier.size(160.dp).padding(8.dp)) {
+        Canvas(modifier = Modifier.size(120.dp).padding(8.dp)) {
             var startAngle = -90f
             order.forEach { (cat, color) ->
                 val n = distribution[cat] ?: 0
@@ -159,7 +158,7 @@ fun DistributionDonut(distribution: Map<BpCategory, Int>, modifier: Modifier = M
                 startAngle += sweep
             }
         }
-        Spacer(Modifier.size(12.dp))
+        Spacer(Modifier.size(20.dp))
         Column {
             order.forEach { (cat, color) ->
                 val n = distribution[cat] ?: 0
@@ -221,7 +220,7 @@ private fun LegendDot(color: Color, label: String) {
 @Composable
 private fun EmptyChart(label: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = EmptyHint)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

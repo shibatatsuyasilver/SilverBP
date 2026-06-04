@@ -10,6 +10,8 @@ import com.silverbp.android.recognition.VisionBackendOverride
 
 data class UserSettings(
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
+    /** App color theme. Defaults to Dark — the app is dark-first. */
+    val appThemeMode: AppThemeMode = AppThemeMode.Dark,
     val enableHealthConnect: Boolean = false,
     val didOnboard: Boolean = false,
     val modelDownloaded: Boolean = false,

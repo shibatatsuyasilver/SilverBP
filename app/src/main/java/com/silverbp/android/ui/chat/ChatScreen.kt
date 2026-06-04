@@ -20,14 +20,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -84,6 +82,7 @@ import com.silverbp.android.chat.ChatMessage
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -200,20 +199,20 @@ fun ChatScreen(
         // Scaffold with its own bottomBar squashed the message area to ~0 dp
         // when the IME pushed the layout up, hiding all message bubbles.
         //
-        // ModalNavigationDrawer's SubcomposeLayout sizes its content slot to
-        // the full window — overriding the status-bar padding HomeWithTabs
-        // already applied. statusBarsPadding() can't fix this either: the
-        // outer consumeWindowInsets(padding) has already marked the status
-        // bar inset as consumed, so windowInsetsPadding-based modifiers
-        // become no-ops here. We instead read the inset value once and apply
-        // it as a plain dp padding, which bypasses the consumed-insets check.
-        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        // HomeWithTabs already insets this content below the status bar via its
+        // own Scaffold content padding, so we do NOT re-pad for it here. We used
+        // to add a manual status-bar padding on top of that, which double-counted
+        // the inset and pushed this header a full status-bar height lower than
+        // every other tab. The TopAppBar's own windowInsets is zeroed below for
+        // the same reason (it must not add a third inset).
         Column(
-            Modifier
-                .fillMaxSize()
-                .padding(top = statusBarTop)
+            Modifier.fillMaxSize()
         ) {
             TopAppBar(
+                // HomeWithTabs' Scaffold padding already accounts for the status
+                // bar; zero the bar's own inset so the header height matches every
+                // other tab instead of adding a duplicate status-bar gap.
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { Text(stringResource(R.string.tab_chat)) },
                 navigationIcon = {
                     if (onBack != null) {
@@ -293,7 +292,12 @@ private fun ChatMessageList(
     modifier: Modifier = Modifier,
 ) {
     if (messages.isEmpty()) {
-        Box(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            contentAlignment = Alignment.Center,
+        ) {
             EmptyChatHero(onSuggestion)
         }
         return
@@ -307,8 +311,11 @@ private fun ChatMessageList(
         state = listState,
         reverseLayout = true,
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(
+            horizontal = AppSpacing.screenH,
+            vertical = AppSpacing.screenV,
+        ),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap + AppSpacing.tight),
     ) {
         items(
             items = messages.reversed(),
@@ -362,7 +369,12 @@ private fun MessageBubble(
             color = bubbleColor,
             modifier = Modifier.widthIn(max = 320.dp),
         ) {
-            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Column(
+                Modifier.padding(
+                    horizontal = AppSpacing.itemGap + AppSpacing.itemGap,
+                    vertical = AppSpacing.itemGap + AppSpacing.tight,
+                )
+            ) {
                 imagePath?.let { path ->
                     val bmp = remember(path) {
                         runCatching { BitmapFactory.decodeFile(File(path).absolutePath) }.getOrNull()
@@ -404,12 +416,12 @@ private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
         stringResource(R.string.chat_suggestion_badges),
     )
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             stringResource(R.string.chat_empty_title),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
         )
         Text(
@@ -418,12 +430,16 @@ private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(8.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Spacer(Modifier.height(AppSpacing.itemGap))
+        Column(
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             suggestions.forEach { s ->
                 AssistChip(
                     onClick = { onSuggestion(s) },
                     label = { Text(s) },
+                    shape = RoundedCornerShape(AppSpacing.cardCorner),
                 )
             }
         }

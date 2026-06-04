@@ -366,6 +366,12 @@
     <string name="onboarding_notifications_grant">Allow notifications</string>
     <string name="onboarding_notifications_skip">Not now</string>
 
+    <!-- Settings appearance section -->
+    <string name="settings_appearance_title">Appearance</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+
     <!-- Settings personalization section -->
     <string name="settings_personalization_section">Personalization</string>
     <string name="settings_user_nickname_label">How the coach addresses you</string>
@@ -645,4 +651,20 @@
     <string name="coach_sleep_sync_needs_permission">Sleep read permission isn\'t granted, so nothing can be read.</string>
     <string name="coach_sleep_sync_grant">Grant sleep permission</string>
     <string name="coach_sleep_sync_failed">Sync failed — please try again.</string>
+
+    <!-- Today screen — Stitch-aligned greeting + category-derived Pro Tip (real data only) -->
+    <string name="today_greeting_morning">Good morning</string>
+    <string name="today_greeting_afternoon">Good afternoon</string>
+    <string name="today_greeting_evening">Good evening</string>
+    <string name="today_readings_logged">%1$d readings logged</string>
+    <string name="today_protip_title">Pro tip</string>
+    <string name="today_protip_normal">Your readings look healthy. Keep up the habit of measuring at the same time each day.</string>
+    <string name="today_protip_elevated">Slightly elevated. Ease off the salt and take a short walk after meals.</string>
+    <string name="today_protip_stage1">In the Stage 1 range. Measure daily at a consistent time and share the trend with your doctor.</string>
+    <string name="today_protip_stage2">In the Stage 2 range. Keep to your medication routine and check in with your doctor.</string>
+    <string name="today_protip_crisis">Very high reading. Rest, re-measure in a few minutes, and seek medical advice if it stays high.</string>
+    <string name="today_protip_hypotension">On the low side. Stand up slowly and stay hydrated; tell your doctor if you feel dizzy.</string>
+
+    <!-- Insights — stat label (was hardcoded) -->
+    <string name="insights_stat_mean">Mean</string>
 </resources>

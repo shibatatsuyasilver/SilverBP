@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,6 +29,7 @@ import com.silverbp.android.ui.coach.components.ModuleCard
 import com.silverbp.android.ui.coach.components.NarrationBlock
 import com.silverbp.android.ui.coach.components.TodayTaskCard
 import com.silverbp.android.ui.coach.components.WeeklyProgressCard
+import com.silverbp.android.ui.theme.AppSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,8 +102,8 @@ private fun ReadyContent(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
         TodayTaskCard(task = state.todayTask, onStartExercise = onStartExercise)
 

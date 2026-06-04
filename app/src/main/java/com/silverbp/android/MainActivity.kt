@@ -4,16 +4,20 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.silverbp.android.coach.CoachNotifier
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseNotification
 import com.silverbp.android.recognition.ModelBootstrap
+import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.ui.SilverBpApp
 import com.silverbp.android.ui.nav.DeepLinkBus
 import com.silverbp.android.ui.nav.Routes
 import com.silverbp.android.ui.theme.SilverBpTheme
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // FragmentActivity (a ComponentActivity subclass) is required by
@@ -25,7 +29,14 @@ class MainActivity : FragmentActivity() {
         handleStopAndReview(intent)
         forwardDeepLink(intent)
         setContent {
-            SilverBpTheme {
+            // Observe only the theme mode here (a second cheap subscription to the
+            // same DataStore-backed flow that SilverBpApp collects). Initial value
+            // == the persisted default so dark users never see a light flash on
+            // cold start.
+            val themeMode by ServiceLocator.userSettings.flow
+                .map { it.appThemeMode }
+                .collectAsStateWithLifecycle(initialValue = AppThemeMode.Dark)
+            SilverBpTheme(themeMode = themeMode) {
                 SilverBpApp()
             }
         }
