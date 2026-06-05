@@ -33,8 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.insights.charts.DaypartCategoryHeatmap
 import com.silverbp.android.ui.insights.charts.DistributionDonut
-import com.silverbp.android.ui.insights.charts.HeatmapChart
 import com.silverbp.android.ui.insights.charts.ScatterChart
 import com.silverbp.android.ui.insights.charts.TimeSeriesChart
 import com.silverbp.android.ui.theme.AppSpacing
@@ -58,13 +58,13 @@ fun InsightsScreen(
                 TimeSeriesChart(readings = state.readings, modifier = Modifier.fillMaxWidth())
             }
             ChartCard(stringResource(R.string.scatter_title)) {
-                ScatterChart(readings = state.readings, modifier = Modifier.fillMaxWidth())
+                ScatterChart(readings = state.readings, guideline = state.guideline, modifier = Modifier.fillMaxWidth())
             }
             ChartCard(stringResource(R.string.distribution_title)) {
                 DistributionDonut(distribution = state.distribution, modifier = Modifier.fillMaxWidth())
             }
             ChartCard(stringResource(R.string.heatmap_title)) {
-                HeatmapChart(readings = state.readings, modifier = Modifier.fillMaxWidth())
+                DaypartCategoryHeatmap(counts = state.daypartCategory, modifier = Modifier.fillMaxWidth())
             }
 
             OutlinedButton(

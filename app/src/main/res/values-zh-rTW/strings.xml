@@ -89,9 +89,9 @@
 
     <!-- Insights -->
     <string name="trend_title">血壓趨勢</string>
-    <string name="scatter_title">收縮壓 × 舒張壓</string>
+    <string name="scatter_title">SBP × DBP 分級散布</string>
     <string name="distribution_title">分級分布</string>
-    <string name="heatmap_title">週/時段 熱圖</string>
+    <string name="heatmap_title">早晚 × 分級 熱圖</string>
     <string name="morning_surge">晨間升幅</string>
     <string name="variability">變異</string>
     <string name="arv">ARV</string>

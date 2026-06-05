@@ -89,9 +89,9 @@
 
     <!-- Insights -->
     <string name="trend_title">Trend</string>
-    <string name="scatter_title">SBP × DBP</string>
+    <string name="scatter_title">SBP × DBP by category</string>
     <string name="distribution_title">Distribution</string>
-    <string name="heatmap_title">Weekday × Hour</string>
+    <string name="heatmap_title">Morning/Evening × Category</string>
     <string name="morning_surge">Morning surge</string>
     <string name="variability">Variability</string>
     <string name="arv">ARV</string>

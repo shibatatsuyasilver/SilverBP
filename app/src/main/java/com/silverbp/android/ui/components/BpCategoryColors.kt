@@ -51,5 +51,29 @@ fun categoryLabel(category: BpCategory): String {
     }
 }
 
+/**
+ * Compact [BpCategory] label for tight layouts (e.g. heatmap column headers),
+ * where [categoryLabel]'s full "高血壓 1 期" / "Stage 1 hypertension" won't fit.
+ * Same locale handling as [categoryLabel].
+ */
+fun categoryShortLabel(category: BpCategory): String {
+    val zh = Locale.getDefault().language.equals("zh", ignoreCase = true)
+    return if (zh) when (category) {
+        BpCategory.Normal -> "正常"
+        BpCategory.Elevated -> "偏高"
+        BpCategory.Stage1 -> "1期"
+        BpCategory.Stage2 -> "2期"
+        BpCategory.HypertensiveCrisis -> "危象"
+        BpCategory.Hypotension -> "低壓"
+    } else when (category) {
+        BpCategory.Normal -> "Normal"
+        BpCategory.Elevated -> "Elev"
+        BpCategory.Stage1 -> "S1"
+        BpCategory.Stage2 -> "S2"
+        BpCategory.HypertensiveCrisis -> "Crisis"
+        BpCategory.Hypotension -> "Low"
+    }
+}
+
 fun classify(systolic: Int, diastolic: Int, guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022): BpCategory =
     GuidelineClassifier(guideline).classify(systolic, diastolic)
