@@ -25,10 +25,13 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.ui.coach.components.ModuleCard
 import com.silverbp.android.ui.coach.components.NarrationBlock
 import com.silverbp.android.ui.coach.components.TodayTaskCard
 import com.silverbp.android.ui.coach.components.WeeklyProgressCard
+import com.silverbp.android.ui.exercise.rememberExercisePermissionState
 import com.silverbp.android.ui.theme.AppSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +46,20 @@ fun CoachScreen(
     vm: CoachViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+
+    // "去散步" starts a Walking session directly. We still request the location /
+    // notification / activity-recognition perms the foreground tracking service
+    // needs (starting it without location permission crashes on modern Android),
+    // but intentionally NO pre-workout BP gate — tapping the task goes straight
+    // to walking.
+    val (_, requestPerm) = rememberExercisePermissionState()
+
+    fun startWalk() {
+        requestPerm {
+            ServiceLocator.exerciseController.start(ActivityKind.Walking)
+            onStartExercise()
+        }
+    }
 
     // Re-pull HC sleep/nutrition each time the Coach tab is shown, so data
     // logged overnight appears without a full app restart.
@@ -74,7 +91,7 @@ fun CoachScreen(
             }
             is CoachUiState.Ready -> ReadyContent(
                 state = s,
-                onStartExercise = onStartExercise,
+                onStartExercise = ::startWalk,
                 onOpenWeeklyReport = onOpenWeeklyReport,
                 onOpenWeeklyPlan = onOpenWeeklyPlan,
                 onOpenLogDiet = onOpenLogDiet,
