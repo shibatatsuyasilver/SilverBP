@@ -31,20 +31,20 @@ import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.ui.achievements.MedalsScreen
 import com.silverbp.android.ui.capture.CaptureScreen
 import com.silverbp.android.ui.chat.ChatScreen
-import com.silverbp.android.ui.coach.CoachHubScreen
 import com.silverbp.android.ui.coach.CoachLogDietScreen
 import com.silverbp.android.ui.coach.CoachLogMedicationScreen
 import com.silverbp.android.ui.coach.CoachLogSleepScreen
+import com.silverbp.android.ui.coach.CoachScreen
 import com.silverbp.android.ui.coach.CoachWeeklyPlanScreen
 import com.silverbp.android.ui.coach.CoachWeeklyReportScreen
 import com.silverbp.android.ui.coach.MedicationEditScreen
 import com.silverbp.android.ui.coach.MedicationManageScreen
 import com.silverbp.android.ui.confirm.ConfirmReadingScreen
+import com.silverbp.android.ui.data.DataHubScreen
 import com.silverbp.android.ui.exercise.ExerciseDetailScreen
 import com.silverbp.android.ui.exercise.ExerciseHomeScreen
 import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
-import com.silverbp.android.ui.insights.InsightsScreen
 import com.silverbp.android.ui.nutrition.BarcodeScanScreen
 import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
 import com.silverbp.android.ui.nutrition.NutritionScreen
@@ -315,10 +315,13 @@ private fun HomeWithTabs(rootNav: NavHostController) {
     val tabsNav = rememberNavController()
     val backstack by tabsNav.currentBackStackEntryAsState()
     val currentRoute = backstack?.destination?.route ?: TabDestination.Today.route
-    // Every tab is always shown. The BP history list now lives as a sub-tab
-    // inside the Coach hub (see CoachHubScreen); the Coach sub-section itself is
-    // gated by enableCoach there, not by hiding the whole tab.
-    val visibleTabs = TabDestination.all
+    val settings by ServiceLocator.userSettings.flow.collectAsStateWithLifecycle(initialValue = null)
+    // Coach tab is gated on the master toggle; History (紀錄) now lives under the
+    // always-visible Data tab, so hiding Coach when disabled is safe again.
+    // settings == null on cold start: show every tab (matches Coach default-true).
+    val visibleTabs = TabDestination.all.filter { tab ->
+        tab !is TabDestination.Coach || (settings?.enableCoach ?: true)
+    }
 
     // Notification tap → switch to Coach tab. Sub-routes are handled by the
     // outer NavHost; here we only honour the tab route.
@@ -391,8 +394,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
         )
     }
     composable(TabDestination.Coach.route) {
-        CoachHubScreen(
-            onEditReading = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
+        CoachScreen(
             onOpenWeeklyReport = { rootNav.navigate(Routes.COACH_WEEKLY_REPORT) },
             onOpenWeeklyPlan = { rootNav.navigate(Routes.COACH_WEEKLY_PLAN) },
             onOpenLogDiet = { rootNav.navigate(Routes.COACH_LOG_DIET) },
@@ -409,8 +411,11 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
         )
     }
-    composable(TabDestination.Insights.route) {
-        InsightsScreen(onOpenReport = { rootNav.navigate(Routes.REPORT) })
+    composable(TabDestination.Data.route) {
+        DataHubScreen(
+            onEditReading = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
+            onOpenReport = { rootNav.navigate(Routes.REPORT) },
+        )
     }
     composable(TabDestination.Nutrition.route) {
         NutritionScreen(

@@ -15,14 +15,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -39,44 +36,43 @@ import com.silverbp.android.ui.insights.charts.ScatterChart
 import com.silverbp.android.ui.insights.charts.TimeSeriesChart
 import com.silverbp.android.ui.theme.AppSpacing
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(
     onOpenReport: () -> Unit = {},
+    modifier: Modifier = Modifier,
     vm: InsightsViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
 
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_insights)) }) }) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap)
-        ) {
-            RangeChips(state.range, vm::setRange)
-            StatsCards(state)
-            ChartCard(stringResource(R.string.trend_title)) {
-                TimeSeriesChart(readings = state.readings, modifier = Modifier.fillMaxWidth())
-            }
-            ChartCard(stringResource(R.string.scatter_title)) {
-                ScatterChart(readings = state.readings, guideline = state.guideline, modifier = Modifier.fillMaxWidth())
-            }
-            ChartCard(stringResource(R.string.distribution_title)) {
-                DistributionDonut(distribution = state.distribution, modifier = Modifier.fillMaxWidth())
-            }
-            ChartCard(stringResource(R.string.heatmap_title)) {
-                DaypartCategoryHeatmap(counts = state.daypartCategory, modifier = Modifier.fillMaxWidth())
-            }
-
-            OutlinedButton(
-                onClick = onOpenReport,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenH),
-            ) {
-                Icon(Icons.Filled.Description, null)
-                Spacer(Modifier.size(AppSpacing.itemGap))
-                Text(stringResource(R.string.report_screen_title))
-            }
-            Spacer(Modifier.height(24.dp))
+    Column(
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+    ) {
+        Spacer(Modifier.height(AppSpacing.itemGap))
+        RangeChips(state.range, vm::setRange)
+        StatsCards(state)
+        ChartCard(stringResource(R.string.trend_title)) {
+            TimeSeriesChart(readings = state.readings, modifier = Modifier.fillMaxWidth())
         }
+        ChartCard(stringResource(R.string.scatter_title)) {
+            ScatterChart(readings = state.readings, guideline = state.guideline, modifier = Modifier.fillMaxWidth())
+        }
+        ChartCard(stringResource(R.string.distribution_title)) {
+            DistributionDonut(distribution = state.distribution, modifier = Modifier.fillMaxWidth())
+        }
+        ChartCard(stringResource(R.string.heatmap_title)) {
+            DaypartCategoryHeatmap(counts = state.daypartCategory, modifier = Modifier.fillMaxWidth())
+        }
+
+        OutlinedButton(
+            onClick = onOpenReport,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenH),
+        ) {
+            Icon(Icons.Filled.Description, null)
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            Text(stringResource(R.string.report_screen_title))
+        }
+        Spacer(Modifier.height(24.dp))
     }
 }
 

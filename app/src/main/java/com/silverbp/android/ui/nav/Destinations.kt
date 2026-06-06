@@ -12,11 +12,11 @@ import com.silverbp.android.R
 
 sealed class TabDestination(val route: String, val labelRes: Int, val icon: ImageVector) {
     data object Today    : TabDestination("today",    R.string.tab_today,    Icons.Filled.Home)
-    // Coach also hosts the BP history list as a sub-tab (see CoachHubScreen).
-    data object Coach    : TabDestination("coach",    R.string.tab_coach,    Icons.Filled.Favorite)
+    // Data hub hosts the BP history list (紀錄) + analytics (分析), mirroring iOS DataHubView.
+    data object Data     : TabDestination("data",     R.string.tab_data,     Icons.Filled.Assessment)
     data object Exercise : TabDestination("exercise", R.string.tab_exercise, Icons.AutoMirrored.Filled.DirectionsRun)
-    data object Insights : TabDestination("insights", R.string.tab_insights, Icons.Filled.Assessment)
     data object Nutrition: TabDestination("nutrition", R.string.tab_nutrition, Icons.Filled.Restaurant)
+    data object Coach    : TabDestination("coach",    R.string.tab_coach,    Icons.Filled.Favorite)
     data object Chat     : TabDestination("chat",     R.string.tab_chat,     Icons.AutoMirrored.Filled.Chat)
 
     companion object {
@@ -24,7 +24,7 @@ sealed class TabDestination(val route: String, val labelRes: Int, val icon: Imag
         // sealed class's data-object children, so eager listOf(...) here
         // would capture nulls and crash NavigationBar at first render.
         val all: List<TabDestination> by lazy {
-            listOf(Today, Coach, Exercise, Insights, Nutrition, Chat)
+            listOf(Today, Data, Exercise, Nutrition, Coach, Chat)
         }
     }
 }
