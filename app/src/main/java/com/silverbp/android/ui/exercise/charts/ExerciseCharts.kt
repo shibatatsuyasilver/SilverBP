@@ -19,7 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -31,6 +32,7 @@ import kotlin.math.ceil
 import com.silverbp.android.R
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
+import com.silverbp.android.ui.components.smoothLinePath
 import com.silverbp.android.ui.exercise.colorForKind
 import java.time.DayOfWeek
 import java.time.Instant
@@ -238,16 +240,14 @@ fun PaceLineChart(
 
         drawable.forEach { (kind, samples) ->
             val color = colorForKind(kind)
-            val path = Path()
-            samples.forEachIndexed { i, (t, v) ->
-                val x = px(t.toEpochMilli())
-                val y = py(v)
-                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-            drawPath(path, color = color, style = Stroke(width = 4f))
-            samples.forEach { (t, v) ->
-                drawCircle(color, radius = 4f, center = Offset(px(t.toEpochMilli()), py(v)))
-            }
+            val pts = samples.map { (t, v) -> Offset(px(t.toEpochMilli()), py(v)) }
+            // Same smooth Catmull-Rom curve + stroke as the Insights trend line.
+            drawPath(
+                smoothLinePath(pts),
+                color = color,
+                style = Stroke(width = 8f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            )
+            pts.forEach { drawCircle(color, radius = 5f, center = it) }
         }
 
         val labelY = chartBottom + gap

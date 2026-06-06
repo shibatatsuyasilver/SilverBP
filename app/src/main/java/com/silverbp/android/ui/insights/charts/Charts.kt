@@ -45,6 +45,7 @@ import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.categoryShortLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
+import com.silverbp.android.ui.components.smoothLinePath
 import com.silverbp.android.ui.theme.CategoryCrisis
 import com.silverbp.android.ui.theme.CategoryElevated
 import com.silverbp.android.ui.theme.CategoryHypotension
@@ -123,8 +124,8 @@ fun TimeSeriesChart(readings: List<BpReading>, modifier: Modifier = Modifier) {
             val diaPts = present.mapIndexed { k, slot -> Offset(xOf(slot), yOf(diaAvg[k])) }
             val stroke = Stroke(width = 8f, cap = StrokeCap.Round, join = StrokeJoin.Round)
             if (present.size >= 2) {
-                drawPath(smoothPath(sysPts), color = SbpLine, style = stroke)
-                drawPath(smoothPath(diaPts), color = DbpLine, style = stroke)
+                drawPath(smoothLinePath(sysPts), color = SbpLine, style = stroke)
+                drawPath(smoothLinePath(diaPts), color = DbpLine, style = stroke)
             } else {
                 sysPts.forEach { drawCircle(SbpLine, 7f, it) }
                 diaPts.forEach { drawCircle(DbpLine, 7f, it) }
@@ -365,23 +366,4 @@ private fun mapY(y: Double, min: Int, max: Int, h: Float): Float {
     if (max <= min) return h / 2
     val t = (y - min) / (max - min).toDouble()
     return h - (t * h).toFloat()
-}
-
-/** Catmull-Rom (tension 1/6) → cubic-bezier through [pts] for a smooth line. */
-private fun smoothPath(pts: List<Offset>): Path {
-    val path = Path()
-    if (pts.isEmpty()) return path
-    path.moveTo(pts[0].x, pts[0].y)
-    for (i in 0 until pts.size - 1) {
-        val p0 = pts[if (i - 1 < 0) i else i - 1]
-        val p1 = pts[i]
-        val p2 = pts[i + 1]
-        val p3 = pts[if (i + 2 > pts.lastIndex) i + 1 else i + 2]
-        val c1x = p1.x + (p2.x - p0.x) / 6f
-        val c1y = p1.y + (p2.y - p0.y) / 6f
-        val c2x = p2.x - (p3.x - p1.x) / 6f
-        val c2y = p2.y - (p3.y - p1.y) / 6f
-        path.cubicTo(c1x, c1y, c2x, c2y, p2.x, p2.y)
-    }
-    return path
 }
