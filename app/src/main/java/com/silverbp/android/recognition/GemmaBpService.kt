@@ -221,6 +221,34 @@ object GemmaBpService {
         }
     }
 
+    /**
+     * Low-level multimodal call: run [promptText] over [bitmap] and return the
+     * raw model text. Shares the warmed engine with [extract]; used by the
+     * nutrition pipeline ([GemmaLocalNutritionRecognizer]). Unlike [extract] it
+     * does NOT apply [preprocessForOcr] — that contrast/desaturation pass is
+     * tuned for 7-segment LCDs and would wreck food colour. Caller downsamples.
+     */
+    suspend fun generate(bitmap: Bitmap, promptText: String): String = withContext(Dispatchers.Default) {
+        val eng = engine ?: throw BpExtractionError.ModelNotLoaded
+        val appCtx = ctx ?: throw BpExtractionError.ModelNotLoaded
+        val tmp = File(appCtx.cacheDir, "gemma/${UUID.randomUUID()}.jpg").apply {
+            parentFile?.mkdirs()
+        }
+        FileOutputStream(tmp).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        try {
+            eng.createConversation().use { conversation ->
+                conversation.sendMessage(
+                    Contents.of(
+                        Content.ImageFile(tmp.absolutePath),
+                        Content.Text(promptText),
+                    )
+                ).toString()
+            }
+        } finally {
+            tmp.delete()
+        }
+    }
+
     fun isLoaded(): Boolean = engine != null
 
     /**

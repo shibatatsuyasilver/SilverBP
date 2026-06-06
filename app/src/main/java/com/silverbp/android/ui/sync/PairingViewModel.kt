@@ -212,6 +212,8 @@ class PairingViewModel(
                     setLogMapper = ServiceLocator.setLogSyncMapper,
                     bpWorkoutAssociationDao = db.bpWorkoutAssociationDao(),
                     bpWorkoutAssociationMapper = ServiceLocator.bpWorkoutAssociationSyncMapper,
+                    foodLogDao = db.foodLogDao(),
+                    foodLogMapper = ServiceLocator.foodLogSyncMapper,
                 )
                 val sink = CombinedRoomSyncSink(
                     bpMapper = ServiceLocator.bpReadingSyncMapper,
@@ -230,6 +232,7 @@ class PairingViewModel(
                     strengthWorkoutSessionMapper = ServiceLocator.strengthWorkoutSessionSyncMapper,
                     setLogMapper = ServiceLocator.setLogSyncMapper,
                     bpWorkoutAssociationMapper = ServiceLocator.bpWorkoutAssociationSyncMapper,
+                    foodLogMapper = ServiceLocator.foodLogSyncMapper,
                 )
                 // Snapshot row counts across the synced tables. We surface the
                 // BP delta in the Done state because the UI string still says

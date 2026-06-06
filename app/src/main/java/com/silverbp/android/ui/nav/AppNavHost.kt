@@ -31,10 +31,10 @@ import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.ui.achievements.MedalsScreen
 import com.silverbp.android.ui.capture.CaptureScreen
 import com.silverbp.android.ui.chat.ChatScreen
+import com.silverbp.android.ui.coach.CoachHubScreen
 import com.silverbp.android.ui.coach.CoachLogDietScreen
 import com.silverbp.android.ui.coach.CoachLogMedicationScreen
 import com.silverbp.android.ui.coach.CoachLogSleepScreen
-import com.silverbp.android.ui.coach.CoachScreen
 import com.silverbp.android.ui.coach.CoachWeeklyPlanScreen
 import com.silverbp.android.ui.coach.CoachWeeklyReportScreen
 import com.silverbp.android.ui.coach.MedicationEditScreen
@@ -44,8 +44,10 @@ import com.silverbp.android.ui.exercise.ExerciseDetailScreen
 import com.silverbp.android.ui.exercise.ExerciseHomeScreen
 import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
-import com.silverbp.android.ui.history.HistoryScreen
 import com.silverbp.android.ui.insights.InsightsScreen
+import com.silverbp.android.ui.nutrition.BarcodeScanScreen
+import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
+import com.silverbp.android.ui.nutrition.NutritionScreen
 import com.silverbp.android.ui.onboarding.LinkAccountScreen
 import com.silverbp.android.ui.onboarding.OnboardingNicknameScreen
 import com.silverbp.android.ui.report.ReportScreen
@@ -227,6 +229,34 @@ fun AppNavHost() {
         composable(Routes.REPORT) {
             ReportScreen(onClose = { rootNav.popBackStack() })
         }
+        composable(Routes.NUTRITION_CONFIRM_NEW) {
+            NutritionConfirmScreen(
+                idArg = null,
+                onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onCancel = { rootNav.popBackStack() },
+            )
+        }
+        composable(
+            Routes.NUTRITION_CONFIRM_PATTERN,
+            arguments = listOf(navArgument(Routes.ARG_FOOD_LOG_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString(Routes.ARG_FOOD_LOG_ID)
+            NutritionConfirmScreen(
+                idArg = id,
+                onSaved = { rootNav.popBackStack() },
+                onCancel = { rootNav.popBackStack() },
+            )
+        }
+        composable(Routes.NUTRITION_BARCODE) {
+            BarcodeScanScreen(
+                onResult = {
+                    rootNav.navigate(Routes.NUTRITION_CONFIRM_NEW) {
+                        popUpTo(Routes.NUTRITION_BARCODE) { inclusive = true }
+                    }
+                },
+                onClose = { rootNav.popBackStack() },
+            )
+        }
         composable(Routes.SYNC_PAIRING) {
             com.silverbp.android.ui.sync.PairingScreen(
                 onBack = { rootNav.popBackStack() },
@@ -285,13 +315,10 @@ private fun HomeWithTabs(rootNav: NavHostController) {
     val tabsNav = rememberNavController()
     val backstack by tabsNav.currentBackStackEntryAsState()
     val currentRoute = backstack?.destination?.route ?: TabDestination.Today.route
-    val settings by ServiceLocator.userSettings.flow.collectAsStateWithLifecycle(initialValue = null)
-    val visibleTabs = TabDestination.all.filter { tab ->
-        // Coach tab is gated on the master toggle — every other tab is always shown.
-        // settings == null on cold start: show every tab including Coach (matches its
-        // default-true value), so users don't see a brief 5-tab flash.
-        tab !is TabDestination.Coach || (settings?.enableCoach ?: true)
-    }
+    // Every tab is always shown. The BP history list now lives as a sub-tab
+    // inside the Coach hub (see CoachHubScreen); the Coach sub-section itself is
+    // gated by enableCoach there, not by hiding the whole tab.
+    val visibleTabs = TabDestination.all
 
     // Notification tap → switch to Coach tab. Sub-routes are handled by the
     // outer NavHost; here we only honour the tab route.
@@ -363,13 +390,9 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onOpenSettings = { rootNav.navigate(Routes.SETTINGS) },
         )
     }
-    composable(TabDestination.History.route) {
-        HistoryScreen(
-            onEdit = { id -> rootNav.navigate(Routes.confirmEdit(id)) }
-        )
-    }
     composable(TabDestination.Coach.route) {
-        CoachScreen(
+        CoachHubScreen(
+            onEditReading = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
             onOpenWeeklyReport = { rootNav.navigate(Routes.COACH_WEEKLY_REPORT) },
             onOpenWeeklyPlan = { rootNav.navigate(Routes.COACH_WEEKLY_PLAN) },
             onOpenLogDiet = { rootNav.navigate(Routes.COACH_LOG_DIET) },
@@ -388,6 +411,13 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
     }
     composable(TabDestination.Insights.route) {
         InsightsScreen(onOpenReport = { rootNav.navigate(Routes.REPORT) })
+    }
+    composable(TabDestination.Nutrition.route) {
+        NutritionScreen(
+            onOpenConfirmNew = { rootNav.navigate(Routes.NUTRITION_CONFIRM_NEW) },
+            onOpenConfirmEdit = { id -> rootNav.navigate(Routes.nutritionConfirmEdit(id)) },
+            onOpenBarcode = { rootNav.navigate(Routes.NUTRITION_BARCODE) },
+        )
     }
     composable(TabDestination.Chat.route) {
         // onBack = null hides the back arrow when Chat is rendered as a tab.

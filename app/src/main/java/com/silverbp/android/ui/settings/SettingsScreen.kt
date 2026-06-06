@@ -90,6 +90,8 @@ fun SettingsScreen(
         ServiceLocator.healthConnectExerciseBridge.readPermissions +
             ServiceLocator.healthConnectExerciseBridge.permissions +
             ServiceLocator.healthConnectBpBridge.permissions +
+            // 飲食: mirror logged meals into Health Connect as NutritionRecord.
+            ServiceLocator.healthConnectNutritionBridge.permissions +
             // Android 15+: the background step-sync worker reads nothing without this.
             ServiceLocator.healthConnectBridge.backgroundReadPermissions
     }

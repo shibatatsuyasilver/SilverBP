@@ -30,6 +30,7 @@ enum class SyncEntityType(val tag: Int, val tableName: String) {
     STRENGTH_WORKOUT_SESSION(19, "strength_workout_session"),
     SET_LOG(20, "set_log"),
     BP_WORKOUT_ASSOCIATION(21, "bp_workout_association"),
+    FOOD_LOG(22, "food_log"),
     SETTINGS_KV(64, "settings_kv"),
     BLOB_META(65, "blob_meta");
 

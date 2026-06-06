@@ -5,17 +5,18 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.silverbp.android.R
 
 sealed class TabDestination(val route: String, val labelRes: Int, val icon: ImageVector) {
     data object Today    : TabDestination("today",    R.string.tab_today,    Icons.Filled.Home)
-    data object History  : TabDestination("history",  R.string.tab_history,  Icons.Filled.History)
+    // Coach also hosts the BP history list as a sub-tab (see CoachHubScreen).
     data object Coach    : TabDestination("coach",    R.string.tab_coach,    Icons.Filled.Favorite)
     data object Exercise : TabDestination("exercise", R.string.tab_exercise, Icons.AutoMirrored.Filled.DirectionsRun)
     data object Insights : TabDestination("insights", R.string.tab_insights, Icons.Filled.Assessment)
+    data object Nutrition: TabDestination("nutrition", R.string.tab_nutrition, Icons.Filled.Restaurant)
     data object Chat     : TabDestination("chat",     R.string.tab_chat,     Icons.AutoMirrored.Filled.Chat)
 
     companion object {
@@ -23,7 +24,7 @@ sealed class TabDestination(val route: String, val labelRes: Int, val icon: Imag
         // sealed class's data-object children, so eager listOf(...) here
         // would capture nulls and crash NavigationBar at first render.
         val all: List<TabDestination> by lazy {
-            listOf(Today, History, Coach, Exercise, Insights, Chat)
+            listOf(Today, Coach, Exercise, Insights, Nutrition, Chat)
         }
     }
 }
@@ -72,6 +73,16 @@ object Routes {
     const val COACH_EDIT_MEDICATION_PATTERN = "coach/edit-medication/{medicationId}"
     const val ARG_MEDICATION_ID = "medicationId"
     fun coachEditMedication(id: String) = "coach/edit-medication/$id"
+
+    // Nutrition (飲食) capture → confirm flow. Confirm is root-level so the
+    // bottom bar hides while active, like the BP CONFIRM routes. NEW reads the
+    // staged draft from NutritionDraftHolder; the {foodLogId} pattern edits an
+    // existing row.
+    const val NUTRITION_CONFIRM_NEW = "nutrition/confirm/new"
+    const val NUTRITION_CONFIRM_PATTERN = "nutrition/confirm/{foodLogId}"
+    const val ARG_FOOD_LOG_ID = "foodLogId"
+    fun nutritionConfirmEdit(id: String) = "nutrition/confirm/$id"
+    const val NUTRITION_BARCODE = "nutrition/barcode"
 
     // Cross-device sync pairing — opened from SettingsScreen's "跨裝置同步" row.
     const val SYNC_PAIRING = "sync/pairing"

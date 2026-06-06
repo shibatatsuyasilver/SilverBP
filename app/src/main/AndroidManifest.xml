@@ -39,6 +39,8 @@
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_NUTRITION" />
+    <!-- Nutrition (飲食) feature mirrors logged meals into Health Connect. -->
+    <uses-permission android:name="android.permission.health.WRITE_NUTRITION" />
     <!-- Android 15+ (API 35/36): reading Health Connect from a background
          WorkManager job (sleep/nutrition/step backfill) returns nothing without
          this. Foreground reads work without it; this re-enables the workers. -->

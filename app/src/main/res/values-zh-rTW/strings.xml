@@ -667,4 +667,56 @@
 
     <!-- Insights — stat label (was hardcoded) -->
     <string name="insights_stat_mean">平均</string>
+
+    <!-- Nutrition (飲食) -->
+    <string name="tab_nutrition">飲食</string>
+    <string name="nutrition_today_title">今日</string>
+    <string name="nutrition_sodium_summary">鈉 %1$d / %2$d mg</string>
+    <string name="nutrition_estimate_tag">估算值</string>
+    <string name="nutrition_calories_summary">熱量 %1$d kcal</string>
+    <string name="nutrition_macros_summary">蛋白 %1$dg · 碳水 %2$dg · 脂肪 %3$dg</string>
+    <string name="nutrition_trend_title">近 7 日鈉攝取</string>
+    <string name="nutrition_capture_button">拍照記錄一餐</string>
+    <string name="nutrition_pick_gallery">相簿</string>
+    <string name="nutrition_add_manual">手動</string>
+    <string name="nutrition_recent_title">最近紀錄</string>
+    <string name="nutrition_today_empty">還沒有飲食紀錄,拍一張開始吧</string>
+    <string name="nutrition_analyzing">分析中…</string>
+    <string name="nutrition_analyze_failed">辨識失敗,可改用手動輸入</string>
+    <string name="nutrition_manual_entry">手動輸入</string>
+    <string name="nutrition_kcal_short">%1$d kcal</string>
+    <string name="nutrition_meal_breakfast">早餐</string>
+    <string name="nutrition_meal_lunch">午餐</string>
+    <string name="nutrition_meal_dinner">晚餐</string>
+    <string name="nutrition_meal_snack">點心</string>
+    <string name="nutrition_sodium_low">低</string>
+    <string name="nutrition_sodium_mid">中</string>
+    <string name="nutrition_sodium_high">高</string>
+    <string name="nutrition_confirm_new_title">記錄一餐</string>
+    <string name="nutrition_confirm_edit_title">編輯紀錄</string>
+    <string name="nutrition_field_description">餐點描述</string>
+    <string name="nutrition_field_description_hint">例如:雞腿便當</string>
+    <string name="nutrition_meal_label">餐別</string>
+    <string name="nutrition_sodium_section">鈉 / 鹽分</string>
+    <string name="nutrition_sodium_level">鈉含量等級</string>
+    <string name="nutrition_sodium_range">估算範圍 %1$d–%2$d mg</string>
+    <string name="nutrition_sodium_mg_label">鈉 (mg)</string>
+    <string name="nutrition_sodium_photo_note">照片難以準確估算鈉;包裝食品請改用掃條碼取得標示值。</string>
+    <string name="nutrition_macros_section">其他營養</string>
+    <string name="nutrition_calories_label">熱量 (kcal)</string>
+    <string name="nutrition_protein_label">蛋白質 (g)</string>
+    <string name="nutrition_carbs_label">碳水 (g)</string>
+    <string name="nutrition_fat_label">脂肪 (g)</string>
+    <string name="nutrition_sugar_label">糖 (g)</string>
+    <string name="nutrition_fiber_label">纖維 (g)</string>
+    <string name="nutrition_note_label">備註</string>
+    <string name="nutrition_disclaimer">以上為 AI 估算,僅供參考,非醫療建議。評估鈉攝取的參考標準為 24 小時尿鈉。</string>
+    <string name="nutrition_delete_title">刪除這筆紀錄?</string>
+    <string name="nutrition_delete_message">這筆飲食紀錄將被刪除。</string>
+    <string name="nutrition_photo_short">拍照</string>
+    <string name="nutrition_scan_barcode">掃條碼</string>
+    <string name="nutrition_barcode_hint">將條碼對準畫面中央</string>
+    <string name="nutrition_barcode_lookup">查詢中…</string>
+    <string name="nutrition_barcode_not_found">查無此商品,可改用手動輸入</string>
+    <string name="nutrition_barcode_rescan">重新掃描</string>
 </resources>

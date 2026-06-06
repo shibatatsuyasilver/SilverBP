@@ -25,19 +25,15 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,79 +61,51 @@ import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     onEdit: (String) -> Unit,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier,
     vm: HistoryViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
-    var showFilterMenu by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<BpReading?>(null) }
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deletedMsg = stringResource(R.string.reading_deleted)
     val undoLabel = stringResource(R.string.delete_reading_undo)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.tab_history)) },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showFilterMenu = true }) {
-                            Icon(
-                                Icons.Filled.FilterList,
-                                contentDescription = stringResource(R.string.a11y_filter_readings),
-                            )
-                        }
-                        FilterMenu(
-                            expanded = showFilterMenu,
-                            onDismiss = { showFilterMenu = false },
-                            currentRange = state.range,
-                            currentSort = state.sort,
-                            onRange = vm::setRange,
-                            onSort = vm::setSort,
-                        )
-                    }
-                },
+    val contentModifier = modifier.fillMaxSize()
+    when {
+        state.isLoading -> Box(contentModifier, contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        state.error -> Box(contentModifier, contentAlignment = Alignment.Center) {
+            Text(
+                stringResource(R.string.error_load_failed),
+                color = MaterialTheme.colorScheme.error,
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        val contentModifier = Modifier.fillMaxSize().padding(padding)
-        when {
-            state.isLoading -> Box(contentModifier, contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            state.error -> Box(contentModifier, contentAlignment = Alignment.Center) {
-                Text(
-                    stringResource(R.string.error_load_failed),
-                    color = MaterialTheme.colorScheme.error,
+        }
+        state.grouped.isEmpty() -> Box(contentModifier, contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.no_readings))
+        }
+        else -> LazyColumn(
+            modifier = contentModifier,
+            contentPadding = PaddingValues(
+                horizontal = AppSpacing.screenH,
+                vertical = AppSpacing.screenV,
+            ),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+        ) {
+            items(
+                count = state.grouped.size,
+                key = { idx -> "group-${state.grouped[idx].date}" },
+            ) { groupIdx ->
+                val group = state.grouped[groupIdx]
+                DaySectionCard(
+                    group = group,
+                    onEdit = { reading -> onEdit(reading.id.toString()) },
+                    onLongPress = { reading -> deleteTarget = reading },
                 )
-            }
-            state.grouped.isEmpty() -> Box(contentModifier, contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.no_readings))
-            }
-            else -> LazyColumn(
-                modifier = contentModifier,
-                contentPadding = PaddingValues(
-                    horizontal = AppSpacing.screenH,
-                    vertical = AppSpacing.screenV,
-                ),
-                verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
-            ) {
-                items(
-                    count = state.grouped.size,
-                    key = { idx -> "group-${state.grouped[idx].date}" },
-                ) { groupIdx ->
-                    val group = state.grouped[groupIdx]
-                    DaySectionCard(
-                        group = group,
-                        onEdit = { reading -> onEdit(reading.id.toString()) },
-                        onLongPress = { reading -> deleteTarget = reading },
-                    )
-                }
             }
         }
     }
@@ -179,6 +147,33 @@ fun HistoryScreen(
                     Text(stringResource(R.string.cancel))
                 }
             },
+        )
+    }
+}
+
+/**
+ * Filter (date range + sort) trigger for the BP history list. Rendered in the
+ * Coach hub's TopAppBar while the 紀錄 sub-tab is active; shares the same
+ * [HistoryViewModel] instance as [HistoryScreen] so changes apply immediately.
+ */
+@Composable
+fun HistoryFilterAction(vm: HistoryViewModel) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    var showFilterMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { showFilterMenu = true }) {
+            Icon(
+                Icons.Filled.FilterList,
+                contentDescription = stringResource(R.string.a11y_filter_readings),
+            )
+        }
+        FilterMenu(
+            expanded = showFilterMenu,
+            onDismiss = { showFilterMenu = false },
+            currentRange = state.range,
+            currentSort = state.sort,
+            onRange = vm::setRange,
+            onSort = vm::setSort,
         )
     }
 }

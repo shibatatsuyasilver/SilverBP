@@ -22,6 +22,8 @@ import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.StepCounterReader
 import com.silverbp.android.health.HealthConnectBpBridge
 import com.silverbp.android.health.HealthConnectBridge
+import com.silverbp.android.health.HealthConnectNutritionBridge
+import com.silverbp.android.nutrition.NutritionRepository
 import com.silverbp.android.recognition.ModelLoadStatus
 import com.silverbp.android.security.DbKeyStore
 import com.silverbp.android.security.LockManager
@@ -49,6 +51,7 @@ import com.silverbp.android.sync.CombinedRoomSyncSource
 import com.silverbp.android.sync.DailyStepLogSyncMapper
 import com.silverbp.android.sync.DietCheckSyncMapper
 import com.silverbp.android.sync.ExerciseCatalogItemSyncMapper
+import com.silverbp.android.sync.FoodLogSyncMapper
 import com.silverbp.android.sync.SetLogSyncMapper
 import com.silverbp.android.sync.StrengthWorkoutSessionSyncMapper
 import com.silverbp.android.sync.SettingsKvSyncMapper
@@ -103,6 +106,15 @@ object ServiceLocator {
 
     val chatRepository: ChatRepository by lazy { ChatRepository(database.chatDao()) }
 
+    val nutritionRepository: NutritionRepository by lazy {
+        NutritionRepository(
+            dao = database.foodLogDao(),
+            dietDao = database.dietDao(),
+            healthConnect = healthConnectNutritionBridge,
+            healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+        )
+    }
+
     val userSettings: UserSettingsRepository by lazy { UserSettingsRepository(context) }
 
     val modelLoadStatus: ModelLoadStatus by lazy { ModelLoadStatus() }
@@ -114,6 +126,10 @@ object ServiceLocator {
     val healthConnectBridge: HealthConnectBridge by lazy { HealthConnectBridge(context) }
 
     val healthConnectBpBridge: HealthConnectBpBridge by lazy { HealthConnectBpBridge(context) }
+
+    val healthConnectNutritionBridge: HealthConnectNutritionBridge by lazy {
+        HealthConnectNutritionBridge(context)
+    }
 
     private val sessionCheckpointStore: SessionCheckpointStore by lazy {
         SessionCheckpointStore(java.io.File(context.filesDir, "exercise/session-checkpoint.json"))
@@ -292,6 +308,10 @@ object ServiceLocator {
         BpWorkoutAssociationSyncMapper(database.bpWorkoutAssociationDao(), database.syncDao())
     }
 
+    val foodLogSyncMapper: FoodLogSyncMapper by lazy {
+        FoodLogSyncMapper(database.foodLogDao(), database.syncDao())
+    }
+
     /**
      * Stable per-device id used when introducing ourselves to a peer in the
      * HELLO frame. Sourced from the manufacturer model + a random 8-byte
@@ -393,6 +413,8 @@ object ServiceLocator {
                     syncDao = database.syncDao(),
                     bpWorkoutAssociationDao = database.bpWorkoutAssociationDao(),
                     bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
+                    foodLogDao = database.foodLogDao(),
+                    foodLogMapper = foodLogSyncMapper,
                 )
             },
             sinkFactory = {
@@ -416,6 +438,7 @@ object ServiceLocator {
                     chatMessageMapper = chatMessageSyncMapper,
                     settingsKvMapper = settingsKvSyncMapper,
                     bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
+                    foodLogMapper = foodLogSyncMapper,
                 )
             },
             settingsKvMapper = settingsKvSyncMapper,
@@ -425,7 +448,7 @@ object ServiceLocator {
             appVersionCode = BuildConfig.VERSION_CODE,
             // Room schema version — keep in lock-step with SilverBpDatabase.
             // 升 schema 時改這裡(備份檔頭會記下,匯入時做相容處理).
-            schemaVersion = 14,
+            schemaVersion = 16,
         )
     }
 }

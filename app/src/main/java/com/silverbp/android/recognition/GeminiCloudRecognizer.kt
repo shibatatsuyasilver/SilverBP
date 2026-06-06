@@ -146,6 +146,91 @@ class GeminiCloudRecognizer(
     }
 }
 
+/**
+ * Cloud Gemini food-nutrition recognizer — the nutrition analogue of
+ * [GeminiCloudRecognizer]. Reuses the same wire types and HTTP shape with
+ * [NutritionPrompt] / [NutritionResponseParser] and a larger token budget
+ * (nutrition JSON with a per-item breakdown is longer than a BP reading).
+ */
+class GeminiCloudNutritionRecognizer(
+    private val apiKey: String,
+    private val modelId: String = GeminiCloudRecognizer.DEFAULT_MODEL,
+) : NutritionRecognizer {
+
+    override val backendTag = "ai_cloud"
+
+    private val client: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    override fun isReady(): Boolean = apiKey.isNotBlank()
+
+    override suspend fun analyze(bitmap: Bitmap): ExtractedNutrition = withContext(Dispatchers.IO) {
+        require(apiKey.isNotBlank()) { "Gemini API key not set" }
+        val jpegBytes = ByteArrayOutputStream().use { os ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, os)
+            os.toByteArray()
+        }
+        val base64 = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
+
+        val body = GeminiRequest(
+            contents = listOf(
+                GeminiContent(parts = listOf(
+                    GeminiPart(inlineData = GeminiInlineData(mimeType = "image/jpeg", data = base64)),
+                    GeminiPart(text = NutritionPrompt.systemAndAnalyze()),
+                )),
+            ),
+            generationConfig = GeminiGenConfig(
+                temperature = 0.0,
+                topP = 0.95,
+                maxOutputTokens = 800,
+                responseMimeType = "application/json",
+            ),
+        )
+
+        val payload = json.encodeToString(GeminiRequest.serializer(), body)
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("x-goog-api-key", apiKey)
+            .addHeader("Content-Type", "application/json")
+            .post(payload.toRequestBody(NUTRITION_JSON_MEDIA_TYPE))
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: java.io.IOException) {
+            android.util.Log.w(TAG, "[Cloud] nutrition network failure: ${e.javaClass.simpleName}: ${e.message}")
+            throw BpExtractionError.NetworkError
+        }
+        val responseBody = response.body?.string().orEmpty()
+        if (!response.isSuccessful) {
+            android.util.Log.e(
+                TAG,
+                "[Cloud] nutrition HTTP ${response.code} model=$modelId body: ${responseBody.take(500)}",
+            )
+            throw BpExtractionError.ApiError(response.code)
+        }
+        val parsed = try {
+            json.decodeFromString<GeminiResponse>(responseBody)
+        } catch (e: Exception) {
+            throw BpExtractionError.InvalidJson
+        }
+        val rawText = parsed.candidates?.firstOrNull()
+            ?.content?.parts?.firstOrNull { it.text != null }?.text
+            ?: throw BpExtractionError.InvalidJson
+        NutritionResponseParser.parse(rawText)
+    }
+
+    private companion object {
+        private val NUTRITION_JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+    }
+}
+
 // --- Gemini wire types (minimal) ---
 
 @Serializable

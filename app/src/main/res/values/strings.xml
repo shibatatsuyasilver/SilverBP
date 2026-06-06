@@ -667,4 +667,56 @@
 
     <!-- Insights — stat label (was hardcoded) -->
     <string name="insights_stat_mean">Mean</string>
+
+    <!-- Nutrition -->
+    <string name="tab_nutrition">Nutrition</string>
+    <string name="nutrition_today_title">Today</string>
+    <string name="nutrition_sodium_summary">Sodium %1$d / %2$d mg</string>
+    <string name="nutrition_estimate_tag">estimate</string>
+    <string name="nutrition_calories_summary">%1$d kcal</string>
+    <string name="nutrition_macros_summary">Protein %1$dg · Carb %2$dg · Fat %3$dg</string>
+    <string name="nutrition_trend_title">Sodium · last 7 days</string>
+    <string name="nutrition_capture_button">Photograph a meal</string>
+    <string name="nutrition_pick_gallery">Gallery</string>
+    <string name="nutrition_add_manual">Manual</string>
+    <string name="nutrition_recent_title">Recent</string>
+    <string name="nutrition_today_empty">No meals logged yet — snap one to start</string>
+    <string name="nutrition_analyzing">Analyzing…</string>
+    <string name="nutrition_analyze_failed">Could not analyze — enter manually</string>
+    <string name="nutrition_manual_entry">Manual entry</string>
+    <string name="nutrition_kcal_short">%1$d kcal</string>
+    <string name="nutrition_meal_breakfast">Breakfast</string>
+    <string name="nutrition_meal_lunch">Lunch</string>
+    <string name="nutrition_meal_dinner">Dinner</string>
+    <string name="nutrition_meal_snack">Snack</string>
+    <string name="nutrition_sodium_low">Low</string>
+    <string name="nutrition_sodium_mid">Mid</string>
+    <string name="nutrition_sodium_high">High</string>
+    <string name="nutrition_confirm_new_title">Log a meal</string>
+    <string name="nutrition_confirm_edit_title">Edit entry</string>
+    <string name="nutrition_field_description">Description</string>
+    <string name="nutrition_field_description_hint">e.g. Chicken bento</string>
+    <string name="nutrition_meal_label">Meal</string>
+    <string name="nutrition_sodium_section">Sodium</string>
+    <string name="nutrition_sodium_level">Sodium level</string>
+    <string name="nutrition_sodium_range">Estimated %1$d–%2$d mg</string>
+    <string name="nutrition_sodium_mg_label">Sodium (mg)</string>
+    <string name="nutrition_sodium_photo_note">Sodium is hard to gauge from a photo; scan a barcode for packaged foods.</string>
+    <string name="nutrition_macros_section">Other nutrients</string>
+    <string name="nutrition_calories_label">Calories (kcal)</string>
+    <string name="nutrition_protein_label">Protein (g)</string>
+    <string name="nutrition_carbs_label">Carbs (g)</string>
+    <string name="nutrition_fat_label">Fat (g)</string>
+    <string name="nutrition_sugar_label">Sugar (g)</string>
+    <string name="nutrition_fiber_label">Fiber (g)</string>
+    <string name="nutrition_note_label">Note</string>
+    <string name="nutrition_disclaimer">AI estimates only — not medical advice. The reference standard for sodium intake is 24-hour urinary sodium.</string>
+    <string name="nutrition_delete_title">Delete this entry?</string>
+    <string name="nutrition_delete_message">This meal log will be removed.</string>
+    <string name="nutrition_photo_short">Photo</string>
+    <string name="nutrition_scan_barcode">Barcode</string>
+    <string name="nutrition_barcode_hint">Center the barcode in the frame</string>
+    <string name="nutrition_barcode_lookup">Looking up…</string>
+    <string name="nutrition_barcode_not_found">Product not found — enter manually</string>
+    <string name="nutrition_barcode_rescan">Scan again</string>
 </resources>

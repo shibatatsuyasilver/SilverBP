@@ -35,8 +35,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         StrengthWorkoutSessionEntity::class,
         SetLogEntity::class,
         BpWorkoutAssociationEntity::class,
+        FoodLogEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -56,6 +57,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun exerciseLibraryDao(): ExerciseLibraryDao
     abstract fun strengthWorkoutDao(): StrengthWorkoutDao
     abstract fun bpWorkoutAssociationDao(): BpWorkoutAssociationDao
+    abstract fun foodLogDao(): FoodLogDao
 
     companion object {
         const val DB_NAME = "silverbp.db"
@@ -96,6 +98,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_12_13,
                 MIGRATION_13_14,
                 MIGRATION_14_15,
+                MIGRATION_15_16,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -692,6 +695,60 @@ internal val MIGRATION_14_15: Migration = object : Migration(14, 15) {
         )
         db.execSQL(
             "ALTER TABLE `coach_task` ADD COLUMN `movedDayOffset` INTEGER"
+        )
+    }
+}
+
+/**
+ * v15 → v16: introduce `food_log` for the Nutrition (飲食) feature — a logged
+ * meal with (estimated or barcode-label-sourced) nutrition. Pure CREATE TABLE,
+ * no FK into other tables, so the feature is self-contained.
+ *
+ * `hlcUpdatedAt` is NOT NULL with no SQL DEFAULT to match Room's render of the
+ * Kotlin-level `= "0"` default (mirrors set_log / bp_workout_association). The
+ * nullable columns (photo, barcode, macros, sodium fields, hcRecordId) need none.
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/16.json` after building.
+ */
+internal val MIGRATION_15_16: Migration = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `food_log` (
+              `id` TEXT NOT NULL,
+              `timestamp` INTEGER NOT NULL,
+              `mealTypeRaw` TEXT NOT NULL,
+              `inputMethodRaw` TEXT NOT NULL,
+              `description` TEXT NOT NULL,
+              `photoFilename` TEXT,
+              `barcode` TEXT,
+              `productName` TEXT,
+              `itemsJson` TEXT NOT NULL,
+              `caloriesKcal` REAL,
+              `proteinG` REAL,
+              `carbsG` REAL,
+              `fatG` REAL,
+              `sugarG` REAL,
+              `fiberG` REAL,
+              `sodiumMg` REAL,
+              `sodiumMgLow` REAL,
+              `sodiumMgHigh` REAL,
+              `sodiumLevelRaw` TEXT NOT NULL,
+              `sodiumSourceRaw` TEXT NOT NULL,
+              `confidence` REAL NOT NULL,
+              `analysisBackendRaw` TEXT NOT NULL,
+              `note` TEXT NOT NULL,
+              `createdAt` INTEGER NOT NULL,
+              `updatedAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              `hcRecordId` TEXT,
+              PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_food_log_timestamp` ON `food_log` (`timestamp`)"
         )
     }
 }

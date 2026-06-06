@@ -9,6 +9,7 @@ import com.silverbp.android.core.db.CoachPlanDao
 import com.silverbp.android.core.db.DietDao
 import com.silverbp.android.core.db.ExerciseDao
 import com.silverbp.android.core.db.ExerciseLibraryDao
+import com.silverbp.android.core.db.FoodLogDao
 import com.silverbp.android.core.db.MedicationDao
 import com.silverbp.android.core.db.MedicationDoseDao
 import com.silverbp.android.core.db.MedicationScheduleDao
@@ -127,6 +128,9 @@ class CombinedRoomSyncSource(
     // wired by both ServiceLocator (backup) and PairingViewModel (LAN sync).
     private val bpWorkoutAssociationDao: BpWorkoutAssociationDao? = null,
     private val bpWorkoutAssociationMapper: BpWorkoutAssociationSyncMapper? = null,
+    // Nutrition / food_log (v16). Optional so older callers compile.
+    private val foodLogDao: FoodLogDao? = null,
+    private val foodLogMapper: FoodLogSyncMapper? = null,
 ) : SyncRecordSource {
 
     override suspend fun recordsSince(
@@ -253,6 +257,16 @@ class CombinedRoomSyncSource(
             }
         }
 
+        // 14. food_log
+        var foodLogCount = 0
+        if (foodLogDao != null && foodLogMapper != null) {
+            for (log in foodLogDao.all()) {
+                if (out.size >= limit) return out
+                out += foodLogMapper.encode(log, hlcFor(log.hlcUpdatedAt))
+                foodLogCount++
+            }
+        }
+
         val countAfterScalar = out.size
 
         // 8. route_point — emitted LAST so a single GPS-heavy session can't
@@ -272,7 +286,7 @@ class CombinedRoomSyncSource(
                 "ach=${achievements.size} plan=${coachPlans.size} " +
                 "task=${coachTasks.size} sleep=${sleeps.size} diet=${diets.size} " +
                 "catalog=$catalogCount strSession=$strengthSessionCount set=$setLogCount " +
-                "assoc=$assocCount " +
+                "assoc=$assocCount food=$foodLogCount " +
                 "route=${out.size - countAfterScalar} " +
                 "(total=${out.size}/limit=$limit)",
         )
@@ -384,6 +398,13 @@ class CombinedRoomSyncSource(
             }
         }
 
+        // 10d. food_log
+        if (foodLogDao != null && foodLogMapper != null) {
+            for (log in foodLogDao.all()) {
+                out += foodLogMapper.encode(log, hlcFor(log.hlcUpdatedAt))
+            }
+        }
+
         // 11. chat_session + chat_message (Backup-only — 不參與 LAN sync)
         if (includeChat && chatDao != null && chatSessionMapper != null && chatMessageMapper != null) {
             // Sessions first so child messages' FK resolves on import.
@@ -456,6 +477,8 @@ class CombinedRoomSyncSink(
     private val settingsKvMapper: SettingsKvSyncMapper? = null,
     // BP↔workout association (v14). Optional so older callers compile.
     private val bpWorkoutAssociationMapper: BpWorkoutAssociationSyncMapper? = null,
+    // Nutrition / food_log (v16). Optional so older callers compile.
+    private val foodLogMapper: FoodLogSyncMapper? = null,
 ) : SyncRecordSink {
     private val perTypeCount = java.util.concurrent.ConcurrentHashMap<SyncEntityType, Int>()
     override suspend fun apply(record: SyncRecord) {
@@ -481,6 +504,7 @@ class CombinedRoomSyncSink(
                 SyncEntityType.CHAT_SESSION -> chatSessionMapper?.apply(record)
                 SyncEntityType.CHAT_MESSAGE -> chatMessageMapper?.apply(record)
                 SyncEntityType.SETTINGS_KV -> settingsKvMapper?.apply(record)
+                SyncEntityType.FOOD_LOG -> foodLogMapper?.apply(record)
                 else -> {
                     // Forward-compat: silently drop record types this build
                     // doesn't yet understand (e.g. future BLOB_META).

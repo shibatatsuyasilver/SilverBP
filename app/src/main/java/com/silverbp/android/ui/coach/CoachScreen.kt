@@ -9,12 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -34,7 +31,6 @@ import com.silverbp.android.ui.coach.components.WeeklyProgressCard
 import com.silverbp.android.ui.exercise.rememberExercisePermissionState
 import com.silverbp.android.ui.theme.AppSpacing
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoachScreen(
     onOpenWeeklyReport: () -> Unit = {},
@@ -43,6 +39,7 @@ fun CoachScreen(
     onOpenLogSleep: () -> Unit = {},
     onOpenLogMedication: () -> Unit = {},
     onStartExercise: () -> Unit = {},
+    modifier: Modifier = Modifier,
     vm: CoachViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -68,40 +65,25 @@ fun CoachScreen(
         onPauseOrDispose { }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = {
-                Text(
-                    stringResource(R.string.coach_screen_title),
-                    fontWeight = FontWeight.SemiBold,
-                )
-            })
-        },
-    ) { padding ->
-        when (val s = state) {
-            CoachUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
+    when (val s = state) {
+        CoachUiState.Loading -> {
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
             }
-            is CoachUiState.Ready -> ReadyContent(
-                state = s,
-                onStartExercise = ::startWalk,
-                onOpenWeeklyReport = onOpenWeeklyReport,
-                onOpenWeeklyPlan = onOpenWeeklyPlan,
-                onOpenLogDiet = onOpenLogDiet,
-                onOpenLogSleep = onOpenLogSleep,
-                onOpenLogMedication = onOpenLogMedication,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-            )
         }
+        is CoachUiState.Ready -> ReadyContent(
+            state = s,
+            onStartExercise = ::startWalk,
+            onOpenWeeklyReport = onOpenWeeklyReport,
+            onOpenWeeklyPlan = onOpenWeeklyPlan,
+            onOpenLogDiet = onOpenLogDiet,
+            onOpenLogSleep = onOpenLogSleep,
+            onOpenLogMedication = onOpenLogMedication,
+            modifier = modifier.fillMaxSize(),
+        )
     }
 }
 

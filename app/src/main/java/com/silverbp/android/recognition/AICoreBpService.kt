@@ -186,6 +186,28 @@ object AICoreBpService {
         }
     }
 
+    /**
+     * Low-level multimodal call for the nutrition pipeline
+     * ([AICoreNutritionRecognizer]): run [promptText] over [bitmap], return raw
+     * text. Unlike [extract] it skips [preprocessForOcr] (that LCD pass would
+     * wreck food colour). Larger token budget — nutrition JSON is longer.
+     */
+    suspend fun generate(bitmap: Bitmap, promptText: String): String = withContext(Dispatchers.IO) {
+        val m = client ?: throw BpExtractionError.ModelNotLoaded
+        if (!warmed) throw BpExtractionError.ModelNotLoaded
+        val req = generateContentRequest(
+            ImagePart(bitmap),
+            TextPart(promptText),
+        ) {
+            temperature = 0.0f
+            topK = 1
+            candidateCount = 1
+            maxOutputTokens = 512
+        }
+        val response = m.generateContent(req)
+        response.candidates.firstOrNull()?.text ?: throw BpExtractionError.InvalidJson
+    }
+
     suspend fun tearDown() = mutex.withLock {
         try {
             client?.close()
