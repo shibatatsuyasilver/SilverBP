@@ -77,12 +77,38 @@ enum class SodiumSource(val raw: String) {
 @Serializable
 data class FoodItem(
     val name: String,
+    val nameEn: String? = null,
+    /** Serving in grams used to compute this item's nutrition from the DB. */
+    val grams: Double? = null,
     val caloriesKcal: Double? = null,
     val sodiumMg: Double? = null,
     val proteinG: Double? = null,
     val carbsG: Double? = null,
     val fatG: Double? = null,
 )
+
+/** Small / medium / large serving — multiplies a food's DB default grams. */
+enum class Portion(val raw: String, val multiplier: Double) {
+    Small("small", 0.6),
+    Medium("medium", 1.0),
+    Large("large", 1.5);
+
+    fun grams(defaultGrams: Double): Double = defaultGrams * multiplier
+
+    companion object {
+        /** Map the model's portion_hint ("small|medium|large") to a [Portion]. */
+        fun fromHint(hint: String?): Portion =
+            entries.firstOrNull { it.raw == hint?.lowercase() } ?: Medium
+    }
+}
+
+/** Meal slot inferred from the current hour (mirrors iOS inferMealType). */
+fun currentMealType(): MealType = when (java.time.LocalTime.now().hour) {
+    in 4..10 -> MealType.Breakfast
+    in 11..14 -> MealType.Lunch
+    in 15..20 -> MealType.Dinner
+    else -> MealType.Snack
+}
 
 /**
  * A logged meal/snack with its (estimated or label-sourced) nutrition.

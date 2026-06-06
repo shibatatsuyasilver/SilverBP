@@ -6,14 +6,12 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.di.ServiceLocator
-import com.silverbp.android.nutrition.FoodItem
 import com.silverbp.android.nutrition.FoodLog
-import com.silverbp.android.nutrition.MealType
 import com.silverbp.android.nutrition.NutritionInputMethod
 import com.silverbp.android.nutrition.NutritionRepository
 import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.nutrition.SodiumSource
-import com.silverbp.android.recognition.ExtractedNutrition
+import com.silverbp.android.nutrition.currentMealType
 import com.silverbp.android.recognition.NutritionRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
 import com.silverbp.android.settings.UserSettingsRepository
@@ -105,7 +103,14 @@ class NutritionViewModel(
                 if (recognizer.isReady()) {
                     val downsized = withContext(Dispatchers.Default) { downsample(bitmap, MAX_DIM) }
                     val extracted = recognizer.analyze(downsized)
-                    NutritionDraftHolder.put(extracted.toDraft(photoName, recognizer.backendTag))
+                    NutritionDraftHolder.putMeal(
+                        RecognizedMeal(
+                            photoFilename = photoName,
+                            items = extracted.items,
+                            overallConfidence = extracted.confidence,
+                            backendTag = recognizer.backendTag,
+                        )
+                    )
                     _capturePhase.value = NutritionCapturePhase.Idle
                     onReady()
                 } else {
@@ -141,7 +146,7 @@ class NutritionViewModel(
 
     private fun manualDraft(photoName: String?) = FoodLog(
         timestamp = Instant.now(),
-        mealType = guessMealType(),
+        mealType = currentMealType(),
         inputMethod = if (photoName != null) NutritionInputMethod.Photo else NutritionInputMethod.Manual,
         photoFilename = photoName,
         sodiumLevel = SodiumLevel.Mid,
@@ -149,40 +154,6 @@ class NutritionViewModel(
         analysisBackend = "manual",
         confidence = 1.0,
     )
-
-    private fun ExtractedNutrition.toDraft(photoName: String?, backendTag: String): FoodLog {
-        val level = sodiumLevel?.let { SodiumLevel.fromRaw(it) } ?: SodiumLevel.forMealMg(sodiumMg)
-        return FoodLog(
-            timestamp = Instant.now(),
-            mealType = guessMealType(),
-            inputMethod = NutritionInputMethod.Photo,
-            description = description.orEmpty(),
-            photoFilename = photoName,
-            items = items.map {
-                FoodItem(
-                    name = it.name,
-                    caloriesKcal = it.caloriesKcal,
-                    sodiumMg = it.sodiumMg,
-                    proteinG = it.proteinG,
-                    carbsG = it.carbsG,
-                    fatG = it.fatG,
-                )
-            },
-            calories = caloriesKcal,
-            proteinG = proteinG,
-            carbsG = carbsG,
-            fatG = fatG,
-            sugarG = sugarG,
-            fiberG = fiberG,
-            sodiumMg = sodiumMg,
-            sodiumMgLow = sodiumMgLow,
-            sodiumMgHigh = sodiumMgHigh,
-            sodiumLevel = level,
-            sodiumSource = SodiumSource.Estimate,
-            confidence = confidence ?: 0.5,
-            analysisBackend = backendTag,
-        )
-    }
 
     private fun writePhoto(bitmap: Bitmap): String {
         val dir = File(appContext.filesDir, "photos").apply { mkdirs() }
@@ -196,13 +167,6 @@ class NutritionViewModel(
         if (maxSide <= maxDim) return src
         val scale = maxDim.toFloat() / maxSide
         return Bitmap.createScaledBitmap(src, (src.width * scale).toInt(), (src.height * scale).toInt(), true)
-    }
-
-    private fun guessMealType(): MealType = when (java.time.LocalTime.now().hour) {
-        in 4..10 -> MealType.Breakfast
-        in 11..14 -> MealType.Lunch
-        in 17..21 -> MealType.Dinner
-        else -> MealType.Snack
     }
 
     private fun last7Days(all: List<FoodLog>, zone: ZoneId): List<DaySodium> {

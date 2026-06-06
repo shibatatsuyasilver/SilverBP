@@ -11,11 +11,15 @@ object NutritionResponseParser {
         val lo = cleaned.indexOf('{')
         val hi = cleaned.lastIndexOf('}')
         if (lo < 0 || hi <= lo) throw BpExtractionError.InvalidJson
-        return try {
+        val result = try {
             json.decodeFromString<ExtractedNutrition>(cleaned.substring(lo, hi + 1))
         } catch (e: Exception) {
             throw BpExtractionError.InvalidJson
         }
+        // No foods identified → treat as a failed recognition so the caller can
+        // fall back to manual entry (mirrors iOS FoodRecognitionError.empty).
+        if (result.items.isEmpty()) throw BpExtractionError.InvalidJson
+        return result
     }
 
     private fun stripFences(raw: String): String {

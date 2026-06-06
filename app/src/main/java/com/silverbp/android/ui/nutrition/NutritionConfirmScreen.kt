@@ -25,18 +25,23 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -49,12 +54,19 @@ import coil.compose.AsyncImage
 import com.silverbp.android.R
 import com.silverbp.android.nutrition.FoodLog
 import com.silverbp.android.nutrition.MealType
+import com.silverbp.android.nutrition.NutritionDatabase
+import com.silverbp.android.nutrition.Portion
 import com.silverbp.android.nutrition.SodiumLevel
+import com.silverbp.android.nutrition.compute
+import com.silverbp.android.recognition.ExtractedFoodItem
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import java.io.File
+import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Amber caution colour for the "sodium hard to estimate" note. */
+private val SodiumCaution = Color(0xFFEF6C00)
+
 @Composable
 fun NutritionConfirmScreen(
     idArg: String?,
@@ -63,6 +75,228 @@ fun NutritionConfirmScreen(
     vm: NutritionConfirmViewModel = viewModel(),
 ) {
     LaunchedEffect(idArg) { vm.init(idArg) }
+    val meal by vm.meal.collectAsStateWithLifecycle()
+    val m = meal
+    if (m != null) {
+        RecognizedMealContent(meal = m, onSaved = onSaved, onCancel = onCancel, vm = vm)
+    } else {
+        FlatConfirmContent(idArg = idArg, onSaved = onSaved, onCancel = onCancel, vm = vm)
+    }
+}
+
+// ==========================================================================
+// Recognized mode — photo → per-item portion picker → DB-computed nutrition
+// ==========================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecognizedMealContent(
+    meal: RecognizedMeal,
+    onSaved: () -> Unit,
+    onCancel: () -> Unit,
+    vm: NutritionConfirmViewModel,
+) {
+    val context = LocalContext.current
+    val portions = remember { mutableStateMapOf<Int, Portion>() }
+    fun portionFor(idx: Int, item: ExtractedFoodItem): Portion =
+        portions[idx] ?: Portion.fromHint(item.portionHint)
+
+    // Live totals (recomposes as portions change). Skips unmatched items.
+    var kcal = 0.0; var sodLo = 0.0; var sodHi = 0.0; var matched = 0
+    meal.items.forEachIndexed { idx, ex ->
+        val rec = NutritionDatabase.match(ex.name, ex.nameEn) ?: return@forEachIndexed
+        val c = rec.compute(portionFor(idx, ex))
+        kcal += c.kcal; sodLo += c.sodiumLowMg; sodHi += c.sodiumHighMg; matched++
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(stringResource(R.string.nutrition_confirm_new_title), fontWeight = FontWeight.SemiBold)
+                },
+                navigationIcon = {
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
+                },
+                actions = {
+                    TextButton(
+                        enabled = matched > 0,
+                        onClick = { vm.saveRecognizedMeal(meal, portions.toMap(), onSaved) },
+                    ) {
+                        Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+        ) {
+            meal.photoFilename?.let { name ->
+                AsyncImage(
+                    model = File(File(context.filesDir, "photos"), name),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(AppSpacing.cardCorner)),
+                )
+            }
+
+            meal.overallConfidence?.let { c ->
+                Text(
+                    stringResource(R.string.nutrition_overall_confidence, (c * 100).roundToInt()),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            meal.items.forEachIndexed { idx, item ->
+                RecognizedItemCard(
+                    item = item,
+                    portion = portionFor(idx, item),
+                    onPortion = { portions[idx] = it },
+                )
+            }
+
+            // Meal totals
+            StandardCard(title = stringResource(R.string.nutrition_meal_totals)) {
+                Text(
+                    stringResource(R.string.nutrition_kcal_short, kcal.roundToInt()),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.nutrition_sodium_approx_range, sodLo.roundToInt(), sodHi.roundToInt()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            Text(
+                stringResource(R.string.nutrition_recognized_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(R.string.nutrition_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecognizedItemCard(
+    item: ExtractedFoodItem,
+    portion: Portion,
+    onPortion: (Portion) -> Unit,
+) {
+    val rec = remember(item) { NutritionDatabase.match(item.name, item.nameEn) }
+    StandardCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(item.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            item.nameEn?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    "  $it",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            item.confidence?.let {
+                Text(
+                    "  ${(it * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        if (rec != null) {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                Portion.entries.forEachIndexed { i, p ->
+                    SegmentedButton(
+                        selected = portion == p,
+                        onClick = { onPortion(p) },
+                        shape = SegmentedButtonDefaults.itemShape(index = i, count = Portion.entries.size),
+                    ) {
+                        Text(portionLabel(p, rec.defaultPortionGrams))
+                    }
+                }
+            }
+            val c = rec.compute(portion)
+            Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap)) {
+                Macro(stringResource(R.string.nutrition_macro_kcal), stringResource(R.string.nutrition_kcal_short, c.kcal.roundToInt()))
+                Macro(stringResource(R.string.nutrition_macro_protein), "${c.proteinG.roundToInt()} g")
+                Macro(stringResource(R.string.nutrition_macro_fat), "${c.fatG.roundToInt()} g")
+                Macro(stringResource(R.string.nutrition_macro_carb), "${c.carbG.roundToInt()} g")
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+            ) {
+                Text(
+                    stringResource(R.string.nutrition_sodium_approx_range, c.sodiumLowMg.roundToInt(), c.sodiumHighMg.roundToInt()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (rec.highSodiumUncertainty) {
+                    Text(
+                        stringResource(R.string.nutrition_sodium_uncertain_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SodiumCaution,
+                    )
+                }
+            }
+        } else {
+            Text(
+                stringResource(R.string.nutrition_food_not_in_db),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Macro(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.tight)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun portionLabel(p: Portion, defaultGrams: Double): String {
+    val g = p.grams(defaultGrams).roundToInt()
+    return when (p) {
+        Portion.Small -> stringResource(R.string.nutrition_portion_small, g)
+        Portion.Medium -> stringResource(R.string.nutrition_portion_mid, g)
+        Portion.Large -> stringResource(R.string.nutrition_portion_large, g)
+    }
+}
+
+// ==========================================================================
+// Flat mode — barcode / manual / edit existing
+// ==========================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlatConfirmContent(
+    idArg: String?,
+    onSaved: () -> Unit,
+    onCancel: () -> Unit,
+    vm: NutritionConfirmViewModel,
+) {
     val draft by vm.draft.collectAsStateWithLifecycle()
     val isEditing = idArg != null
     var showDelete by remember { mutableStateOf(false) }
@@ -142,7 +376,6 @@ fun NutritionConfirmScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // Meal type
             StandardCard(title = stringResource(R.string.nutrition_meal_label)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
                     MealType.entries.forEach { mt ->
@@ -155,7 +388,6 @@ fun NutritionConfirmScreen(
                 }
             }
 
-            // Sodium — level-first, range, optional mg
             StandardCard(title = stringResource(R.string.nutrition_sodium_section)) {
                 Text(
                     stringResource(R.string.nutrition_sodium_level),
@@ -194,7 +426,6 @@ fun NutritionConfirmScreen(
                 )
             }
 
-            // Other nutrients
             StandardCard(title = stringResource(R.string.nutrition_macros_section)) {
                 NumberFieldD(stringResource(R.string.nutrition_calories_label), d.calories) { v -> vm.update { it.copy(calories = v) } }
                 HorizontalDivider()

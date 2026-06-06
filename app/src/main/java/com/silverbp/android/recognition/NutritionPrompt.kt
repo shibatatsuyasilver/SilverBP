@@ -1,55 +1,38 @@
 package com.silverbp.android.recognition
 
 /**
- * Food-nutrition estimation brief — the nutrition analogue of [BpPrompt].
- * Language-agnostic JSON-schema instruction; the parser strips any stray
- * Markdown fences before decoding.
- *
- * The sodium guidance intentionally forces a RANGE + coarse level rather than
- * a single precise mg, because photo-based sodium estimation is unreliable
- * (salt/sauces added in cooking are invisible).
+ * Food-IDENTIFICATION brief — ported 1:1 from iOS `FoodPrompt`. The model only
+ * names the foods + a rough portion hint; it must NOT output any nutrition
+ * numbers (VLMs have 36–110% MAPE estimating nutrition directly). Numbers come
+ * from [com.silverbp.android.nutrition.NutritionDatabase], never the model.
  */
 object NutritionPrompt {
 
     val defaultSystem: String = """
-        You are a nutrition estimation assistant. Look at the food photo and
-        estimate its nutrition. Return ONLY a JSON object — no commentary, no
-        Markdown fences.
-
-        Identify each distinct food or drink item. Estimate the portion from
-        visual cues (plate/bowl/utensil size, common serving sizes). The user is
-        in Taiwan: use Traditional Chinese for the "description" and item "name"
-        fields when the food is Chinese/Taiwanese (e.g. 雞腿便當, 滷肉飯, 珍珠奶茶).
+        You are a food recognition assistant. Look at the photo of a meal/dish and
+        identify the foods present. Return ONLY a JSON object.
 
         Schema:
-        {"description":string,
-         "items":[{"name":string,"calories_kcal":number,"sodium_mg":number,
-                   "protein_g":number,"carbs_g":number,"fat_g":number}],
-         "calories_kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,
-         "sugar_g":number,"fiber_g":number,
-         "sodium_mg":number,"sodium_mg_low":number,"sodium_mg_high":number,
-         "sodium_level":"low"|"mid"|"high",
-         "confidence":number}
+        {"items":[{"name":"<food name; Traditional Chinese for Chinese/Taiwanese dishes>",
+          "name_en":"<english or romanized name for database lookup>",
+          "portion_hint":"small|medium|large","confidence":<float 0-1>}],
+         "confidence":<float 0-1 overall>}
 
         Rules:
-        - Top-level calories/macros are the TOTAL across all items, for the whole
-          portion shown — NOT per 100 g.
-        - SODIUM IS HARD to judge from a photo: salt, soy sauce and seasoning
-          added during cooking are invisible. Do NOT invent false precision.
-          Give a plausible RANGE (sodium_mg_low..sodium_mg_high) and a coarse
-          sodium_level:
-            low  — lightly salted / fresh / mostly produce  (roughly < 500 mg)
-            mid  — typical home or restaurant meal           (roughly 500–1000 mg)
-            high — salty / processed / sauce-heavy / instant (roughly > 1000 mg)
-          Set sodium_mg to the midpoint of your range.
-        - confidence is 0..1 overall. Lower it when the dish is ambiguous, the
-          portion is unclear, or hidden ingredients are likely.
-        - If the image is clearly not food, return {"confidence":0}.
+        - Identify each distinct food/dish on the plate (up to 5).
+        - For mixed dishes (便當/bento/丼/定食), list the main components separately
+          (rice, meat, vegetable) when distinguishable.
+        - Use Traditional Chinese names for Taiwanese/Chinese foods
+          (e.g. 滷肉飯, 雞腿便當, 牛肉麵, 珍珠奶茶) with a romanized/english name_en.
+        - portion_hint: visually estimate small / medium / large serving. A rough
+          hint, NOT a measurement.
+        - Do NOT output sodium, calories, protein, fat, carbs, or ANY nutrition
+          numbers — those come from a database, not from you. Only identify foods.
+        - If unsure of a food, still give your best guess with a lower confidence.
+        - Return ONLY the JSON object — no commentary, no markdown code fences.
     """.trimIndent()
 
-    private val analyzeInstruction = """
-        Now analyse the photo. Output ONLY the JSON object — no commentary, no Markdown fences.
-    """.trimIndent()
+    private val instruction = "Identify the foods in this photo. Return ONLY the JSON object."
 
-    fun systemAndAnalyze(): String = defaultSystem + "\n\n" + analyzeInstruction
+    fun systemAndAnalyze(): String = defaultSystem + "\n\n" + instruction
 }

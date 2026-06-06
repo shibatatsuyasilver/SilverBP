@@ -721,4 +721,17 @@
     <string name="nutrition_barcode_lookup">Looking up…</string>
     <string name="nutrition_barcode_not_found">Product not found — enter manually</string>
     <string name="nutrition_barcode_rescan">Scan again</string>
+    <string name="nutrition_overall_confidence">Overall confidence %1$d%%</string>
+    <string name="nutrition_meal_totals">Meal total</string>
+    <string name="nutrition_sodium_approx_range">Sodium ~%1$d–%2$d mg</string>
+    <string name="nutrition_recognized_disclaimer">Photo identifies foods → nutrition comes from a database. Sodium is shown as a range (a photo cannot judge it precisely). Curated Taiwanese food set; USDA/TFDA import to follow.</string>
+    <string name="nutrition_portion_small">S %1$d g</string>
+    <string name="nutrition_portion_mid">M %1$d g</string>
+    <string name="nutrition_portion_large">L %1$d g</string>
+    <string name="nutrition_macro_kcal">Cal</string>
+    <string name="nutrition_macro_protein">Protein</string>
+    <string name="nutrition_macro_fat">Fat</string>
+    <string name="nutrition_macro_carb">Carb</string>
+    <string name="nutrition_sodium_uncertain_note">· soup/sauce sodium hard to estimate</string>
+    <string name="nutrition_food_not_in_db">Not in the database yet (curated set; USDA/TFDA to follow)</string>
 </resources>

@@ -721,4 +721,17 @@
     <string name="nutrition_barcode_lookup">查詢中…</string>
     <string name="nutrition_barcode_not_found">查無此商品,可改用手動輸入</string>
     <string name="nutrition_barcode_rescan">重新掃描</string>
+    <string name="nutrition_overall_confidence">整體信心 %1$d%%</string>
+    <string name="nutrition_meal_totals">本餐合計</string>
+    <string name="nutrition_sodium_approx_range">鈉 約 %1$d–%2$d mg</string>
+    <string name="nutrition_recognized_disclaimer">拍照辨識食物 → 查營養資料庫估算。鈉以區間呈現(照片無法準確判斷)。資料庫為精選台灣常見食物集,USDA/TFDA 陸續匯入。</string>
+    <string name="nutrition_portion_small">小 %1$d g</string>
+    <string name="nutrition_portion_mid">中 %1$d g</string>
+    <string name="nutrition_portion_large">大 %1$d g</string>
+    <string name="nutrition_macro_kcal">熱量</string>
+    <string name="nutrition_macro_protein">蛋白</string>
+    <string name="nutrition_macro_fat">脂肪</string>
+    <string name="nutrition_macro_carb">碳水</string>
+    <string name="nutrition_sodium_uncertain_note">· 湯/調味鈉難估</string>
+    <string name="nutrition_food_not_in_db">資料庫尚無此食物(精選資料集,USDA/TFDA 待匯入)</string>
 </resources>
