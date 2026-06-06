@@ -1,12 +1,12 @@
 package com.silverbp.android.ui.nav
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -15,7 +15,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -26,6 +33,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.ui.achievements.MedalsScreen
@@ -229,6 +237,9 @@ fun AppNavHost() {
         composable(Routes.REPORT) {
             ReportScreen(onClose = { rootNav.popBackStack() })
         }
+        composable(Routes.CHAT) {
+            ChatScreen(onBack = { rootNav.popBackStack() })
+        }
         composable(Routes.NUTRITION_CONFIRM_NEW) {
             NutritionConfirmScreen(
                 idArg = null,
@@ -309,7 +320,6 @@ fun AppNavHost() {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeWithTabs(rootNav: NavHostController) {
     val tabsNav = rememberNavController()
@@ -337,38 +347,49 @@ private fun HomeWithTabs(rootNav: NavHostController) {
         }
     }
 
-    // Hide the bottom NavigationBar when the keyboard is open on the Chat tab.
-    // ChatInputBar uses Modifier.imePadding() to lift itself above the keyboard;
-    // an 80 dp NavigationBar between the input row and the keyboard top would
-    // leave a visible gap, so we collapse the bar while typing. Other tabs
-    // never trigger the IME, so this only affects Chat.
-    val imeVisible = WindowInsets.isImeVisible
-    val hideNavBar = imeVisible && currentRoute == TabDestination.Chat.route
+    // The AI assistant (聊天) is a floating pill instead of a bottom-nav tab —
+    // mirroring Google Health's "詢問教練". It collapses to icon-only while the
+    // user scrolls down and expands (icon + label) on scroll-up / at rest.
+    var fabExpanded by remember { mutableStateOf(true) }
+    val fabScroll = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < -1f) fabExpanded = false
+                else if (available.y > 1f) fabExpanded = true
+                return Offset.Zero
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
-            if (!hideNavBar) {
-                NavigationBar {
-                    visibleTabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = currentRoute == tab.route,
-                            onClick = {
-                                tabsNav.navigate(tab.route) {
-                                    popUpTo(TabDestination.Today.route) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(tab.icon, contentDescription = null) },
-                            label = { Text(stringResource(tab.labelRes)) },
-                            // Six tabs is tight on small phones; only label the active one
-                            // so the icons keep enough breathing room.
-                            alwaysShowLabel = false,
-                        )
-                    }
+            NavigationBar {
+                visibleTabs.forEach { tab ->
+                    NavigationBarItem(
+                        selected = currentRoute == tab.route,
+                        onClick = {
+                            tabsNav.navigate(tab.route) {
+                                popUpTo(TabDestination.Today.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(tab.icon, contentDescription = null) },
+                        label = { Text(stringResource(tab.labelRes)) },
+                        // Only label the active tab so icons keep breathing room.
+                        alwaysShowLabel = false,
+                    )
                 }
             }
-        }
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { rootNav.navigate(Routes.CHAT) { launchSingleTop = true } },
+                expanded = fabExpanded,
+                icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null) },
+                text = { Text(stringResource(R.string.chat_fab_label)) },
+            )
+        },
     ) { padding ->
         // consumeWindowInsets stops nested Scaffolds (e.g. ChatScreen) from
         // re-applying the system-bar insets the outer Scaffold already padded for.
@@ -377,6 +398,7 @@ private fun HomeWithTabs(rootNav: NavHostController) {
                 .fillMaxSize()
                 .padding(padding)
                 .consumeWindowInsets(padding)
+                .nestedScroll(fabScroll)
         ) {
             NavHost(navController = tabsNav, startDestination = TabDestination.Today.route) {
                 tabsGraph(rootNav)
@@ -423,9 +445,5 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onOpenConfirmEdit = { id -> rootNav.navigate(Routes.nutritionConfirmEdit(id)) },
             onOpenBarcode = { rootNav.navigate(Routes.NUTRITION_BARCODE) },
         )
-    }
-    composable(TabDestination.Chat.route) {
-        // onBack = null hides the back arrow when Chat is rendered as a tab.
-        ChatScreen(onBack = null)
     }
 }

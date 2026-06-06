@@ -1,7 +1,6 @@
 package com.silverbp.android.ui.nav
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Favorite
@@ -17,14 +16,13 @@ sealed class TabDestination(val route: String, val labelRes: Int, val icon: Imag
     data object Exercise : TabDestination("exercise", R.string.tab_exercise, Icons.AutoMirrored.Filled.DirectionsRun)
     data object Nutrition: TabDestination("nutrition", R.string.tab_nutrition, Icons.Filled.Restaurant)
     data object Coach    : TabDestination("coach",    R.string.tab_coach,    Icons.Filled.Favorite)
-    data object Chat     : TabDestination("chat",     R.string.tab_chat,     Icons.AutoMirrored.Filled.Chat)
 
     companion object {
         // Lazy because Kotlin initialises the companion object before the
         // sealed class's data-object children, so eager listOf(...) here
         // would capture nulls and crash NavigationBar at first render.
         val all: List<TabDestination> by lazy {
-            listOf(Today, Data, Exercise, Nutrition, Coach, Chat)
+            listOf(Today, Data, Exercise, Nutrition, Coach)
         }
     }
 }
@@ -57,6 +55,9 @@ object Routes {
     const val SETTINGS = "settings"
     const val SETTINGS_ADVANCED = "settings/advanced"
     const val REPORT = "report"
+
+    // AI assistant chat — opened from the floating pill on HomeWithTabs (not a tab).
+    const val CHAT = "chat"
 
     // Coach sub-routes hosted by the root NavHost (hide bottom bar while active).
     // Entry points are inside the Coach tab; later iterations may also link from

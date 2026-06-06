@@ -56,6 +56,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -209,10 +210,16 @@ fun ChatScreen(
             Modifier.fillMaxSize()
         ) {
             TopAppBar(
-                // HomeWithTabs' Scaffold padding already accounts for the status
-                // bar; zero the bar's own inset so the header height matches every
-                // other tab instead of adding a duplicate status-bar gap.
-                windowInsets = WindowInsets(0, 0, 0, 0),
+                // As a tab (onBack == null) HomeWithTabs' Scaffold already padded
+                // for the status bar, so we zero the bar's own inset. As a root
+                // route (onBack != null, opened from the floating assistant pill)
+                // there is no outer Scaffold, so apply the default status-bar inset
+                // — otherwise the "助理" title renders under the status bar.
+                windowInsets = if (onBack != null) {
+                    TopAppBarDefaults.windowInsets
+                } else {
+                    WindowInsets(0, 0, 0, 0)
+                },
                 title = { Text(stringResource(R.string.tab_chat)) },
                 navigationIcon = {
                     if (onBack != null) {
@@ -223,6 +230,18 @@ fun ChatScreen(
                             )
                         }
                     } else {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(
+                                Icons.Filled.Menu,
+                                contentDescription = stringResource(R.string.a11y_chat_list),
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    // When launched as a route (back arrow on the left), keep the
+                    // chat-history drawer reachable from the right (like Google Health).
+                    if (onBack != null) {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(
                                 Icons.Filled.Menu,

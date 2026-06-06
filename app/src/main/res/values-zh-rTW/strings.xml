@@ -7,6 +7,7 @@
     <string name="tab_history">紀錄</string>
     <string name="tab_insights">分析</string>
     <string name="tab_data">數據</string>
+    <string name="chat_fab_label">助理</string>
     <string name="tab_report">報告</string>
     <string name="tab_settings">設定</string>
     <string name="tab_chat">助理</string>
