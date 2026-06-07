@@ -10,6 +10,7 @@ import com.silverbp.android.chat.ChatSessionSummary
 import com.silverbp.android.chat.ChatTitleGenerator
 import com.silverbp.android.chat.ChatTranscriptBuilder
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.ModelLoadStatus
 import com.silverbp.android.recognition.RecognitionBackend
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -230,20 +232,40 @@ class ChatViewModel(
             val acc = StringBuilder()
             try {
                 if (!recognizer.isReady()) {
-                    val msg = when (_ui.value.backend) {
-                        RecognitionBackend.Cloud -> "請先在「設定」輸入 Gemini API key"
-                        else -> "模型尚未就緒,請稍候"
+                    // The Local engine can be evicted out from under us while the
+                    // camera / photo-picker is foregrounded (the multi-GB model
+                    // makes us the prime low-memory-kill target). Rather than drop
+                    // the turn, re-warm and wait for the model so the staged photo
+                    // + question survive. ensureWarm() / the wait no-op for
+                    // non-Local backends and when no variant is downloaded.
+                    val recovered = if (_ui.value.backend == RecognitionBackend.Local) {
+                        ModelBootstrap.ensureWarm(ServiceLocator.context)
+                        val loadingNote = "模型載入中,稍候自動回覆…"
+                        _ui.update { it.copy(streamingText = loadingNote) }
+                        repo.updateAssistantText(assistantId, loadingNote)
+                        awaitLocalEngineReady(recognizer)
+                    } else {
+                        false
                     }
-                    repo.updateAssistantText(assistantId, msg)
-                    _ui.update {
-                        it.copy(
-                            streamingText = msg,
-                            streamingAssistantId = null,
-                            isGenerating = false,
-                            errorMessage = msg,
-                        )
+                    if (!recovered) {
+                        val msg = when (_ui.value.backend) {
+                            RecognitionBackend.Cloud -> "請先在「設定」輸入 Gemini API key"
+                            else -> "模型尚未就緒,請稍候再送出"
+                        }
+                        repo.updateAssistantText(assistantId, msg)
+                        // Keep the attachment staged so the user doesn't lose the
+                        // photo they were asking about and can just re-send.
+                        if (image != null) stageImage(image)
+                        _ui.update {
+                            it.copy(
+                                streamingText = msg,
+                                streamingAssistantId = null,
+                                isGenerating = false,
+                                errorMessage = msg,
+                            )
+                        }
+                        return@launch
                     }
-                    return@launch
                 }
 
                 if (image != null && !recognizer.supportsImages()) {
@@ -326,6 +348,21 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Suspend until the (re)loading Local engine reports ready, bounded by
+     * [LOCAL_WARM_TIMEOUT_MS]. [ModelLoadStatus.phase] flips Loading→Ready when
+     * preload completes; we re-check the recognizer's real engine state on each
+     * emission (the phase flag alone can lag the actual engine). Cancellable via
+     * the parent send job. Returns the final readiness.
+     */
+    private suspend fun awaitLocalEngineReady(recognizer: ChatRecognizer): Boolean {
+        if (recognizer.isReady()) return true
+        withTimeoutOrNull(LOCAL_WARM_TIMEOUT_MS) {
+            modelStatus.phase.first { recognizer.isReady() }
+        }
+        return recognizer.isReady()
+    }
+
     private fun clearStreamingState() {
         _ui.update {
             it.copy(
@@ -355,6 +392,14 @@ class ChatViewModel(
         stageImage(path)
     }
 }
+
+/**
+ * Upper bound on how long a chat send will wait for the Local engine to finish
+ * (re)loading before giving up and asking the user to re-send. Sized with margin
+ * over a measured cold load of the largest variant (E4B, ~3.6 GB) on a vivo
+ * V2562: ~84 s including a vision-cache rebuild, so a worst case can exceed 90 s.
+ */
+private const val LOCAL_WARM_TIMEOUT_MS = 120_000L
 
 /**
  * Tiny tuple used inside the combine call. Stdlib `Pair`/`Triple` only go up

@@ -1,6 +1,9 @@
 package com.silverbp.android.recognition
 
 import android.content.Context
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +56,49 @@ object ModelBootstrap {
                         preload(context.applicationContext, variant)
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Observe process foreground transitions once and [ensureWarm] on each
+     * return to the foreground. Mirrors [com.silverbp.android.security.LockManager]
+     * — a process-wide [ProcessLifecycleOwner] observer that survives Activity
+     * recreation. Must be called on the main thread (from
+     * `SilverBpApplication.onCreate`).
+     */
+    fun attachForegroundRewarm(context: Context) {
+        val ctx = context.applicationContext
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                ensureWarm(ctx)
+            }
+        })
+    }
+
+    /**
+     * Re-warm the Local engine if it has been unloaded out from under us — e.g.
+     * the OS evicted our process (or just our Activity) while the camera /
+     * photo-picker was foregrounded and the multi-GB model made us the prime
+     * low-memory-kill target. Preload is otherwise only wired to
+     * `SilverBpApplication.onCreate` via [start], so without this the engine can
+     * stay null while [ModelLoadStatus] still reads `Ready`, and a chat send
+     * would hit the "模型尚未就緒" dead-end. Idempotent: no-ops when already warm,
+     * busy loading/downloading, on a non-Local backend, or when the selected
+     * variant isn't on disk. [GemmaBpService.preload] also early-returns under
+     * its own mutex if the engine exists, so a cold-start race with [start] is
+     * harmless.
+     */
+    fun ensureWarm(context: Context) {
+        val ctx = context.applicationContext
+        scope.launch {
+            val settings = ServiceLocator.userSettings.flow.first()
+            if (settings.recognitionBackend != RecognitionBackend.Local) return@launch
+            if (GemmaBpService.isLoaded()) return@launch
+            if (ServiceLocator.modelLoadStatus.isBusy) return@launch
+            val variant = ModelCatalog.byId(settings.selectedModelId)
+            if (ModelDownloader(ctx).isDownloaded(variant)) {
+                preload(ctx, variant)
             }
         }
     }

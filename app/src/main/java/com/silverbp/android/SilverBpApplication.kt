@@ -38,6 +38,12 @@ class SilverBpApplication : Application() {
         // kick a background preload so capture isn't blocked. No-op
         // otherwise — the user triggers a download from Settings.
         ModelBootstrap.start(this)
+        // Re-warm the local engine whenever the app returns to the foreground.
+        // Attaching a chat/capture photo launches the system camera/picker,
+        // which can get our multi-GB-model process evicted; without this the
+        // engine stays unloaded while the UI still thinks it's Ready, and the
+        // next chat send dead-ends on "模型尚未就緒".
+        ModelBootstrap.attachForegroundRewarm(this)
 
         appScope.launch { sweepOldChatImages() }
         appScope.launch { reconcileStepSync() }
