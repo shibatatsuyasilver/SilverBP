@@ -20,6 +20,9 @@ object NutritionPrompt {
 
         Rules:
         - Identify each distinct food/dish on the plate (up to 5).
+        - Decompose combos into components — do NOT return one generic "便當"/"meal".
+          e.g. 雞腿便當 → 白飯 + 雞腿 + 配菜(青菜); 牛肉麵 → 麵 + 牛肉 + 湯.
+          Prefer 2–4 specific items over 1 vague one.
         - For mixed dishes (便當/bento/丼/定食), list the main components separately
           (rice, meat, vegetable) when distinguishable.
         - Use Traditional Chinese names for Taiwanese/Chinese foods

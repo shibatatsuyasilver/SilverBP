@@ -2,6 +2,7 @@ package com.silverbp.android.ui.nutrition
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,10 @@ import com.silverbp.android.nutrition.NutritionRepository
 import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.nutrition.SodiumSource
 import com.silverbp.android.nutrition.currentMealType
+import com.silverbp.android.recognition.ExtractedFoodItem
+import com.silverbp.android.recognition.ExtractedNutrition
+import com.silverbp.android.recognition.FoodRegionDetector
+import com.silverbp.android.recognition.NutritionRecognizer
 import com.silverbp.android.recognition.NutritionRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
 import com.silverbp.android.settings.UserSettingsRepository
@@ -101,8 +106,7 @@ class NutritionViewModel(
             try {
                 val recognizer = NutritionRecognizerFactory.current()
                 if (recognizer.isReady()) {
-                    val downsized = withContext(Dispatchers.Default) { downsample(bitmap, MAX_DIM) }
-                    val extracted = recognizer.analyze(downsized)
+                    val extracted = analyzeWithSegmentation(bitmap, recognizer)
                     NutritionDraftHolder.putMeal(
                         RecognizedMeal(
                             photoFilename = photoName,
@@ -162,6 +166,56 @@ class NutritionViewModel(
         return name
     }
 
+    /**
+     * Identify foods, per spatially-distinct region when possible. ML Kit gives
+     * bounding boxes; when ≥2 clearly-separate regions exist we run the
+     * recognizer on each crop (capped to bound latency) and merge — item-level
+     * estimation beats one whole-plate pass. Otherwise, or if cropping yields
+     * nothing, fall back to a single whole-image pass (the prior behaviour).
+     */
+    private suspend fun analyzeWithSegmentation(
+        bitmap: Bitmap,
+        recognizer: NutritionRecognizer,
+    ): ExtractedNutrition {
+        val regions = withContext(Dispatchers.Default) {
+            val area = bitmap.width.toLong() * bitmap.height.toLong()
+            FoodRegionDetector.regions(bitmap)
+                .filter { r ->
+                    val a = r.width().toLong() * r.height().toLong()
+                    a >= area * MIN_REGION_FRACTION && a <= area * MAX_REGION_FRACTION
+                }
+                .take(MAX_REGIONS)
+        }
+        if (regions.size < 2) {
+            val whole = withContext(Dispatchers.Default) { downsample(bitmap, MAX_DIM) }
+            return recognizer.analyze(whole)
+        }
+        android.util.Log.i("NutritionVM", "[Segment] ${regions.size} regions → per-crop analysis")
+        // One Gemma call per crop (serial — single warmed engine). Dedup by name.
+        val merged = LinkedHashMap<String, ExtractedFoodItem>()
+        regions.forEach { rect ->
+            val crop = withContext(Dispatchers.Default) { cropAndDownsample(bitmap, rect, MAX_DIM) }
+            val res = runCatching { recognizer.analyze(crop) }.getOrNull() ?: return@forEach
+            for (item in res.items) {
+                val key = item.name.trim().lowercase()
+                if (key.isNotEmpty() && !merged.containsKey(key)) merged[key] = item
+            }
+        }
+        if (merged.isEmpty()) {
+            val whole = withContext(Dispatchers.Default) { downsample(bitmap, MAX_DIM) }
+            return recognizer.analyze(whole)
+        }
+        return ExtractedNutrition(items = merged.values.toList(), confidence = null)
+    }
+
+    private fun cropAndDownsample(src: Bitmap, rect: Rect, maxDim: Int): Bitmap {
+        val x = rect.left.coerceIn(0, src.width - 1)
+        val y = rect.top.coerceIn(0, src.height - 1)
+        val w = rect.width().coerceIn(1, src.width - x)
+        val h = rect.height().coerceIn(1, src.height - y)
+        return downsample(Bitmap.createBitmap(src, x, y, w, h), maxDim)
+    }
+
     private fun downsample(src: Bitmap, maxDim: Int): Bitmap {
         val maxSide = maxOf(src.width, src.height)
         if (maxSide <= maxDim) return src
@@ -183,5 +237,14 @@ class NutritionViewModel(
 
     private companion object {
         const val MAX_DIM = 1024
+
+        /** Bound per-photo on-device inference: at most this many crops analysed. */
+        const val MAX_REGIONS = 3
+
+        /** Ignore boxes smaller than this fraction of the image (noise/garnish)… */
+        const val MIN_REGION_FRACTION = 0.05
+
+        /** …and boxes covering ~the whole plate (then a single pass is better). */
+        const val MAX_REGION_FRACTION = 0.9
     }
 }

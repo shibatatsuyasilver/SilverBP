@@ -13,12 +13,73 @@ import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.nutrition.SodiumSource
 import com.silverbp.android.nutrition.compute
 import com.silverbp.android.nutrition.currentMealType
+import com.silverbp.android.recognition.ExtractedFoodItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.UUID
+
+/** How a recognised item's nutrition was resolved — drives the per-item UI. */
+enum class ItemState { Matched, Approx, Manual, Unknown }
+
+/**
+ * One recognised food after resolving it against [NutritionDatabase] + the
+ * user's edits. Computed by [resolveFoodItem] in the screen (recomputes live)
+ * and passed back to [NutritionConfirmViewModel.saveRecognizedMeal] so the two
+ * agree exactly. Macros are null when unknown and not manually entered — the
+ * item is still kept (never silently dropped).
+ */
+data class ResolvedFoodItem(
+    val grams: Double,
+    val kcal: Double?,
+    val proteinG: Double?,
+    val fatG: Double?,
+    val carbG: Double?,
+    val sodiumMg: Double?,
+    val sodiumLowMg: Double?,
+    val sodiumHighMg: Double?,
+    val state: ItemState,
+    /** Default serving grams of the matched record (drives S/M/L presets); null when unmatched. */
+    val defaultPortionGrams: Double?,
+    val highSodiumUncertainty: Boolean,
+)
+
+/**
+ * Resolve one recognised item. [gramsOverride] applies to matched items (the
+ * gram field / S/M/L presets); [manualKcal] applies to unmatched items the user
+ * typed a calorie value for. Pure — safe to call during recomposition.
+ */
+fun resolveFoodItem(
+    item: ExtractedFoodItem,
+    gramsOverride: Double?,
+    manualKcal: Double?,
+): ResolvedFoodItem {
+    val m = NutritionDatabase.matchBestEffort(item.name, item.nameEn)
+    if (m != null) {
+        val def = m.record.defaultPortionGrams
+        val grams = gramsOverride ?: Portion.fromHint(item.portionHint).grams(def)
+        val c = m.record.compute(grams)
+        return ResolvedFoodItem(
+            grams = grams,
+            kcal = c.kcal, proteinG = c.proteinG, fatG = c.fatG, carbG = c.carbG,
+            sodiumMg = c.sodiumMg, sodiumLowMg = c.sodiumLowMg, sodiumHighMg = c.sodiumHighMg,
+            state = if (m.approximate) ItemState.Approx else ItemState.Matched,
+            defaultPortionGrams = def,
+            highSodiumUncertainty = m.record.highSodiumUncertainty,
+        )
+    }
+    // No DB match — keep the item; the user (or an online lookup) can fill calories.
+    return ResolvedFoodItem(
+        grams = gramsOverride ?: 0.0,
+        kcal = manualKcal, proteinG = null, fatG = null, carbG = null,
+        sodiumMg = null, sodiumLowMg = null, sodiumHighMg = null,
+        state = if (manualKcal != null) ItemState.Manual else ItemState.Unknown,
+        defaultPortionGrams = null,
+        highSodiumUncertainty = false,
+    )
+}
 
 /**
  * Backs [NutritionConfirmScreen] in two modes:
@@ -78,36 +139,39 @@ class NutritionConfirmViewModel(
     // ---- Recognized mode (photo) ----
 
     /**
-     * Build a [FoodLog] from the recognised foods + chosen portions — each item
-     * matched to [NutritionDatabase] and computed at its portion — then save.
-     * Items with no DB match are skipped (mirrors iOS).
+     * Build a [FoodLog] from the recognised foods + the screen's per-item
+     * [ResolvedFoodItem]s (matched / approximate / manual / unknown) and save.
+     * **Every** item is kept — unmatched ones with null macros — so a meal is
+     * never silently dropped and shows up in history (and the coach context)
+     * even when calories are still unknown.
      */
     fun saveRecognizedMeal(
         meal: RecognizedMeal,
-        portions: Map<Int, Portion>,
+        resolved: List<ResolvedFoodItem>,
         onSaved: () -> Unit,
     ) {
+        if (meal.items.isEmpty()) { onSaved(); return }
         viewModelScope.launch {
-            val items = ArrayList<FoodItem>()
-            var kcal = 0.0; var protein = 0.0; var carb = 0.0; var fat = 0.0
-            var sodEst = 0.0; var sodLo = 0.0; var sodHi = 0.0
-            meal.items.forEachIndexed { idx, ex ->
-                val rec = NutritionDatabase.match(ex.name, ex.nameEn) ?: return@forEachIndexed
-                val c = rec.compute(portions[idx] ?: Portion.fromHint(ex.portionHint))
-                kcal += c.kcal; protein += c.proteinG; carb += c.carbG; fat += c.fatG
-                sodEst += c.sodiumMg; sodLo += c.sodiumLowMg; sodHi += c.sodiumHighMg
-                items += FoodItem(
+            val items = meal.items.mapIndexed { idx, ex ->
+                val r = resolved.getOrNull(idx)
+                FoodItem(
                     name = ex.name,
                     nameEn = ex.nameEn,
-                    grams = c.grams,
-                    caloriesKcal = c.kcal,
-                    sodiumMg = c.sodiumMg,
-                    proteinG = c.proteinG,
-                    carbsG = c.carbG,
-                    fatG = c.fatG,
+                    grams = r?.grams?.takeIf { it > 0 },
+                    caloriesKcal = r?.kcal,
+                    sodiumMg = r?.sodiumMg,
+                    proteinG = r?.proteinG,
+                    carbsG = r?.carbG,
+                    fatG = r?.fatG,
                 )
             }
-            if (items.isEmpty()) { onSaved(); return@launch }
+            val kcal = resolved.sumOf { it.kcal ?: 0.0 }
+            val protein = resolved.sumOf { it.proteinG ?: 0.0 }
+            val carb = resolved.sumOf { it.carbG ?: 0.0 }
+            val fat = resolved.sumOf { it.fatG ?: 0.0 }
+            val sodEst = resolved.sumOf { it.sodiumMg ?: 0.0 }
+            val sodLo = resolved.sumOf { it.sodiumLowMg ?: 0.0 }
+            val sodHi = resolved.sumOf { it.sodiumHighMg ?: 0.0 }
             val log = FoodLog(
                 timestamp = Instant.now(),
                 mealType = currentMealType(),

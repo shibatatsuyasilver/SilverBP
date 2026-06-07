@@ -765,4 +765,9 @@
     <string name="nutrition_macro_carb">Carb</string>
     <string name="nutrition_sodium_uncertain_note">· soup/sauce sodium hard to estimate</string>
     <string name="nutrition_food_not_in_db">Not in the database yet (curated set; USDA/TFDA to follow)</string>
+    <string name="nutrition_grams_label">Grams</string>
+    <string name="nutrition_manual_kcal_label">Calories (kcal)</string>
+    <string name="nutrition_approx_match">Estimated match — adjust grams if it looks wrong</string>
+    <string name="nutrition_reference_hint">Tip: include a coin or the plate in the photo for a better portion estimate</string>
+    <string name="nutrition_enter_kcal_hint">Not in the database — type the calories below</string>
 </resources>

@@ -54,10 +54,8 @@ import coil.compose.AsyncImage
 import com.silverbp.android.R
 import com.silverbp.android.nutrition.FoodLog
 import com.silverbp.android.nutrition.MealType
-import com.silverbp.android.nutrition.NutritionDatabase
 import com.silverbp.android.nutrition.Portion
 import com.silverbp.android.nutrition.SodiumLevel
-import com.silverbp.android.nutrition.compute
 import com.silverbp.android.recognition.ExtractedFoodItem
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
@@ -97,17 +95,17 @@ private fun RecognizedMealContent(
     vm: NutritionConfirmViewModel,
 ) {
     val context = LocalContext.current
-    val portions = remember { mutableStateMapOf<Int, Portion>() }
-    fun portionFor(idx: Int, item: ExtractedFoodItem): Portion =
-        portions[idx] ?: Portion.fromHint(item.portionHint)
+    // Per-item edit state: grams override (matched items) + manual kcal (unmatched).
+    val grams = remember { mutableStateMapOf<Int, Double>() }
+    val manualKcal = remember { mutableStateMapOf<Int, Double>() }
 
-    // Live totals (recomposes as portions change). Skips unmatched items.
-    var kcal = 0.0; var sodLo = 0.0; var sodHi = 0.0; var matched = 0
-    meal.items.forEachIndexed { idx, ex ->
-        val rec = NutritionDatabase.match(ex.name, ex.nameEn) ?: return@forEachIndexed
-        val c = rec.compute(portionFor(idx, ex))
-        kcal += c.kcal; sodLo += c.sodiumLowMg; sodHi += c.sodiumHighMg; matched++
+    // Resolve every item live; recomputes as edits change. Never drops items.
+    val resolved = meal.items.mapIndexed { idx, ex ->
+        resolveFoodItem(ex, grams[idx], manualKcal[idx])
     }
+    val kcal = resolved.sumOf { it.kcal ?: 0.0 }
+    val sodLo = resolved.sumOf { it.sodiumLowMg ?: 0.0 }
+    val sodHi = resolved.sumOf { it.sodiumHighMg ?: 0.0 }
 
     Scaffold(
         topBar = {
@@ -120,8 +118,8 @@ private fun RecognizedMealContent(
                 },
                 actions = {
                     TextButton(
-                        enabled = matched > 0,
-                        onClick = { vm.saveRecognizedMeal(meal, portions.toMap(), onSaved) },
+                        enabled = meal.items.isNotEmpty(),
+                        onClick = { vm.saveRecognizedMeal(meal, resolved, onSaved) },
                     ) {
                         Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)
                     }
@@ -134,6 +132,7 @@ private fun RecognizedMealContent(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
@@ -149,6 +148,12 @@ private fun RecognizedMealContent(
                 )
             }
 
+            Text(
+                stringResource(R.string.nutrition_reference_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             meal.overallConfidence?.let { c ->
                 Text(
                     stringResource(R.string.nutrition_overall_confidence, (c * 100).roundToInt()),
@@ -160,8 +165,10 @@ private fun RecognizedMealContent(
             meal.items.forEachIndexed { idx, item ->
                 RecognizedItemCard(
                     item = item,
-                    portion = portionFor(idx, item),
-                    onPortion = { portions[idx] = it },
+                    resolved = resolved[idx],
+                    onSetGrams = { g -> if (g == null) grams.remove(idx) else grams[idx] = g },
+                    onSetPortion = { p -> resolved[idx].defaultPortionGrams?.let { grams[idx] = p.grams(it) } },
+                    onManualKcal = { k -> if (k == null) manualKcal.remove(idx) else manualKcal[idx] = k },
                 )
             }
 
@@ -197,10 +204,11 @@ private fun RecognizedMealContent(
 @Composable
 private fun RecognizedItemCard(
     item: ExtractedFoodItem,
-    portion: Portion,
-    onPortion: (Portion) -> Unit,
+    resolved: ResolvedFoodItem,
+    onSetGrams: (Double?) -> Unit,
+    onSetPortion: (Portion) -> Unit,
+    onManualKcal: (Double?) -> Unit,
 ) {
-    val rec = remember(item) { NutritionDatabase.match(item.name, item.nameEn) }
     StandardCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(item.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
@@ -221,50 +229,95 @@ private fun RecognizedItemCard(
             }
         }
 
-        if (rec != null) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                Portion.entries.forEachIndexed { i, p ->
-                    SegmentedButton(
-                        selected = portion == p,
-                        onClick = { onPortion(p) },
-                        shape = SegmentedButtonDefaults.itemShape(index = i, count = Portion.entries.size),
-                    ) {
-                        Text(portionLabel(p, rec.defaultPortionGrams))
-                    }
-                }
-            }
-            val c = rec.compute(portion)
-            Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap)) {
-                Macro(stringResource(R.string.nutrition_macro_kcal), stringResource(R.string.nutrition_kcal_short, c.kcal.roundToInt()))
-                Macro(stringResource(R.string.nutrition_macro_protein), "${c.proteinG.roundToInt()} g")
-                Macro(stringResource(R.string.nutrition_macro_fat), "${c.fatG.roundToInt()} g")
-                Macro(stringResource(R.string.nutrition_macro_carb), "${c.carbG.roundToInt()} g")
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppSpacing.tight),
-            ) {
-                Text(
-                    stringResource(R.string.nutrition_sodium_approx_range, c.sodiumLowMg.roundToInt(), c.sodiumHighMg.roundToInt()),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (rec.highSodiumUncertainty) {
+        when (resolved.state) {
+            ItemState.Matched, ItemState.Approx -> {
+                if (resolved.state == ItemState.Approx) {
                     Text(
-                        stringResource(R.string.nutrition_sodium_uncertain_note),
-                        style = MaterialTheme.typography.bodySmall,
+                        stringResource(R.string.nutrition_approx_match),
+                        style = MaterialTheme.typography.labelSmall,
                         color = SodiumCaution,
                     )
                 }
+                val def = resolved.defaultPortionGrams ?: 100.0
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    Portion.entries.forEachIndexed { i, p ->
+                        SegmentedButton(
+                            selected = kotlin.math.abs(resolved.grams - p.grams(def)) < 0.5,
+                            onClick = { onSetPortion(p) },
+                            shape = SegmentedButtonDefaults.itemShape(index = i, count = Portion.entries.size),
+                        ) {
+                            Text(portionLabel(p, def))
+                        }
+                    }
+                }
+                SyncedNumberField(
+                    label = stringResource(R.string.nutrition_grams_label),
+                    value = resolved.grams,
+                    onChange = onSetGrams,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap)) {
+                    Macro(stringResource(R.string.nutrition_macro_kcal), stringResource(R.string.nutrition_kcal_short, (resolved.kcal ?: 0.0).roundToInt()))
+                    Macro(stringResource(R.string.nutrition_macro_protein), "${(resolved.proteinG ?: 0.0).roundToInt()} g")
+                    Macro(stringResource(R.string.nutrition_macro_fat), "${(resolved.fatG ?: 0.0).roundToInt()} g")
+                    Macro(stringResource(R.string.nutrition_macro_carb), "${(resolved.carbG ?: 0.0).roundToInt()} g")
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+                ) {
+                    Text(
+                        stringResource(R.string.nutrition_sodium_approx_range, (resolved.sodiumLowMg ?: 0.0).roundToInt(), (resolved.sodiumHighMg ?: 0.0).roundToInt()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (resolved.highSodiumUncertainty) {
+                        Text(
+                            stringResource(R.string.nutrition_sodium_uncertain_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SodiumCaution,
+                        )
+                    }
+                }
             }
-        } else {
-            Text(
-                stringResource(R.string.nutrition_food_not_in_db),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            ItemState.Manual, ItemState.Unknown -> {
+                Text(
+                    stringResource(R.string.nutrition_enter_kcal_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SyncedNumberField(
+                    label = stringResource(R.string.nutrition_manual_kcal_label),
+                    value = resolved.kcal,
+                    onChange = onManualKcal,
+                )
+            }
         }
     }
+}
+
+/**
+ * Number field whose text resyncs when [value] changes from the outside (e.g. an
+ * S/M/L preset or an online lookup populating it), while preserving in-progress
+ * typing. Used for the gram override and manual-calorie inputs.
+ */
+@Composable
+private fun SyncedNumberField(label: String, value: Double?, onChange: (Double?) -> Unit) {
+    var text by remember { mutableStateOf(value?.let { formatNum(it) } ?: "") }
+    LaunchedEffect(value) {
+        if (text.trim().toDoubleOrNull() != value) text = value?.let { formatNum(it) } ?: ""
+    }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { s ->
+            text = s
+            val clean = s.trim()
+            onChange(if (clean.isEmpty()) null else clean.toDoubleOrNull())
+        },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

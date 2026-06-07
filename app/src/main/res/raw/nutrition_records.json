@@ -1,0 +1,1406 @@
+[
+  {
+    "canonicalName": "白飯",
+    "aliases": [
+      "米飯",
+      "steamed rice",
+      "white rice",
+      "rice",
+      "bai fan"
+    ],
+    "sodiumMgPer100g": 1.0,
+    "kcalPer100g": 130.0,
+    "proteinGPer100g": 2.7,
+    "fatGPer100g": 0.3,
+    "carbGPer100g": 28.0,
+    "defaultPortionGrams": 200.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "糙米飯",
+    "aliases": [
+      "brown rice"
+    ],
+    "sodiumMgPer100g": 4.0,
+    "kcalPer100g": 123.0,
+    "proteinGPer100g": 2.7,
+    "fatGPer100g": 1.0,
+    "carbGPer100g": 26.0,
+    "defaultPortionGrams": 200.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "炒飯",
+    "aliases": [
+      "fried rice",
+      "chao fan"
+    ],
+    "sodiumMgPer100g": 400.0,
+    "kcalPer100g": 180.0,
+    "proteinGPer100g": 5.0,
+    "fatGPer100g": 6.0,
+    "carbGPer100g": 26.0,
+    "defaultPortionGrams": 300.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "滷肉飯",
+    "aliases": [
+      "lu rou fan",
+      "braised pork rice",
+      "minced pork rice"
+    ],
+    "sodiumMgPer100g": 430.0,
+    "kcalPer100g": 200.0,
+    "proteinGPer100g": 7.0,
+    "fatGPer100g": 8.0,
+    "carbGPer100g": 27.0,
+    "defaultPortionGrams": 250.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "雞肉飯",
+    "aliases": [
+      "chicken rice",
+      "ji rou fan"
+    ],
+    "sodiumMgPer100g": 380.0,
+    "kcalPer100g": 175.0,
+    "proteinGPer100g": 10.0,
+    "fatGPer100g": 5.0,
+    "carbGPer100g": 24.0,
+    "defaultPortionGrams": 250.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "白粥",
+    "aliases": [
+      "congee",
+      "rice porridge",
+      "zhou"
+    ],
+    "sodiumMgPer100g": 60.0,
+    "kcalPer100g": 50.0,
+    "proteinGPer100g": 1.0,
+    "fatGPer100g": 0.1,
+    "carbGPer100g": 11.0,
+    "defaultPortionGrams": 350.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "陽春麵",
+    "aliases": [
+      "noodle soup",
+      "plain noodles",
+      "mian"
+    ],
+    "sodiumMgPer100g": 500.0,
+    "kcalPer100g": 120.0,
+    "proteinGPer100g": 4.0,
+    "fatGPer100g": 2.0,
+    "carbGPer100g": 22.0,
+    "defaultPortionGrams": 350.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "牛肉麵",
+    "aliases": [
+      "beef noodle",
+      "niu rou mian"
+    ],
+    "sodiumMgPer100g": 600.0,
+    "kcalPer100g": 110.0,
+    "proteinGPer100g": 7.0,
+    "fatGPer100g": 3.0,
+    "carbGPer100g": 13.0,
+    "defaultPortionGrams": 500.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "義大利麵",
+    "aliases": [
+      "pasta",
+      "spaghetti"
+    ],
+    "sodiumMgPer100g": 320.0,
+    "kcalPer100g": 160.0,
+    "proteinGPer100g": 6.0,
+    "fatGPer100g": 5.0,
+    "carbGPer100g": 24.0,
+    "defaultPortionGrams": 300.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "水餃",
+    "aliases": [
+      "餃子",
+      "dumpling",
+      "gyoza",
+      "shui jiao"
+    ],
+    "sodiumMgPer100g": 350.0,
+    "kcalPer100g": 220.0,
+    "proteinGPer100g": 9.0,
+    "fatGPer100g": 9.0,
+    "carbGPer100g": 25.0,
+    "defaultPortionGrams": 200.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "小籠包",
+    "aliases": [
+      "xiaolongbao",
+      "soup dumpling"
+    ],
+    "sodiumMgPer100g": 400.0,
+    "kcalPer100g": 240.0,
+    "proteinGPer100g": 10.0,
+    "fatGPer100g": 12.0,
+    "carbGPer100g": 23.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "饅頭",
+    "aliases": [
+      "mantou",
+      "steamed bun"
+    ],
+    "sodiumMgPer100g": 200.0,
+    "kcalPer100g": 230.0,
+    "proteinGPer100g": 7.0,
+    "fatGPer100g": 1.0,
+    "carbGPer100g": 47.0,
+    "defaultPortionGrams": 100.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "吐司",
+    "aliases": [
+      "toast",
+      "white bread",
+      "bread"
+    ],
+    "sodiumMgPer100g": 490.0,
+    "kcalPer100g": 265.0,
+    "proteinGPer100g": 9.0,
+    "fatGPer100g": 3.2,
+    "carbGPer100g": 49.0,
+    "defaultPortionGrams": 60.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "雞腿便當",
+    "aliases": [
+      "chicken bento",
+      "chicken lunchbox",
+      "便當",
+      "bento"
+    ],
+    "sodiumMgPer100g": 500.0,
+    "kcalPer100g": 180.0,
+    "proteinGPer100g": 12.0,
+    "fatGPer100g": 7.0,
+    "carbGPer100g": 18.0,
+    "defaultPortionGrams": 500.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "排骨便當",
+    "aliases": [
+      "pork chop bento",
+      "pai gu"
+    ],
+    "sodiumMgPer100g": 520.0,
+    "kcalPer100g": 200.0,
+    "proteinGPer100g": 11.0,
+    "fatGPer100g": 9.0,
+    "carbGPer100g": 19.0,
+    "defaultPortionGrams": 500.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "漢堡",
+    "aliases": [
+      "hamburger",
+      "burger"
+    ],
+    "sodiumMgPer100g": 490.0,
+    "kcalPer100g": 250.0,
+    "proteinGPer100g": 13.0,
+    "fatGPer100g": 12.0,
+    "carbGPer100g": 22.0,
+    "defaultPortionGrams": 220.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "薯條",
+    "aliases": [
+      "fries",
+      "french fries"
+    ],
+    "sodiumMgPer100g": 350.0,
+    "kcalPer100g": 312.0,
+    "proteinGPer100g": 3.4,
+    "fatGPer100g": 15.0,
+    "carbGPer100g": 41.0,
+    "defaultPortionGrams": 115.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "披薩",
+    "aliases": [
+      "pizza"
+    ],
+    "sodiumMgPer100g": 600.0,
+    "kcalPer100g": 266.0,
+    "proteinGPer100g": 11.0,
+    "fatGPer100g": 10.0,
+    "carbGPer100g": 33.0,
+    "defaultPortionGrams": 250.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "雞胸肉",
+    "aliases": [
+      "chicken breast"
+    ],
+    "sodiumMgPer100g": 70.0,
+    "kcalPer100g": 165.0,
+    "proteinGPer100g": 31.0,
+    "fatGPer100g": 3.6,
+    "carbGPer100g": 0.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "雞腿",
+    "aliases": [
+      "chicken leg",
+      "chicken thigh",
+      "炸雞",
+      "fried chicken"
+    ],
+    "sodiumMgPer100g": 300.0,
+    "kcalPer100g": 250.0,
+    "proteinGPer100g": 18.0,
+    "fatGPer100g": 16.0,
+    "carbGPer100g": 8.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "豬排",
+    "aliases": [
+      "pork chop",
+      "排骨",
+      "pork cutlet"
+    ],
+    "sodiumMgPer100g": 330.0,
+    "kcalPer100g": 240.0,
+    "proteinGPer100g": 19.0,
+    "fatGPer100g": 16.0,
+    "carbGPer100g": 6.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "牛排",
+    "aliases": [
+      "steak",
+      "beef steak"
+    ],
+    "sodiumMgPer100g": 60.0,
+    "kcalPer100g": 250.0,
+    "proteinGPer100g": 26.0,
+    "fatGPer100g": 17.0,
+    "carbGPer100g": 0.0,
+    "defaultPortionGrams": 200.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "三層肉",
+    "aliases": [
+      "五花肉",
+      "pork belly"
+    ],
+    "sodiumMgPer100g": 40.0,
+    "kcalPer100g": 290.0,
+    "proteinGPer100g": 14.0,
+    "fatGPer100g": 26.0,
+    "carbGPer100g": 0.0,
+    "defaultPortionGrams": 120.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "香腸",
+    "aliases": [
+      "sausage",
+      "xiang chang"
+    ],
+    "sodiumMgPer100g": 900.0,
+    "kcalPer100g": 300.0,
+    "proteinGPer100g": 13.0,
+    "fatGPer100g": 25.0,
+    "carbGPer100g": 5.0,
+    "defaultPortionGrams": 80.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "培根",
+    "aliases": [
+      "bacon"
+    ],
+    "sodiumMgPer100g": 1500.0,
+    "kcalPer100g": 400.0,
+    "proteinGPer100g": 12.0,
+    "fatGPer100g": 39.0,
+    "carbGPer100g": 1.0,
+    "defaultPortionGrams": 40.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "鮭魚",
+    "aliases": [
+      "salmon"
+    ],
+    "sodiumMgPer100g": 60.0,
+    "kcalPer100g": 208.0,
+    "proteinGPer100g": 20.0,
+    "fatGPer100g": 13.0,
+    "carbGPer100g": 0.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "蝦",
+    "aliases": [
+      "shrimp",
+      "prawn",
+      "xia"
+    ],
+    "sodiumMgPer100g": 220.0,
+    "kcalPer100g": 99.0,
+    "proteinGPer100g": 24.0,
+    "fatGPer100g": 0.3,
+    "carbGPer100g": 0.2,
+    "defaultPortionGrams": 120.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "虱目魚",
+    "aliases": [
+      "milkfish"
+    ],
+    "sodiumMgPer100g": 80.0,
+    "kcalPer100g": 180.0,
+    "proteinGPer100g": 20.0,
+    "fatGPer100g": 11.0,
+    "carbGPer100g": 0.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "水煮蛋",
+    "aliases": [
+      "boiled egg",
+      "egg",
+      "雞蛋"
+    ],
+    "sodiumMgPer100g": 124.0,
+    "kcalPer100g": 155.0,
+    "proteinGPer100g": 13.0,
+    "fatGPer100g": 11.0,
+    "carbGPer100g": 1.1,
+    "defaultPortionGrams": 50.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "滷蛋",
+    "aliases": [
+      "茶葉蛋",
+      "braised egg",
+      "tea egg"
+    ],
+    "sodiumMgPer100g": 300.0,
+    "kcalPer100g": 150.0,
+    "proteinGPer100g": 13.0,
+    "fatGPer100g": 10.0,
+    "carbGPer100g": 1.0,
+    "defaultPortionGrams": 55.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "煎蛋",
+    "aliases": [
+      "fried egg",
+      "炒蛋",
+      "scrambled egg"
+    ],
+    "sodiumMgPer100g": 200.0,
+    "kcalPer100g": 196.0,
+    "proteinGPer100g": 14.0,
+    "fatGPer100g": 15.0,
+    "carbGPer100g": 1.0,
+    "defaultPortionGrams": 60.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "豆腐",
+    "aliases": [
+      "tofu",
+      "dou fu"
+    ],
+    "sodiumMgPer100g": 12.0,
+    "kcalPer100g": 76.0,
+    "proteinGPer100g": 8.0,
+    "fatGPer100g": 4.8,
+    "carbGPer100g": 1.9,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "豆漿",
+    "aliases": [
+      "soy milk",
+      "soybean milk",
+      "dou jiang"
+    ],
+    "sodiumMgPer100g": 30.0,
+    "kcalPer100g": 45.0,
+    "proteinGPer100g": 3.5,
+    "fatGPer100g": 1.8,
+    "carbGPer100g": 3.0,
+    "defaultPortionGrams": 350.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "燙青菜",
+    "aliases": [
+      "青菜",
+      "boiled greens",
+      "vegetable",
+      "greens",
+      "蔬菜"
+    ],
+    "sodiumMgPer100g": 120.0,
+    "kcalPer100g": 40.0,
+    "proteinGPer100g": 2.5,
+    "fatGPer100g": 1.5,
+    "carbGPer100g": 4.0,
+    "defaultPortionGrams": 120.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "生菜沙拉",
+    "aliases": [
+      "salad",
+      "green salad"
+    ],
+    "sodiumMgPer100g": 150.0,
+    "kcalPer100g": 90.0,
+    "proteinGPer100g": 2.0,
+    "fatGPer100g": 6.0,
+    "carbGPer100g": 7.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "高麗菜",
+    "aliases": [
+      "cabbage",
+      "gao li cai"
+    ],
+    "sodiumMgPer100g": 18.0,
+    "kcalPer100g": 25.0,
+    "proteinGPer100g": 1.3,
+    "fatGPer100g": 0.1,
+    "carbGPer100g": 6.0,
+    "defaultPortionGrams": 120.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "花椰菜",
+    "aliases": [
+      "broccoli",
+      "cauliflower"
+    ],
+    "sodiumMgPer100g": 33.0,
+    "kcalPer100g": 34.0,
+    "proteinGPer100g": 2.8,
+    "fatGPer100g": 0.4,
+    "carbGPer100g": 7.0,
+    "defaultPortionGrams": 120.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "玉米",
+    "aliases": [
+      "corn",
+      "yu mi"
+    ],
+    "sodiumMgPer100g": 15.0,
+    "kcalPer100g": 96.0,
+    "proteinGPer100g": 3.4,
+    "fatGPer100g": 1.5,
+    "carbGPer100g": 21.0,
+    "defaultPortionGrams": 120.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "味噌湯",
+    "aliases": [
+      "miso soup",
+      "miso"
+    ],
+    "sodiumMgPer100g": 500.0,
+    "kcalPer100g": 35.0,
+    "proteinGPer100g": 2.5,
+    "fatGPer100g": 1.0,
+    "carbGPer100g": 4.0,
+    "defaultPortionGrams": 250.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "貢丸湯",
+    "aliases": [
+      "meatball soup",
+      "gong wan"
+    ],
+    "sodiumMgPer100g": 450.0,
+    "kcalPer100g": 70.0,
+    "proteinGPer100g": 5.0,
+    "fatGPer100g": 4.0,
+    "carbGPer100g": 3.0,
+    "defaultPortionGrams": 300.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "玉米濃湯",
+    "aliases": [
+      "corn soup",
+      "corn chowder"
+    ],
+    "sodiumMgPer100g": 340.0,
+    "kcalPer100g": 60.0,
+    "proteinGPer100g": 1.5,
+    "fatGPer100g": 2.0,
+    "carbGPer100g": 9.0,
+    "defaultPortionGrams": 250.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "鹹酥雞",
+    "aliases": [
+      "popcorn chicken",
+      "fried chicken bites",
+      "xian su ji"
+    ],
+    "sodiumMgPer100g": 600.0,
+    "kcalPer100g": 280.0,
+    "proteinGPer100g": 17.0,
+    "fatGPer100g": 18.0,
+    "carbGPer100g": 12.0,
+    "defaultPortionGrams": 200.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "蚵仔煎",
+    "aliases": [
+      "oyster omelette",
+      "o a jian"
+    ],
+    "sodiumMgPer100g": 420.0,
+    "kcalPer100g": 150.0,
+    "proteinGPer100g": 6.0,
+    "fatGPer100g": 8.0,
+    "carbGPer100g": 14.0,
+    "defaultPortionGrams": 250.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "臭豆腐",
+    "aliases": [
+      "stinky tofu",
+      "chou dou fu"
+    ],
+    "sodiumMgPer100g": 530.0,
+    "kcalPer100g": 190.0,
+    "proteinGPer100g": 9.0,
+    "fatGPer100g": 12.0,
+    "carbGPer100g": 10.0,
+    "defaultPortionGrams": 200.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "刈包",
+    "aliases": [
+      "gua bao",
+      "pork belly bun"
+    ],
+    "sodiumMgPer100g": 450.0,
+    "kcalPer100g": 240.0,
+    "proteinGPer100g": 9.0,
+    "fatGPer100g": 11.0,
+    "carbGPer100g": 27.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "潤餅",
+    "aliases": [
+      "salad卷",
+      "spring roll",
+      "run bing"
+    ],
+    "sodiumMgPer100g": 300.0,
+    "kcalPer100g": 180.0,
+    "proteinGPer100g": 6.0,
+    "fatGPer100g": 7.0,
+    "carbGPer100g": 24.0,
+    "defaultPortionGrams": 180.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "蛋餅",
+    "aliases": [
+      "egg crepe",
+      "dan bing"
+    ],
+    "sodiumMgPer100g": 380.0,
+    "kcalPer100g": 210.0,
+    "proteinGPer100g": 8.0,
+    "fatGPer100g": 11.0,
+    "carbGPer100g": 20.0,
+    "defaultPortionGrams": 150.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "飯糰",
+    "aliases": [
+      "fan tuan",
+      "rice ball",
+      "onigiri"
+    ],
+    "sodiumMgPer100g": 350.0,
+    "kcalPer100g": 200.0,
+    "proteinGPer100g": 5.0,
+    "fatGPer100g": 5.0,
+    "carbGPer100g": 34.0,
+    "defaultPortionGrams": 200.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "三明治",
+    "aliases": [
+      "sandwich"
+    ],
+    "sodiumMgPer100g": 480.0,
+    "kcalPer100g": 250.0,
+    "proteinGPer100g": 10.0,
+    "fatGPer100g": 12.0,
+    "carbGPer100g": 26.0,
+    "defaultPortionGrams": 180.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "珍珠奶茶",
+    "aliases": [
+      "bubble tea",
+      "boba",
+      "milk tea",
+      "zhen zhu nai cha"
+    ],
+    "sodiumMgPer100g": 30.0,
+    "kcalPer100g": 90.0,
+    "proteinGPer100g": 1.0,
+    "fatGPer100g": 2.0,
+    "carbGPer100g": 18.0,
+    "defaultPortionGrams": 500.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "美式咖啡",
+    "aliases": [
+      "americano",
+      "black coffee",
+      "coffee"
+    ],
+    "sodiumMgPer100g": 2.0,
+    "kcalPer100g": 2.0,
+    "proteinGPer100g": 0.1,
+    "fatGPer100g": 0.0,
+    "carbGPer100g": 0.0,
+    "defaultPortionGrams": 350.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "拿鐵",
+    "aliases": [
+      "latte",
+      "caffe latte"
+    ],
+    "sodiumMgPer100g": 40.0,
+    "kcalPer100g": 60.0,
+    "proteinGPer100g": 3.0,
+    "fatGPer100g": 3.0,
+    "carbGPer100g": 5.0,
+    "defaultPortionGrams": 350.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "可樂",
+    "aliases": [
+      "cola",
+      "coke",
+      "soda"
+    ],
+    "sodiumMgPer100g": 4.0,
+    "kcalPer100g": 42.0,
+    "proteinGPer100g": 0.0,
+    "fatGPer100g": 0.0,
+    "carbGPer100g": 11.0,
+    "defaultPortionGrams": 350.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "柳橙汁",
+    "aliases": [
+      "orange juice",
+      "juice"
+    ],
+    "sodiumMgPer100g": 1.0,
+    "kcalPer100g": 45.0,
+    "proteinGPer100g": 0.7,
+    "fatGPer100g": 0.2,
+    "carbGPer100g": 10.0,
+    "defaultPortionGrams": 300.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "香蕉",
+    "aliases": [
+      "banana"
+    ],
+    "sodiumMgPer100g": 1.0,
+    "kcalPer100g": 90.0,
+    "proteinGPer100g": 1.1,
+    "fatGPer100g": 0.3,
+    "carbGPer100g": 23.0,
+    "defaultPortionGrams": 120.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "蘋果",
+    "aliases": [
+      "apple"
+    ],
+    "sodiumMgPer100g": 1.0,
+    "kcalPer100g": 52.0,
+    "proteinGPer100g": 0.3,
+    "fatGPer100g": 0.2,
+    "carbGPer100g": 14.0,
+    "defaultPortionGrams": 180.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "芭樂",
+    "aliases": [
+      "guava",
+      "ba le"
+    ],
+    "sodiumMgPer100g": 2.0,
+    "kcalPer100g": 68.0,
+    "proteinGPer100g": 2.6,
+    "fatGPer100g": 1.0,
+    "carbGPer100g": 14.0,
+    "defaultPortionGrams": 160.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "西瓜",
+    "aliases": [
+      "watermelon"
+    ],
+    "sodiumMgPer100g": 1.0,
+    "kcalPer100g": 30.0,
+    "proteinGPer100g": 0.6,
+    "fatGPer100g": 0.2,
+    "carbGPer100g": 8.0,
+    "defaultPortionGrams": 250.0,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "洋芋片",
+    "aliases": [
+      "potato chips",
+      "chips",
+      "crisps"
+    ],
+    "sodiumMgPer100g": 525.0,
+    "kcalPer100g": 536.0,
+    "proteinGPer100g": 7.0,
+    "fatGPer100g": 35.0,
+    "carbGPer100g": 53.0,
+    "defaultPortionGrams": 60.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "泡麵",
+    "aliases": [
+      "instant noodle",
+      "ramen",
+      "pao mian"
+    ],
+    "sodiumMgPer100g": 1200.0,
+    "kcalPer100g": 440.0,
+    "proteinGPer100g": 9.0,
+    "fatGPer100g": 18.0,
+    "carbGPer100g": 60.0,
+    "defaultPortionGrams": 90.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "餅乾",
+    "aliases": [
+      "biscuit",
+      "cookie",
+      "cracker"
+    ],
+    "sodiumMgPer100g": 400.0,
+    "kcalPer100g": 480.0,
+    "proteinGPer100g": 6.0,
+    "fatGPer100g": 22.0,
+    "carbGPer100g": 64.0,
+    "defaultPortionGrams": 50.0,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "控肉飯",
+    "aliases": [
+      "爌肉飯",
+      "焢肉飯",
+      "braised pork belly rice",
+      "kong rou fan"
+    ],
+    "sodiumMgPer100g": 450,
+    "kcalPer100g": 230,
+    "proteinGPer100g": 8,
+    "fatGPer100g": 12,
+    "carbGPer100g": 26,
+    "defaultPortionGrams": 400,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "炒麵",
+    "aliases": [
+      "fried noodles",
+      "chow mein",
+      "chao mian"
+    ],
+    "sodiumMgPer100g": 450,
+    "kcalPer100g": 150,
+    "proteinGPer100g": 5,
+    "fatGPer100g": 5,
+    "carbGPer100g": 22,
+    "defaultPortionGrams": 300,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "炒米粉",
+    "aliases": [
+      "fried rice vermicelli",
+      "mi fen"
+    ],
+    "sodiumMgPer100g": 400,
+    "kcalPer100g": 150,
+    "proteinGPer100g": 4,
+    "fatGPer100g": 4,
+    "carbGPer100g": 25,
+    "defaultPortionGrams": 250,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "油飯",
+    "aliases": [
+      "glutinous oil rice",
+      "you fan"
+    ],
+    "sodiumMgPer100g": 400,
+    "kcalPer100g": 210,
+    "proteinGPer100g": 5,
+    "fatGPer100g": 7,
+    "carbGPer100g": 32,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "蘿蔔糕",
+    "aliases": [
+      "radish cake",
+      "luo bo gao"
+    ],
+    "sodiumMgPer100g": 350,
+    "kcalPer100g": 140,
+    "proteinGPer100g": 2,
+    "fatGPer100g": 4,
+    "carbGPer100g": 24,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "蔥油餅",
+    "aliases": [
+      "scallion pancake",
+      "cong you bing"
+    ],
+    "sodiumMgPer100g": 400,
+    "kcalPer100g": 280,
+    "proteinGPer100g": 6,
+    "fatGPer100g": 14,
+    "carbGPer100g": 33,
+    "defaultPortionGrams": 120,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "油條",
+    "aliases": [
+      "fried dough stick",
+      "you tiao"
+    ],
+    "sodiumMgPer100g": 300,
+    "kcalPer100g": 400,
+    "proteinGPer100g": 7,
+    "fatGPer100g": 23,
+    "carbGPer100g": 42,
+    "defaultPortionGrams": 60,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "蚵仔麵線",
+    "aliases": [
+      "oyster vermicelli",
+      "mian xian",
+      "da chang mian xian"
+    ],
+    "sodiumMgPer100g": 600,
+    "kcalPer100g": 100,
+    "proteinGPer100g": 4,
+    "fatGPer100g": 2,
+    "carbGPer100g": 17,
+    "defaultPortionGrams": 350,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "蛋花湯",
+    "aliases": [
+      "egg drop soup",
+      "dan hua tang"
+    ],
+    "sodiumMgPer100g": 400,
+    "kcalPer100g": 40,
+    "proteinGPer100g": 3,
+    "fatGPer100g": 2,
+    "carbGPer100g": 2,
+    "defaultPortionGrams": 250,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "紫菜湯",
+    "aliases": [
+      "seaweed soup",
+      "zi cai tang"
+    ],
+    "sodiumMgPer100g": 450,
+    "kcalPer100g": 30,
+    "proteinGPer100g": 2,
+    "fatGPer100g": 0.5,
+    "carbGPer100g": 4,
+    "defaultPortionGrams": 250,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "蛤蜊湯",
+    "aliases": [
+      "clam soup",
+      "ge li tang"
+    ],
+    "sodiumMgPer100g": 400,
+    "kcalPer100g": 45,
+    "proteinGPer100g": 5,
+    "fatGPer100g": 1,
+    "carbGPer100g": 2,
+    "defaultPortionGrams": 250,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "三杯雞",
+    "aliases": [
+      "three cup chicken",
+      "san bei ji"
+    ],
+    "sodiumMgPer100g": 600,
+    "kcalPer100g": 200,
+    "proteinGPer100g": 18,
+    "fatGPer100g": 12,
+    "carbGPer100g": 5,
+    "defaultPortionGrams": 250,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "宮保雞丁",
+    "aliases": [
+      "kung pao chicken",
+      "gong bao ji ding"
+    ],
+    "sodiumMgPer100g": 650,
+    "kcalPer100g": 180,
+    "proteinGPer100g": 14,
+    "fatGPer100g": 10,
+    "carbGPer100g": 8,
+    "defaultPortionGrams": 250,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "麻婆豆腐",
+    "aliases": [
+      "mapo tofu",
+      "ma po dou fu"
+    ],
+    "sodiumMgPer100g": 700,
+    "kcalPer100g": 130,
+    "proteinGPer100g": 8,
+    "fatGPer100g": 9,
+    "carbGPer100g": 5,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "糖醋排骨",
+    "aliases": [
+      "sweet and sour pork",
+      "tang cu pai gu"
+    ],
+    "sodiumMgPer100g": 500,
+    "kcalPer100g": 250,
+    "proteinGPer100g": 14,
+    "fatGPer100g": 14,
+    "carbGPer100g": 18,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "滷味",
+    "aliases": [
+      "braised snacks",
+      "lu wei"
+    ],
+    "sodiumMgPer100g": 800,
+    "kcalPer100g": 150,
+    "proteinGPer100g": 10,
+    "fatGPer100g": 8,
+    "carbGPer100g": 8,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "關東煮",
+    "aliases": [
+      "oden",
+      "guan dong zhu"
+    ],
+    "sodiumMgPer100g": 700,
+    "kcalPer100g": 90,
+    "proteinGPer100g": 6,
+    "fatGPer100g": 3,
+    "carbGPer100g": 9,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "炸雞排",
+    "aliases": [
+      "fried chicken cutlet",
+      "ji pai"
+    ],
+    "sodiumMgPer100g": 500,
+    "kcalPer100g": 250,
+    "proteinGPer100g": 18,
+    "fatGPer100g": 15,
+    "carbGPer100g": 12,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "鍋貼",
+    "aliases": [
+      "potstickers",
+      "guo tie",
+      "fried dumpling"
+    ],
+    "sodiumMgPer100g": 350,
+    "kcalPer100g": 250,
+    "proteinGPer100g": 9,
+    "fatGPer100g": 12,
+    "carbGPer100g": 25,
+    "defaultPortionGrams": 200,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "肉圓",
+    "aliases": [
+      "ba wan",
+      "bawan",
+      "rou yuan"
+    ],
+    "sodiumMgPer100g": 400,
+    "kcalPer100g": 190,
+    "proteinGPer100g": 5,
+    "fatGPer100g": 7,
+    "carbGPer100g": 27,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "胡椒餅",
+    "aliases": [
+      "pepper bun",
+      "hu jiao bing"
+    ],
+    "sodiumMgPer100g": 450,
+    "kcalPer100g": 270,
+    "proteinGPer100g": 11,
+    "fatGPer100g": 12,
+    "carbGPer100g": 30,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "雞蛋糕",
+    "aliases": [
+      "egg cake",
+      "ji dan gao"
+    ],
+    "sodiumMgPer100g": 200,
+    "kcalPer100g": 290,
+    "proteinGPer100g": 6,
+    "fatGPer100g": 9,
+    "carbGPer100g": 46,
+    "defaultPortionGrams": 100,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "空心菜",
+    "aliases": [
+      "water spinach",
+      "kong xin cai"
+    ],
+    "sodiumMgPer100g": 60,
+    "kcalPer100g": 25,
+    "proteinGPer100g": 2.6,
+    "fatGPer100g": 0.3,
+    "carbGPer100g": 3.5,
+    "defaultPortionGrams": 120,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "地瓜葉",
+    "aliases": [
+      "sweet potato leaves",
+      "di gua ye"
+    ],
+    "sodiumMgPer100g": 30,
+    "kcalPer100g": 30,
+    "proteinGPer100g": 3,
+    "fatGPer100g": 0.3,
+    "carbGPer100g": 4,
+    "defaultPortionGrams": 120,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "番茄",
+    "aliases": [
+      "tomato",
+      "fan qie",
+      "xi hong shi"
+    ],
+    "sodiumMgPer100g": 5,
+    "kcalPer100g": 18,
+    "proteinGPer100g": 0.9,
+    "fatGPer100g": 0.2,
+    "carbGPer100g": 3.9,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "地瓜",
+    "aliases": [
+      "sweet potato",
+      "di gua"
+    ],
+    "sodiumMgPer100g": 30,
+    "kcalPer100g": 86,
+    "proteinGPer100g": 1.6,
+    "fatGPer100g": 0.1,
+    "carbGPer100g": 20,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "馬鈴薯",
+    "aliases": [
+      "potato",
+      "ma ling shu"
+    ],
+    "sodiumMgPer100g": 6,
+    "kcalPer100g": 77,
+    "proteinGPer100g": 2,
+    "fatGPer100g": 0.1,
+    "carbGPer100g": 17,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "南瓜",
+    "aliases": [
+      "pumpkin",
+      "nan gua"
+    ],
+    "sodiumMgPer100g": 1,
+    "kcalPer100g": 26,
+    "proteinGPer100g": 1,
+    "fatGPer100g": 0.1,
+    "carbGPer100g": 7,
+    "defaultPortionGrams": 120,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "鳳梨",
+    "aliases": [
+      "pineapple",
+      "feng li"
+    ],
+    "sodiumMgPer100g": 1,
+    "kcalPer100g": 50,
+    "proteinGPer100g": 0.5,
+    "fatGPer100g": 0.1,
+    "carbGPer100g": 13,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "木瓜",
+    "aliases": [
+      "papaya",
+      "mu gua"
+    ],
+    "sodiumMgPer100g": 8,
+    "kcalPer100g": 43,
+    "proteinGPer100g": 0.5,
+    "fatGPer100g": 0.3,
+    "carbGPer100g": 11,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "芒果",
+    "aliases": [
+      "mango",
+      "mang guo"
+    ],
+    "sodiumMgPer100g": 1,
+    "kcalPer100g": 60,
+    "proteinGPer100g": 0.8,
+    "fatGPer100g": 0.4,
+    "carbGPer100g": 15,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "葡萄",
+    "aliases": [
+      "grape",
+      "pu tao"
+    ],
+    "sodiumMgPer100g": 2,
+    "kcalPer100g": 69,
+    "proteinGPer100g": 0.7,
+    "fatGPer100g": 0.2,
+    "carbGPer100g": 18,
+    "defaultPortionGrams": 100,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "橘子",
+    "aliases": [
+      "orange",
+      "tangerine",
+      "ju zi"
+    ],
+    "sodiumMgPer100g": 1,
+    "kcalPer100g": 47,
+    "proteinGPer100g": 0.9,
+    "fatGPer100g": 0.1,
+    "carbGPer100g": 12,
+    "defaultPortionGrams": 120,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "牛奶",
+    "aliases": [
+      "milk",
+      "niu nai"
+    ],
+    "sodiumMgPer100g": 44,
+    "kcalPer100g": 64,
+    "proteinGPer100g": 3.4,
+    "fatGPer100g": 3.6,
+    "carbGPer100g": 4.8,
+    "defaultPortionGrams": 240,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "優格",
+    "aliases": [
+      "yogurt",
+      "you ge"
+    ],
+    "sodiumMgPer100g": 50,
+    "kcalPer100g": 60,
+    "proteinGPer100g": 3.5,
+    "fatGPer100g": 3.3,
+    "carbGPer100g": 5,
+    "defaultPortionGrams": 150,
+    "highSodiumUncertainty": false
+  },
+  {
+    "canonicalName": "起司",
+    "aliases": [
+      "cheese",
+      "qi si"
+    ],
+    "sodiumMgPer100g": 600,
+    "kcalPer100g": 400,
+    "proteinGPer100g": 25,
+    "fatGPer100g": 33,
+    "carbGPer100g": 1.3,
+    "defaultPortionGrams": 30,
+    "highSodiumUncertainty": true
+  },
+  {
+    "canonicalName": "綠茶",
+    "aliases": [
+      "green tea",
+      "unsweetened tea",
+      "cha",
+      "hong cha"
+    ],
+    "sodiumMgPer100g": 1,
+    "kcalPer100g": 1,
+    "proteinGPer100g": 0,
+    "fatGPer100g": 0,
+    "carbGPer100g": 0.3,
+    "defaultPortionGrams": 350,
+    "highSodiumUncertainty": false
+  }
+]

@@ -765,4 +765,9 @@
     <string name="nutrition_macro_carb">碳水</string>
     <string name="nutrition_sodium_uncertain_note">· 湯/調味鈉難估</string>
     <string name="nutrition_food_not_in_db">資料庫尚無此食物(精選資料集,USDA/TFDA 待匯入)</string>
+    <string name="nutrition_grams_label">份量 (克)</string>
+    <string name="nutrition_manual_kcal_label">熱量 (kcal)</string>
+    <string name="nutrition_approx_match">估計對應,若不準請調整份量</string>
+    <string name="nutrition_reference_hint">小提示:把硬幣或餐盤一起入鏡,份量估算更準</string>
+    <string name="nutrition_enter_kcal_hint">資料庫沒有,請在下方手動輸入熱量</string>
 </resources>
