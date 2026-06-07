@@ -55,22 +55,27 @@ import com.silverbp.android.ui.theme.AppSpacing
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
-    onBack: () -> Unit,
     onOpenDetail: (String) -> Unit,
+    onBack: (() -> Unit)? = null,
     vm: ExerciseLibraryViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.strength_library_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                    }
-                },
-            )
+            // Embedded as the Exercise hub's "動作庫" tab → no app bar (the tab
+            // row already labels it). Only a standalone route passes onBack, which
+            // restores the title + back arrow.
+            if (onBack != null) {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.strength_library_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                        }
+                    },
+                )
+            }
         },
     ) { padding ->
         Column(

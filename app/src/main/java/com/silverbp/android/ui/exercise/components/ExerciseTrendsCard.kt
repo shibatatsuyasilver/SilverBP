@@ -3,6 +3,7 @@ package com.silverbp.android.ui.exercise.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -152,10 +153,10 @@ private fun StatChip(label: String, value: String, modifier: Modifier = Modifier
 
 @Composable
 private fun KindLegend() {
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         ActivityKind.entries.forEach { kind ->
             LegendDot(
@@ -171,6 +172,11 @@ private fun kindLabelRes(kind: ActivityKind): Int = when (kind) {
     ActivityKind.Running -> R.string.exercise_kind_running
     ActivityKind.BriskWalking -> R.string.exercise_kind_brisk_walking
     ActivityKind.Cycling -> R.string.exercise_kind_cycling
+    ActivityKind.Treadmill -> R.string.exercise_kind_treadmill
+    ActivityKind.IndoorBike -> R.string.exercise_kind_indoor_bike
+    ActivityKind.Elliptical -> R.string.exercise_kind_elliptical
+    ActivityKind.Rower -> R.string.exercise_kind_rower
+    ActivityKind.StairClimber -> R.string.exercise_kind_stair_climber
 }
 
 @Composable

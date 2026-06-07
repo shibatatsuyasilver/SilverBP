@@ -37,7 +37,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         BpWorkoutAssociationEntity::class,
         FoodLogEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -99,6 +99,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_13_14,
                 MIGRATION_14_15,
                 MIGRATION_15_16,
+                MIGRATION_16_17,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -750,5 +751,36 @@ internal val MIGRATION_15_16: Migration = object : Migration(15, 16) {
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS `index_food_log_timestamp` ON `food_log` (`timestamp`)"
         )
+    }
+}
+
+/**
+ * v16 → v17: add gym-machine OCR columns to `exercise_session` for the cardio
+ * console-display photo feature (treadmill / indoor bike / elliptical / rower /
+ * stair climber). Calories + heart rate are captured from the console but kept
+ * flagged as estimates; distance unit + floors handle non-km machines (rower =
+ * metres, stair = floors/steps). `rawMetricsJson` keeps every OCR'd field.
+ *
+ * The two NOT NULL flags need a SQL DEFAULT for the existing rows (SQLite ADD
+ * COLUMN requirement); the matching Kotlin-level entity defaults emit no schema
+ * default, so Room ignores the difference (mirrors `coach_task.skipped` in
+ * MIGRATION_14_15). The nullable columns need none.
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/17.json` after building.
+ */
+internal val MIGRATION_16_17: Migration = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `caloriesKcal` REAL")
+        db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `heartRateBpm` INTEGER")
+        db.execSQL(
+            "ALTER TABLE `exercise_session` ADD COLUMN `caloriesIsEstimate` INTEGER NOT NULL DEFAULT 1"
+        )
+        db.execSQL(
+            "ALTER TABLE `exercise_session` ADD COLUMN `heartRateIsEstimate` INTEGER NOT NULL DEFAULT 1"
+        )
+        db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `distanceUnitRaw` TEXT")
+        db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `floors` INTEGER")
+        db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `rawMetricsJson` TEXT")
     }
 }

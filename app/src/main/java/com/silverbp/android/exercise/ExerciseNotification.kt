@@ -365,6 +365,9 @@ object ExerciseNotification {
             ActivityKind.Running -> ctx.getString(R.string.exercise_notification_title_run)
             ActivityKind.BriskWalking -> ctx.getString(R.string.exercise_notification_title_brisk_walk)
             ActivityKind.Cycling -> ctx.getString(R.string.exercise_notification_title_cycle)
+            // Machine (OCR) kinds are never live-tracked, so this branch is unused;
+            // fall back to the generic recording title to stay exhaustive.
+            else -> ctx.getString(R.string.exercise_recording_title)
         }
         val pausedSuffix = if (includePausedSuffix && (live.runState == RunState.Paused || live.runState == RunState.AutoPaused)) {
             ctx.getString(R.string.exercise_notification_paused_suffix)

@@ -106,7 +106,8 @@ class ExerciseSessionSyncMapper(
             8 to SyncValue.Text(entity.note),
             9 to SyncValue.Int64(entity.createdAt),
             10 to SyncValue.Int64(entity.updatedAt),
-            11 to SyncValue.Null, // caloriesKcal — Android-side absent
+            // caloriesKcal — now populated on Android by gym-machine OCR sessions.
+            11 to (entity.caloriesKcal?.let { SyncValue.Double(it) } ?: SyncValue.Null),
             12 to SyncValue.Null, // elevationGainMeters — Android-side absent
         )
         return SyncRecord(
@@ -159,6 +160,16 @@ class ExerciseSessionSyncMapper(
             createdAt = (p[9] as? SyncValue.Int64)?.value ?: 0L,
             updatedAt = (p[10] as? SyncValue.Int64)?.value ?: 0L,
             hlcUpdatedAt = record.hlc.packed,
+            // caloriesKcal is the only OCR field carried in the frozen 1..12 wire
+            // layout; the rest (heartRate, estimate flags, distance unit, floors,
+            // rawMetrics) stay device-local. Preserve any local values on update.
+            caloriesKcal = (p[11] as? SyncValue.Double)?.value ?: existing?.caloriesKcal,
+            heartRateBpm = existing?.heartRateBpm,
+            caloriesIsEstimate = existing?.caloriesIsEstimate ?: true,
+            heartRateIsEstimate = existing?.heartRateIsEstimate ?: true,
+            distanceUnitRaw = existing?.distanceUnitRaw,
+            floors = existing?.floors,
+            rawMetricsJson = existing?.rawMetricsJson,
         )
         if (existing == null) dao.insertSession(entity) else dao.updateSession(entity)
     }

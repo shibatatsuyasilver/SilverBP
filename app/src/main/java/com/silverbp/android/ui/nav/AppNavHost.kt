@@ -53,6 +53,8 @@ import com.silverbp.android.ui.exercise.ExerciseDetailScreen
 import com.silverbp.android.ui.exercise.ExerciseHomeScreen
 import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
+import com.silverbp.android.ui.exercise.machine.MachineCaptureScreen
+import com.silverbp.android.ui.exercise.machine.MachineConfirmScreen
 import com.silverbp.android.ui.nutrition.BarcodeScanScreen
 import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
 import com.silverbp.android.ui.nutrition.NutritionScreen
@@ -180,6 +182,22 @@ fun AppNavHost() {
             ExerciseSummaryScreen(
                 onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onDiscard = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+            )
+        }
+        composable(Routes.MACHINE_CAPTURE) {
+            MachineCaptureScreen(
+                onAnalyzed = {
+                    rootNav.navigate(Routes.MACHINE_CONFIRM_NEW) {
+                        popUpTo(Routes.MACHINE_CAPTURE) { inclusive = true }
+                    }
+                },
+                onBack = { rootNav.popBackStack() },
+            )
+        }
+        composable(Routes.MACHINE_CONFIRM_NEW) {
+            MachineConfirmScreen(
+                onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onCancel = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
             )
         }
         composable(Routes.STRENGTH_SESSION) {
@@ -429,6 +447,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
         ExerciseHomeScreen(
             onStartSession = { rootNav.navigate(Routes.EXERCISE_SESSION) },
             onStartStrengthSession = { rootNav.navigate(Routes.STRENGTH_SESSION) },
+            onCaptureMachine = { rootNav.navigate(Routes.MACHINE_CAPTURE) },
             onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
             onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
         )

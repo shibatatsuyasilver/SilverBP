@@ -9,25 +9,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Rowing
+import androidx.compose.material.icons.filled.Stairs
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -75,6 +82,7 @@ private enum class HubSection(val labelRes: Int) {
 fun ExerciseHomeScreen(
     onStartSession: () -> Unit,
     onStartStrengthSession: () -> Unit,
+    onCaptureMachine: () -> Unit,
     onOpenDetail: (String) -> Unit,
     onOpenMedals: () -> Unit,
     vm: ExerciseHomeViewModel = viewModel(),
@@ -119,7 +127,7 @@ fun ExerciseHomeScreen(
                     state = state,
                     vm = vm,
                     onStartSession = onStartSession,
-                    onPickStrength = { section = HubSection.Library.ordinal },
+                    onCaptureMachine = onCaptureMachine,
                     onOpenMedals = onOpenMedals,
                 )
                 HubSection.Library -> StrengthLibrarySection(
@@ -166,15 +174,15 @@ private fun PlanSection(
     state: ExerciseHomeUiState,
     vm: ExerciseHomeViewModel,
     onStartSession: () -> Unit,
-    onPickStrength: () -> Unit,
+    onCaptureMachine: () -> Unit,
     onOpenMedals: () -> Unit,
 ) {
     val (perm, requestPerm) = rememberExercisePermissionState()
     val achievementState by ServiceLocator.achievementStore.state.collectAsStateWithLifecycle()
     val settings by ServiceLocator.userSettings.flow
         .collectAsStateWithLifecycle(initialValue = UserSettings())
-    var showPicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    var selectedKind by remember { mutableStateOf(ActivityKind.Walking) }
     // Cardio kind + non-ALLOW gate awaiting the user's confirmation dialog.
     // ALLOW never lands here — it starts directly (no dialog).
     var pendingCardio by remember { mutableStateOf<Pair<ActivityKind, WorkoutBpGate>?>(null) }
@@ -193,23 +201,37 @@ private fun PlanSection(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
+        // Pick a cardio kind (2×2 tiles), then start. Machine kinds are logged via
+        // the camera card below; strength is started from the 動作庫 tab.
+        CardioKindGrid(selected = selectedKind, onSelect = { selectedKind = it })
         Button(
-            onClick = { showPicker = true },
+            onClick = {
+                scope.launch {
+                    // BP gate: ALLOW starts directly; CAUTION/BLOCK confirm via dialog.
+                    when (val gate = evaluateWorkoutBpGate()) {
+                        WorkoutBpGate.Allow -> startCardio(selectedKind)
+                        else -> pendingCardio = selectedKind to gate
+                    }
+                }
+            },
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.secondary,
                 contentColor = MaterialTheme.colorScheme.onSecondary,
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp),
+                .height(56.dp),
         ) {
             Icon(Icons.Filled.PlayArrow, null)
             Spacer(Modifier.size(AppSpacing.itemGap))
             Text(
-                stringResource(R.string.hub_start_training),
+                stringResource(R.string.hub_start_exercise),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             )
         }
+
+        // Log a finished gym-machine workout by photographing its console (OCR).
+        MachineCaptureCard(onClick = onCaptureMachine)
 
         TodayTaskCard(state = state)
 
@@ -236,27 +258,6 @@ private fun PlanSection(
         )
 
         Spacer(Modifier.height(8.dp))
-    }
-
-    if (showPicker) {
-        StartPickerDialog(
-            onDismiss = { showPicker = false },
-            onPickCardio = { kind ->
-                showPicker = false
-                // BP gate before starting: ALLOW starts directly; CAUTION/BLOCK
-                // surface the dialog so the user confirms (or measures first).
-                scope.launch {
-                    when (val gate = evaluateWorkoutBpGate()) {
-                        WorkoutBpGate.Allow -> startCardio(kind)
-                        else -> pendingCardio = kind to gate
-                    }
-                }
-            },
-            onPickStrength = {
-                showPicker = false
-                onPickStrength()
-            },
-        )
     }
 
     pendingCardio?.let { (kind, gate) ->
@@ -300,49 +301,110 @@ private fun TodayTaskCard(state: ExerciseHomeUiState) {
     }
 }
 
+/** Entry card for logging a gym-machine workout from a console photo (OCR). */
 @Composable
-private fun StartPickerDialog(
-    onDismiss: () -> Unit,
-    onPickCardio: (ActivityKind) -> Unit,
-    onPickStrength: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.hub_start_picker_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActivityKind.entries.forEach { kind ->
-                    PickerRow(
-                        icon = iconForKind(kind),
-                        label = stringResource(labelResForKind(kind)),
-                        onClick = { onPickCardio(kind) },
-                    )
-                }
-                PickerRow(
-                    icon = Icons.Filled.FitnessCenter,
-                    label = stringResource(R.string.hub_pick_strength),
-                    onClick = onPickStrength,
+private fun MachineCaptureCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppSpacing.cardCorner),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Row(
+            modifier = Modifier.padding(AppSpacing.cardPadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.PhotoCamera,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp),
                 )
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.machine_card_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.machine_card_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-        },
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 2×2 grid of GPS-trackable cardio kinds; the selected tile is filled indigo. */
+@Composable
+private fun CardioKindGrid(selected: ActivityKind, onSelect: (ActivityKind) -> Unit) {
+    // Explicit order to match the design: 步行 / 健走 / 跑步 / 腳踏車.
+    val kinds = listOf(
+        ActivityKind.Walking,
+        ActivityKind.BriskWalking,
+        ActivityKind.Running,
+        ActivityKind.Cycling,
     )
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+        kinds.chunked(2).forEach { rowKinds ->
+            Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                rowKinds.forEach { kind ->
+                    CardioKindTile(
+                        kind = kind,
+                        selected = selected == kind,
+                        onClick = { onSelect(kind) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun PickerRow(icon: ImageVector, label: String, onClick: () -> Unit) {
-    OutlinedButton(
+private fun CardioKindTile(
+    kind: ActivityKind,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+    val iconTint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+    val textColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.height(88.dp),
+        shape = RoundedCornerShape(AppSpacing.cardCorner),
+        colors = CardDefaults.cardColors(containerColor = container),
     ) {
-        Icon(icon, null)
-        Spacer(Modifier.size(8.dp))
-        Text(label, modifier = Modifier.weight(1f))
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(iconForKind(kind), null, tint = iconTint, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.size(AppSpacing.tight))
+            Text(
+                stringResource(labelResForKind(kind)),
+                color = textColor,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+        }
     }
 }
 
@@ -415,6 +477,11 @@ private fun iconForKind(kind: ActivityKind): ImageVector = when (kind) {
     ActivityKind.Running -> Icons.AutoMirrored.Filled.DirectionsRun
     ActivityKind.BriskWalking -> Icons.AutoMirrored.Filled.DirectionsWalk
     ActivityKind.Cycling -> Icons.AutoMirrored.Filled.DirectionsBike
+    ActivityKind.Treadmill -> Icons.AutoMirrored.Filled.DirectionsRun
+    ActivityKind.IndoorBike -> Icons.AutoMirrored.Filled.DirectionsBike
+    ActivityKind.Elliptical -> Icons.Filled.FitnessCenter
+    ActivityKind.Rower -> Icons.Filled.Rowing
+    ActivityKind.StairClimber -> Icons.Filled.Stairs
 }
 
 private fun labelResForKind(kind: ActivityKind): Int = when (kind) {
@@ -422,6 +489,11 @@ private fun labelResForKind(kind: ActivityKind): Int = when (kind) {
     ActivityKind.Running -> R.string.exercise_kind_running
     ActivityKind.BriskWalking -> R.string.exercise_kind_brisk_walking
     ActivityKind.Cycling -> R.string.exercise_kind_cycling
+    ActivityKind.Treadmill -> R.string.exercise_kind_treadmill
+    ActivityKind.IndoorBike -> R.string.exercise_kind_indoor_bike
+    ActivityKind.Elliptical -> R.string.exercise_kind_elliptical
+    ActivityKind.Rower -> R.string.exercise_kind_rower
+    ActivityKind.StairClimber -> R.string.exercise_kind_stair_climber
 }
 
 @Composable

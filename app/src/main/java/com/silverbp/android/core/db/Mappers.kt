@@ -89,6 +89,13 @@ fun ExerciseSession.toEntity() = ExerciseSessionEntity(
     hcRecordId = hcRecordId,
     createdAt = createdAt.toEpochMilli(),
     updatedAt = updatedAt.toEpochMilli(),
+    caloriesKcal = caloriesKcal,
+    heartRateBpm = heartRateBpm,
+    caloriesIsEstimate = caloriesIsEstimate,
+    heartRateIsEstimate = heartRateIsEstimate,
+    distanceUnitRaw = distanceUnitRaw,
+    floors = floors,
+    rawMetricsJson = rawMetricsJson,
 )
 
 fun ExerciseSessionEntity.toDomain() = ExerciseSession(
@@ -105,6 +112,13 @@ fun ExerciseSessionEntity.toDomain() = ExerciseSession(
     hcRecordId = hcRecordId,
     createdAt = Instant.ofEpochMilli(createdAt),
     updatedAt = Instant.ofEpochMilli(updatedAt),
+    caloriesKcal = caloriesKcal,
+    heartRateBpm = heartRateBpm,
+    caloriesIsEstimate = caloriesIsEstimate,
+    heartRateIsEstimate = heartRateIsEstimate,
+    distanceUnitRaw = distanceUnitRaw,
+    floors = floors,
+    rawMetricsJson = rawMetricsJson,
 )
 
 fun RoutePoint.toEntity() = RoutePointEntity(

@@ -41,7 +41,6 @@ fun StrengthLibrarySection(
     val current = selectedId
     if (current == null) {
         LibraryScreen(
-            onBack = {},
             onOpenDetail = { id -> selectedId = id },
         )
     } else {

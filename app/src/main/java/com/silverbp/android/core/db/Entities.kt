@@ -125,6 +125,14 @@ data class ExerciseSessionEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val hlcUpdatedAt: String = "0",
+    // --- Gym-machine OCR columns (added in v17; null/default for older rows) ---
+    val caloriesKcal: Double? = null,
+    val heartRateBpm: Int? = null,
+    val caloriesIsEstimate: Boolean = true,
+    val heartRateIsEstimate: Boolean = true,
+    val distanceUnitRaw: String? = null,
+    val floors: Int? = null,
+    val rawMetricsJson: String? = null,
 )
 
 @Entity(

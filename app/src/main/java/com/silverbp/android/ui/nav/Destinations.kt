@@ -39,6 +39,12 @@ object Routes {
     const val EXERCISE_SUMMARY = "exercise/summary"
     fun exerciseDetail(id: String) = "exercise/detail/$id"
 
+    // Gym-machine console OCR: capture → confirm. Root-level so the bottom bar
+    // hides while active, like EXERCISE_SESSION. CONFIRM reads the staged
+    // readout from MachineWorkoutDraftHolder.
+    const val MACHINE_CAPTURE = "exercise/machine/capture"
+    const val MACHINE_CONFIRM_NEW = "exercise/machine/confirm/new"
+
     // Strength workout flow — root-level so the bottom bar hides while active,
     // mirroring EXERCISE_SESSION/EXERCISE_SUMMARY. The library + exercise detail
     // live inside the Exercise hub tab, so they need no root routes.

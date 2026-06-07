@@ -117,6 +117,12 @@ class HealthConnectExerciseBridge(private val context: Context) {
                     // No "moderately paced walking" HC type; brisk walking is plain walking.
                     ActivityKind.BriskWalking -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
                     ActivityKind.Cycling -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING
+                    // Gym-machine (OCR) kinds → their dedicated Health Connect types.
+                    ActivityKind.Treadmill -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL
+                    ActivityKind.IndoorBike -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY
+                    ActivityKind.Elliptical -> ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL
+                    ActivityKind.Rower -> ExerciseSessionRecord.EXERCISE_TYPE_ROWING_MACHINE
+                    ActivityKind.StairClimber -> ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING_MACHINE
                 },
                 title = session.note.takeIf { it.isNotBlank() },
                 exerciseRoute = if (points.size >= 2) {

@@ -160,6 +160,10 @@ internal object RouteBitmapRenderer {
             ActivityKind.Running -> RUN_STROKE_COLOR
             ActivityKind.BriskWalking -> BRISK_WALK_STROKE_COLOR
             ActivityKind.Cycling -> CYCLE_STROKE_COLOR
+            // Machine kinds (treadmill/bike/elliptical/rower/stair) have no GPS
+            // route, so this renderer is never invoked for them — fall back to
+            // the walking colour to keep the when exhaustive.
+            else -> WALK_STROKE_COLOR
         }
         val paused = runState == RunState.Paused || runState == RunState.AutoPaused
         return if (paused) (base and 0x00FFFFFF) or (PAUSED_STROKE_ALPHA shl 24) else base

@@ -438,4 +438,9 @@ private fun kindLabelRes(kind: ActivityKind): Int = when (kind) {
     ActivityKind.Running -> R.string.exercise_kind_running
     ActivityKind.BriskWalking -> R.string.exercise_kind_brisk_walking
     ActivityKind.Cycling -> R.string.exercise_kind_cycling
+    ActivityKind.Treadmill -> R.string.exercise_kind_treadmill
+    ActivityKind.IndoorBike -> R.string.exercise_kind_indoor_bike
+    ActivityKind.Elliptical -> R.string.exercise_kind_elliptical
+    ActivityKind.Rower -> R.string.exercise_kind_rower
+    ActivityKind.StairClimber -> R.string.exercise_kind_stair_climber
 }

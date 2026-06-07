@@ -15,6 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Rowing
+import androidx.compose.material.icons.filled.Stairs
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -116,4 +119,9 @@ private fun iconForKind(kind: ActivityKind): ImageVector = when (kind) {
     ActivityKind.Running -> Icons.AutoMirrored.Filled.DirectionsRun
     ActivityKind.BriskWalking -> Icons.AutoMirrored.Filled.DirectionsWalk
     ActivityKind.Cycling -> Icons.AutoMirrored.Filled.DirectionsBike
+    ActivityKind.Treadmill -> Icons.AutoMirrored.Filled.DirectionsRun
+    ActivityKind.IndoorBike -> Icons.AutoMirrored.Filled.DirectionsBike
+    ActivityKind.Elliptical -> Icons.Filled.FitnessCenter
+    ActivityKind.Rower -> Icons.Filled.Rowing
+    ActivityKind.StairClimber -> Icons.Filled.Stairs
 }

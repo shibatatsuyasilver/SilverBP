@@ -7,6 +7,7 @@
 
     <!-- Training hub: plan section -->
     <string name="hub_start_training">開始訓練</string>
+    <string name="hub_start_exercise">開始運動</string>
     <string name="hub_start_picker_title">選擇訓練方式</string>
     <string name="hub_pick_strength">重訓</string>
     <string name="hub_today_task_title">今日訓練任務</string>

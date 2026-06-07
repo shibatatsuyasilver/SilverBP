@@ -231,6 +231,93 @@ class GeminiCloudNutritionRecognizer(
     }
 }
 
+/**
+ * Cloud Gemini gym-machine console recognizer — the cardio analogue of
+ * [GeminiCloudNutritionRecognizer]. Reuses the same wire types/HTTP shape with
+ * [MachineDisplayPrompt] / [MachineResponseParser]. Like the BP recognizer it
+ * runs [preprocessForOcr] first, since LED/LCD console digits read better with
+ * the same contrast tuning as a blood-pressure-monitor LCD.
+ */
+class GeminiCloudMachineRecognizer(
+    private val apiKey: String,
+    private val modelId: String = GeminiCloudRecognizer.DEFAULT_MODEL,
+) : MachineDisplayRecognizer {
+
+    override val backendTag = "ai_cloud"
+
+    private val client: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    override fun isReady(): Boolean = apiKey.isNotBlank()
+
+    override suspend fun analyze(bitmap: Bitmap): ExtractedMachineWorkout = withContext(Dispatchers.IO) {
+        require(apiKey.isNotBlank()) { "Gemini API key not set" }
+        val processed = bitmap.preprocessForOcr()
+        val jpegBytes = ByteArrayOutputStream().use { os ->
+            processed.compress(Bitmap.CompressFormat.JPEG, 90, os)
+            os.toByteArray()
+        }
+        val base64 = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
+
+        val body = GeminiRequest(
+            contents = listOf(
+                GeminiContent(parts = listOf(
+                    GeminiPart(inlineData = GeminiInlineData(mimeType = "image/jpeg", data = base64)),
+                    GeminiPart(text = MachineDisplayPrompt.systemAndAnalyze()),
+                )),
+            ),
+            generationConfig = GeminiGenConfig(
+                temperature = 0.0,
+                topP = 0.95,
+                maxOutputTokens = 800,
+                responseMimeType = "application/json",
+            ),
+        )
+
+        val payload = json.encodeToString(GeminiRequest.serializer(), body)
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("x-goog-api-key", apiKey)
+            .addHeader("Content-Type", "application/json")
+            .post(payload.toRequestBody(MACHINE_JSON_MEDIA_TYPE))
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: java.io.IOException) {
+            android.util.Log.w(TAG, "[Cloud] machine network failure: ${e.javaClass.simpleName}: ${e.message}")
+            throw BpExtractionError.NetworkError
+        }
+        val responseBody = response.body?.string().orEmpty()
+        if (!response.isSuccessful) {
+            android.util.Log.e(
+                TAG,
+                "[Cloud] machine HTTP ${response.code} model=$modelId body: ${responseBody.take(500)}",
+            )
+            throw BpExtractionError.ApiError(response.code)
+        }
+        val parsed = try {
+            json.decodeFromString<GeminiResponse>(responseBody)
+        } catch (e: Exception) {
+            throw BpExtractionError.InvalidJson
+        }
+        val rawText = parsed.candidates?.firstOrNull()
+            ?.content?.parts?.firstOrNull { it.text != null }?.text
+            ?: throw BpExtractionError.InvalidJson
+        MachineResponseParser.parse(rawText)
+    }
+
+    private companion object {
+        private val MACHINE_JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+    }
+}
+
 // --- Gemini wire types (minimal) ---
 
 @Serializable
