@@ -230,6 +230,7 @@ internal object CoachPrompts {
         val sectionLatestBp: String get() = if (zh()) "## 最新血壓" else "## Latest reading"
         val sectionBpStats: String get() = if (zh()) "## 血壓統計" else "## BP stats"
         val sectionExercise: String get() = if (zh()) "## 運動" else "## Exercise"
+        val sectionNutrition: String get() = if (zh()) "## 今日飲食" else "## Today's diet"
         val sectionAchievements: String get() = if (zh()) "## 最近徽章" else "## Recent badges"
         val sectionSleep: String get() = if (zh()) "## 睡眠 (7 日)" else "## Sleep (7 days)"
         val sectionDiet: String get() = if (zh()) "## 飲食 (7 日)" else "## Diet (7 days)"
@@ -306,6 +307,22 @@ internal object CoachPrompts {
         fun sleepAvgLine(meanHours: String, n: Int): String =
             if (zh()) "- 平均 $meanHours 小時 (n=$n)" else "- Average $meanHours hours (n=$n)"
 
+        fun nutritionTodayLine(calories: Double, sodiumMg: Double, proteinG: Double, sodiumTargetMg: Int): String {
+            val cal = "%.0f".format(calories)
+            val na = "%.0f".format(sodiumMg)
+            val pro = "%.0f".format(proteinG)
+            return if (zh()) {
+                "- 今日合計: 熱量 $cal kcal、鈉 $na/$sodiumTargetMg mg、蛋白質 $pro g"
+            } else {
+                "- Today total: $cal kcal, sodium $na/$sodiumTargetMg mg, protein $pro g"
+            }
+        }
+        fun nutritionMealLine(label: String, calories: Double?, mealTypeRaw: String): String {
+            val name = label.ifBlank { if (zh()) "餐點" else "meal" }
+            val cal = calories?.let { "${"%.0f".format(it)} kcal" } ?: if (zh()) "熱量未知" else "kcal n/a"
+            return "$mealTypeRaw: $name ($cal)"
+        }
+
         fun dietSodiumLine(low: Int, mid: Int, high: Int): String =
             if (zh()) "- 鈉攝取: 低=$low / 中=$mid / 高=$high"
             else "- Sodium intake: low=$low / mid=$mid / high=$high"
@@ -357,13 +374,19 @@ internal object CoachPrompts {
             "action (deep breath, sit down, drink water)."
 
     private const val ZH_CHAT: String =
-        "你是 SilverBp 健康助理。依下方各區段 (## 最新血壓 / ## 血壓統計 / ## 運動 / ## 最近徽章) " +
+        "你是 SilverBp 健康助理。依下方各區段 (## 最新血壓 / ## 血壓統計 / ## 運動 / ## 今日飲食 / ## 最近徽章) " +
             "之資料以繁體中文簡短回答；僅在對應區段明確顯示無紀錄時才回「目前沒有相關紀錄」。" +
+            "若使用者附上食物照片或描述餐點並詢問熱量，你可估算大致熱量範圍，" +
+            "但必須註明信心程度 (高/中/低) 並提醒這是粗估、非精確值，建議以實際量測或記錄為準。" +
             "不開處方、不下診斷，數值異常時提醒就診。"
     private const val EN_CHAT: String =
         "You are SilverBp's health assistant. Answer briefly in English using the " +
             "data in the sections below (## Latest reading / ## BP stats / ## Exercise / " +
-            "## Recent badges); only reply \"No relevant record yet\" when the matching " +
-            "section explicitly shows no record. Do not prescribe, do not diagnose, " +
-            "and remind the user to see a doctor when readings are abnormal."
+            "## Today's diet / ## Recent badges); only reply \"No relevant record yet\" when " +
+            "the matching section explicitly shows no record. If the user attaches a food " +
+            "photo or describes a meal and asks about calories, you may estimate a rough " +
+            "calorie range, but you must state your confidence level (high/medium/low) and " +
+            "note it is a rough estimate, not a precise value — advise relying on actual " +
+            "records. Do not prescribe, do not diagnose, and remind the user to see a " +
+            "doctor when readings are abnormal."
 }

@@ -11,6 +11,8 @@ import com.silverbp.android.core.PartOfDay
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
+import com.silverbp.android.nutrition.FoodLog
+import com.silverbp.android.nutrition.NutritionRepository
 import com.silverbp.android.settings.UserSettingsRepository
 import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
@@ -40,6 +42,7 @@ class RecordsContextBuilder(
     private val achievements: AchievementStore = ServiceLocator.achievementStore,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
     private val coachRepo: CoachRepository = ServiceLocator.coachRepository,
+    private val nutrition: NutritionRepository = ServiceLocator.nutritionRepository,
 ) {
     suspend fun build(
         now: Instant = Instant.now(),
@@ -60,6 +63,7 @@ class RecordsContextBuilder(
         appendLatestBp(sb, zone)
         appendBpStats(sb, now)
         appendExercise(sb, now, zone)
+        appendNutrition(sb, now, zone)
         appendAchievements(sb)
         if (forCoach) {
             appendSleep(sb, now, zone)
@@ -206,6 +210,53 @@ class RecordsContextBuilder(
             sb.appendLine(CoachPrompts.Records.achievementLine(m.kind.kindRaw, ts))
         }
         sb.appendLine()
+    }
+
+    /**
+     * Logged-meal nutrition from [NutritionRepository] (the 飲食 tab's [FoodLog]
+     * store) — distinct from [appendDiet], which summarises the Coach module's
+     * low/mid/high sodium *check-ins*. This is where calories actually live, so
+     * the chat coach can answer "今日吃了多少熱量". Included for both chat and
+     * coach. Kept terse (today's totals + up to 6 of today's meals) to respect
+     * the ~400-token records budget.
+     */
+    private suspend fun appendNutrition(sb: StringBuilder, now: Instant, zone: ZoneId) {
+        val todayStart = LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        val sevenDaysAgo = now.minusSeconds(7 * 24 * 3600L)
+        val today = runCatching { nutrition.rangeOnce(todayStart, now) }.getOrNull().orEmpty()
+        val week = runCatching { nutrition.rangeOnce(sevenDaysAgo, now) }.getOrNull().orEmpty()
+
+        sb.appendLine(CoachPrompts.Records.sectionNutrition)
+        if (today.isEmpty() && week.isEmpty()) {
+            sb.appendLine("- ${CoachPrompts.Records.noRecord7Days}")
+            sb.appendLine()
+            return
+        }
+        val sodiumTarget = runCatching { settings.flow.first().dailySodiumTargetMg }.getOrDefault(2000)
+        sb.appendLine(
+            CoachPrompts.Records.nutritionTodayLine(
+                calories = today.sumOf { it.calories ?: 0.0 },
+                sodiumMg = today.sumOf { it.sodiumMg ?: 0.0 },
+                proteinG = today.sumOf { it.proteinG ?: 0.0 },
+                sodiumTargetMg = sodiumTarget,
+            ),
+        )
+        if (today.isNotEmpty()) {
+            for (m in today.sortedByDescending { it.timestamp }.take(6)) {
+                sb.appendLine(
+                    "  • " + CoachPrompts.Records.nutritionMealLine(mealLabel(m), m.calories, m.mealType.raw),
+                )
+            }
+        }
+        sb.appendLine()
+    }
+
+    /** Best-effort human label for a logged meal; empty if nothing usable. */
+    private fun mealLabel(m: FoodLog): String {
+        if (m.description.isNotBlank()) return m.description
+        m.productName?.let { if (it.isNotBlank()) return it }
+        val items = m.items.mapNotNull { it.name.takeIf { n -> n.isNotBlank() } }
+        return items.joinToString("、")
     }
 
     private suspend fun appendSleep(sb: StringBuilder, now: Instant, zone: ZoneId) {
