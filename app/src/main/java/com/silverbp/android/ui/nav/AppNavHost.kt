@@ -88,13 +88,14 @@ fun AppNavHost() {
         }
     }
 
-    // Chained second gate (Phase 5): once onboarding is satisfied, require a
-    // linked Google account so data is backed up to Drive. Hard gate — a user
-    // without a Google account cannot pass. Chained AFTER needsOnboarding so it
-    // never fires while still un-onboarded; once googleAccountEmail is set it
-    // becomes false and never re-fires.
+    // Chained second gate (Phase 5): once onboarding is satisfied, offer a
+    // Google sign-in so data can be backed up to Drive. Optional — the user can
+    // skip (sets googleSignInDeferred) and use the app fully offline; linking is
+    // still available later in Settings. Chained AFTER needsOnboarding so it
+    // never fires while still un-onboarded; once an account is linked OR the user
+    // has deferred, it becomes false and never re-fires.
     val needsGoogleSignIn: Boolean? = rootSettings?.let {
-        needsOnboarding == false && it.googleAccountEmail.isBlank()
+        needsOnboarding == false && it.googleAccountEmail.isBlank() && !it.googleSignInDeferred
     }
     LaunchedEffect(needsGoogleSignIn) {
         if (needsGoogleSignIn == true) {
@@ -139,13 +140,15 @@ fun AppNavHost() {
             )
         }
         composable(Routes.ONBOARDING_LINK) {
+            val releaseToHome: () -> Unit = {
+                rootNav.navigate(Routes.HOME) {
+                    popUpTo(Routes.ONBOARDING_LINK) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
             LinkAccountScreen(
-                onLinked = {
-                    rootNav.navigate(Routes.HOME) {
-                        popUpTo(Routes.ONBOARDING_LINK) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
+                onLinked = releaseToHome,
+                onSkip = releaseToHome,
             )
         }
         composable(Routes.CAPTURE) {

@@ -125,6 +125,8 @@ class StrengthWorkoutSessionSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? = dao.sessionById(pk)?.hlcUpdatedAt
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.STRENGTH_WORKOUT_SESSION)
         if (record.isTombstone) {

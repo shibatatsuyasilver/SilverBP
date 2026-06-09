@@ -4,6 +4,7 @@ import com.silverbp.android.core.db.ExerciseLibraryDao
 import com.silverbp.android.core.db.StrengthWorkoutDao
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.sync.engine.HlcClock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.map
 class StrengthWorkoutRepository(
     private val dao: StrengthWorkoutDao,
     private val libraryDao: ExerciseLibraryDao,
+    /** Stamps a monotonic HLC on each local session write for cross-device LWW; null in tests. */
+    private val clock: HlcClock? = null,
 ) {
 
     fun observeAllSessions(): Flow<List<StrengthWorkoutSession>> =
@@ -37,7 +40,8 @@ class StrengthWorkoutRepository(
 
     suspend fun upsert(session: StrengthWorkoutSession) {
         val now = System.currentTimeMillis()
-        val sessionEntity = session.toEntity(createdAt = now, updatedAt = now)
+        val base = session.toEntity(createdAt = now, updatedAt = now)
+        val sessionEntity = clock?.let { base.copy(hlcUpdatedAt = it.next().packed) } ?: base
         val setEntities = session.items.flatMap { (_, sets) ->
             sets.map { it.toEntity(workoutSessionId = session.id, createdAt = now) }
         }

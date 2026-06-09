@@ -295,6 +295,7 @@
     <string name="coach_narration_title">Coach feedback</string>
     <string name="coach_narration_placeholder">Once data is collected, your coach will explain your plan here.</string>
     <string name="coach_view_weekly_report">View weekly report</string>
+    <string name="coach_medical_disclaimer">SilverBP is not a medical device and does not diagnose, treat, or prevent any condition. Coaching and AI content are for reference only — always consult a qualified healthcare professional.</string>
     <string name="coach_log_diet_title">Log diet</string>
     <string name="coach_log_sleep_title">Log sleep</string>
     <string name="coach_log_medication_title">Log medication</string>
@@ -555,6 +556,12 @@
     <string name="backup_auto_disconnect">Disconnect</string>
     <string name="backup_auto_disconnect_title">Disconnect Google?</string>
     <string name="backup_auto_disconnect_msg">Auto-backup will turn off. Existing files in Drive are kept, but SilverBP can no longer upload new ones.</string>
+    <string name="backup_delete_account_button">Delete account &amp; data</string>
+    <string name="backup_delete_account_running">Deleting…</string>
+    <string name="backup_delete_account_hint">Permanently removes all SilverBP data on this device, deletes your Drive backups, and unlinks your Google account. This cannot be undone.</string>
+    <string name="backup_delete_account_title">Delete account and all data?</string>
+    <string name="backup_delete_account_msg">This permanently deletes all your blood-pressure, exercise, medication and other records on this device, removes every SilverBP backup from your Google Drive, and unlinks your Google account. The app will return to its first-launch state. This cannot be undone.</string>
+    <string name="backup_delete_account_confirm">Delete everything</string>
     <string name="backup_auto_frequency_label">Backup frequency</string>
     <string name="backup_auto_freq_off">Off</string>
     <string name="backup_auto_freq_daily">Daily</string>

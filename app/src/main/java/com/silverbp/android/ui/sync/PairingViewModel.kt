@@ -233,6 +233,7 @@ class PairingViewModel(
                     setLogMapper = ServiceLocator.setLogSyncMapper,
                     bpWorkoutAssociationMapper = ServiceLocator.bpWorkoutAssociationSyncMapper,
                     foodLogMapper = ServiceLocator.foodLogSyncMapper,
+                    syncDao = db.syncDao(),
                 )
                 // Snapshot row counts across the synced tables. We surface the
                 // BP delta in the Done state because the UI string still says

@@ -295,6 +295,7 @@
     <string name="coach_narration_title">教練回饋</string>
     <string name="coach_narration_placeholder">累積足夠紀錄後,教練會在這裡用親切口吻向你解說計畫。</string>
     <string name="coach_view_weekly_report">查看本週報告</string>
+    <string name="coach_medical_disclaimer">SilverBP 並非醫療器材,不提供診斷、治療或預防任何疾病。教練與 AI 內容僅供參考,請務必諮詢專業醫療人員。</string>
     <string name="coach_log_diet_title">飲食紀錄</string>
     <string name="coach_log_sleep_title">睡眠紀錄</string>
     <string name="coach_log_medication_title">服藥紀錄</string>
@@ -555,6 +556,12 @@
     <string name="backup_auto_disconnect">解除連結</string>
     <string name="backup_auto_disconnect_title">解除 Google 連結?</string>
     <string name="backup_auto_disconnect_msg">自動備份會關閉. Drive 上既有的備份檔不會被刪除, 但這個 App 之後無法上傳新檔.</string>
+    <string name="backup_delete_account_button">刪除帳號與資料</string>
+    <string name="backup_delete_account_running">刪除中…</string>
+    <string name="backup_delete_account_hint">永久移除本裝置上所有 SilverBP 資料、刪除你的 Drive 備份,並解除 Google 帳號連結。此操作無法復原。</string>
+    <string name="backup_delete_account_title">刪除帳號與所有資料?</string>
+    <string name="backup_delete_account_msg">這會永久刪除本裝置上所有血壓、運動、用藥等紀錄,移除你 Google Drive 上的每一個 SilverBP 備份,並解除 Google 帳號連結。App 會回到初次啟動狀態。此操作無法復原。</string>
+    <string name="backup_delete_account_confirm">全部刪除</string>
     <string name="backup_auto_frequency_label">備份頻率</string>
     <string name="backup_auto_freq_off">關閉</string>
     <string name="backup_auto_freq_daily">每日</string>

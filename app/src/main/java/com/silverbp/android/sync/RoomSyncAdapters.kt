@@ -20,9 +20,32 @@ import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.engine.HlcClock
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
+import com.silverbp.android.sync.mapping.SyncRecordMapper
 import com.silverbp.android.sync.protocol.SyncRecordSink
 import com.silverbp.android.sync.protocol.SyncRecordSource
 import kotlinx.coroutines.flow.first
+
+/**
+ * Last-writer-wins decision used by [CombinedRoomSyncSink]: apply an incoming
+ * record only if its HLC is strictly greater than BOTH the local live row's HLC
+ * and any tombstone HLC recorded for the same primary key. Packed HLC strings
+ * are lexicographically causal-ordered (see [com.silverbp.android.sync.engine.Hlc]),
+ * so plain string comparison is the causal comparison.
+ *
+ * Returns true when there is no local record at all (first time we see this pk).
+ */
+internal fun lwwShouldApply(
+    incomingHlc: String,
+    localLiveHlc: String?,
+    localTombstoneHlc: String?,
+): Boolean {
+    val local = when {
+        localLiveHlc == null -> localTombstoneHlc
+        localTombstoneHlc == null -> localLiveHlc
+        else -> if (localLiveHlc >= localTombstoneHlc) localLiveHlc else localTombstoneHlc
+    }
+    return local == null || incomingHlc > local
+}
 
 /**
  * Bridges the Room `bp_reading` table into the wire-format `SyncRecord`s
@@ -479,37 +502,69 @@ class CombinedRoomSyncSink(
     private val bpWorkoutAssociationMapper: BpWorkoutAssociationSyncMapper? = null,
     // Nutrition / food_log (v16). Optional so older callers compile.
     private val foodLogMapper: FoodLogSyncMapper? = null,
+    // Tombstone lookup for the LWW gate. Optional so older callers compile; when
+    // absent the gate falls back to comparing against the live row only.
+    private val syncDao: SyncDao? = null,
 ) : SyncRecordSink {
     private val perTypeCount = java.util.concurrent.ConcurrentHashMap<SyncEntityType, Int>()
+
+    /** Routes a record type to the mapper that applies it (null = type not wired in this build). */
+    private fun mapperFor(type: SyncEntityType): SyncRecordMapper<*>? {
+        val m: SyncRecordMapper<*>? = when (type) {
+        SyncEntityType.BP_READING -> bpMapper
+        SyncEntityType.EXERCISE_SESSION -> exerciseSessionMapper
+        SyncEntityType.ROUTE_POINT -> routePointMapper
+        SyncEntityType.MEDICATION -> medicationMapper
+        SyncEntityType.MEDICATION_SCHEDULE -> medicationScheduleMapper
+        SyncEntityType.MEDICATION_DOSE -> medicationDoseMapper
+        SyncEntityType.DAILY_STEP_LOG -> dailyStepLogMapper
+        SyncEntityType.ACHIEVEMENT -> achievementMapper
+        SyncEntityType.COACH_PLAN -> coachPlanMapper
+        SyncEntityType.COACH_TASK -> coachTaskMapper
+        SyncEntityType.SLEEP_LOG -> sleepLogMapper
+        SyncEntityType.DIET_CHECK -> dietCheckMapper
+        SyncEntityType.EXERCISE_CATALOG_ITEM -> exerciseCatalogItemMapper
+        SyncEntityType.STRENGTH_WORKOUT_SESSION -> strengthWorkoutSessionMapper
+        SyncEntityType.SET_LOG -> setLogMapper
+        SyncEntityType.BP_WORKOUT_ASSOCIATION -> bpWorkoutAssociationMapper
+        SyncEntityType.CHAT_SESSION -> chatSessionMapper
+        SyncEntityType.CHAT_MESSAGE -> chatMessageMapper
+        SyncEntityType.FOOD_LOG -> foodLogMapper
+        // SETTINGS_KV is handled separately in apply(): its mapper is bespoke
+        // (not a SyncRecordMapper) and key-value settings have no per-row HLC.
+        else -> null
+        }
+        return m
+    }
+
     override suspend fun apply(record: SyncRecord) {
         perTypeCount.merge(record.type, 1, Int::plus)
-        try {
-            when (record.type) {
-                SyncEntityType.BP_READING -> bpMapper.apply(record)
-                SyncEntityType.EXERCISE_SESSION -> exerciseSessionMapper.apply(record)
-                SyncEntityType.ROUTE_POINT -> routePointMapper.apply(record)
-                SyncEntityType.MEDICATION -> medicationMapper.apply(record)
-                SyncEntityType.MEDICATION_SCHEDULE -> medicationScheduleMapper.apply(record)
-                SyncEntityType.MEDICATION_DOSE -> medicationDoseMapper.apply(record)
-                SyncEntityType.DAILY_STEP_LOG -> dailyStepLogMapper.apply(record)
-                SyncEntityType.ACHIEVEMENT -> achievementMapper.apply(record)
-                SyncEntityType.COACH_PLAN -> coachPlanMapper.apply(record)
-                SyncEntityType.COACH_TASK -> coachTaskMapper.apply(record)
-                SyncEntityType.SLEEP_LOG -> sleepLogMapper.apply(record)
-                SyncEntityType.DIET_CHECK -> dietCheckMapper.apply(record)
-                SyncEntityType.EXERCISE_CATALOG_ITEM -> exerciseCatalogItemMapper?.apply(record)
-                SyncEntityType.STRENGTH_WORKOUT_SESSION -> strengthWorkoutSessionMapper?.apply(record)
-                SyncEntityType.SET_LOG -> setLogMapper?.apply(record)
-                SyncEntityType.BP_WORKOUT_ASSOCIATION -> bpWorkoutAssociationMapper?.apply(record)
-                SyncEntityType.CHAT_SESSION -> chatSessionMapper?.apply(record)
-                SyncEntityType.CHAT_MESSAGE -> chatMessageMapper?.apply(record)
-                SyncEntityType.SETTINGS_KV -> settingsKvMapper?.apply(record)
-                SyncEntityType.FOOD_LOG -> foodLogMapper?.apply(record)
-                else -> {
-                    // Forward-compat: silently drop record types this build
-                    // doesn't yet understand (e.g. future BLOB_META).
-                }
+        // SETTINGS_KV uses a bespoke mapper (not a SyncRecordMapper) and key-value
+        // settings carry no per-row HLC, so the LWW gate doesn't apply — write directly.
+        if (record.type == SyncEntityType.SETTINGS_KV) {
+            try {
+                settingsKvMapper?.apply(record)
+            } catch (t: Throwable) {
+                Log.e("CombinedSyncSink", "apply SETTINGS_KV pk=${record.pk} failed", t)
+                throw t
             }
+            return
+        }
+        // Forward-compat: silently drop record types this build doesn't wire.
+        val mapper = mapperFor(record.type) ?: return
+        // Last-writer-wins gate: skip any record that is not strictly newer than
+        // what we already hold locally — either the live row's HLC or a tombstone
+        // for the same pk. Without this, a stale peer/backup record blindly
+        // REPLACE-overwrites newer local data (or a stale tombstone deletes a
+        // newer live row).
+        val shouldApply = lwwShouldApply(
+            incomingHlc = record.hlc.packed,
+            localLiveHlc = mapper.localHlc(record.pk),
+            localTombstoneHlc = syncDao?.tombstoneFor(record.type.tableName, record.pk)?.hlc,
+        )
+        if (!shouldApply) return
+        try {
+            mapper.apply(record)
         } catch (t: Throwable) {
             Log.e(
                 "CombinedSyncSink",

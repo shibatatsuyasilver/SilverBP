@@ -89,6 +89,8 @@ class BpReadingSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? = bpDao.findById(pk)?.hlcUpdatedAt
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.BP_READING) {
             "BpReadingSyncMapper applied to wrong entity type: ${record.type}"

@@ -91,6 +91,8 @@ class FoodLogSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? = foodLogDao.findById(pk)?.hlcUpdatedAt
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.FOOD_LOG) {
             "FoodLogSyncMapper applied to wrong entity type: ${record.type}"

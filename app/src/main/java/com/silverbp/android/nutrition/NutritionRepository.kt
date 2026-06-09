@@ -3,10 +3,12 @@ package com.silverbp.android.nutrition
 import com.silverbp.android.core.db.DietCheckEntity
 import com.silverbp.android.core.db.DietDao
 import com.silverbp.android.core.db.FoodLogDao
+import com.silverbp.android.core.db.FoodLogEntity
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
 import com.silverbp.android.health.HealthConnectNutritionBridge
 import com.silverbp.android.health.classifySodium
+import com.silverbp.android.sync.engine.HlcClock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -27,7 +29,13 @@ class NutritionRepository(
     private val healthConnect: HealthConnectNutritionBridge? = null,
     /** Coarse on/off for the Health Connect mirror; defaults off for tests. */
     private val healthConnectEnabled: suspend () -> Boolean = { false },
+    /** Stamps a monotonic HLC on each local write for cross-device LWW; null in tests. */
+    private val clock: HlcClock? = null,
 ) {
+
+    /** Stamp the current local-write HLC onto the entity (no-op when no clock). */
+    private fun FoodLogEntity.stamped(): FoodLogEntity =
+        clock?.let { copy(hlcUpdatedAt = it.next().packed) } ?: this
 
     fun observeAll(): Flow<List<FoodLog>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
@@ -50,7 +58,8 @@ class NutritionRepository(
             // doesn't needlessly clear it and re-mirror.
             hcRecordId = log.hcRecordId ?: existing?.hcRecordId,
         )
-        if (existing == null) dao.insert(toSave.toEntity()) else dao.update(toSave.toEntity())
+        val foodEntity = toSave.toEntity().stamped()
+        if (existing == null) dao.insert(foodEntity) else dao.update(foodEntity)
 
         // Best-effort one-way mirror to Health Connect (gated on the master
         // toggle; the bridge independently re-checks the write permission).
@@ -58,7 +67,8 @@ class NutritionRepository(
             val hcId = healthConnect.write(toSave)
             if (hcId != null && hcId != toSave.hcRecordId) {
                 toSave = toSave.copy(hcRecordId = hcId, updatedAt = Instant.now())
-                dao.update(toSave.toEntity())
+                // hcRecordId is local-only (not synced) — preserve the HLC stamped above.
+                dao.update(foodEntity.copy(hcRecordId = hcId, updatedAt = toSave.updatedAt.toEpochMilli()))
             }
         }
 
@@ -98,7 +108,7 @@ class NutritionRepository(
                 vegServings = existing?.vegServings ?: 0,
                 sourceRaw = "food",
                 updatedAt = System.currentTimeMillis(),
-                hlcUpdatedAt = existing?.hlcUpdatedAt ?: "0",
+                hlcUpdatedAt = clock?.next()?.packed ?: (existing?.hlcUpdatedAt ?: "0"),
             ),
         )
     }

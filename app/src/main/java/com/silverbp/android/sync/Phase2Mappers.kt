@@ -119,6 +119,8 @@ class ExerciseSessionSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? = dao.findById(pk)?.hlcUpdatedAt
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.EXERCISE_SESSION)
         if (record.isTombstone) {
@@ -243,6 +245,8 @@ class MedicationSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? = dao.findById(pk)?.hlcUpdatedAt
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.MEDICATION)
         if (record.isTombstone) {
@@ -290,6 +294,8 @@ class MedicationScheduleSyncMapper(
             payload = payload,
         )
     }
+
+    override suspend fun localHlc(pk: String): String? = dao.findById(pk)?.hlcUpdatedAt
 
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.MEDICATION_SCHEDULE)
@@ -376,6 +382,9 @@ class DailyStepLogSyncMapper(
             payload = payload,
         )
     }
+
+    override suspend fun localHlc(pk: String): String? =
+        pk.toLongOrNull()?.let { dao.findStepLog(it)?.hlcUpdatedAt }
 
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.DAILY_STEP_LOG)
@@ -499,6 +508,8 @@ class CoachPlanSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? = dao.findPlanById(pk)?.hlcUpdatedAt
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.COACH_PLAN)
         if (record.isTombstone) return
@@ -542,6 +553,8 @@ class CoachTaskSyncMapper(
             payload = payload,
         )
     }
+
+    override suspend fun localHlc(pk: String): String? = dao.findTaskById(pk)?.hlcUpdatedAt
 
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.COACH_TASK)
@@ -591,6 +604,9 @@ class SleepLogSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? =
+        pk.toLongOrNull()?.let { dao.forDay(it)?.hlcUpdatedAt }
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.SLEEP_LOG)
         if (record.isTombstone) return
@@ -626,6 +642,9 @@ class DietCheckSyncMapper(
             payload = payload,
         )
     }
+
+    override suspend fun localHlc(pk: String): String? =
+        pk.toLongOrNull()?.let { dao.forDay(it)?.hlcUpdatedAt }
 
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.DIET_CHECK)

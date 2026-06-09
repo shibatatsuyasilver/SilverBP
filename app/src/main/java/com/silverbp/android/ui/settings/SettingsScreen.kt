@@ -59,6 +59,7 @@ import com.silverbp.android.R
 import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.health.launchHealthConnectOrInstall
 import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.ui.coach.formatTime
 import com.silverbp.android.ui.components.StandardCard
@@ -296,7 +297,7 @@ fun SettingsScreen(
                     label = stringResource(R.string.health_connect),
                     checked = state.enableHealthConnect,
                     onChange = { newValue ->
-                        if (newValue) hcLauncher.launch(hcCorePerms)
+                        if (newValue) hcLauncher.launchHealthConnectOrInstall(context, hcCorePerms)
                         else vm.disableHealthConnect()
                     },
                 )
@@ -459,6 +460,7 @@ private fun SleepTrackingRow(
     }
     // Single platform-aware contract (see master toggle): one launcher covers
     // the built-in HC module (Android 14+) and the standalone HC app (13).
+    val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted -> onEnable(granted) }
@@ -466,7 +468,7 @@ private fun SleepTrackingRow(
     ToggleRow(
         label = stringResource(R.string.coach_settings_sleep_tracking),
         checked = enabled,
-        onChange = { newValue -> if (newValue) launcher.launch(perms) else onDisable() },
+        onChange = { newValue -> if (newValue) launcher.launchHealthConnectOrInstall(context, perms) else onDisable() },
     )
     Text(
         stringResource(R.string.coach_settings_sleep_tracking_hint),
@@ -485,6 +487,7 @@ private fun DietTrackingRow(
             // Android 15+: lets the background nutrition-backfill worker read.
             ServiceLocator.healthConnectBridge.backgroundReadPermissions
     }
+    val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted -> onEnable(granted) }
@@ -492,7 +495,7 @@ private fun DietTrackingRow(
     ToggleRow(
         label = stringResource(R.string.coach_settings_diet_tracking),
         checked = enabled,
-        onChange = { newValue -> if (newValue) launcher.launch(perms) else onDisable() },
+        onChange = { newValue -> if (newValue) launcher.launchHealthConnectOrInstall(context, perms) else onDisable() },
     )
     Text(
         stringResource(R.string.coach_settings_diet_tracking_hint),

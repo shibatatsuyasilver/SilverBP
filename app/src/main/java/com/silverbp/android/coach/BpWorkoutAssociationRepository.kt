@@ -2,6 +2,7 @@ package com.silverbp.android.coach
 
 import com.silverbp.android.core.db.BpWorkoutAssociationDao
 import com.silverbp.android.core.db.BpWorkoutAssociationEntity
+import com.silverbp.android.sync.engine.HlcClock
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -11,6 +12,8 @@ import java.util.UUID
  */
 class BpWorkoutAssociationRepository(
     private val dao: BpWorkoutAssociationDao,
+    /** Stamps a monotonic HLC on each local write for cross-device LWW; null in tests. */
+    private val clock: HlcClock? = null,
 ) {
 
     /**
@@ -26,16 +29,15 @@ class BpWorkoutAssociationRepository(
         contextType: String,
     ): String {
         val id = UUID.randomUUID().toString()
-        dao.upsert(
-            BpWorkoutAssociationEntity(
-                id = id,
-                bpReadingId = bpReadingId,
-                sessionId = sessionId,
-                sessionType = sessionType,
-                contextType = contextType,
-                createdAt = System.currentTimeMillis(),
-            ),
+        val entity = BpWorkoutAssociationEntity(
+            id = id,
+            bpReadingId = bpReadingId,
+            sessionId = sessionId,
+            sessionType = sessionType,
+            contextType = contextType,
+            createdAt = System.currentTimeMillis(),
         )
+        dao.upsert(clock?.let { entity.copy(hlcUpdatedAt = it.next().packed) } ?: entity)
         return id
     }
 

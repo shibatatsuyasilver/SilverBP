@@ -1,8 +1,10 @@
 package com.silverbp.android.exercise
 
 import com.silverbp.android.core.db.ExerciseDao
+import com.silverbp.android.core.db.ExerciseSessionEntity
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.sync.engine.HlcClock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -24,7 +26,13 @@ class ExerciseRepository(
     private val dao: ExerciseDao,
     private val healthConnect: HealthConnectExerciseBridge,
     private val onSessionPersisted: () -> Unit = {},
+    /** Stamps a monotonic HLC on each local session write for cross-device LWW; null in tests. */
+    private val clock: HlcClock? = null,
 ) {
+
+    /** Stamp the current local-write HLC onto the session entity (no-op when no clock). */
+    private fun ExerciseSessionEntity.stamped(): ExerciseSessionEntity =
+        clock?.let { copy(hlcUpdatedAt = it.next().packed) } ?: this
 
     fun observeAll(): Flow<List<ExerciseSession>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
@@ -57,15 +65,17 @@ class ExerciseRepository(
         } else {
             session.copy(createdAt = now, updatedAt = now)
         }
+        val sessionEntity = initial.toEntity().stamped()
         dao.upsertWithPoints(
-            session = initial.toEntity(),
+            session = sessionEntity,
             points = points.map { it.toEntity() },
         )
 
         val hcId = healthConnect.write(initial, points)
         val saved = if (hcId != null && hcId != initial.hcRecordId) {
             val withHc = initial.copy(hcRecordId = hcId, updatedAt = Instant.now())
-            dao.updateSession(withHc.toEntity())
+            // hcRecordId is local-only (not carried over sync) — keep the same HLC.
+            dao.updateSession(sessionEntity.copy(hcRecordId = hcId, updatedAt = withHc.updatedAt.toEpochMilli()))
             withHc
         } else {
             initial

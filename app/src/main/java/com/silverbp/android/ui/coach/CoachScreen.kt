@@ -158,5 +158,13 @@ private fun ReadyContent(
         }
 
         NarrationBlock(state = state.narration)
+
+        // Medical disclaimer — the Coach surfaces AI-generated health guidance, so
+        // make the "not a medical device / consult a professional" note explicit here.
+        Text(
+            stringResource(R.string.coach_medical_disclaimer),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

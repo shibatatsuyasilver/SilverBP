@@ -44,6 +44,8 @@ class BpWorkoutAssociationSyncMapper(
         )
     }
 
+    override suspend fun localHlc(pk: String): String? = dao.findById(pk)?.hlcUpdatedAt
+
     override suspend fun apply(record: SyncRecord) {
         require(record.type == SyncEntityType.BP_WORKOUT_ASSOCIATION)
         if (record.isTombstone) {

@@ -16,11 +16,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,11 +34,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.backup.BackupViewModel
+import kotlinx.coroutines.launch
 
 /**
- * First-launch hard gate: requires a Google sign-in so data can be backed up to
- * Drive. Shown by [com.silverbp.android.ui.nav.AppNavHost] after onboarding is
- * complete but before HOME is released, whenever `googleAccountEmail` is blank.
+ * First-launch sign-in screen (optional): offers a Google sign-in so data can be
+ * backed up to Drive. Shown by [com.silverbp.android.ui.nav.AppNavHost] once after
+ * onboarding is complete but before HOME is released, whenever `googleAccountEmail`
+ * is blank and the user has not deferred sign-in. The user may [onSkip] to use the
+ * app fully offline; linking remains available later in Settings.
  *
  * Reuses [BackupViewModel]'s account-linking mechanism verbatim — the same one
  * BackupScreen drives: [BackupViewModel.startGoogleConnect] either resolves
@@ -49,10 +54,12 @@ import com.silverbp.android.ui.backup.BackupViewModel
 @Composable
 fun LinkAccountScreen(
     onLinked: () -> Unit,
+    onSkip: () -> Unit,
     vm: BackupViewModel = viewModel(),
 ) {
     val userSettings by ServiceLocator.userSettings.flow.collectAsStateWithLifecycle(initialValue = null)
     val pendingConsent by vm.pendingConsentIntent.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     var signingIn by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
@@ -140,6 +147,18 @@ fun LinkAccountScreen(
                             if (error) R.string.login_retry else R.string.login_button
                         )
                     )
+                }
+            }
+            if (!signingIn || error) {
+                TextButton(
+                    onClick = {
+                        // Record the choice so the gate never re-fires, then release HOME.
+                        scope.launch { ServiceLocator.userSettings.setGoogleSignInDeferred(true) }
+                        onSkip()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.login_skip))
                 }
             }
             Spacer(Modifier.size(4.dp))

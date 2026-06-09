@@ -77,6 +77,7 @@ class UserSettingsRepository(private val context: Context) {
         val AUTO_BACKUP_FREQ = stringPreferencesKey("auto_backup_frequency")
         val GOOGLE_ACCOUNT_EMAIL = stringPreferencesKey("google_account_email")
         val GOOGLE_ACCOUNT_ID = stringPreferencesKey("google_account_id")
+        val GOOGLE_SIGNIN_DEFERRED = booleanPreferencesKey("google_signin_deferred")
         val LAST_BACKUP_AT_MS = longPreferencesKey("last_backup_at_ms")
         val LAST_BACKUP_ERROR = stringPreferencesKey("last_backup_error")
         val LAST_BACKUP_ERROR_AT_MS = longPreferencesKey("last_backup_error_at_ms")
@@ -131,6 +132,7 @@ class UserSettingsRepository(private val context: Context) {
             autoBackupFrequency = AutoBackupFrequency.fromRaw(prefs[Keys.AUTO_BACKUP_FREQ]),
             googleAccountEmail = prefs[Keys.GOOGLE_ACCOUNT_EMAIL] ?: "",
             googleAccountId = prefs[Keys.GOOGLE_ACCOUNT_ID] ?: "",
+            googleSignInDeferred = prefs[Keys.GOOGLE_SIGNIN_DEFERRED] ?: false,
             lastBackupAtMs = prefs[Keys.LAST_BACKUP_AT_MS] ?: 0L,
             lastBackupError = prefs[Keys.LAST_BACKUP_ERROR] ?: "",
             lastBackupErrorAtMs = prefs[Keys.LAST_BACKUP_ERROR_AT_MS] ?: 0L,
@@ -266,10 +268,32 @@ class UserSettingsRepository(private val context: Context) {
             it[Keys.GOOGLE_ACCOUNT_ID] = id
         }
     }
+    /**
+     * Records that the user opted to proceed without linking a Google account
+     * (tapped "skip" on the first-launch sign-in screen). Suppresses the gate.
+     */
+    suspend fun setGoogleSignInDeferred(v: Boolean) {
+        context.dataStore.edit { it[Keys.GOOGLE_SIGNIN_DEFERRED] = v }
+    }
+    /**
+     * Wipe every stored preference back to defaults. Used by the in-app
+     * "delete account & data" flow — resets onboarding/login/all settings so the
+     * app returns to a clean first-launch state. Pairs with
+     * [com.silverbp.android.core.db.SilverBpDatabase.clearAllTables] (Room data)
+     * and [com.silverbp.android.backup.RecoveryCodeStore.clear].
+     */
+    suspend fun clearAll() {
+        context.dataStore.edit { it.clear() }
+    }
+
     suspend fun clearGoogleAccount() {
         context.dataStore.edit {
             it.remove(Keys.GOOGLE_ACCOUNT_EMAIL)
             it.remove(Keys.GOOGLE_ACCOUNT_ID)
+            // Disconnecting is itself an explicit "run without an account" choice,
+            // so mark sign-in deferred — otherwise the first-launch gate would
+            // re-fire and eject the user back into the login screen.
+            it[Keys.GOOGLE_SIGNIN_DEFERRED] = true
         }
     }
     /** Worker writes both timestamp + clears prior error on success. */

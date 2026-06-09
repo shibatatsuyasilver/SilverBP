@@ -101,6 +101,9 @@ object ServiceLocator {
             // integration switched on. The bridge still independently checks
             // the BP write permission before inserting.
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+            // Shared device clock so every local write carries a monotonic HLC
+            // for cross-device LWW (sync + backup-restore).
+            clock = syncCoordinator.clock,
         )
     }
 
@@ -112,6 +115,7 @@ object ServiceLocator {
             dietDao = database.dietDao(),
             healthConnect = healthConnectNutritionBridge,
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+            clock = syncCoordinator.clock,
         )
     }
 
@@ -140,9 +144,12 @@ object ServiceLocator {
     }
 
     val exerciseRepository: ExerciseRepository by lazy {
-        ExerciseRepository(database.exerciseDao(), healthConnectExerciseBridge) {
-            achievementStore.launchRefresh()
-        }
+        ExerciseRepository(
+            dao = database.exerciseDao(),
+            healthConnect = healthConnectExerciseBridge,
+            onSessionPersisted = { achievementStore.launchRefresh() },
+            clock = syncCoordinator.clock,
+        )
     }
 
     val exerciseController: ExerciseController by lazy {
@@ -158,7 +165,11 @@ object ServiceLocator {
     }
 
     val strengthWorkoutRepository: StrengthWorkoutRepository by lazy {
-        StrengthWorkoutRepository(database.strengthWorkoutDao(), database.exerciseLibraryDao())
+        StrengthWorkoutRepository(
+            database.strengthWorkoutDao(),
+            database.exerciseLibraryDao(),
+            clock = syncCoordinator.clock,
+        )
     }
 
     /** In-memory holder for the in-progress strength workout. */
@@ -196,11 +207,12 @@ object ServiceLocator {
             doses = database.medicationDoseDao(),
             medicationSchedules = database.medicationScheduleDao(),
             medications = database.medicationDao(),
+            clock = syncCoordinator.clock,
         )
     }
 
     val bpWorkoutAssociationRepository: BpWorkoutAssociationRepository by lazy {
-        BpWorkoutAssociationRepository(database.bpWorkoutAssociationDao())
+        BpWorkoutAssociationRepository(database.bpWorkoutAssociationDao(), clock = syncCoordinator.clock)
     }
 
     val coachEngine: CoachEngine by lazy {
@@ -439,6 +451,7 @@ object ServiceLocator {
                     settingsKvMapper = settingsKvSyncMapper,
                     bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
                     foodLogMapper = foodLogSyncMapper,
+                    syncDao = database.syncDao(),
                 )
             },
             settingsKvMapper = settingsKvSyncMapper,

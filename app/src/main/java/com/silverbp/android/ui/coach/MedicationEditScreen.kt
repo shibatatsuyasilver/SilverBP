@@ -144,12 +144,16 @@ fun MedicationEditScreen(
                         onClick = {
                             scope.launch {
                                 val medId = medicationId ?: UUID.randomUUID().toString()
+                                // Stamp a monotonic HLC on each write so cross-device
+                                // sync / backup-restore resolves last-writer-wins.
+                                val clock = ServiceLocator.syncCoordinator.clock
                                 medsDao.upsert(
                                     MedicationEntity(
                                         id = medId,
                                         name = name.trim(),
                                         dose = dose.trim(),
                                         kind = kind,
+                                        hlcUpdatedAt = clock.next().packed,
                                     )
                                 )
                                 // Replace-all keeps the editor logic simple
@@ -165,6 +169,7 @@ fun MedicationEditScreen(
                                             hour = it.hour,
                                             minute = it.minute,
                                             enabled = it.enabled,
+                                            hlcUpdatedAt = clock.next().packed,
                                         )
                                     }
                                 )

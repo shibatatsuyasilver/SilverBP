@@ -151,6 +151,14 @@ data class UserSettings(
      * to make sure we keep targeting the same Drive even after a rename.
      */
     val googleAccountId: String = "",
+    /**
+     * True once the user has explicitly chosen to run without a linked Google
+     * account — either by tapping "skip" on the first-launch sign-in screen or
+     * by disconnecting their account later. Suppresses the first-launch sign-in
+     * gate so the app stays fully usable offline / without a Google account.
+     * See [com.silverbp.android.ui.nav.AppNavHost].
+     */
+    val googleSignInDeferred: Boolean = false,
     /** Epoch ms of the last successful upload, 0 when no backup has succeeded yet. */
     val lastBackupAtMs: Long = 0L,
     /** Last failure message; blank when last attempt succeeded (or none yet). */

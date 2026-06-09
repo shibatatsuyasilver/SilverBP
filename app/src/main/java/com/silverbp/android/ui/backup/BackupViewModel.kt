@@ -246,6 +246,62 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    // ============================================================
+    // Account + data deletion (Play requirement for sign-in apps)
+    // ============================================================
+
+    /** True while [deleteAccountAndData] is running, so the UI can show progress. */
+    private val _deleting = MutableStateFlow(false)
+    val deleting: StateFlow<Boolean> = _deleting.asStateFlow()
+
+    /**
+     * Permanently delete the user's account link + all data, returning the app
+     * to a clean first-launch state:
+     *  1. cancel auto-backup,
+     *  2. best-effort delete every Drive backup in appDataFolder,
+     *  3. wipe the local Room DB + recovery code + locally-stored photos,
+     *  4. reset all settings (clears the Google link + onboarding flags).
+     *
+     * After the settings reset, the reactive onboarding gate in AppNavHost sends
+     * the user back to onboarding automatically — no explicit navigation needed.
+     * Every step is best-effort (wrapped) so a network failure deleting Drive
+     * files can't leave local data un-wiped.
+     */
+    fun deleteAccountAndData() {
+        if (_deleting.value) return
+        _deleting.value = true
+        viewModelScope.launch {
+            // 1. Stop scheduled backups.
+            runCatching { scheduler.cancel() }
+            // 2. Best-effort: delete all Drive backups while the token is still valid.
+            runCatching {
+                val email = settings.flow.first().googleAccountEmail
+                if (email.isNotBlank()) {
+                    val token = (auth.requestDriveToken(email) as? GoogleAuthClient.TokenResult.Granted)?.accessToken
+                    if (token != null) {
+                        withContext(Dispatchers.IO) {
+                            drive.listBackups(token).forEach { f ->
+                                runCatching { drive.deleteFile(f.id, token) }
+                            }
+                        }
+                    }
+                }
+            }
+            // 3. Wipe local data (DB + recovery code + photos).
+            runCatching { withContext(Dispatchers.IO) { ServiceLocator.database.clearAllTables() } }
+            runCatching { recoveryStore.clear() }
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    java.io.File(ctx.filesDir, "photos").deleteRecursively()
+                }
+            }
+            // 4. Reset settings last — flipping didOnboard=false triggers the
+            //    AppNavHost onboarding gate, which navigates away from here.
+            runCatching { settings.clearAll() }
+            _deleting.value = false
+        }
+    }
+
     fun setFrequency(freq: AutoBackupFrequency) {
         viewModelScope.launch {
             settings.setAutoBackupFrequency(freq)

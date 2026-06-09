@@ -34,4 +34,13 @@ import com.silverbp.android.sync.engine.SyncRecord
 interface SyncRecordMapper<TEntity> {
     fun encode(entity: TEntity, hlc: Hlc): SyncRecord
     suspend fun apply(record: SyncRecord)
+
+    /**
+     * The HLC currently stored on the local row identified by [pk], or null if
+     * no such row exists locally. Drives the sink's last-writer-wins gate, which
+     * drops any incoming record that is not strictly newer than what we already
+     * hold. The default returns null ("unknown" → gate falls back to applying);
+     * each concrete mapper overrides it with a single-row lookup on its own DAO.
+     */
+    suspend fun localHlc(pk: String): String? = null
 }

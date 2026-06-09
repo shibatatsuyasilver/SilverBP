@@ -82,6 +82,7 @@ fun BackupScreen(
     val userSettings by ServiceLocator.userSettings.flow.collectAsStateWithLifecycle(initialValue = null)
     val pendingConsent by vm.pendingConsentIntent.collectAsStateWithLifecycle()
     val autoBackupRunning by vm.autoBackupRunning.collectAsStateWithLifecycle()
+    val deleting by vm.deleting.collectAsStateWithLifecycle()
 
     var dialog: Dialog by remember { mutableStateOf(Dialog.None) }
     var gateTarget: GateTarget? by remember { mutableStateOf(null) }
@@ -344,6 +345,30 @@ fun BackupScreen(
                 else -> null
             }
             activePhase?.let { PhaseRow(it) }
+
+            // ============================================================
+            // Danger zone — delete account & data (Play requirement for
+            // sign-in apps; also satisfies the in-app deletion mandate).
+            // ============================================================
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            OutlinedButton(
+                onClick = { dialog = Dialog.DeleteAccount },
+                enabled = !deleting,
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text(
+                    if (deleting) stringResource(R.string.backup_delete_account_running)
+                    else stringResource(R.string.backup_delete_account_button)
+                )
+            }
+            Text(
+                stringResource(R.string.backup_delete_account_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         when (dialog) {
@@ -428,6 +453,25 @@ fun BackupScreen(
                     dialog = Dialog.None
                 },
             )
+            Dialog.DeleteAccount -> AlertDialog(
+                onDismissRequest = { dialog = Dialog.None },
+                title = { Text(stringResource(R.string.backup_delete_account_title)) },
+                text = { Text(stringResource(R.string.backup_delete_account_msg)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        vm.deleteAccountAndData()
+                        dialog = Dialog.None
+                    }) {
+                        Text(
+                            stringResource(R.string.backup_delete_account_confirm),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { dialog = Dialog.None }) { Text(stringResource(R.string.cancel)) }
+                },
+            )
         }
     }
 }
@@ -441,6 +485,7 @@ private enum class Dialog {
     RecoveryGate,
     DisconnectConfirm,
     DriveRestore,
+    DeleteAccount,
 }
 
 private sealed class GateTarget {
