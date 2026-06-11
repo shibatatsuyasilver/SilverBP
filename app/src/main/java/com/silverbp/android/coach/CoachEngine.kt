@@ -192,30 +192,14 @@ class CoachEngine(
      *  - lastAdherence ≥ 0.8 for 2 weeks AND not Hold → Ramp (+10–15%)
      *
      * Adherence is computed across [priorPlans]; we look at the most recent
-     * fully-elapsed plan only.
+     * fully-elapsed plan only, and over its Exercise tasks only (see
+     * [exerciseAdherenceRatio]).
      */
     private suspend fun derivePhase(priorPlans: List<CoachPlan>, settings: UserSettings): Phase {
         if (priorPlans.isEmpty()) return startingPhaseFor(settings)
         val mostRecent = priorPlans.first()
-        val priorAdherence = adherenceRatio(mostRecent.id)
-        return when {
-            priorAdherence < 0.5f -> Phase.DeRamp
-            priorAdherence < 0.8f -> Phase.Hold
-            priorPlans.size >= 2 && mostRecent.phase != Phase.Hold -> Phase.Ramp
-            else -> Phase.Hold
-        }
-    }
-
-    private suspend fun adherenceRatio(planId: String): Float {
-        val rows = coachRepo.adherenceForPlan(planId)
-        if (rows.isEmpty()) return 0f
-        var done = 0
-        var total = 0
-        for (a in rows) {
-            done += a.completed
-            total += a.scheduled
-        }
-        return if (total == 0) 0f else done.toFloat() / total
+        val priorAdherence = exerciseAdherenceRatio(coachRepo.adherenceForPlan(mostRecent.id))
+        return phaseFor(priorAdherence, priorPlans.size, mostRecent.phase)
     }
 
     private fun needsRecoveryDay(recent: List<BpReading>): Boolean {
@@ -478,6 +462,38 @@ class CoachEngine(
                 TrainingStyle.CardioFocus -> 1.2
                 TrainingStyle.StrengthFocus -> 0.8
                 else -> 1.0
+            }
+
+        /**
+         * Last week's adherence over the Exercise rows ONLY — the module the
+         * phase actually ramps. Diet/Sleep tasks never get `completedAt` set
+         * (their rings are derived from the logged rows themselves, see
+         * [CoachRepository.observeWeeklyLifestyleLogs]), so an all-module ratio
+         * tops out around 5/26 and locked every plan into [Phase.DeRamp] no
+         * matter how adherent the user was.
+         */
+        fun exerciseAdherenceRatio(rows: List<Adherence>): Float {
+            var done = 0
+            var total = 0
+            for (a in rows) {
+                if (a.module != LifestyleModule.Exercise) continue
+                done += a.completed
+                total += a.scheduled
+            }
+            return if (total == 0) 0f else done.toFloat() / total
+        }
+
+        /**
+         * Pure phase-progression rule applied to a non-first week — see
+         * [derivePhase]'s KDoc for the thresholds. Companion-level so it is
+         * unit-testable without the repository chain.
+         */
+        fun phaseFor(priorAdherence: Float, priorPlanCount: Int, mostRecentPhase: Phase): Phase =
+            when {
+                priorAdherence < 0.5f -> Phase.DeRamp
+                priorAdherence < 0.8f -> Phase.Hold
+                priorPlanCount >= 2 && mostRecentPhase != Phase.Hold -> Phase.Ramp
+                else -> Phase.Hold
             }
 
         /**

@@ -67,10 +67,29 @@ class HealthConnectNutritionBridge(private val context: Context) {
                 dietaryFiber = log.fiberG?.let { Mass.grams(it) },
                 sodium = log.sodiumMg?.let { Mass.grams(it / 1000.0) },
                 name = log.description.ifBlank { log.productName ?: "" }.ifBlank { null },
-                metadata = Metadata.manualEntry(clientRecordId = log.id.toString()),
+                metadata = Metadata.manualEntry(
+                    clientRecordId = log.id.toString(),
+                    // HC only replaces an existing clientRecordId when the
+                    // version increases; updatedAt is re-stamped on every
+                    // upsert, so edits propagate instead of being dropped.
+                    clientRecordVersion = log.updatedAt.toEpochMilli(),
+                ),
             )
             c.insertRecords(listOf(record)).recordIdsList.firstOrNull()
         }.onFailure { Log.w(TAG, "[HC] nutrition write failed", it) }.getOrNull()
+    }
+
+    /** Best-effort removal of a deleted log's HC mirror. Never throws. */
+    suspend fun delete(logId: String) {
+        val c = client() ?: return
+        if (!hasWritePermission()) return
+        runCatching {
+            c.deleteRecords(
+                NutritionRecord::class,
+                recordIdsList = emptyList(),
+                clientRecordIdsList = listOf(logId),
+            )
+        }.onFailure { Log.w(TAG, "[HC] nutrition delete failed", it) }
     }
 
     private companion object { const val TAG = "HCNutritionBridge" }

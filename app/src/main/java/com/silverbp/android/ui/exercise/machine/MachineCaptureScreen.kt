@@ -63,7 +63,6 @@ import com.silverbp.android.R
 import com.silverbp.android.recognition.decodeFileWithExif
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.Executors
 
 /**
  * Live in-app camera capture for a gym-machine console — mirrors the BP
@@ -193,7 +192,7 @@ fun MachineCaptureScreen(
                     )
                     Spacer(Modifier.size(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = { vm.resetCapture() }) {
+                        OutlinedButton(onClick = { vm.discardPendingDraft(); vm.resetCapture() }) {
                             Text(stringResource(R.string.retry))
                         }
                         Button(onClick = { vm.resetCapture(); onAnalyzed() }) {
@@ -207,7 +206,7 @@ fun MachineCaptureScreen(
 
         if (showCameraControls) {
             CameraTopBar(
-                onClose = onBack,
+                onClose = { vm.discardPendingDraft(); onBack() },
                 onPickPhoto = {
                     pickPhoto.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -221,7 +220,15 @@ fun MachineCaptureScreen(
                     onClick = {
                         val cap = imageCapture ?: return@ShutterButton
                         capturePhoto(context, cap) { bmp ->
-                            if (bmp != null) vm.analyzeBitmap(bmp, onAnalyzed) else onAnalyzed()
+                            if (bmp != null) {
+                                vm.analyzeBitmap(bmp, onAnalyzed)
+                            } else {
+                                // Capture failed before any draft was staged — drop any
+                                // stale draft so the confirm form opens blank, not from
+                                // an earlier analysis.
+                                vm.discardPendingDraft()
+                                onAnalyzed()
+                            }
                         }
                     },
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
@@ -306,9 +313,11 @@ private fun capturePhoto(
     val cacheDir = File(context.cacheDir, "capture").apply { mkdirs() }
     val outFile = File(cacheDir, "${UUID.randomUUID()}.jpg")
     val output = ImageCapture.OutputFileOptions.Builder(outFile).build()
+    // Deliver callbacks on the main thread so onResult can navigate safely
+    // (mirrors the BP CaptureScreen; avoids the per-shot leaked executor too).
     capture.takePicture(
         output,
-        Executors.newSingleThreadExecutor(),
+        ContextCompat.getMainExecutor(context),
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(result: ImageCapture.OutputFileResults) {
                 val bmp = decodeFileWithExif(outFile)

@@ -5,7 +5,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 import java.time.Instant
 
 /**
@@ -17,8 +20,18 @@ import java.time.Instant
  */
 class ExerciseSessionLiveStoreTest {
 
+    @get:Rule
+    val tmp = TemporaryFolder()
+
     private fun newStore(): ExerciseSessionLiveStore =
         ExerciseSessionLiveStore().also {
+            it.start(ActivityKind.Running, Instant.ofEpochMilli(BASE_MS), stepBaseline = null)
+        }
+
+    private fun newCheckpoint() = SessionCheckpointStore(File(tmp.root, "cp.json"))
+
+    private fun newStoreWith(checkpoint: SessionCheckpointStore): ExerciseSessionLiveStore =
+        ExerciseSessionLiveStore(checkpoint).also {
             it.start(ActivityKind.Running, Instant.ofEpochMilli(BASE_MS), stepBaseline = null)
         }
 
@@ -78,6 +91,46 @@ class ExerciseSessionLiveStoreTest {
         val live = store.flow.value!!
         assertEquals(2, live.routePoints.size)
         assertEquals(0.0, live.accumulatedDistanceMeters, 1e-6)
+    }
+
+    @Test
+    fun `active duration does not jump across a long GPS dropout`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, TAIPEI_LAT, TAIPEI_LON, speedMps = 3.0f), BASE_MS + 1_000)
+        val beforeGap = store.flow.value!!.activeDurationMillis
+        // A 10 min dropout while still Running (a moving fix resumes far later).
+        // The gap sample must accrue at most the cap, not the full 10 min.
+        store.appendSample(
+            sample(BASE_MS + 601_000, TAIPEI_LAT, TAIPEI_LON, speedMps = 3.0f),
+            BASE_MS + 601_000,
+        )
+        val gapDelta = store.flow.value!!.activeDurationMillis - beforeGap
+        assertTrue(
+            "active duration delta should be capped at MAX_DURATION_GAP_MS, got $gapDelta",
+            gapDelta <= ExerciseSessionLiveStore.MAX_DURATION_GAP_MS,
+        )
+    }
+
+    @Test
+    fun `stationary jitter while AutoPaused accrues no distance and no route point`() {
+        val store = newStore()
+        store.appendSample(sample(BASE_MS + 1_000, TAIPEI_LAT, TAIPEI_LON, speedMps = 3.0f), BASE_MS + 1_000)
+        // Force AutoPaused.
+        store.appendSample(sample(BASE_MS + 10_000, TAIPEI_LAT, TAIPEI_LON, speedMps = 0f), BASE_MS + 10_000)
+        assertEquals(RunState.AutoPaused, store.flow.value!!.runState)
+        val distanceBefore = store.flow.value!!.accumulatedDistanceMeters
+        val pointsBefore = store.flow.value!!.routePoints.size
+
+        // A jittery, non-moving fix that has drifted ~100 m while standing still.
+        store.appendSample(
+            sample(BASE_MS + 13_000, TAIPEI_LAT + DEG_PER_100M, TAIPEI_LON, speedMps = 0f),
+            BASE_MS + 13_000,
+        )
+
+        val live = store.flow.value!!
+        assertEquals(RunState.AutoPaused, live.runState)
+        assertEquals("jitter while AutoPaused must add 0 m", distanceBefore, live.accumulatedDistanceMeters, 1e-6)
+        assertEquals("jitter while AutoPaused must not append a route point", pointsBefore, live.routePoints.size)
     }
 
     @Test
@@ -327,6 +380,79 @@ class ExerciseSessionLiveStoreTest {
             "wall-clock duration ($wallClockMs ms) must exceed active duration (${session.activeDurationMillis} ms)",
             wallClockMs > session.activeDurationMillis,
         )
+    }
+
+    // ─── checkpoint lifecycle (Stop → Save 之間的資料保命) ───────────────────
+
+    @Test
+    fun `snapshotAndFinish keeps a Finished checkpoint instead of clearing it`() {
+        // Regression target: snapshotAndFinish used to clear the checkpoint at
+        // Stop, so a process kill on the summary screen (before Save wrote the
+        // Room row) silently lost the whole workout.
+        val cp = newCheckpoint()
+        val store = newStoreWith(cp)
+        store.appendSample(sample(BASE_MS + 1_000), BASE_MS + 1_000)
+
+        store.snapshotAndFinish(Instant.ofEpochMilli(BASE_MS + 5_000))
+
+        val saved = cp.load()
+        assertNotNull("checkpoint must survive until summary Save/Discard", saved)
+        assertEquals(RunState.Finished, saved!!.runState)
+        assertEquals(1, saved.routePoints.size)
+    }
+
+    @Test
+    fun `clear after snapshotAndFinish removes the checkpoint`() {
+        // Summary Save and Discard both end in liveStore.clear() — the
+        // checkpoint must be gone exactly then, not at Stop.
+        val cp = newCheckpoint()
+        val store = newStoreWith(cp)
+        store.appendSample(sample(BASE_MS + 1_000), BASE_MS + 1_000)
+        store.snapshotAndFinish(Instant.ofEpochMilli(BASE_MS + 5_000))
+        assertNotNull(cp.load())
+
+        store.clear()
+        assertNull(cp.load())
+        assertNull(store.flow.value)
+    }
+
+    @Test
+    fun `Finished checkpoint is recoverable after process death`() {
+        val cp = newCheckpoint()
+        val store = newStoreWith(cp)
+        store.appendSample(sample(BASE_MS + 1_000), BASE_MS + 1_000)
+        store.snapshotAndFinish(Instant.ofEpochMilli(BASE_MS + 5_000))
+
+        // Simulate process death: a fresh store over the same checkpoint file.
+        val reborn = ExerciseSessionLiveStore(cp)
+        val orphan = reborn.recoverableCheckpoint()
+        assertNotNull(orphan)
+        assertEquals(RunState.Finished, orphan!!.runState)
+    }
+
+    @Test
+    fun `restore keeps a Finished snapshot Finished`() {
+        // Finished 檢查點只差摘要頁儲存 — 不得退回可追蹤的 Paused 狀態。
+        val cp = newCheckpoint()
+        val store = newStoreWith(cp)
+        store.appendSample(sample(BASE_MS + 1_000), BASE_MS + 1_000)
+        store.snapshotAndFinish(Instant.ofEpochMilli(BASE_MS + 5_000))
+        val orphan = ExerciseSessionLiveStore(cp).recoverableCheckpoint()!!
+
+        val target = ExerciseSessionLiveStore()
+        target.restore(orphan)
+        assertEquals(RunState.Finished, target.flow.value!!.runState)
+    }
+
+    @Test
+    fun `restore forces a non-finished snapshot to Paused`() {
+        val orphan = newStore().flow.value!!  // Running
+        val target = ExerciseSessionLiveStore()
+        target.restore(orphan)
+
+        val live = target.flow.value!!
+        assertEquals(RunState.Paused, live.runState)
+        assertNotNull(live.pausedSinceMillis)
     }
 
     private companion object {

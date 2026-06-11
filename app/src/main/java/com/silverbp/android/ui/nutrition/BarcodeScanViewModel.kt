@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.nutrition.BarcodeLookupResult
 import com.silverbp.android.nutrition.FoodLog
+import com.silverbp.android.nutrition.NutrimentBasis
 import com.silverbp.android.nutrition.NutritionInputMethod
 import com.silverbp.android.nutrition.OpenFoodFactsClient
 import com.silverbp.android.nutrition.SodiumLevel
@@ -43,6 +44,7 @@ class BarcodeScanViewModel : ViewModel() {
             when (val r = OpenFoodFactsClient.lookup(code)) {
                 is BarcodeLookupResult.Found -> {
                     NutritionDraftHolder.put(r.draft)
+                    BarcodeBasisHolder.put(r.basis)
                     onFound()
                 }
                 BarcodeLookupResult.NotFound -> _phase.value = BarcodePhase.NotFound(code)
@@ -75,4 +77,18 @@ class BarcodeScanViewModel : ViewModel() {
         handled = false
         _phase.value = BarcodePhase.Scanning
     }
+}
+
+/**
+ * In-memory hand-off of a barcode draft's [NutrimentBasis] to
+ * [NutritionConfirmScreen], alongside [NutritionDraftHolder]. Lets the confirm
+ * screen warn when label values are per 100 g/ml rather than per serving.
+ */
+object BarcodeBasisHolder {
+    @Volatile private var basis: NutrimentBasis? = null
+
+    fun put(b: NutrimentBasis) { basis = b }
+
+    /** Consume the pending basis (cleared after read). */
+    fun take(): NutrimentBasis? = basis.also { basis = null }
 }

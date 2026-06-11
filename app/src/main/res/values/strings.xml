@@ -758,6 +758,9 @@
     <string name="nutrition_barcode_hint">Center the barcode in the frame</string>
     <string name="nutrition_barcode_lookup">Looking up…</string>
     <string name="nutrition_barcode_not_found">Product not found — enter manually</string>
+    <string name="nutrition_barcode_network_error">Couldn\'t reach the food database — check your connection and try again</string>
+    <string name="nutrition_barcode_per_100g_hint">Label values below are per 100 g/ml — adjust them to the amount you ate</string>
+    <string name="nutrition_barcode_scaled_serving_hint">Nutrition estimated by scaling per-100 g label values to one serving</string>
     <string name="nutrition_barcode_rescan">Scan again</string>
     <string name="nutrition_overall_confidence">Overall confidence %1$d%%</string>
     <string name="nutrition_meal_totals">Meal total</string>

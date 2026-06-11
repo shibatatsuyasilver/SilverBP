@@ -1,6 +1,7 @@
 package com.silverbp.android.coach
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.work.BackoffPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -31,6 +32,36 @@ object CoachReminderScheduler {
     const val UNIQUE_DAILY = "silverbp.coach.daily"
     const val UNIQUE_WEEKLY = "silverbp.coach.weekly"
 
+    // Owned prefs file: remembers the target (hour/minute/mask) the daily worker
+    // was last anchored to. Lets us re-anchor (CANCEL_AND_REENQUEUE) only when the
+    // target actually changed, and KEEP on the unconditional cold-start sweep so
+    // we don't reset the periodic anchor every launch.
+    private const val PREFS = "silverbp.coach.reminder_schedule"
+    private const val KEY_DAILY_HOUR = "daily_hour"
+    private const val KEY_DAILY_MINUTE = "daily_minute"
+    private const val KEY_DAILY_MASK = "daily_mask"
+    private const val UNSET = Int.MIN_VALUE
+
+    private fun prefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /**
+     * Pure decision: which [ExistingPeriodicWorkPolicy] to use given the last
+     * anchored target vs. the requested one. CANCEL_AND_REENQUEUE re-aligns the
+     * schedule when the user picks a new time/mask; otherwise KEEP preserves the
+     * existing anchor so the repeated cold-start sweep is a no-op (and the weekly
+     * worker is never pushed out). [saved] is the persisted triple (or null when
+     * nothing has been scheduled yet — first schedule, so re-enqueue).
+     *
+     * DST note: the anchor is wall-clock-correct at schedule time; WorkManager
+     * then repeats on a fixed 24 h period, so across a DST boundary the fire can
+     * drift ±1 h until the next time/mask change re-anchors it. Acceptable for a
+     * reminder; a user-initiated change realigns it immediately.
+     */
+    fun policyFor(saved: Triple<Int, Int, Int>?, target: Triple<Int, Int, Int>): ExistingPeriodicWorkPolicy =
+        if (saved == target) ExistingPeriodicWorkPolicy.KEEP
+        else ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE
+
     /**
      * Cold-start / toggle entry point. Reads the user's reminder prefs and
      * aligns the daily worker to the chosen time + weekday mask. Suspend so we
@@ -51,6 +82,10 @@ object CoachReminderScheduler {
         val wm = WorkManager.getInstance(context)
         wm.cancelUniqueWork(UNIQUE_DAILY)
         wm.cancelUniqueWork(UNIQUE_WEEKLY)
+        // Forget the anchor so the next schedule re-enqueues from scratch.
+        prefs(context).edit()
+            .remove(KEY_DAILY_HOUR).remove(KEY_DAILY_MINUTE).remove(KEY_DAILY_MASK)
+            .apply()
     }
 
     fun scheduleDaily(context: Context, hour: Int = 7, minute: Int = 0, mask: Int = DayOfWeekMask.ALL) {
@@ -58,8 +93,19 @@ object CoachReminderScheduler {
         // would no-op every day.
         if (DayOfWeekMask.isEmpty(mask)) {
             WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_DAILY)
+            prefs(context).edit()
+                .remove(KEY_DAILY_HOUR).remove(KEY_DAILY_MINUTE).remove(KEY_DAILY_MASK)
+                .apply()
             return
         }
+        val p = prefs(context)
+        val saved = p.getInt(KEY_DAILY_HOUR, UNSET).takeIf { it != UNSET }?.let { h ->
+            Triple(h, p.getInt(KEY_DAILY_MINUTE, 0), p.getInt(KEY_DAILY_MASK, DayOfWeekMask.ALL))
+        }
+        val target = Triple(hour, minute, mask)
+        // KEEP when the target is unchanged so the repeated cold-start sweep is a
+        // no-op; CANCEL_AND_REENQUEUE re-anchors to the new wall-clock time/mask.
+        val policy = policyFor(saved, target)
         val initialMillis = millisUntilNext(hour = hour, minute = minute, mask = mask)
         val req = PeriodicWorkRequestBuilder<DailyReminderWorker>(
             24, TimeUnit.HOURS,
@@ -68,7 +114,12 @@ object CoachReminderScheduler {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(UNIQUE_DAILY, ExistingPeriodicWorkPolicy.UPDATE, req)
+            .enqueueUniquePeriodicWork(UNIQUE_DAILY, policy, req)
+        p.edit()
+            .putInt(KEY_DAILY_HOUR, hour)
+            .putInt(KEY_DAILY_MINUTE, minute)
+            .putInt(KEY_DAILY_MASK, mask)
+            .apply()
     }
 
     fun scheduleWeekly(context: Context) {
@@ -79,8 +130,11 @@ object CoachReminderScheduler {
             .setInitialDelay(initialMillis, TimeUnit.MILLISECONDS)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.HOURS)
             .build()
+        // Weekly target is fixed (Mon 07:00), so KEEP: the unconditional cold-start
+        // sweep must not re-anchor it (CANCEL_AND_REENQUEUE every launch could
+        // permanently delay the next Monday fire). The first call anchors it.
         WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(UNIQUE_WEEKLY, ExistingPeriodicWorkPolicy.UPDATE, req)
+            .enqueueUniquePeriodicWork(UNIQUE_WEEKLY, ExistingPeriodicWorkPolicy.KEEP, req)
     }
 
     /**

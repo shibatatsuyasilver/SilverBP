@@ -67,7 +67,13 @@ class WorkoutSummaryViewModel(
 
     private suspend fun findRecentPostBpId(): String? {
         val now = java.time.Instant.now()
-        val from = now.minus(POST_BP_WINDOW_MIN, java.time.temporal.ChronoUnit.MINUTES)
+        // Clamp the window's lower bound to the workout's start: a true
+        // "post" reading happens after the workout, so the pre-workout gate
+        // reading must never qualify. Without this, sessions shorter than
+        // POST_BP_WINDOW_MIN would link the pre-workout BP as "post".
+        val windowStart = now.minus(POST_BP_WINDOW_MIN, java.time.temporal.ChronoUnit.MINUTES)
+        val sessionStart = live?.let { java.time.Instant.ofEpochMilli(it.startedAtMillis) }
+        val from = if (sessionStart != null && sessionStart.isAfter(windowStart)) sessionStart else windowStart
         return bpRepo.observeRange(from, now).first()
             .maxByOrNull { it.timestamp }?.id?.toString()
     }

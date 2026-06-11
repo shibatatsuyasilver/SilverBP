@@ -1,6 +1,7 @@
 package com.silverbp.android.coach
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.di.ServiceLocator
@@ -20,11 +21,16 @@ import kotlinx.coroutines.launch
  * which is far too sluggish for "user just measured 3rd high reading → ping
  * within 1 second". We instead piggyback on the BP repo's existing Flow.
  *
- * Cooldown: at most one notification per [UserSettings.coachAnomalyCooldownMin]
- * minutes (default 30). State stored in process memory — losing it across
- * cold starts is acceptable; users won't get spammed and the user-flagged
- * suppress window for the same reading won't fire twice in a 24-hour window
- * anyway because the rule engine only counts unique readings.
+ * Dedup: [detectAnomaly] rescans the trailing 24 h window on every new reading
+ * (including normal ones), so the same elevated-readings episode would re-trip
+ * the alert all day. We persist the triggering-window timestamp of the last
+ * alerted episode and skip when the new anomaly's window is not strictly newer.
+ * The store survives process death (SharedPreferences), so a cold start can't
+ * re-fire an episode we already alerted.
+ *
+ * Cooldown: kept as a secondary guard — at most one notification per
+ * [COOLDOWN_MILLIS] (30 min). Backstops the dedup against clock skew / rapid
+ * distinct episodes.
  */
 class BpAnomalyWatcher(
     private val context: Context,
@@ -33,6 +39,8 @@ class BpAnomalyWatcher(
     private val settings: UserSettingsRepository,
 ) {
     @Volatile private var lastFiredAtMillis: Long = 0L
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     @OptIn(FlowPreview::class)
     fun start(scope: CoroutineScope) {
@@ -54,18 +62,41 @@ class BpAnomalyWatcher(
         val s = settings.flow.first()
         if (!s.enableCoach) return
         val now = System.currentTimeMillis()
-        if (now - lastFiredAtMillis < COOLDOWN_MILLIS) return
 
         val event = engine.detectAnomaly() ?: return
+        val lastAlertedAt = prefs.getLong(KEY_LAST_TRIGGERED, 0L)
+        if (!shouldAlert(lastAlertedAt, event.triggeredAtMillis, now, lastFiredAtMillis, COOLDOWN_MILLIS)) return
+
         CoachNotifier.postAnomaly(context, event.severity)
         lastFiredAtMillis = now
-        Log.i(TAG, "[Anomaly] posted ${event.severity.raw} at $now")
+        prefs.edit().putLong(KEY_LAST_TRIGGERED, event.triggeredAtMillis).apply()
+        Log.i(TAG, "[Anomaly] posted ${event.severity.raw} at $now (window=${event.triggeredAtMillis})")
     }
 
-    private companion object {
-        const val TAG = "BpAnomalyWatcher"
+    companion object {
+        private const val TAG = "BpAnomalyWatcher"
+        private const val PREFS = "silverbp.coach.anomaly_watcher"
+        private const val KEY_LAST_TRIGGERED = "last_triggered_at"
         // 30-minute baseline; if you wire it to UserSettings.coachAnomalyCooldownMin
         // in a follow-up PR, read it inside detectAndMaybePost() instead of a const.
         const val COOLDOWN_MILLIS = 30 * 60 * 1_000L
+
+        /**
+         * Pure dedup decision. Alert only when the anomaly's triggering window is
+         * strictly NEWER than the last alerted episode ([anomalyTriggeredAt] >
+         * [lastAlertedAt]) — this stops the same episode re-firing as later normal
+         * readings keep the elevated window in range — AND the secondary cooldown
+         * has elapsed since the last fire ([now] - [lastFiredAt] ≥ [cooldownMillis]);
+         * a watcher that has never fired ([lastFiredAt] == 0) has no cooldown.
+         */
+        fun shouldAlert(
+            lastAlertedAt: Long,
+            anomalyTriggeredAt: Long,
+            now: Long,
+            lastFiredAt: Long,
+            cooldownMillis: Long,
+        ): Boolean =
+            anomalyTriggeredAt > lastAlertedAt &&
+                (lastFiredAt == 0L || now - lastFiredAt >= cooldownMillis)
     }
 }

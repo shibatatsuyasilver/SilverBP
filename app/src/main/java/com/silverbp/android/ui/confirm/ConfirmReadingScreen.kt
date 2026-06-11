@@ -84,6 +84,8 @@ fun ConfirmReadingScreen(
 ) {
     LaunchedEffect(readingIdArg) { vm.initWith(readingIdArg) }
     val draft by vm.draft.collectAsStateWithLifecycle()
+    val saving by vm.saving.collectAsStateWithLifecycle()
+    val saveError by vm.saveError.collectAsStateWithLifecycle()
 
     val isEditing = remember(readingIdArg) {
         readingIdArg != null && readingIdArg != "new" && readingIdArg != "draft" &&
@@ -114,7 +116,7 @@ fun ConfirmReadingScreen(
                         }
                     }
                     TextButton(
-                        enabled = draft.isValid,
+                        enabled = draft.isValid && !saving,
                         onClick = { vm.save(onSaved) },
                     ) {
                         Text(
@@ -135,6 +137,14 @@ fun ConfirmReadingScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            saveError?.let { msg ->
+                Text(
+                    msg,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
             draft.photo?.let { bmp ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),

@@ -1,6 +1,8 @@
 package com.silverbp.android.ui.exercise.machine
 
+import android.content.Context
 import com.silverbp.android.recognition.ExtractedMachineWorkout
+import java.io.File
 
 /**
  * A freshly OCR'd gym-machine console readout: the saved photo, the extracted
@@ -29,4 +31,15 @@ object MachineWorkoutDraftHolder {
 
     /** Consume the pending readout (cleared after read). */
     fun take(): RecognizedMachineWorkout? = pending.also { pending = null }
+}
+
+/**
+ * The console-photo JPEGs written under filesDir/photos during analysis. Since
+ * exercise_session has no photo column, these are only ever transient: deleted
+ * when the draft is discarded (Cancel/Retry) or after a successful save.
+ */
+object MachinePhotoStore {
+    fun delete(context: Context, filename: String) {
+        runCatching { File(File(context.filesDir, "photos"), filename).delete() }
+    }
 }

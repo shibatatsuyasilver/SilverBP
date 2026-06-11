@@ -116,12 +116,24 @@ class CoachRepository(
     suspend fun dosesForDay(dayStart: Long): List<MedicationDoseEntity> = doses.forDay(dayStart)
     fun observeDosesForDay(dayStart: Long): Flow<List<MedicationDoseEntity>> = doses.observeForDay(dayStart)
 
-    /** Adherence ratio across [from, to). 0f when no doses scheduled. */
+    /**
+     * Adherence ratio across the trailing 7-day window [from, to).
+     *
+     * Numerator = dose rows marked taken; denominator = the schedule-derived
+     * weekly target ([countScheduledInWeek]), NOT a `COUNT(*)` of dose rows.
+     * Dose rows only exist once the user interacts with them, so a row-count
+     * denominator reported 100% for 3-of-7 doses taken (the 4 untouched days
+     * had no rows) and 0% for a user who never opened the dose sheet at all.
+     *
+     * Any 7-day window covers each weekday exactly once, so the schedule
+     * count is independent of which weekday the window starts on (see the
+     * [countScheduledInWeek] KDoc) — a fixed reference Monday suffices and
+     * keeps this zone-free. 0f when no enabled schedules exist (no data).
+     */
     suspend fun medicationAdherence(from: Long, to: Long): Float {
-        val scheduled = doses.countScheduledInRange(from, to)
+        val scheduled = countScheduledInWeek(medicationSchedules.all(), REFERENCE_MONDAY)
         if (scheduled == 0) return 0f
-        val taken = doses.countTakenInRange(from, to)
-        return (taken.toFloat() / scheduled).coerceIn(0f, 1f)
+        return medicationAdherenceRatio(doses.countTakenInRange(from, to), scheduled)
     }
 
     /**
@@ -198,6 +210,9 @@ class CoachRepository(
     }
 
     companion object {
+        /** Any Monday — see [medicationAdherence] for why the actual date is irrelevant. */
+        private val REFERENCE_MONDAY: LocalDate = LocalDate.of(2024, 1, 1)
+
         /**
          * Count this medication's weekly target — for each day of the week
          * (Mon..Sun, derived from [weekStartDate]), sum the enabled schedules
@@ -220,6 +235,15 @@ class CoachRepository(
             }
             return count
         }
+
+        /**
+         * Pure ratio core of [medicationAdherence]: taken doses over the
+         * schedule-derived weekly target, clamped to [0, 1]. 0f when nothing
+         * is scheduled. Companion-level so it is unit-testable next to
+         * [countScheduledInWeek].
+         */
+        fun medicationAdherenceRatio(taken: Int, scheduled: Int): Float =
+            if (scheduled == 0) 0f else (taken.toFloat() / scheduled).coerceIn(0f, 1f)
     }
 }
 

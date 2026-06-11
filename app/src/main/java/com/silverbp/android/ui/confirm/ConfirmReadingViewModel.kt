@@ -34,7 +34,17 @@ class ConfirmReadingViewModel(
     private val _draft = MutableStateFlow(BpReadingDraft())
     val draft: StateFlow<BpReadingDraft> = _draft.asStateFlow()
 
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
+
+    /** Non-null when the last save failed; cleared on retry. */
+    private val _saveError = MutableStateFlow<String?>(null)
+    val saveError: StateFlow<String?> = _saveError.asStateFlow()
+
     private var editingId: UUID? = null
+
+    /** Guards [initWith] so activity recreation doesn't wipe the surviving draft. */
+    private var initialized = false
 
     /** True when this screen is editing an existing reading (vs. confirming a new one). */
     val isEditing: Boolean get() = editingId != null
@@ -44,8 +54,13 @@ class ConfirmReadingViewModel(
      *  - "new"   → blank manual draft
      *  - "draft" → consume current capture-session draft (with photo + AI confidence)
      *  - <uuid>  → load existing reading for edit
+     *
+     * Idempotent: re-invocations (e.g. LaunchedEffect re-running after rotation)
+     * are no-ops so the surviving ViewModel draft is not overwritten.
      */
     fun initWith(arg: String?) {
+        if (initialized) return
+        initialized = true
         viewModelScope.launch {
             when {
                 arg == null || arg == "new" -> {
@@ -75,6 +90,9 @@ class ConfirmReadingViewModel(
     }
 
     fun save(onDone: () -> Unit) {
+        if (_saving.value) return
+        _saving.value = true
+        _saveError.value = null
         viewModelScope.launch {
             val current = _draft.value
             Log.i(
@@ -98,10 +116,13 @@ class ConfirmReadingViewModel(
                     current.toReading(photoFilename)
                 }
                 repo.upsert(reading)
+                _saving.value = false
                 onDone()
             } catch (e: Throwable) {
                 Log.e(TAG, "[Confirm] save failed: ${e.message}", e)
-                throw e
+                // 保留草稿並顯示錯誤,讓使用者可以重試
+                _saving.value = false
+                _saveError.value = "儲存失敗:${e.message ?: "未知錯誤"}"
             }
         }
     }

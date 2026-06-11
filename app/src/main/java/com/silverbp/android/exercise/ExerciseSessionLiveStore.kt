@@ -201,6 +201,19 @@ class ExerciseSessionLiveStore(
             else -> cur.runState
         }
 
+        // While AutoPaused, a stationary fix is GPS jitter, not travel — drop its
+        // distance and route point entirely so the track doesn't crawl forward
+        // while the user stands still. Only a fix that auto-resumes (moving, so
+        // nextRunState flips to Running) counts; that sample's own delta is
+        // still gated to MAX_DISTANCE_GAP_MS like every other resumed fix.
+        if (cur.runState == RunState.AutoPaused && nextRunState == RunState.AutoPaused) {
+            _flow.value = cur.copy(
+                lastMovementAtMillis = nextLastMovement,
+                lastSampleAtMillis = nowMs,
+            )
+            return
+        }
+
         // pausedSinceMillis tracks how long we've been continuously in
         // Paused/AutoPaused — feeds the 10 min idle reminder. Use the
         // wall-clock arg (not sample.timeMs) since the service's idle check
@@ -212,9 +225,12 @@ class ExerciseSessionLiveStore(
         }
 
         // Active duration only accrues while we believe the user is moving — match
-        // the prior behaviour (Running) and exclude time spent AutoPaused.
+        // the prior behaviour (Running) and exclude time spent AutoPaused. Cap the
+        // per-sample delta the same way distance is gapped: a GPS dropout (e.g. a
+        // 15 min indoor stop) would otherwise land as one big jump of "active"
+        // time when fixes resume. Mirror MAX_DISTANCE_GAP_MS — accrue only the cap.
         val durationDeltaMs = if (cur.runState == RunState.Running) {
-            (nowMs - cur.lastSampleAtMillis).coerceAtLeast(0L)
+            (nowMs - cur.lastSampleAtMillis).coerceIn(0L, MAX_DURATION_GAP_MS)
         } else 0L
         val newDuration = cur.activeDurationMillis + durationDeltaMs
 
@@ -284,11 +300,12 @@ class ExerciseSessionLiveStore(
             hcRecordId = null,
         )
         val points = cur.routePoints
-        _flow.value = cur.copy(runState = RunState.Finished, pausedSinceMillis = null)
-        // The session is finished and awaiting a save/discard decision; it is no
-        // longer "in progress", so drop the checkpoint (don't offer to resume a
-        // finished session if the app is killed on the summary screen).
-        checkpoint?.clear()
+        val finished = cur.copy(runState = RunState.Finished, pausedSinceMillis = null)
+        _flow.value = finished
+        // Stop 之後到摘要頁「儲存」之前,資料只存在記憶體 — 此時 process 被殺
+        // (來電、系統回收)整筆運動就會無聲消失。所以把 Finished 快照寫回檢查點
+        // 保命;等摘要頁儲存成功或使用者捨棄時才由 [clear] 真正刪除。
+        checkpoint?.save(finished)
         return session to points
     }
 
@@ -303,9 +320,16 @@ class ExerciseSessionLiveStore(
      * first GPS fix after recovery doesn't accrue distance across the kill gap
      * (the user taps Resume to continue). Does not re-save — the service
      * re-persists on its next tick.
+     *
+     * Finished 檢查點(在摘要頁儲存前被殺)例外:運動已經結束、只差儲存,
+     * 維持 Finished 原樣就位讓摘要頁直接讀取,不得退回可追蹤的 Paused 狀態。
      */
     fun restore(live: SessionLive) {
         _error.value = null
+        if (live.runState == RunState.Finished) {
+            _flow.value = live
+            return
+        }
         _flow.value = live.copy(
             runState = RunState.Paused,
             pausedSinceMillis = System.currentTimeMillis(),
@@ -343,6 +367,9 @@ class ExerciseSessionLiveStore(
         /** Skip the straight-line distance delta when fixes are >45 s apart
          *  (GPS dropout or a checkpoint-restored session resuming). */
         const val MAX_DISTANCE_GAP_MS = 45_000L
+        /** Cap the per-sample active-duration delta at the same 45 s gap so a GPS
+         *  dropout doesn't dump the whole stalled interval in as "active" time. */
+        const val MAX_DURATION_GAP_MS = 45_000L
         /**
          * Continuous Paused/AutoPaused duration after which the service
          * surfaces a heads-up reminder asking the user whether to keep going

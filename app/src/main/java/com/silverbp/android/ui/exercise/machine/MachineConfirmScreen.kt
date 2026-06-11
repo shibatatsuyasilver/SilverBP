@@ -54,6 +54,7 @@ fun MachineConfirmScreen(
 ) {
     LaunchedEffect(Unit) { vm.init() }
     val s by vm.state.collectAsStateWithLifecycle()
+    val saving by vm.saving.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -62,10 +63,10 @@ fun MachineConfirmScreen(
                     Text(stringResource(R.string.machine_confirm_title), fontWeight = FontWeight.SemiBold)
                 },
                 navigationIcon = {
-                    TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
+                    TextButton(onClick = { vm.discard(onCancel) }) { Text(stringResource(R.string.cancel)) }
                 },
                 actions = {
-                    TextButton(onClick = { vm.save(onSaved) }) {
+                    TextButton(onClick = { vm.save(onSaved) }, enabled = !saving) {
                         Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)
                     }
                 },

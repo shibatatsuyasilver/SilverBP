@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.exercise.machine
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.di.ServiceLocator
@@ -22,6 +23,23 @@ enum class DistanceUnit(val raw: String) {
 
     companion object {
         fun fromRaw(s: String?): DistanceUnit? = entries.firstOrNull { it.raw == s }
+    }
+}
+
+/**
+ * Parse a console time readout into total seconds; null if unparseable.
+ * "mm:ss" and "h:mm:ss" are split on ':'; a single bare segment is read as
+ * whole minutes (consoles show e.g. "32" for 32:00), so it is scaled to
+ * seconds.
+ */
+internal fun parseClockToSeconds(text: String?): Int? {
+    val t = text?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    val parts = t.split(":").map { it.trim().toIntOrNull() ?: return null }
+    return when (parts.size) {
+        2 -> parts[0] * 60 + parts[1]
+        3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+        1 -> parts[0] * 60 // bare minutes
+        else -> null
     }
 }
 
@@ -49,10 +67,14 @@ data class MachineConfirmUiState(
  */
 class MachineConfirmViewModel(
     private val repo: ExerciseRepository = ServiceLocator.exerciseRepository,
+    private val appContext: Context = ServiceLocator.context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MachineConfirmUiState())
     val state: StateFlow<MachineConfirmUiState> = _state.asStateFlow()
+
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
 
     /** Raw OCR JSON kept verbatim for the saved row (transparency / future use). */
     private var rawMetricsJson: String? = null
@@ -71,10 +93,21 @@ class MachineConfirmViewModel(
         _state.value = transform(_state.value)
     }
 
+    /** Cancel without saving: drop the orphaned console photo (no photo column). */
+    fun discard(onDiscarded: () -> Unit) {
+        _state.value.photoFilename?.let { MachinePhotoStore.delete(appContext, it) }
+        onDiscarded()
+    }
+
     fun save(onSaved: () -> Unit) {
+        if (_saving.value) return
+        _saving.value = true
         val s = _state.value
         viewModelScope.launch {
             repo.upsert(s.toSession(rawMetricsJson), points = emptyList())
+            // exercise_session has no photo column — the JPEG serves no purpose post-save.
+            s.photoFilename?.let { MachinePhotoStore.delete(appContext, it) }
+            _saving.value = false
             onSaved()
         }
     }
@@ -160,18 +193,6 @@ class MachineConfirmViewModel(
             ActivityKind.Rower -> DistanceUnit.M
             ActivityKind.StairClimber -> DistanceUnit.Floors
             else -> DistanceUnit.Km
-        }
-
-        /** Parse "mm:ss" or "h:mm:ss" into total seconds; null if unparseable. */
-        fun parseClockToSeconds(text: String?): Int? {
-            val t = text?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-            val parts = t.split(":").map { it.trim().toIntOrNull() ?: return null }
-            return when (parts.size) {
-                2 -> parts[0] * 60 + parts[1]
-                3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
-                1 -> parts[0] // bare minutes
-                else -> null
-            }
         }
 
         /** Drop a trailing ".0" so 5.0 shows as "5" but 5.2 stays "5.2". */

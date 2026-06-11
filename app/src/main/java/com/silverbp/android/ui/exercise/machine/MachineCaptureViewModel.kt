@@ -42,6 +42,17 @@ class MachineCaptureViewModel(
 
     fun resetCapture() { _capturePhase.value = MachineCapturePhase.Idle }
 
+    /**
+     * Drop any staged draft (and its orphaned console photo) on the discard
+     * paths — Retry, Cancel/Back, or a failed shutter — so a stale
+     * [RecognizedMachineWorkout] from an earlier analysis is never consumed by
+     * [MachineConfirmViewModel], and the JPEG under filesDir/photos is removed.
+     */
+    fun discardPendingDraft() {
+        MachineWorkoutDraftHolder.take()?.photoFilename
+            ?.let { MachinePhotoStore.delete(appContext, it) }
+    }
+
     /** Analyse a camera preview bitmap, stage a draft, then [onReady] to navigate. */
     fun analyzeBitmap(bitmap: Bitmap, onReady: () -> Unit) {
         viewModelScope.launch {

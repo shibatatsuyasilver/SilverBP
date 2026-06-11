@@ -81,4 +81,28 @@ class MedicationProgressTest {
         val wednesdayStart = LocalDate.of(2024, 1, 3)
         assertEquals(3, CoachRepository.countScheduledInWeek(schedules, wednesdayStart))
     }
+
+    // --- medicationAdherenceRatio: taken / schedule-derived weekly target ---
+    // Regression: the old denominator was COUNT(*) of medication_dose rows,
+    // which only exist once the user interacts — 3 taken of a daily (7×)
+    // schedule reported 100% because the 4 untouched days had no rows.
+
+    @Test fun `three taken of a daily schedule is three sevenths, not 100 percent`() {
+        val scheduled = CoachRepository.countScheduledInWeek(
+            listOf(schedule(DayOfWeekMask.ALL)), monday,
+        )
+        assertEquals(3f / 7f, CoachRepository.medicationAdherenceRatio(3, scheduled), 1e-4f)
+    }
+
+    @Test fun `all doses taken is exactly 1`() {
+        assertEquals(1f, CoachRepository.medicationAdherenceRatio(7, 7), 0f)
+    }
+
+    @Test fun `extra taken rows clamp to 1`() {
+        assertEquals(1f, CoachRepository.medicationAdherenceRatio(9, 7), 0f)
+    }
+
+    @Test fun `nothing scheduled guards the division and yields 0`() {
+        assertEquals(0f, CoachRepository.medicationAdherenceRatio(0, 0), 0f)
+    }
 }

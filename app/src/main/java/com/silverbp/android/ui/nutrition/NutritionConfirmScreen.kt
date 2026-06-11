@@ -54,6 +54,7 @@ import coil.compose.AsyncImage
 import com.silverbp.android.R
 import com.silverbp.android.nutrition.FoodLog
 import com.silverbp.android.nutrition.MealType
+import com.silverbp.android.nutrition.NutrimentBasis
 import com.silverbp.android.nutrition.NutritionDatabase
 import com.silverbp.android.nutrition.Portion
 import com.silverbp.android.nutrition.SodiumLevel
@@ -298,6 +299,7 @@ private fun FlatConfirmContent(
     vm: NutritionConfirmViewModel,
 ) {
     val draft by vm.draft.collectAsStateWithLifecycle()
+    val barcodeBasis by vm.barcodeBasis.collectAsStateWithLifecycle()
     val isEditing = idArg != null
     var showDelete by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -375,6 +377,22 @@ private fun FlatConfirmContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            // Barcode basis hint: the label only had per-100g data, so the
+            // numbers below are NOT one serving unless they could be scaled.
+            when (barcodeBasis) {
+                NutrimentBasis.Per100g -> Text(
+                    stringResource(R.string.nutrition_barcode_per_100g_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SodiumCaution,
+                )
+                NutrimentBasis.ScaledPer100g -> Text(
+                    stringResource(R.string.nutrition_barcode_scaled_serving_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> Unit
+            }
 
             StandardCard(title = stringResource(R.string.nutrition_meal_label)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {

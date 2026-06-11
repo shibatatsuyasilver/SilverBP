@@ -295,18 +295,26 @@ private fun capturePhoto(
     val cacheDir = File(context.cacheDir, "capture").apply { mkdirs() }
     val outFile = File(cacheDir, "${UUID.randomUUID()}.jpg")
     val output = ImageCapture.OutputFileOptions.Builder(outFile).build()
+    // Decode stays on this per-shot executor; the result callback is posted to
+    // the main thread because callers navigate (NavController is main-only).
+    val executor = Executors.newSingleThreadExecutor()
+    val mainExecutor = ContextCompat.getMainExecutor(context)
+    fun finish(bmp: Bitmap?) {
+        executor.shutdown()
+        mainExecutor.execute { onResult(bmp) }
+    }
     capture.takePicture(
         output,
-        Executors.newSingleThreadExecutor(),
+        executor,
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(result: ImageCapture.OutputFileResults) {
                 val bmp = com.silverbp.android.recognition.decodeFileWithExif(outFile)
                 outFile.delete()
-                onResult(bmp)
+                finish(bmp)
             }
             override fun onError(exception: ImageCaptureException) {
                 Log.e("CaptureScreen", "[CaptureView] capture failed", exception)
-                onResult(null)
+                finish(null)
             }
         }
     )

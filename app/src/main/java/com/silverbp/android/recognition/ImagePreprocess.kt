@@ -68,9 +68,29 @@ fun decodeFileWithExif(file: File): Bitmap? {
     }
 }
 
-fun decodeUriWithExif(context: Context, uri: Uri): Bitmap? {
-    val bitmap = context.contentResolver.openInputStream(uri)?.use { 
-        BitmapFactory.decodeStream(it)
+/**
+ * Smallest power-of-2 inSampleSize so the decoded max dimension is ≤ [maxDim].
+ * Pure function (unit-tested); non-positive dimensions decode at full size.
+ */
+fun calculateInSampleSize(width: Int, height: Int, maxDim: Int): Int {
+    if (width <= 0 || height <= 0 || maxDim <= 0) return 1
+    var inSampleSize = 1
+    while (max(width, height) / inSampleSize > maxDim) inSampleSize *= 2
+    return inSampleSize
+}
+
+fun decodeUriWithExif(context: Context, uri: Uri, maxDim: Int = 2048): Bitmap? {
+    // Bounds-only pass first so gallery photos aren't decoded at full
+    // resolution (OOM on large images); then decode with inSampleSize.
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use {
+        BitmapFactory.decodeStream(it, null, bounds)
+    } ?: return null
+    val opts = BitmapFactory.Options().apply {
+        inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxDim)
+    }
+    val bitmap = context.contentResolver.openInputStream(uri)?.use {
+        BitmapFactory.decodeStream(it, null, opts)
     } ?: return null
     return try {
         val orientation = context.contentResolver.openInputStream(uri)?.use {

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.nutrition.FoodItem
 import com.silverbp.android.nutrition.FoodLog
+import com.silverbp.android.nutrition.NutrimentBasis
 import com.silverbp.android.nutrition.NutritionDatabase
 import com.silverbp.android.nutrition.NutritionInputMethod
 import com.silverbp.android.nutrition.NutritionRepository
@@ -37,6 +38,10 @@ class NutritionConfirmViewModel(
     private val _meal = MutableStateFlow<RecognizedMeal?>(null)
     val meal: StateFlow<RecognizedMeal?> = _meal.asStateFlow()
 
+    /** Basis of a freshly scanned barcode draft — drives the per-100g hint. */
+    private val _barcodeBasis = MutableStateFlow<NutrimentBasis?>(null)
+    val barcodeBasis: StateFlow<NutrimentBasis?> = _barcodeBasis.asStateFlow()
+
     private var initialized = false
 
     fun init(idArg: String?) {
@@ -48,7 +53,10 @@ class NutritionConfirmViewModel(
             } else {
                 val m = NutritionDraftHolder.takeMeal()
                 if (m != null) _meal.value = m
-                else _draft.value = NutritionDraftHolder.take() ?: FoodLog()
+                else {
+                    _draft.value = NutritionDraftHolder.take() ?: FoodLog()
+                    _barcodeBasis.value = BarcodeBasisHolder.take()
+                }
             }
         }
     }

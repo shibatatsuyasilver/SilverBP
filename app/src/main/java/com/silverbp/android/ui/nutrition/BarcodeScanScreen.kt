@@ -195,7 +195,10 @@ fun BarcodeScanScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        stringResource(R.string.nutrition_barcode_not_found),
+                        stringResource(
+                            if (p is BarcodePhase.Error) R.string.nutrition_barcode_network_error
+                            else R.string.nutrition_barcode_not_found
+                        ),
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )

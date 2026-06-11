@@ -68,6 +68,13 @@ class NutritionRepository(
     suspend fun delete(id: UUID) {
         val existing = dao.findById(id.toString())
         dao.delete(id.toString())
+        // Best-effort removal of the Health Connect mirror (same gating as the
+        // upsert mirror); only attempted when the log was actually mirrored.
+        if (existing?.hcRecordId != null && healthConnect != null &&
+            runCatching { healthConnectEnabled() }.getOrDefault(false)
+        ) {
+            healthConnect.delete(id.toString())
+        }
         existing?.let { updateDietRollup(Instant.ofEpochMilli(it.timestamp)) }
     }
 

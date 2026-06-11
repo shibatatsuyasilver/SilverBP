@@ -54,8 +54,10 @@ class CaptureFlowViewModel(
                 TAG,
                 "[Capture] recognize() entered, image ${bitmap.width}x${bitmap.height}",
             )
+            // Downsize once up front — error paths below stash the photo into
+            // the draft too, and must not hold the full-resolution bitmap.
+            val downsized = withContext(Dispatchers.Default) { downsample(bitmap, 1024) }
             try {
-                val downsized = withContext(Dispatchers.Default) { downsample(bitmap, 1024) }
                 Log.i(
                     TAG,
                     "[Capture] display=${downsized.width}x${downsized.height} " +
@@ -94,11 +96,11 @@ class CaptureFlowViewModel(
                 Log.i(TAG, "[Capture] lowConfidence ${e.confidence}")
                 _phase.value = CapturePhase.Error("辨識信心度過低 (${(e.confidence * 100).toInt()}%),請重拍或手動輸入")
                 // still allow downstream manual entry with photo attached
-                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = bitmap, source = Source.Manual))
+                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             } catch (e: BpExtractionError.NetworkError) {
                 Log.w(TAG, "[Capture] network error")
                 _phase.value = CapturePhase.Error("無網路連線,請確認連線後再試,或先手動輸入")
-                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = bitmap, source = Source.Manual))
+                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             } catch (e: BpExtractionError.ApiError) {
                 Log.w(TAG, "[Capture] api error ${e.code}")
                 val msg = when (e.code) {
@@ -107,11 +109,11 @@ class CaptureFlowViewModel(
                     else -> "雲端辨識失敗 (HTTP ${e.code}),請重試或先手動輸入"
                 }
                 _phase.value = CapturePhase.Error(msg)
-                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = bitmap, source = Source.Manual))
+                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             } catch (e: Exception) {
                 Log.w(TAG, "[Capture] extract threw: $e")
                 _phase.value = CapturePhase.Error("辨識失敗:${e.message ?: "未知錯誤"}")
-                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = bitmap, source = Source.Manual))
+                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             }
         }
     }

@@ -8,6 +8,16 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 /**
+ * Plan-week length in millis, the upper bound of the current-plan window.
+ * `weekStart` is the local-midnight Monday instant (see
+ * `CoachEngine.generateWeeklyPlan`), so a plan is "current" only while
+ * `weekStart <= now < weekStart + 7d`. Without the upper bound the most
+ * recent plan matched forever and a weeks-old plan kept rendering its
+ * Sunday task as "today" instead of letting regeneration kick in.
+ */
+private const val PLAN_WEEK_MILLIS: Long = 7L * 24 * 60 * 60 * 1000
+
+/**
  * Aggregate row used by [CoachPlanDao.adherenceForRange]. `total` and `done`
  * are SQL counts so we never store an Adherence entity.
  */
@@ -36,10 +46,18 @@ interface CoachPlanDao {
         insertTasks(tasks)
     }
 
-    @Query("SELECT * FROM coach_plan WHERE weekStart <= :nowMillis ORDER BY weekStart DESC LIMIT 1")
+    @Query(
+        "SELECT * FROM coach_plan " +
+            "WHERE weekStart <= :nowMillis AND :nowMillis < weekStart + $PLAN_WEEK_MILLIS " +
+            "ORDER BY weekStart DESC LIMIT 1"
+    )
     fun observeCurrentPlan(nowMillis: Long): Flow<CoachPlanEntity?>
 
-    @Query("SELECT * FROM coach_plan WHERE weekStart <= :nowMillis ORDER BY weekStart DESC LIMIT 1")
+    @Query(
+        "SELECT * FROM coach_plan " +
+            "WHERE weekStart <= :nowMillis AND :nowMillis < weekStart + $PLAN_WEEK_MILLIS " +
+            "ORDER BY weekStart DESC LIMIT 1"
+    )
     suspend fun currentPlan(nowMillis: Long): CoachPlanEntity?
 
     @Query("SELECT * FROM coach_plan ORDER BY weekStart DESC LIMIT :limit")
@@ -143,9 +161,6 @@ interface MedicationDoseDao {
         """
     )
     suspend fun countTakenInRange(from: Long, to: Long): Int
-
-    @Query("SELECT COUNT(*) FROM medication_dose WHERE dayStart >= :from AND dayStart < :to")
-    suspend fun countScheduledInRange(from: Long, to: Long): Int
 
     /**
      * Bulk read used by the cross-device sync source. Ordered by dayStart so

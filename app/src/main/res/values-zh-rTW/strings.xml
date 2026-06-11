@@ -758,6 +758,9 @@
     <string name="nutrition_barcode_hint">將條碼對準畫面中央</string>
     <string name="nutrition_barcode_lookup">查詢中…</string>
     <string name="nutrition_barcode_not_found">查無此商品,可改用手動輸入</string>
+    <string name="nutrition_barcode_network_error">無法連線食品資料庫,請檢查網路後再試</string>
+    <string name="nutrition_barcode_per_100g_hint">以下標示數值為每 100 g/ml 含量,請依實際食用量調整</string>
+    <string name="nutrition_barcode_scaled_serving_hint">營養數值由每 100 g 標示換算為一份的估計值</string>
     <string name="nutrition_barcode_rescan">重新掃描</string>
     <string name="nutrition_overall_confidence">整體信心 %1$d%%</string>
     <string name="nutrition_meal_totals">本餐合計</string>
