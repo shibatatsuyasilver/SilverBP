@@ -324,16 +324,20 @@ fun SettingsScreen(
 
             // Cross-device sync — opens the QR-pairing flow for adding a paired
             // iPhone/Android peer over LAN. End-to-end Noise XK + SAS confirm.
-            StandardCard(title = stringResource(R.string.settings_sync_section)) {
-                Button(
-                    onClick = onOpenSyncPairing,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.settings_sync_pair_button)) }
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    stringResource(R.string.settings_sync_pair_help),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+            // v1.0 隱藏配對入口：持續同步與 LWW 合併尚未完成，正式版先不開放，
+            // 僅在開發版 (BuildConfig.DEBUG) 顯示以便繼續開發。
+            if (BuildConfig.DEBUG) {
+                StandardCard(title = stringResource(R.string.settings_sync_section)) {
+                    Button(
+                        onClick = onOpenSyncPairing,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.settings_sync_pair_button)) }
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        stringResource(R.string.settings_sync_pair_help),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
 
             // Backup / Restore — encrypted .sbpbk snapshot export/import to

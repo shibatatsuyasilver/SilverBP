@@ -37,6 +37,9 @@ import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.backup.auto.AutoBackupScheduler
 import com.silverbp.android.backup.auto.GoogleAuthClient
 import com.silverbp.android.backup.auto.GoogleDriveBackupClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import com.silverbp.android.sync.AchievementSyncMapper
@@ -90,6 +93,14 @@ object ServiceLocator {
 
     /** Process-wide app-lock UI state for the opt-in biometric gate. */
     val lockManager: LockManager by lazy { LockManager() }
+
+    /**
+     * Process-lifetime scope for「必須跑完」的背景工作(例如備份還原).
+     * 跟 viewModelScope 不同,使用者離開畫面不會取消正在進行的工作.
+     */
+    val applicationScope: CoroutineScope by lazy {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
 
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 

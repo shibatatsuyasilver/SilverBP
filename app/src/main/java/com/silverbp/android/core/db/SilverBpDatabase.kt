@@ -1,11 +1,13 @@
 package com.silverbp.android.core.db
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.silverbp.android.security.DbCipherMigration
 import com.silverbp.android.security.DbKeyStore
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
@@ -61,6 +63,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
 
     companion object {
         const val DB_NAME = "silverbp.db"
+        private const val TAG = "SilverBpDatabase"
 
         @Volatile private var instance: SilverBpDatabase? = null
 
@@ -107,14 +110,37 @@ abstract class SilverBpDatabase : RoomDatabase() {
             // touches the file. When absent (default / never opted in) the
             // builder is left untouched → plain SQLite, zero behaviour change.
             // The Room MIGRATION_* chain still runs, just inside the cipher DB.
-            val keyStore = DbKeyStore.create(appContext)
-            if (keyStore.isDbEncrypted()) {
-                System.loadLibrary("sqlcipher")
-                builder.openHelperFactory(
-                    SupportOpenHelperFactory(
-                        keyStore.getOrCreatePassphrase().toByteArray(Charsets.US_ASCII),
-                    ),
+            //
+            // DbKeyStore.create can throw on real devices even for users who
+            // never opted in (KeyStoreException after an OTA, AEADBadTagException
+            // on a corrupt keyset — same reason SilverBpBackupAgent wraps it),
+            // so it must never take startup down unconditionally. On failure the
+            // file itself is the most robust signal of the at-rest state (the
+            // broken keystore can't be consulted): a plaintext / missing file →
+            // open plain and log (the common never-opted-in case); ciphertext →
+            // rethrow, because opening it without the key cannot work and
+            // silently recreating the DB would destroy health data.
+            val keyStoreResult = runCatching { DbKeyStore.create(appContext) }
+            val keyStore = keyStoreResult.getOrNull()
+            if (keyStore != null) {
+                // Repair a swap interrupted by process death BEFORE Room opens
+                // the file (cheap: one File.exists() in the normal path).
+                DbCipherMigration.reconcileSwapOnStartup(appContext, keyStore)
+                if (keyStore.isDbEncrypted()) {
+                    System.loadLibrary("sqlcipher")
+                    builder.openHelperFactory(
+                        SupportOpenHelperFactory(
+                            keyStore.getOrCreatePassphrase().toByteArray(Charsets.US_ASCII),
+                        ),
+                    )
+                }
+            } else if (DbCipherMigration.looksEncrypted(appContext.getDatabasePath(DB_NAME))) {
+                throw IllegalStateException(
+                    "$DB_NAME is SQLCipher ciphertext but DbKeyStore is unavailable",
+                    keyStoreResult.exceptionOrNull(),
                 )
+            } else {
+                Log.w(TAG, "DbKeyStore unavailable — opening plain DB", keyStoreResult.exceptionOrNull())
             }
 
             return builder.build()

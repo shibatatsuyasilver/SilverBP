@@ -56,8 +56,20 @@ class StrengthWorkoutLiveStore {
     private val _flow = MutableStateFlow<StrengthWorkoutLive?>(null)
     val flow: StateFlow<StrengthWorkoutLive?> = _flow.asStateFlow()
 
-    /** Begin a workout from the chosen exercises (no sets logged yet). */
-    fun start(exercises: List<ExerciseCatalogItem>, startedAtMillis: Long = System.currentTimeMillis()) {
+    /**
+     * Begin a workout from the chosen exercises (no sets logged yet).
+     *
+     * Refuses (returns false) while a live session exists — Running, or
+     * Finished but not yet saved/discarded — so logged sets are never silently
+     * wiped. Callers must confirm with the user and [clear] explicitly before
+     * restarting (see the resume dialog in
+     * [com.silverbp.android.ui.exercise.StrengthLibrarySection]).
+     *
+     * Known limitation: state is in-memory only, so it is lost on process
+     * death. A cardio-style persisted checkpoint for strength is a v1.1 item.
+     */
+    fun start(exercises: List<ExerciseCatalogItem>, startedAtMillis: Long = System.currentTimeMillis()): Boolean {
+        if (_flow.value != null) return false
         _flow.value = StrengthWorkoutLive(
             id = UUID.randomUUID().toString(),
             startedAtMillis = startedAtMillis,
@@ -67,6 +79,7 @@ class StrengthWorkoutLiveStore {
             note = "",
             difficulty = null,
         )
+        return true
     }
 
     /** Move focus to another exercise in the workout. */

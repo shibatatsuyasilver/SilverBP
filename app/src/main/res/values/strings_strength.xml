@@ -31,6 +31,13 @@
     <string name="strength_session_finish">結束訓練</string>
     <string name="strength_session_empty">沒有進行中的訓練</string>
 
+    <!-- Strength: resume-or-discard dialog (live session already exists) -->
+    <string name="strength_resume_title">有尚未完成的訓練</string>
+    <string name="strength_resume_message">上一次的訓練還沒儲存。要繼續上次訓練,還是捨棄並開始新訓練?</string>
+    <string name="strength_resume_continue">繼續上次訓練</string>
+    <string name="strength_resume_discard">捨棄並開始新訓練</string>
+    <string name="strength_resume_cancel">取消</string>
+
     <!-- Strength: workout summary -->
     <string name="strength_summary_title">訓練完成</string>
     <string name="strength_summary_total_sets">共完成 %1$d 組</string>

@@ -1,6 +1,7 @@
 package com.silverbp.android.backup
 
 import android.util.Log
+import androidx.room.withTransaction
 import com.silverbp.android.core.db.SilverBpDatabase
 import com.silverbp.android.sync.CombinedRoomSyncSink
 import com.silverbp.android.sync.CombinedRoomSyncSource
@@ -8,6 +9,7 @@ import com.silverbp.android.sync.SettingsKvSyncMapper
 import com.silverbp.android.sync.engine.HlcClock
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -220,24 +222,31 @@ class BackupManager(
             }
             _importPhase.value = Phase.Encoding(1f)
 
-            // 5. (可選) Replace 模式: 在 transaction 內清空 sync 表.
-            if (mode == ImportMode.Replace) {
-                clearSyncTables()
-            }
-
-            // 6. 套用每筆 record. SETTINGS_KV 走 settingsKvMapper,其他走 sink.
+            // 5+6. 在「同一個」transaction 內 (Replace 模式) 清空 sync 表並套用每筆
+            // record. SETTINGS_KV 走 settingsKvMapper,其他走 sink. 全包在一個
+            // withTransaction 是資料安全的關鍵:若中途失敗或 coroutine 被取消,
+            // Room 會整體回滾,不會留下「已清空但只匯入一半」的狀態.
             _importPhase.value = Phase.Writing
             val sink = sinkFactory()
             var appliedCount = 0
             var skippedCount = 0
-            for (record in records) {
-                try {
-                    sink.apply(record)
-                    hlcClock.observe(record.hlc) // 推進高水位線
-                    appliedCount++
-                } catch (t: Throwable) {
-                    skippedCount++
-                    Log.w(TAG, "skip record ${record.type} pk=${record.pk}: $t")
+            database.withTransaction {
+                if (mode == ImportMode.Replace) {
+                    clearSyncTables()
+                }
+                for (record in records) {
+                    try {
+                        sink.apply(record)
+                        hlcClock.observe(record.hlc) // 推進高水位線
+                        appliedCount++
+                    } catch (e: CancellationException) {
+                        // 取消必須往外丟,讓 withTransaction 回滾;吞掉會把剩餘
+                        // record 全當成 skipped,造成靜默資料遺失.
+                        throw e
+                    } catch (t: Throwable) {
+                        skippedCount++
+                        Log.w(TAG, "skip record ${record.type} pk=${record.pk}: $t")
+                    }
                 }
             }
             if (skippedCount > 0) {
@@ -281,37 +290,39 @@ class BackupManager(
         entropy.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
 
     /**
-     * Replace 模式: 在 transaction 內清空 21 個 sync 表 + tombstones.
+     * Replace 模式: 清空 22 個 sync 表 + tombstones.
      * 不碰 sync_device / sync_outbox(LAN 配對狀態) 與 user_settings DataStore.
+     *
+     * 呼叫端([import])已經在 Room withTransaction 內,這裡不再自己開
+     * transaction — 這樣失敗/取消時清空與套用會一起回滾.
      */
     private fun clearSyncTables() {
-        database.runInTransaction {
-            val db = database.openHelper.writableDatabase
-            // CASCADE 會帶走子表(route_point, medication_schedule, coach_task,
-            // set_log, chat_message, reading_tag),所以順序不嚴格但這樣寫比較清楚.
-            db.execSQL("DELETE FROM reading_tag")
-            db.execSQL("DELETE FROM tag")
-            db.execSQL("DELETE FROM route_point")
-            db.execSQL("DELETE FROM exercise_session")
-            db.execSQL("DELETE FROM medication_schedule")
-            db.execSQL("DELETE FROM medication_dose")
-            db.execSQL("DELETE FROM medication")
-            db.execSQL("DELETE FROM daily_step_log")
-            db.execSQL("DELETE FROM achievement")
-            db.execSQL("DELETE FROM coach_task")
-            db.execSQL("DELETE FROM coach_plan")
-            db.execSQL("DELETE FROM sleep_log")
-            db.execSQL("DELETE FROM diet_check")
-            db.execSQL("DELETE FROM set_log")
-            db.execSQL("DELETE FROM strength_workout_session")
-            db.execSQL("DELETE FROM exercise_catalog_item")
-            db.execSQL("DELETE FROM bp_workout_association")
-            db.execSQL("DELETE FROM chat_message")
-            db.execSQL("DELETE FROM chat_session")
-            db.execSQL("DELETE FROM bp_reading")
-            db.execSQL("DELETE FROM user_profile")
-            db.execSQL("DELETE FROM tombstone")
-        }
+        val db = database.openHelper.writableDatabase
+        // CASCADE 會帶走子表(route_point, medication_schedule, coach_task,
+        // set_log, chat_message, reading_tag),所以順序不嚴格但這樣寫比較清楚.
+        db.execSQL("DELETE FROM reading_tag")
+        db.execSQL("DELETE FROM tag")
+        db.execSQL("DELETE FROM route_point")
+        db.execSQL("DELETE FROM exercise_session")
+        db.execSQL("DELETE FROM medication_schedule")
+        db.execSQL("DELETE FROM medication_dose")
+        db.execSQL("DELETE FROM medication")
+        db.execSQL("DELETE FROM daily_step_log")
+        db.execSQL("DELETE FROM achievement")
+        db.execSQL("DELETE FROM coach_task")
+        db.execSQL("DELETE FROM coach_plan")
+        db.execSQL("DELETE FROM sleep_log")
+        db.execSQL("DELETE FROM diet_check")
+        db.execSQL("DELETE FROM food_log")
+        db.execSQL("DELETE FROM set_log")
+        db.execSQL("DELETE FROM strength_workout_session")
+        db.execSQL("DELETE FROM exercise_catalog_item")
+        db.execSQL("DELETE FROM bp_workout_association")
+        db.execSQL("DELETE FROM chat_message")
+        db.execSQL("DELETE FROM chat_session")
+        db.execSQL("DELETE FROM bp_reading")
+        db.execSQL("DELETE FROM user_profile")
+        db.execSQL("DELETE FROM tombstone")
     }
 
     companion object {

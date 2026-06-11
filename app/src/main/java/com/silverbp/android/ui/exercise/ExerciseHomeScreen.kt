@@ -56,6 +56,7 @@ import com.silverbp.android.coach.WorkoutBpGate
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
+import com.silverbp.android.exercise.RunState
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.strength.StrengthWorkoutSession
 import com.silverbp.android.ui.achievements.MedalUnlockBannerHost
@@ -85,12 +86,16 @@ fun ExerciseHomeScreen(
     onCaptureMachine: () -> Unit,
     onOpenDetail: (String) -> Unit,
     onOpenMedals: () -> Unit,
+    onOpenSummary: () -> Unit,
     vm: ExerciseHomeViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     var section by remember { mutableIntStateOf(0) }
 
     val recoverable by vm.recoverable.collectAsStateWithLifecycle()
+    // 還原檢查點同樣需要精確位置權限,否則前景服務在 Android 14+ 會崩潰。
+    // 重用 Start 流程的權限請求,缺少時請求後再還原;使用者拒絕則保留檢查點。
+    val (recoverPerm, requestRecoverPerm) = rememberExercisePermissionState()
 
     LifecycleResumeEffect(Unit) {
         ServiceLocator.achievementStore.launchRefresh()
@@ -102,13 +107,27 @@ fun ExerciseHomeScreen(
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             if (recoverable != null) {
+                // Finished 檢查點:運動已停止、只差摘要頁儲存就被殺 — 不需重新
+                // 追蹤,因此不請求位置權限,直接還原並導向摘要頁儲存或捨棄。
+                val finished = recoverable!!.runState == RunState.Finished
                 Box(Modifier.padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap)) {
                     RecoverSessionCard(
+                        // 缺精確位置權限時先請求;授權後才還原並開啟運動畫面,
+                        // 拒絕則 onReady 不觸發,檢查點原封不動留待重試。
+                        locationDenied = !finished && recoverPerm.locationDenied,
                         onResume = {
-                            vm.resumeRecoverable()
-                            onStartSession()
+                            if (finished) {
+                                vm.resumeRecoverable()
+                                onOpenSummary()
+                            } else {
+                                requestRecoverPerm {
+                                    vm.resumeRecoverable()
+                                    onStartSession()
+                                }
+                            }
                         },
                         onDiscard = vm::discardRecoverable,
+                        onOpenSettings = recoverPerm::openAppSettings,
                     )
                 }
             }
@@ -148,12 +167,26 @@ fun ExerciseHomeScreen(
 }
 
 @Composable
-private fun RecoverSessionCard(onResume: () -> Unit, onDiscard: () -> Unit) {
+private fun RecoverSessionCard(
+    locationDenied: Boolean,
+    onResume: () -> Unit,
+    onDiscard: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     StandardCard(title = stringResource(R.string.exercise_recover_title)) {
         Text(
             stringResource(R.string.exercise_recover_body),
             style = MaterialTheme.typography.bodyMedium,
         )
+        // 使用者已拒絕位置權限:無法還原 GPS 紀錄,引導至系統設定。
+        if (locationDenied) {
+            Spacer(Modifier.height(AppSpacing.tight))
+            Text(
+                stringResource(R.string.exercise_recover_location_denied),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         Spacer(Modifier.height(AppSpacing.tight))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -162,8 +195,14 @@ private fun RecoverSessionCard(onResume: () -> Unit, onDiscard: () -> Unit) {
             OutlinedButton(onClick = onDiscard, modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.exercise_discard))
             }
-            Button(onClick = onResume, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.exercise_resume))
+            if (locationDenied) {
+                OutlinedButton(onClick = onOpenSettings, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.exercise_settings_open_app_settings))
+                }
+            } else {
+                Button(onClick = onResume, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.exercise_resume))
+                }
             }
         }
     }

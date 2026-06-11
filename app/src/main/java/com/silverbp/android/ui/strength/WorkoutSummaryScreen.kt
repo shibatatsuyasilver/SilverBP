@@ -37,6 +37,13 @@ import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.exercise.PostWorkoutBpCard
 import com.silverbp.android.ui.theme.AppSpacing
 
+/**
+ * System back deliberately stays unhandled here: it leaves the Finished
+ * snapshot in the live store, and the strength library's resume dialog routes
+ * the user back to this summary (via the session route's Finished forward).
+ * Only 儲存/捨棄 clear the store. Known limitation: the snapshot is in-memory
+ * only and lost on process death (cardio-style checkpoint is a v1.1 item).
+ */
 @Composable
 fun WorkoutSummaryScreen(
     onSaved: () -> Unit,

@@ -556,7 +556,9 @@
     <string name="backup_auto_switch_account">Switch account</string>
     <string name="backup_auto_disconnect">Disconnect</string>
     <string name="backup_auto_disconnect_title">Disconnect Google?</string>
-    <string name="backup_auto_disconnect_msg">Auto-backup will turn off. Existing files in Drive are kept, but SilverBP can no longer upload new ones.</string>
+    <string name="backup_auto_disconnect_msg">Auto-backup will turn off and SilverBP can no longer upload new backups.</string>
+    <string name="backup_auto_disconnect_delete_cloud">Also delete cloud backups</string>
+    <string name="backup_auto_delete_cloud_failed">Couldn\'t delete cloud backups. You can revoke SilverBP\'s access in your Google account settings.</string>
     <string name="backup_auto_frequency_label">Backup frequency</string>
     <string name="backup_auto_freq_off">Off</string>
     <string name="backup_auto_freq_daily">Daily</string>

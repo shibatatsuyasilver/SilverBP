@@ -50,9 +50,13 @@ class ExerciseController(
      * re-seat it into the LiveStore (Paused) and re-attach the foreground
      * service. The session screen then shows it; the user taps Resume to keep
      * going.
+     *
+     * Finished 檢查點(摘要頁儲存前被殺)只是等待儲存的成品:不重啟
+     * GPS/前景服務(也就不需要位置權限),呼叫端直接導向摘要頁儲存即可。
      */
     fun restore(live: SessionLive) {
         liveStore.restore(live)
+        if (live.runState == RunState.Finished) return
         val intent = Intent(context, LocationTrackingService::class.java).apply {
             action = LocationTrackingService.ACTION_RESTORE
         }

@@ -407,20 +407,35 @@ fun BackupScreen(
                     }
                 },
             )
-            Dialog.DisconnectConfirm -> AlertDialog(
-                onDismissRequest = { dialog = Dialog.None },
-                title = { Text(stringResource(R.string.backup_auto_disconnect_title)) },
-                text = { Text(stringResource(R.string.backup_auto_disconnect_msg)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        vm.disconnectGoogle()
-                        dialog = Dialog.None
-                    }) { Text(stringResource(R.string.backup_auto_disconnect)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { dialog = Dialog.None }) { Text(stringResource(R.string.cancel)) }
-                },
-            )
+            Dialog.DisconnectConfirm -> {
+                // 預設勾選 — 使用者直覺上「解除連結 = 把我的資料拿掉」.
+                var deleteCloud by remember { mutableStateOf(true) }
+                AlertDialog(
+                    onDismissRequest = { dialog = Dialog.None },
+                    title = { Text(stringResource(R.string.backup_auto_disconnect_title)) },
+                    text = {
+                        Column {
+                            Text(stringResource(R.string.backup_auto_disconnect_msg))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = deleteCloud,
+                                    onCheckedChange = { deleteCloud = it },
+                                )
+                                Text(stringResource(R.string.backup_auto_disconnect_delete_cloud))
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            vm.disconnectGoogle(deleteCloudBackups = deleteCloud)
+                            dialog = Dialog.None
+                        }) { Text(stringResource(R.string.backup_auto_disconnect)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { dialog = Dialog.None }) { Text(stringResource(R.string.cancel)) }
+                    },
+                )
+            }
             Dialog.DriveRestore -> DriveRestoreDialog(
                 vm = vm,
                 onDismiss = {

@@ -88,13 +88,13 @@ fun AppNavHost() {
         }
     }
 
-    // Chained second gate (Phase 5): once onboarding is satisfied, require a
-    // linked Google account so data is backed up to Drive. Hard gate — a user
-    // without a Google account cannot pass. Chained AFTER needsOnboarding so it
-    // never fires while still un-onboarded; once googleAccountEmail is set it
-    // becomes false and never re-fires.
+    // Chained second gate (Phase 5): once onboarding is satisfied, prompt for a
+    // linked Google account so data is backed up to Drive. Soft gate — a user
+    // who can't or won't sign in can tap 「稍後再說」, which sets skippedGoogleLink
+    // so this never re-fires. Chained AFTER needsOnboarding so it never fires
+    // while still un-onboarded; once googleAccountEmail is set it becomes false.
     val needsGoogleSignIn: Boolean? = rootSettings?.let {
-        needsOnboarding == false && it.googleAccountEmail.isBlank()
+        needsOnboarding == false && it.googleAccountEmail.isBlank() && !it.skippedGoogleLink
     }
     LaunchedEffect(needsGoogleSignIn) {
         if (needsGoogleSignIn == true) {
@@ -207,6 +207,9 @@ fun AppNavHost() {
                         popUpTo(Routes.STRENGTH_SESSION) { inclusive = true }
                     }
                 },
+                // Back keeps the live session in the store; the strength
+                // library's resume dialog is the re-entry path.
+                onClose = { rootNav.popBackStack() },
             )
         }
         composable(Routes.STRENGTH_SUMMARY) {
@@ -450,6 +453,8 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onCaptureMachine = { rootNav.navigate(Routes.MACHINE_CAPTURE) },
             onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
             onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
+            // Finished 檢查點的還原路徑:跳過運動畫面,直接進摘要頁儲存。
+            onOpenSummary = { rootNav.navigate(Routes.EXERCISE_SUMMARY) },
         )
     }
     composable(TabDestination.Data.route) {

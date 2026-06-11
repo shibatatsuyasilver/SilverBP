@@ -54,33 +54,45 @@ class DbKeyStore(
     /**
      * Returns the existing passphrase, creating + persisting a fresh one
      * (Base64 of 32 CSPRNG bytes) on first call.
+     *
+     * Persisted with synchronous `commit()`: this string is the only way to
+     * open an encrypted DB, so it must be on disk before the migration
+     * encrypts anything — an `apply()` lost to process death would strand the
+     * freshly-encrypted data forever.
      */
     fun getOrCreatePassphrase(): String {
         passphraseOrNull()?.let { return it }
         val bytes = ByteArray(PASSPHRASE_BYTES).also { random.nextBytes(it) }
         val b64 = Base64.getEncoder().encodeToString(bytes)
-        prefs.edit().putString(KEY_PASSPHRASE, b64).apply()
+        prefs.edit().putString(KEY_PASSPHRASE, b64).commit()
         return b64
     }
 
     /**
      * Flip the "DB is encrypted" marker. Called by the migration engine
-     * **only after** a verified atomic swap (encrypt) or restore (decrypt).
+     * **only after** a verified atomic swap (encrypt) or restore (decrypt),
+     * and by [DbCipherMigration.reconcileSwapOnStartup] when repairing an
+     * interrupted swap.
+     *
+     * Synchronous `commit()`: this marker gates how Room opens the file, so
+     * it must never lag the on-disk state across process death — an `apply()`
+     * lost mid-flush left plain SQLite opening ciphertext → crash loop.
      */
     fun setDbEncrypted(value: Boolean) {
-        prefs.edit().putBoolean(KEY_ENCRYPTED, value).apply()
+        prefs.edit().putBoolean(KEY_ENCRYPTED, value).commit()
     }
 
     /**
      * Opt-out cleanup: drop the passphrase + marker. Call **only after** the
      * DB has been verifiably decrypted back to plaintext, otherwise the data
-     * becomes unrecoverable.
+     * becomes unrecoverable. Synchronous `commit()` for the same reason as
+     * [setDbEncrypted] — the marker gates DB-open behaviour.
      */
     fun clear() {
         prefs.edit()
             .remove(KEY_PASSPHRASE)
             .remove(KEY_ENCRYPTED)
-            .apply()
+            .commit()
     }
 
     companion object {

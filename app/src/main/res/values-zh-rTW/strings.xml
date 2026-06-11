@@ -556,7 +556,9 @@
     <string name="backup_auto_switch_account">切換帳號</string>
     <string name="backup_auto_disconnect">解除連結</string>
     <string name="backup_auto_disconnect_title">解除 Google 連結?</string>
-    <string name="backup_auto_disconnect_msg">自動備份會關閉. Drive 上既有的備份檔不會被刪除, 但這個 App 之後無法上傳新檔.</string>
+    <string name="backup_auto_disconnect_msg">自動備份會關閉, 這個 App 之後無法上傳新檔.</string>
+    <string name="backup_auto_disconnect_delete_cloud">同時刪除雲端備份</string>
+    <string name="backup_auto_delete_cloud_failed">雲端備份刪除失敗, 可至 Google 帳號設定撤銷存取.</string>
     <string name="backup_auto_frequency_label">備份頻率</string>
     <string name="backup_auto_freq_off">關閉</string>
     <string name="backup_auto_freq_daily">每日</string>

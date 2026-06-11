@@ -6,6 +6,7 @@ import android.app.backup.BackupDataOutput
 import android.app.backup.FullBackupDataOutput
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.security.DbKeyStore
 import java.io.File
 
@@ -65,6 +66,22 @@ class SilverBpBackupAgent : BackupAgent() {
         }
 
         // 走非加密 DB 路徑.
+        //
+        // 自訂 backupAgent 表示 app process 是活的 — Application.onCreate 跑了,
+        // coroutine 還在寫 DB. 逐檔複製 .db/-wal/-shm 時若中間發生寫入,快照會
+        // 撕裂(torn),還原時 SQLite 偵測到 corruption,Room 預設 handler 直接抹掉
+        // 整個 DB. 在複製前強制一次 full WAL checkpoint(TRUNCATE): 把 -wal 清空、
+        // 讓 .db 自洽,緊接著馬上複製,把撕裂窗口縮到接近零.
+        //
+        // 註: backup agent 內無法對 DB 上完整鎖(沒有可掛的事務邊界 API),所以這
+        // 只是縮小窗口而非消除;checkpoint 後立即複製是這裡能做到的最佳保證.
+        runCatching {
+            ServiceLocator.init(applicationContext)
+            val db = ServiceLocator.database.openHelper.writableDatabase
+            // 讀 cursor 才會真正執行 pragma.
+            db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+        }.onFailure { Log.w(TAG, "WAL checkpoint before backup failed: $it") }
+
         val dbDir = File(applicationInfo.dataDir, "databases")
         listOf("silverbp.db", "silverbp.db-wal", "silverbp.db-shm").forEach { name ->
             val file = File(dbDir, name)

@@ -14,6 +14,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.silverbp.android.R
 import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.backup.RecoveryCode
 import com.silverbp.android.backup.RecoveryCodeStore
@@ -150,7 +151,9 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         passphrase: String?,
         mode: BackupManager.ImportMode = BackupManager.ImportMode.Merge,
     ) {
-        viewModelScope.launch {
+        // 還原跑在 applicationScope — 離開畫面不會取消匯入,避免 Replace 模式
+        // 中途取消導致回滾整批還原. 進度仍經由 importPhase StateFlow 回到 UI.
+        ServiceLocator.applicationScope.launch {
             // See note on export() — BackupManager already surfaces failure
             // via importPhase + PhaseRow; the rethrow from BackupManager.import
             // would otherwise crash the process when keystore unwrap fails
@@ -238,11 +241,46 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         settings.setGoogleAccount(user.email, user.permissionId)
     }
 
-    fun disconnectGoogle() {
-        viewModelScope.launch {
+    /**
+     * 解除 Google 連結. [deleteCloudBackups] = true(UI 預設勾選)時先盡力
+     * 刪掉 appDataFolder 內所有備份檔再解除. 跑在 applicationScope —
+     * 雲端刪除 + 清帳號必須跑完,不能因離開畫面被取消.
+     */
+    fun disconnectGoogle(deleteCloudBackups: Boolean = false) {
+        ServiceLocator.applicationScope.launch {
+            if (deleteCloudBackups) {
+                deleteAllCloudBackups()
+            }
             scheduler.cancel()
             settings.setAutoBackupFrequency(AutoBackupFrequency.Off)
             settings.clearGoogleAccount()
+            // Mark the link as skipped so clearing the account here doesn't
+            // re-trigger the first-launch sign-in gate and eject the user.
+            settings.setSkippedGoogleLink(true)
+        }
+    }
+
+    /**
+     * Best-effort 刪除雲端所有備份檔. 拿不到 token(例如離線)或任一檔刪除
+     * 失敗時提示使用者備份仍留在 Drive,但不阻止後續解除連結.
+     */
+    private suspend fun deleteAllCloudBackups() {
+        val allDeleted = runCatching {
+            val email = settings.flow.first().googleAccountEmail
+            if (email.isBlank()) return
+            val token = when (val r = auth.requestDriveToken(email)) {
+                is GoogleAuthClient.TokenResult.Granted -> r.accessToken
+                else -> error("需重新連結 Google 帳號")
+            }
+            // 逐檔 runCatching — 單檔失敗不擋下一檔,盡量刪乾淨.
+            withContext(Dispatchers.IO) {
+                drive.listBackups(token)
+                    .map { file -> runCatching { drive.deleteFile(file.id, token) }.isSuccess }
+                    .all { it }
+            }
+        }.getOrDefault(false)
+        if (!allDeleted) {
+            emitError(ctx.getString(R.string.backup_auto_delete_cloud_failed))
         }
     }
 
@@ -305,7 +343,8 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         passphrase: String?,
         mode: BackupManager.ImportMode = BackupManager.ImportMode.Merge,
     ) {
-        viewModelScope.launch {
+        // 同 import() — 還原必須跑完,用 applicationScope.
+        ServiceLocator.applicationScope.launch {
             val email = settings.flow.first().googleAccountEmail
             if (email.isBlank()) {
                 emitError("尚未連結 Google 帳號")

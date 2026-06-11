@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.strength
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +48,7 @@ import com.silverbp.android.R
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.strength.LiveExercise
 import com.silverbp.android.strength.SetLog
+import com.silverbp.android.strength.StrengthRunState
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.delay
@@ -54,15 +56,28 @@ import kotlinx.coroutines.delay
 @Composable
 fun WorkoutSessionScreen(
     onFinished: () -> Unit,
+    onClose: () -> Unit,
     vm: WorkoutSessionViewModel = viewModel(),
 ) {
     val live by vm.state.collectAsStateWithLifecycle()
+
+    // System back is a deliberate exit that leaves the live session in the
+    // store — no data is destroyed; the library's resume dialog offers re-entry.
+    BackHandler { onClose() }
 
     val workout = live
     if (workout == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(stringResource(R.string.strength_session_empty))
         }
+        return
+    }
+
+    // A Finished-but-unsaved snapshot (user backed out of the summary, or
+    // re-entered via the resume dialog) belongs on the summary screen — the
+    // snapshot can no longer be edited here.
+    if (workout.runState == StrengthRunState.Finished) {
+        LaunchedEffect(Unit) { onFinished() }
         return
     }
 
@@ -138,8 +153,9 @@ fun WorkoutSessionScreen(
 
         Button(
             onClick = {
+                // Marks the run Finished; the Finished forward above then
+                // navigates to the summary — single navigation path.
                 vm.finish()
-                onFinished()
             },
             modifier = Modifier
                 .fillMaxWidth()
