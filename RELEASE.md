@@ -65,6 +65,18 @@ Output: `app/build/outputs/bundle/release/app-release.aab`.
 - Upload the AAB to the **Closed testing** track first.
 - Complete (if not already): Data Safety form, feature graphic 1024×500,
   ≥2 screenshots, store listing in **en** + **zh-TW**, IARC content rating.
+- **Health apps declaration** (App content → Health): must be **submitted and
+  APPROVED** before production. Justify each of the 8 `android.permission.health.*`
+  permissions (WRITE_BLOOD_PRESSURE / WRITE_EXERCISE / WRITE_EXERCISE_ROUTE /
+  WRITE_NUTRITION / READ_STEPS / READ_SLEEP / READ_NUTRITION /
+  READ_HEALTH_DATA_IN_BACKGROUND) and set the app category to **Health & Fitness**.
+  審核可能需要數天到數週,**請及早提交**。
+- **Foreground service permissions declaration** (targetSdk 34+): declare
+  `FOREGROUND_SERVICE_LOCATION` with a feature description + a **demo video** of
+  the user-initiated GPS exercise tracking (前景定位只在使用者主動開始運動 session 時啟動).
+- Verify the **Data Safety** form covers Location, Microphone,
+  `ACTIVITY_RECOGNITION`, camera, and health data — declared as **stored
+  on-device** with an **optional end-to-end-encrypted Google Drive backup**.
 - Closed testing needs **12 testers for 14 continuous days** before production.
 - Staged rollout for production: 10% → 50% → 100% over ~1 week (elderly user base
   — catch regressions before full reach).

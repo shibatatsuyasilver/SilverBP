@@ -88,9 +88,18 @@ class LocationTrackingService : LifecycleService() {
             ACTION_RESTORE -> {
                 // liveStore already holds the checkpoint-recovered (Paused)
                 // session; re-attach GPS/steps without creating a new session.
-                if (!trackingStarted && liveStore.flow.value != null) {
-                    beginTracking()
-                    liveStore.persist()
+                // 若位置權限在背景被撤銷,fail safe:直接停止,保留檢查點讓使用者
+                // 授權後重試,而非讓 startForeground 在 Android 14+ 拋出例外崩潰。
+                // Finished 檢查點(只等摘要頁儲存)不會由 Controller 啟動本服務;
+                // 萬一仍收到,無事可追蹤(也不得要求位置權限),直接停止。
+                val live = liveStore.flow.value
+                if (!trackingStarted && live != null) {
+                    if (live.runState != RunState.Finished && hasFineLocation()) {
+                        beginTracking()
+                        liveStore.persist()
+                    } else {
+                        stopSelf()
+                    }
                 }
             }
             ACTION_PAUSE -> { liveStore.pause(); liveStore.persist() }
@@ -114,7 +123,13 @@ class LocationTrackingService : LifecycleService() {
 
     /** Bring up the foreground notification + GPS/steps. Returns false (and stops) on permission loss. */
     private fun beginTracking(): Boolean {
-        ensureForeground()
+        if (!ensureForeground()) {
+            // startForeground 在缺少位置權限時於 Android 14+ 拋出 SecurityException;
+            // 視同權限遺失,保留檢查點並停止服務而非崩潰。
+            liveStore.setError(LiveError.LocationPermissionRevoked)
+            stopSelf()
+            return false
+        }
         return if (startLocationUpdates()) {
             startStepCounter()
             startNotificationRefresh()
@@ -129,18 +144,29 @@ class LocationTrackingService : LifecycleService() {
         }
     }
 
-    private fun ensureForeground() {
+    /** Returns true if the foreground notification was raised; false if it was rejected (e.g. revoked location permission on Android 14+). */
+    private fun ensureForeground(): Boolean {
         val notification = ExerciseNotification.build(this, liveStore.flow.value)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                ExerciseNotification.NOTIF_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
-            )
-        } else {
-            startForeground(ExerciseNotification.NOTIF_ID, notification)
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    ExerciseNotification.NOTIF_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+                )
+            } else {
+                startForeground(ExerciseNotification.NOTIF_ID, notification)
+            }
+            true
+        } catch (_: SecurityException) {
+            false
         }
     }
+
+    /** True when ACCESS_FINE_LOCATION is granted; coarse-only counts as missing (the 50 m accuracy gate filters every coarse fix). */
+    private fun hasFineLocation(): Boolean =
+        checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
 
     /** Returns true if updates were requested; false (and surfaces an error) on permission loss. */
     private fun startLocationUpdates(): Boolean {

@@ -42,6 +42,7 @@ class UserSettingsRepository(private val context: Context) {
         val APP_THEME_MODE = stringPreferencesKey("app_theme_mode")
         val HC = booleanPreferencesKey("enable_health_connect")
         val ONBOARD = booleanPreferencesKey("did_onboard")
+        val SKIPPED_GOOGLE_LINK = booleanPreferencesKey("skipped_google_link")
         val MODEL_DOWNLOADED = booleanPreferencesKey("model_downloaded")
         val BACKEND = stringPreferencesKey("recognition_backend")
         val MODEL_ID = stringPreferencesKey("selected_model_id")
@@ -96,6 +97,7 @@ class UserSettingsRepository(private val context: Context) {
             appThemeMode = AppThemeMode.fromRaw(prefs[Keys.APP_THEME_MODE]),
             enableHealthConnect = prefs[Keys.HC] ?: false,
             didOnboard = prefs[Keys.ONBOARD] ?: false,
+            skippedGoogleLink = prefs[Keys.SKIPPED_GOOGLE_LINK] ?: false,
             modelDownloaded = prefs[Keys.MODEL_DOWNLOADED] ?: false,
             recognitionBackend = prefs[Keys.BACKEND]
                 ?.let { RecognitionBackend.fromRaw(it) }
@@ -152,6 +154,9 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setDidOnboard(value: Boolean) {
         context.dataStore.edit { it[Keys.ONBOARD] = value }
+    }
+    suspend fun setSkippedGoogleLink(value: Boolean) {
+        context.dataStore.edit { it[Keys.SKIPPED_GOOGLE_LINK] = value }
     }
     suspend fun setModelDownloaded(value: Boolean) {
         context.dataStore.edit { it[Keys.MODEL_DOWNLOADED] = value }
@@ -362,6 +367,7 @@ class UserSettingsRepository(private val context: Context) {
         // booleans
         prefs[Keys.HC]?.let { out[Keys.HC.name] = KvValue.B(it) }
         prefs[Keys.ONBOARD]?.let { out[Keys.ONBOARD.name] = KvValue.B(it) }
+        prefs[Keys.SKIPPED_GOOGLE_LINK]?.let { out[Keys.SKIPPED_GOOGLE_LINK.name] = KvValue.B(it) }
         prefs[Keys.MODEL_DOWNLOADED]?.let { out[Keys.MODEL_DOWNLOADED.name] = KvValue.B(it) }
         prefs[Keys.SPECULATIVE_DECODING]?.let { out[Keys.SPECULATIVE_DECODING.name] = KvValue.B(it) }
         prefs[Keys.NOTIFY_MEDAL_UNLOCK]?.let { out[Keys.NOTIFY_MEDAL_UNLOCK.name] = KvValue.B(it) }
@@ -422,6 +428,7 @@ class UserSettingsRepository(private val context: Context) {
                 // booleans
                 Keys.HC.name -> if (value is KvValue.B) prefs[Keys.HC] = value.value
                 Keys.ONBOARD.name -> if (value is KvValue.B) prefs[Keys.ONBOARD] = value.value
+                Keys.SKIPPED_GOOGLE_LINK.name -> if (value is KvValue.B) prefs[Keys.SKIPPED_GOOGLE_LINK] = value.value
                 Keys.MODEL_DOWNLOADED.name -> if (value is KvValue.B) prefs[Keys.MODEL_DOWNLOADED] = value.value
                 Keys.SPECULATIVE_DECODING.name -> if (value is KvValue.B) prefs[Keys.SPECULATIVE_DECODING] = value.value
                 Keys.NOTIFY_MEDAL_UNLOCK.name -> if (value is KvValue.B) prefs[Keys.NOTIFY_MEDAL_UNLOCK] = value.value

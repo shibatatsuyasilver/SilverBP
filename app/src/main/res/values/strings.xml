@@ -80,6 +80,7 @@
     <string name="recognition_failed">Recognition failed: %1$s</string>
     <string name="camera_permission_title">Camera permission required</string>
     <string name="camera_permission_body">Open Settings to allow SilverBP to access the camera.</string>
+    <string name="camera_permission_denied">Camera permission denied — open Settings to take a photo.</string>
     <string name="open_settings">Open Settings</string>
 
     <!-- Model load -->
@@ -190,6 +191,7 @@
     <string name="exercise_history_empty">No sessions yet. Tap Start to record your first walk or run.</string>
     <string name="exercise_recover_title">Unfinished session</string>
     <string name="exercise_recover_body">A previous session didn\'t finish. Resume it, or discard it?</string>
+    <string name="exercise_recover_location_denied">Precise location is required to resume GPS tracking. Grant it in settings, then try again.</string>
     <string name="exercise_recent_sessions">Recent sessions</string>
     <string name="exercise_summary_title">Session summary</string>
     <string name="exercise_note_hint">Note (optional)</string>
@@ -571,6 +573,9 @@
     <string name="backup_auto_recovery_required_msg">The auto-backup encryption key is derived from the recovery code. You must enter it on a new device to restore — please finish setting up the recovery code first.</string>
     <string name="backup_auto_recovery_required_continue">Continue to recovery code setup</string>
 
+    <!-- First-launch Google sign-in gate: skip-for-now action -->
+    <string name="login_skip">Maybe later</string>
+
     <!-- Backup screen: recovery code copy button -->
     <string name="backup_recovery_copy">Copy</string>
     <string name="backup_recovery_copied">Copied to clipboard</string>
@@ -765,4 +770,16 @@
     <string name="nutrition_macro_carb">Carb</string>
     <string name="nutrition_sodium_uncertain_note">· soup/sauce sodium hard to estimate</string>
     <string name="nutrition_food_not_in_db">Not in the database yet (curated set; USDA/TFDA to follow)</string>
+
+    <!-- Health Connect permissions rationale screen -->
+    <string name="hc_rationale_title">Data usage</string>
+    <string name="hc_rationale_close">Close</string>
+    <string name="hc_rationale_heading">Why does SilverBP need Health Connect access?</string>
+    <string name="hc_rationale_read_label">Read steps / sleep / nutrition</string>
+    <string name="hc_rationale_read_body">Used for daily step achievement badges, streaks, and sleep and nutrition trends — combined with your blood-pressure readings for a fuller picture of your health. With your permission these are also read in the background to backfill missing days and keep your trends current.</string>
+    <string name="hc_rationale_write_label">Write blood pressure / exercise + route / nutrition</string>
+    <string name="hc_rationale_write_body">When you add a blood-pressure reading, finish an exercise (including its GPS route), or log a meal, SilverBP can optionally write it to Health Connect so other health apps such as Google Health can read it (you stay in control and can turn it off at any time).</string>
+    <string name="hc_rationale_usage_label">How is the data used?</string>
+    <string name="hc_rationale_usage_body">• Everything is computed and stored on your phone; it is not uploaded to our servers. The only exception is the optional Google Drive backup, which uploads an end-to-end-encrypted snapshot to your own Drive if you turn it on.\n• You can revoke any permission at any time in the system Health Connect settings.\n• After revoking, SilverBP stops background syncing; your existing local records are not deleted.</string>
+    <string name="hc_rationale_disclaimer">The content provided by this app is for reference only and is not a medical device or medical diagnosis.</string>
 </resources>

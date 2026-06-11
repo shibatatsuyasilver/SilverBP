@@ -23,8 +23,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.silverbp.android.R
 import com.silverbp.android.ui.theme.SilverBpTheme
 
 /**
@@ -52,10 +54,13 @@ private fun RationaleScreen(onClose: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("資料使用說明") },
+                title = { Text(stringResource(R.string.hc_rationale_title)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.Close, contentDescription = "關閉")
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.hc_rationale_close),
+                        )
                     }
                 },
             )
@@ -70,40 +75,38 @@ private fun RationaleScreen(onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "為什麼 silverbp 需要 Health Connect 權限?",
+                stringResource(R.string.hc_rationale_heading),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.size(4.dp))
 
-            Text("讀取步數", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.hc_rationale_read_label), fontWeight = FontWeight.Medium)
             Text(
-                "用於每日步數成就徽章、連續達標天數,以及將你的活動量與血壓量測結合,提供更完整的健康趨勢觀察。",
+                stringResource(R.string.hc_rationale_read_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
 
             Spacer(Modifier.size(8.dp))
 
-            Text("寫入運動 / 血壓", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.hc_rationale_write_label), fontWeight = FontWeight.Medium)
             Text(
-                "在你完成一次運動或新增血壓紀錄時,可選擇性寫入 Health Connect,讓 Google Health 等其他健康 app 也能讀取(由你自行控制,可隨時關閉)。",
+                stringResource(R.string.hc_rationale_write_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
 
             Spacer(Modifier.size(12.dp))
 
-            Text("資料如何被使用?", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.hc_rationale_usage_label), fontWeight = FontWeight.Medium)
             Text(
-                "• 全部運算與儲存在你的手機本機,不會上傳至我們的伺服器。\n" +
-                    "• 你可以隨時在系統 Health Connect 設定中撤銷任何權限。\n" +
-                    "• 撤銷後,silverbp 會停止背景同步,既有的本地紀錄不會被刪除。",
+                stringResource(R.string.hc_rationale_usage_body),
                 style = MaterialTheme.typography.bodyMedium,
             )
 
             Spacer(Modifier.size(8.dp))
 
             Text(
-                "本應用程式提供的內容僅供參考,並非醫療設備或醫療診斷。",
+                stringResource(R.string.hc_rationale_disclaimer),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

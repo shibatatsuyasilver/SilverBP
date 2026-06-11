@@ -80,6 +80,7 @@
     <string name="recognition_failed">辨識失敗:%1$s</string>
     <string name="camera_permission_title">需要相機權限</string>
     <string name="camera_permission_body">請至設定開啟相機權限以使用此功能。</string>
+    <string name="camera_permission_denied">相機權限被拒,請至設定開啟以拍照。</string>
     <string name="open_settings">開啟設定</string>
 
     <!-- Model load -->
@@ -190,6 +191,7 @@
     <string name="exercise_history_empty">尚無紀錄。點擊「開始」記錄第一次運動。</string>
     <string name="exercise_recover_title">尚未結束的運動</string>
     <string name="exercise_recover_body">上次的運動沒有正常結束,要繼續還是捨棄?</string>
+    <string name="exercise_recover_location_denied">還原 GPS 紀錄需要精確位置權限,請至設定授權後再試一次。</string>
     <string name="exercise_recent_sessions">最近紀錄</string>
     <string name="exercise_summary_title">運動摘要</string>
     <string name="exercise_note_hint">備註 (選填)</string>
@@ -571,6 +573,9 @@
     <string name="backup_auto_recovery_required_msg">自動備份的加密金鑰由恢復碼推導. 換新手機要還原時必須輸入這串字元, 請先完成恢復碼設定.</string>
     <string name="backup_auto_recovery_required_continue">繼續設定恢復碼</string>
 
+    <!-- 首次登入閘門:稍後再說 -->
+    <string name="login_skip">稍後再說</string>
+
     <!-- 備份頁:恢復碼複製 -->
     <string name="backup_recovery_copy">複製</string>
     <string name="backup_recovery_copied">已複製到剪貼簿</string>
@@ -765,4 +770,16 @@
     <string name="nutrition_macro_carb">碳水</string>
     <string name="nutrition_sodium_uncertain_note">· 湯/調味鈉難估</string>
     <string name="nutrition_food_not_in_db">資料庫尚無此食物(精選資料集,USDA/TFDA 待匯入)</string>
+
+    <!-- Health Connect 權限說明畫面 -->
+    <string name="hc_rationale_title">資料使用說明</string>
+    <string name="hc_rationale_close">關閉</string>
+    <string name="hc_rationale_heading">為什麼 SilverBP 需要 Health Connect 權限?</string>
+    <string name="hc_rationale_read_label">讀取步數 / 睡眠 / 營養</string>
+    <string name="hc_rationale_read_body">用於每日步數成就徽章、連續達標天數,以及睡眠與營養趨勢,並與你的血壓量測結合,提供更完整的健康觀察。經你授權後,也會在背景讀取,以回補缺漏的日子並讓趨勢保持最新。</string>
+    <string name="hc_rationale_write_label">寫入血壓 / 運動(含路徑)/ 營養</string>
+    <string name="hc_rationale_write_body">在你新增血壓紀錄、完成一次運動(含 GPS 路徑)或記錄一餐飲食時,可選擇性寫入 Health Connect,讓 Google Health 等其他健康 app 也能讀取(由你自行控制,可隨時關閉)。</string>
+    <string name="hc_rationale_usage_label">資料如何被使用?</string>
+    <string name="hc_rationale_usage_body">• 全部運算與儲存在你的手機本機,不會上傳至我們的伺服器。唯一的例外是選用的 Google Drive 備份,若你開啟,會將端對端加密的快照上傳至你自己的 Drive。\n• 你可以隨時在系統 Health Connect 設定中撤銷任何權限。\n• 撤銷後,SilverBP 會停止背景同步,既有的本地紀錄不會被刪除。</string>
+    <string name="hc_rationale_disclaimer">本應用程式提供的內容僅供參考,並非醫療設備或醫療診斷。</string>
 </resources>

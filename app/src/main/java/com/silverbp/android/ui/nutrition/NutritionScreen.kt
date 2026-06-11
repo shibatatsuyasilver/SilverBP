@@ -1,5 +1,7 @@
 package com.silverbp.android.ui.nutrition
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,11 +35,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -57,6 +63,7 @@ import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.ui.coach.components.GoalRing
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
+import kotlinx.coroutines.launch
 import java.io.File
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -74,6 +81,8 @@ fun NutritionScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val capture by vm.capturePhase.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val gallery = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -85,6 +94,16 @@ fun NutritionScreen(
     ) { bmp: Bitmap? ->
         if (bmp != null) vm.analyzeBitmap(bmp, onOpenConfirmNew)
     }
+    // 相機需要 CAMERA 權限,未授權就啟動 TakePicturePreview 會擲出 SecurityException。
+    val cameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            camera.launch(null)
+        } else {
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.camera_permission_denied)) }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -92,6 +111,7 @@ fun NutritionScreen(
                 Text(stringResource(R.string.tab_nutrition), fontWeight = FontWeight.SemiBold)
             })
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(
@@ -106,7 +126,16 @@ fun NutritionScreen(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
                     Button(
-                        onClick = { camera.launch(null) },
+                        onClick = {
+                            val granted = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.CAMERA,
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (granted) {
+                                camera.launch(null)
+                            } else {
+                                cameraPermission.launch(Manifest.permission.CAMERA)
+                            }
+                        },
                         modifier = Modifier.weight(1f).height(56.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary,

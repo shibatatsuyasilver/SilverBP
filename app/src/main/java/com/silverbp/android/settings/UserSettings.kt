@@ -14,6 +14,13 @@ data class UserSettings(
     val appThemeMode: AppThemeMode = AppThemeMode.Dark,
     val enableHealthConnect: Boolean = false,
     val didOnboard: Boolean = false,
+    /**
+     * True once the user chose 「稍後再說」 on the first-launch Google sign-in gate
+     * (or unlinked from Backup). Lets [com.silverbp.android.ui.nav.AppNavHost]
+     * release HOME without a linked account — auto-backup simply stays off until
+     * the user links one from the Backup screen.
+     */
+    val skippedGoogleLink: Boolean = false,
     val modelDownloaded: Boolean = false,
 
     /** "local" (default) or "cloud" — picks which [com.silverbp.android.recognition.BpRecognizer] to use. */

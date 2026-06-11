@@ -2,13 +2,13 @@
 
     <!-- First-launch Google sign-in gate (Phase 5). Shown after onboarding is
          complete but before HOME is released, whenever googleAccountEmail is
-         blank. Hard gate — a user without a Google account cannot pass. -->
+         blank and the user hasn't tapped 稍後再說 (skippedGoogleLink). -->
     <string name="login_title">登入以保存你的資料</string>
-    <string name="login_body">使用 Google 登入後,你的血壓、運動、用藥與 Coach 記錄會自動加密備份到你的 Google Drive。換手機或重灌時可直接還原。</string>
+    <string name="login_body">使用 Google 登入後,你的血壓、運動、用藥與 Coach 記錄會自動加密備份到你的 Google Drive,換手機或重灌時可直接還原。未連結帳號前,自動備份會維持關閉,你仍可隨時在「備份」頁面連結。</string>
     <string name="login_button">使用 Google 登入</string>
     <string name="login_signing_in">登入中…</string>
     <string name="login_error">登入失敗,請再試一次。</string>
     <string name="login_retry">重試</string>
-    <string name="login_footnote">登入是使用本程式的必要步驟。</string>
+    <string name="login_footnote">登入並非必要,你可以選擇稍後再說。</string>
 
 </resources>

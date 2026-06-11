@@ -120,6 +120,16 @@ fun ChatScreen(
             scope.launch { vm.persistAndStageBitmap(context, bmp) }
         }
     }
+    // 相機需要 CAMERA 權限,未授權就啟動 TakePicturePreview 會擲出 SecurityException。
+    val cameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            camera.launch(null)
+        } else {
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.camera_permission_denied)) }
+        }
+    }
 
     val voiceLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -159,7 +169,14 @@ fun ChatScreen(
                     },
                     modifier = Modifier.clickable {
                         showAttachSheet = false
-                        camera.launch(null)
+                        val granted = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.CAMERA,
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (granted) {
+                            camera.launch(null)
+                        } else {
+                            cameraPermission.launch(Manifest.permission.CAMERA)
+                        }
                     },
                 )
                 ListItem(
