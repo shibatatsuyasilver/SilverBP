@@ -17,10 +17,10 @@
          on, so they too get the agent treatment. -->
     <include domain="file" path="datastore/user_settings.preferences_pb" />
 
-    <!-- LLM model weights (~1-3 GB). User can re-download. -->
-    <exclude domain="file" path="models/" />
-    <!-- BP photos (out of scope per backup plan). -->
-    <exclude domain="file" path="photos/" />
+    <!-- models/ (LLM weights, ~1-3 GB, re-downloadable) and photos/ (BP photos)
+         are NOT backed up: the file-domain <include> above already restricts the
+         file domain to datastore only, so they are excluded by omission. Listing
+         them as explicit <exclude>s is redundant and trips FullBackupContent lint. -->
     <!-- Transient SQLite journal. -->
     <exclude domain="database" path="silverbp.db-journal" />
 </full-backup-content>

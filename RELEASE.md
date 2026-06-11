@@ -136,21 +136,26 @@
 
 ## D. 商店資訊(Store listing)
 
-路徑:左側「**拓展使用者群**」→「商店發佈資訊」→「主要商店發佈資訊」。
+路徑:新版 Console 為「**監控及改善**」→「**商店資訊**」(舊版在「拓展使用者群 →
+商店發佈資訊 → 主要商店發佈資訊」)。同一頁要填名稱/簡短/完整說明 + 圖示/主題圖/截圖。
 
-1. **預設(zh-TW)**填:
-   - 應用程式名稱(≤30 字):`SilverBP 銀髮血壓管家`(範例,自行決定)
-   - 簡短說明(≤80 字):`拍照記血壓、GPS 運動、用藥提醒與 AI 健康教練,專為長輩設計的血壓管理 App。`
-   - 完整說明(≤4000 字):列功能(拍血壓計自動辨識、運動追蹤、重訓、飲食條碼、
-     用藥提醒、週報、加密備份)。**禁用字眼:治療、診斷、醫療**;
-     結尾放免責:「本應用程式僅供記錄與參考,非醫療器材,不提供醫療診斷。」
-2. 「**新增翻譯**」→ `英文 (美國) – en-US` → 填英文版三欄。
-3. **圖像資源**(同頁下方):
-   - 應用程式圖示:512×512 PNG(≤1MB)
-   - Feature graphic(主題圖片):1024×500 PNG/JPG
-   - 手機螢幕截圖:**至少 2 張**(建議 4–8 張:今日頁、拍血壓計、運動地圖、
-     Coach、趨勢圖),9:16、每邊 320–3840px
-   - 7 吋/10 吋平板截圖:可先略過(沒有平板版型就不傳)
+1. **預設(zh-TW)**定稿文案(直接貼,已對齊 release build 真實功能、無療效宣稱):
+   - 應用程式名稱(≤30 字):`SilverBP`
+   - 簡短說明(45/80 字):
+     `拍照記血壓、GPS 運動追蹤、用藥提醒與 AI 健康教練,專為長輩打造的血壓管理 App。`
+   - 完整說明(≤4000 字):見下方「附錄五:商店文案定稿」。**禁用字眼:治療、診斷、醫療**
+     (只可出現在結尾免責聲明)。
+2. 「**新增翻譯**」→ `英文 (美國) – en-US` → 填英文三欄(見附錄五英文版)。
+3. **圖像資源**(同頁下方;素材已產出於 `~/Downloads/`):
+   - 應用程式圖示:`silverbp-icon-512.png`(512×512 PNG,≤1MB)— 由 adaptive icon
+     前景 `silverbp_fg` 疊深藍漸層背景合成。
+   - 主題圖片(Feature graphic):`silverbp-feature-1024x500.png`(1024×500 PNG,≤15MB)。
+   - 手機螢幕截圖:**至少 2 張**(宣傳資格建議 4–8 張、每邊 ≥1080px:今日頁、拍血壓計、
+     運動地圖、Coach 週報、趨勢圖),9:16、每邊 320–3840px。
+     ⚠️ 運動地圖那張要用 **release 簽章版**(Maps key 綁 release SHA-1)才有圖。
+   - **7 吋/10 吋平板截圖**:新版 Console 標 `*`(看似必填)。app 無平板版型,
+     先只填手機截圖試存;若被擋,把手機截圖(9:16、≥1080px)直接也傳進平板欄位即可
+     (尺寸符合規範)。Chromebook / Android XR 非必填,略過。
 4. 儲存。
 
 ## E. 建置 AAB 並上傳「內部測試」
@@ -310,15 +315,24 @@
 
 ## 附錄一:一次性設定 — 簽章 keystore
 
+> 實際使用中的上傳金鑰:`~/keystores/silverbp-upload-2.jks`(alias `upload`,
+> 2026-06-12 建立,SHA1 `CA:35:03:AC:C5:D5:FA:E1:5A:A6:2D:82:9D:89:57:0E:3D:84:51:43`)。
+> 密碼存在密碼管理器,**請另外備份 .jks 檔**——遺失即無法更新 app。
+> (`~/keystores/silverbp-upload.jks` 是 2026-05-26 的舊金鑰,密碼不明、未使用。)
+
+非互動式重建(如需新建另一把)範例:
+
 ```sh
-keytool -genkey -v -keystore ~/keystores/silverbp-upload.jks \
-  -alias upload -keyalg RSA -keysize 2048 -validity 10000
+keytool -genkeypair -v -keystore ~/keystores/silverbp-upload-2.jks \
+  -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+  -storepass '<PW>' -keypass '<PW>' \
+  -dname "CN=SilverBP, OU=Mobile, O=SilverBP, L=Taipei, S=Taiwan, C=TW"
 ```
 
-加進 `local.properties`(**絕不提交**):
+加進 `local.properties`(**絕不提交**;四項缺一就退回 debug 簽章):
 
 ```properties
-KEYSTORE_PATH=/Users/<你>/keystores/silverbp-upload.jks
+KEYSTORE_PATH=/Users/<你>/keystores/silverbp-upload-2.jks
 KEYSTORE_PASS=…
 KEY_ALIAS=upload
 KEY_PASS=…
@@ -362,3 +376,107 @@ Google Cloud Console → 憑證 → 該 Maps key:
   注入網址,翻譯時不會弄壞連結。
 - Play Console 介面文字隨版本微調,找不到選單時用左側搜尋框搜關鍵字
   (如「健康」「前景服務」「資料安全」)。
+
+## 附錄五:商店文案定稿(D 節用)
+
+### 完整說明 zh-TW(≤4000 字)
+
+```
+SilverBP 是一款專為長輩與家人設計的血壓管理 App。介面字大、操作簡單,
+從「拍照記血壓」到 AI 健康教練,幫你把每天的健康紀錄輕鬆管理好。
+
+【拍照記血壓,不用打字】
+拿手機對準血壓計螢幕拍一張,App 自動辨識收縮壓、舒張壓與脈搏並填入。
+辨識可選「在手機本機完成」或「雲端辨識」,看不清楚也能手動修改後再儲存。
+
+【血壓趨勢與報告】
+所有紀錄自動整理成趨勢圖,可依 7 天、30 天或自訂區間查看。
+一鍵產生 PDF 報告,回診時分享給醫師或家人。
+
+【運動追蹤】
+走路、快走、跑步、騎車可用 GPS 即時記錄路線、距離與配速,地圖上看得到走過的路。
+在健身房使用跑步機、飛輪、滑步機、划船機、登階機時,也能拍照辨識面板數據。
+達成目標還能解鎖獎章。
+
+【用藥提醒】
+建立藥物與服藥時間,App 準時通知,直接在通知上點「已服用」即可打卡,
+幫長輩不漏吃藥。
+
+【飲食與鈉攝取】
+掃描包裝食品條碼自動帶入營養資訊,或拍照記錄餐點,
+追蹤鈉攝取的高/中/低,提醒高血壓族群留意鹽分。
+
+【AI 健康教練】
+依你的血壓、運動、睡眠與飲食資料,每週給你個人化的生活建議與週報摘要;
+也能用聊天方式詢問健康習慣問題。
+
+【步數與睡眠】
+透過 Health Connect 同步每日步數與睡眠時數,納入週報與獎章統計。
+
+【Health Connect 整合】
+經你同意後,可將血壓、運動、飲食寫入 Health Connect,與其他健康 App 共用;
+步數與睡眠則可讀取回來。
+
+【你的資料,你作主】
+所有紀錄預設只存在你的手機本機,採 AES-256 加密。可選擇加密備份到你自己的
+Google Drive,並用回復碼或指紋/臉部解鎖保護隱私。雲端辨識、Drive 備份、
+Health Connect 皆為選用功能,不開也能正常使用核心記錄。
+
+⚠️ 本應用程式僅供健康記錄與個人參考,非醫療器材,不提供醫療診斷或治療建議。
+如有身體不適或數值異常,請諮詢專業醫療人員。
+```
+
+### en-US(新增翻譯時用)
+
+- 簡短(≤80):`Photo BP logging, GPS exercise, medication reminders & an AI health coach.`
+- 完整:
+
+```
+SilverBP is a blood-pressure manager built for seniors and their families.
+Large text, simple taps — from snapping a photo of your monitor to an AI
+health coach, it keeps every day's health records easy to manage.
+
+Log BP by photo — no typing
+Point your phone at the monitor's screen and SilverBP reads the systolic,
+diastolic and pulse for you. Recognition can run on-device or in the cloud,
+and you can always correct a value before saving.
+
+Trends & reports
+Readings turn into trend charts (7-day, 30-day or custom ranges). Generate a
+PDF report in one tap to share with your doctor or family.
+
+Exercise tracking
+Track walks, brisk walks, runs and rides with live GPS route, distance and
+pace on a map. At the gym, snap the console of a treadmill, bike, elliptical,
+rower or stair climber to log it. Earn medals as you hit your goals.
+
+Medication reminders
+Add medicines and times; SilverBP notifies you on schedule and lets you tap
+"Taken" right from the notification.
+
+Food & sodium
+Scan a packaged-food barcode for nutrition info, or photograph a meal, and
+keep an eye on low/medium/high sodium intake.
+
+AI health coach
+Based on your blood pressure, exercise, sleep and nutrition, get a weekly
+personalized plan and report summary — or just chat about healthy habits.
+
+Steps & sleep
+Sync daily steps and sleep via Health Connect, folded into your weekly
+summary and medals.
+
+Health Connect
+With your consent, write blood pressure, exercise and nutrition to Health
+Connect to share with other health apps; read steps and sleep back in.
+
+Your data, your control
+By default everything stays on your phone, encrypted with AES-256. Optionally
+back up — encrypted — to your own Google Drive, and protect it with a recovery
+code or fingerprint/face unlock. Cloud recognition, Drive backup and Health
+Connect are all optional; core logging works without them.
+
+Not a medical device; for personal health reference only. It does not provide
+medical diagnosis or treatment advice. If you feel unwell or see abnormal
+readings, please consult a healthcare professional.
+```

@@ -21,8 +21,10 @@
         <include domain="database" path="silverbp.db-shm" />
         <include domain="file" path="datastore/user_settings.preferences_pb" />
 
-        <exclude domain="file" path="models/" />
-        <exclude domain="file" path="photos/" />
+        <!-- models/ (LLM weights) and photos/ are excluded by omission: the
+             file-domain <include> above restricts cloud-backup to datastore only.
+             Explicit file-domain <exclude>s here are redundant and fail
+             FullBackupContent lint, so they are intentionally not listed. -->
         <exclude domain="database" path="silverbp.db-journal" />
     </cloud-backup>
 
