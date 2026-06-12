@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.silverbp.android.backup.RecoveryCodeStore
+import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.flow.first
 import java.io.ByteArrayOutputStream
@@ -36,8 +37,8 @@ class AutoBackupWorker(
         val recoveryCode = RecoveryCodeStore.create(applicationContext).get()
         if (linkedEmail.isBlank() || recoveryCode == null) {
             val msg = when {
-                recoveryCode == null -> "未設定恢復碼"
-                else -> "未連結 Google 帳號"
+                recoveryCode == null -> applicationContext.getString(R.string.backup_err_no_recovery_code)
+                else -> applicationContext.getString(R.string.backup_worker_no_account)
             }
             ServiceLocator.userSettings.recordBackupFailure(msg, System.currentTimeMillis())
             return Result.failure()
@@ -49,7 +50,7 @@ class AutoBackupWorker(
                 is GoogleAuthClient.TokenResult.NeedsConsent,
                 GoogleAuthClient.TokenResult.Cancelled -> {
                     ServiceLocator.userSettings.recordBackupFailure(
-                        "Drive 權限已撤銷, 請重新連結",
+                        applicationContext.getString(R.string.backup_drive_revoked),
                         System.currentTimeMillis(),
                     )
                     return Result.failure()

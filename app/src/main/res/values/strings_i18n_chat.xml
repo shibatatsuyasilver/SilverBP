@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chat (ChatViewModel) -->
+    <string name="chat_err_no_api_key">Enter your Gemini API key in Settings first.</string>
+    <string name="chat_err_model_not_ready">The model isn\'t ready yet. Please wait.</string>
+    <string name="chat_err_images_unsupported">The current backend doesn\'t support images; using text instead.</string>
+    <string name="chat_empty_response">(no content generated)</string>
+    <string name="chat_err_network">Network connection failed. Check your connection and try again.</string>
+    <string name="chat_err_response">Response failed: %1$s</string>
+
+    <!-- Confirm reading (ConfirmReadingViewModel) -->
+    <string name="confirm_save_failed">Save failed: %1$s</string>
+</resources>

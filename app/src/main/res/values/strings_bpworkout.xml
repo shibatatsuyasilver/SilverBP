@@ -1,18 +1,18 @@
 <resources>
 
     <!-- BP × workout gate (Phase 6) -->
-    <string name="bpworkout_gate_block_title">血壓偏高,建議今天休息</string>
-    <string name="bpworkout_gate_caution_title">運動前提醒</string>
-    <string name="bpworkout_gate_measure">先量血壓</string>
-    <string name="bpworkout_gate_start">開始</string>
-    <string name="bpworkout_gate_start_anyway">仍要開始</string>
-    <string name="bpworkout_gate_cancel">取消</string>
+    <string name="bpworkout_gate_block_title">Blood pressure is high — rest is recommended today</string>
+    <string name="bpworkout_gate_caution_title">Before you exercise</string>
+    <string name="bpworkout_gate_measure">Measure BP first</string>
+    <string name="bpworkout_gate_start">Start</string>
+    <string name="bpworkout_gate_start_anyway">Start anyway</string>
+    <string name="bpworkout_gate_cancel">Cancel</string>
 
     <!-- Post-workout BP association (summary screen) -->
-    <string name="bpworkout_post_linked">已連結最近的血壓紀錄</string>
-    <string name="bpworkout_post_measure">量運動後血壓</string>
+    <string name="bpworkout_post_linked">Linked to your most recent BP reading</string>
+    <string name="bpworkout_post_measure">Measure post-workout BP</string>
 
     <!-- Today task hint -->
-    <string name="bpworkout_today_measure_first">先量血壓再開始</string>
+    <string name="bpworkout_today_measure_first">Measure BP before you start</string>
 
 </resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="err_unknown">未知錯誤</string>
+
+    <!-- 拍照辨識流程 (CaptureFlowViewModel) -->
+    <string name="capture_err_low_confidence">辨識信心度過低 (%1$d%%),請重拍或手動輸入</string>
+    <string name="capture_err_no_network">無網路連線,請確認連線後再試,或先手動輸入</string>
+    <string name="capture_err_quota">Gemini 用量已達上限,請稍後再試或先手動輸入</string>
+    <string name="capture_err_invalid_key">Gemini API key 無效,請至「設定」檢查</string>
+    <string name="capture_err_cloud_http">雲端辨識失敗 (HTTP %1$d),請重試或先手動輸入</string>
+    <string name="capture_err_generic">辨識失敗:%1$s</string>
+    <string name="capture_err_load_photo">無法載入照片</string>
+</resources>

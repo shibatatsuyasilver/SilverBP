@@ -119,7 +119,7 @@ fun LibraryScreen(
                             vm.setSavedOnly(false)
                             vm.setBodyPart(if (state.bodyPart == part) null else part)
                         },
-                        label = { Text(part.labelZh) },
+                        label = { Text(stringResource(part.labelRes)) },
                     )
                 }
                 FilterChip(

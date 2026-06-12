@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.strength.LiveExercise
 import com.silverbp.android.strength.SetLog
@@ -215,7 +216,7 @@ private fun SetsCard(
     onToggleComplete: (setNumber: Int, completed: Boolean) -> Unit,
 ) {
     StandardCard(
-        title = exercise.exercise.bodyPart.labelZh,
+        title = stringResource(exercise.exercise.bodyPart.labelRes),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         exercise.sets.forEach { set ->
@@ -357,5 +358,6 @@ private fun NavRow(
 
 private fun setSummary(set: SetLog): String {
     val w = set.weightKg
-    return if (w != null) "%d × %.1f kg".format(set.reps, w) else "%d 次".format(set.reps)
+    return if (w != null) "%d × %.1f kg".format(set.reps, w)
+    else ServiceLocator.context.getString(R.string.workout_set_reps, set.reps)
 }

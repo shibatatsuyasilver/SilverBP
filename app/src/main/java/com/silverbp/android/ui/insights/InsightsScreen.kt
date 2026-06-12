@@ -79,10 +79,10 @@ fun InsightsScreen(
 @Composable
 private fun RangeChips(current: InsightsRange, onSelect: (InsightsRange) -> Unit) {
     val pairs = listOf(
-        InsightsRange.Last7 to "7 天",
-        InsightsRange.Last30 to "30 天",
-        InsightsRange.Last90 to "90 天",
-        InsightsRange.All to "全部",
+        InsightsRange.Last7 to stringResource(R.string.range_7d),
+        InsightsRange.Last30 to stringResource(R.string.range_30d),
+        InsightsRange.Last90 to stringResource(R.string.range_90d),
+        InsightsRange.All to stringResource(R.string.range_all),
     )
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenH),

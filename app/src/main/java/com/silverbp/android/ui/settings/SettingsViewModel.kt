@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.achievements.StepSyncScheduler
@@ -11,7 +12,9 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.security.DbCipherMigration
+import com.silverbp.android.settings.AppLanguage
 import com.silverbp.android.settings.AppThemeMode
+import com.silverbp.android.settings.LocaleHelper
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.settings.UserSettingsRepository
 import com.silverbp.android.ui.lock.canDeviceAuthenticate
@@ -43,6 +46,14 @@ class SettingsViewModel(
     fun setGuideline(g: HypertensionGuideline) { viewModelScope.launch { repo.setGuideline(g) } }
 
     fun setAppThemeMode(v: AppThemeMode) { viewModelScope.launch { repo.setAppThemeMode(v) } }
+
+    /**
+     * Sets the app language via the framework per-app locale. Bypasses the
+     * DataStore repo entirely — the system owns and persists this value, and it
+     * must stay per-device (never backed up/synced). The system recreates the
+     * Activity, so the Settings radio re-reads the new current language.
+     */
+    fun setAppLanguage(context: Context, lang: AppLanguage) = LocaleHelper.apply(context, lang)
 
     /**
      * Called from the composable's permission-result callback after the user

@@ -1,52 +1,52 @@
 <resources>
 
     <!-- Strength: library -->
-    <string name="strength_library_title">動作庫</string>
-    <string name="strength_library_search_hint">搜尋動作</string>
-    <string name="strength_filter_all">全部</string>
-    <string name="strength_saved">已儲存</string>
-    <string name="strength_library_empty">找不到動作</string>
-    <string name="strength_favorite_a11y">收藏</string>
+    <string name="strength_library_title">Exercise library</string>
+    <string name="strength_library_search_hint">Search exercises</string>
+    <string name="strength_filter_all">All</string>
+    <string name="strength_saved">Saved</string>
+    <string name="strength_library_empty">No exercises found</string>
+    <string name="strength_favorite_a11y">Favorite</string>
 
     <!-- Strength: detail -->
-    <string name="strength_detail_muscle_groups">訓練部位</string>
-    <string name="strength_detail_description">動作說明</string>
-    <string name="strength_save">收藏</string>
-    <string name="strength_unsave">取消收藏</string>
-    <string name="strength_start_workout">開始訓練</string>
+    <string name="strength_detail_muscle_groups">Muscles worked</string>
+    <string name="strength_detail_description">How to do it</string>
+    <string name="strength_save">Save</string>
+    <string name="strength_unsave">Remove from saved</string>
+    <string name="strength_start_workout">Start workout</string>
 
     <!-- Strength: workout session -->
-    <string name="strength_session_progress">完成 %1$d / %2$d 組</string>
-    <string name="strength_session_set_number">第 %1$d 組</string>
-    <string name="strength_session_reps">次數</string>
-    <string name="strength_session_weight">重量(公斤)</string>
-    <string name="strength_session_add_set">新增一組</string>
-    <string name="strength_session_complete_set">完成</string>
-    <string name="strength_session_completed_set">已完成</string>
-    <string name="strength_session_notes_hint">備註</string>
-    <string name="strength_session_skip">跳過此動作</string>
-    <string name="strength_session_skipped">已跳過</string>
-    <string name="strength_session_prev">上一個</string>
-    <string name="strength_session_next">下一個</string>
-    <string name="strength_session_finish">結束訓練</string>
-    <string name="strength_session_empty">沒有進行中的訓練</string>
+    <string name="strength_session_progress">%1$d of %2$d sets done</string>
+    <string name="strength_session_set_number">Set %1$d</string>
+    <string name="strength_session_reps">Reps</string>
+    <string name="strength_session_weight">Weight (kg)</string>
+    <string name="strength_session_add_set">Add a set</string>
+    <string name="strength_session_complete_set">Done</string>
+    <string name="strength_session_completed_set">Completed</string>
+    <string name="strength_session_notes_hint">Notes</string>
+    <string name="strength_session_skip">Skip this exercise</string>
+    <string name="strength_session_skipped">Skipped</string>
+    <string name="strength_session_prev">Previous</string>
+    <string name="strength_session_next">Next</string>
+    <string name="strength_session_finish">Finish workout</string>
+    <string name="strength_session_empty">No workout in progress</string>
 
     <!-- Strength: resume-or-discard dialog (live session already exists) -->
-    <string name="strength_resume_title">有尚未完成的訓練</string>
-    <string name="strength_resume_message">上一次的訓練還沒儲存。要繼續上次訓練,還是捨棄並開始新訓練?</string>
-    <string name="strength_resume_continue">繼續上次訓練</string>
-    <string name="strength_resume_discard">捨棄並開始新訓練</string>
-    <string name="strength_resume_cancel">取消</string>
+    <string name="strength_resume_title">You have an unfinished workout</string>
+    <string name="strength_resume_message">Your last workout hasn\'t been saved. Continue that workout, or discard it and start a new one?</string>
+    <string name="strength_resume_continue">Continue last workout</string>
+    <string name="strength_resume_discard">Discard and start new</string>
+    <string name="strength_resume_cancel">Cancel</string>
 
     <!-- Strength: workout summary -->
-    <string name="strength_summary_title">訓練完成</string>
-    <string name="strength_summary_total_sets">共完成 %1$d 組</string>
-    <string name="strength_summary_duration">訓練時間 %1$s</string>
-    <string name="strength_summary_feeling">感覺如何?</string>
-    <string name="strength_summary_too_easy">太簡單</string>
-    <string name="strength_summary_just_right">剛剛好</string>
-    <string name="strength_summary_too_hard">太難</string>
-    <string name="strength_summary_save">儲存</string>
-    <string name="strength_summary_discard">捨棄</string>
+    <string name="strength_summary_title">Workout complete</string>
+    <string name="strength_summary_total_sets">%1$d sets completed</string>
+    <string name="strength_summary_duration">Workout time %1$s</string>
+    <string name="strength_summary_feeling">How did it feel?</string>
+    <string name="strength_summary_too_easy">Too easy</string>
+    <string name="strength_summary_just_right">Just right</string>
+    <string name="strength_summary_too_hard">Too hard</string>
+    <string name="strength_summary_save">Save</string>
+    <string name="strength_summary_discard">Discard</string>
 
 </resources>

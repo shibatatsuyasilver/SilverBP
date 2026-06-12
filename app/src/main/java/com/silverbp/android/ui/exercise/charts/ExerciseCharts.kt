@@ -209,7 +209,7 @@ fun PaceLineChart(
     val axisStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
     val fastLayout = measurer.measure(ExerciseMath.formatPace(values.min()), axisStyle)
     val slowLayout = measurer.measure(ExerciseMath.formatPace(values.max()), axisStyle)
-    val dirLayout = measurer.measure("快 ▲", axisStyle)
+    val dirLayout = measurer.measure(stringResource(R.string.chart_fast_marker), axisStyle)
     val startLayout = measurer.measure(startText, axisStyle)
     val endLayout = measurer.measure(endText, axisStyle)
     val yAxisW = maxOf(

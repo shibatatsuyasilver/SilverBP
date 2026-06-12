@@ -407,6 +407,12 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
 
+    <!-- Settings language section -->
+    <string name="settings_language_section">App language</string>
+    <string name="settings_language_system">Follow system</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_zh_tw">繁體中文</string>
+
     <!-- Settings personalization section -->
     <string name="settings_personalization_section">Personalization</string>
     <string name="settings_user_nickname_label">How the coach addresses you</string>

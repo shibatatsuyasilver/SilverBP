@@ -3,20 +3,20 @@
     <!-- Onboarding: goal profile (Phase 4). Enum option labels are zh-TW and
          come from the enums themselves (PrimaryGoal/ExperienceLevel/TrainingStyle);
          these are the surrounding step copy + buttons. -->
-    <string name="onboarding_goal_back">上一步</string>
-    <string name="onboarding_goal_next">下一步</string>
+    <string name="onboarding_goal_back">Back</string>
+    <string name="onboarding_goal_next">Next</string>
 
-    <string name="onboarding_primary_goal_title">你的主要目標是什麼?</string>
-    <string name="onboarding_primary_goal_subtitle">我們會依此調整每週計畫的重點。</string>
+    <string name="onboarding_primary_goal_title">What\'s your main goal?</string>
+    <string name="onboarding_primary_goal_subtitle">We\'ll tailor what your weekly plan focuses on based on this.</string>
 
-    <string name="onboarding_experience_title">你的運動經驗?</string>
-    <string name="onboarding_experience_subtitle">初學者會從較輕鬆的強度開始,逐步進階。</string>
+    <string name="onboarding_experience_title">How much exercise experience do you have?</string>
+    <string name="onboarding_experience_subtitle">Beginners start at an easier intensity and build up step by step.</string>
 
-    <string name="onboarding_availability_title">你每週能運動幾天?</string>
-    <string name="onboarding_availability_subtitle">計畫會把運動分散到這些天數。</string>
-    <string name="onboarding_availability_days">%1$d 天 / 週</string>
+    <string name="onboarding_availability_title">How many days a week can you exercise?</string>
+    <string name="onboarding_availability_subtitle">The plan spreads your workouts across these days.</string>
+    <string name="onboarding_availability_days">%1$d days / week</string>
 
-    <string name="onboarding_training_style_title">你偏好的訓練方式?</string>
-    <string name="onboarding_training_style_subtitle">影響有氧與重訓的比重(重訓內容稍後加入)。</string>
+    <string name="onboarding_training_style_title">What\'s your preferred workout style?</string>
+    <string name="onboarding_training_style_subtitle">Affects the mix of cardio and strength (strength content is added later).</string>
 
 </resources>

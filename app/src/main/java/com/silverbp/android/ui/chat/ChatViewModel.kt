@@ -9,6 +9,7 @@ import com.silverbp.android.chat.ChatRepository
 import com.silverbp.android.chat.ChatSessionSummary
 import com.silverbp.android.chat.ChatTitleGenerator
 import com.silverbp.android.chat.ChatTranscriptBuilder
+import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.ModelLoadStatus
@@ -231,8 +232,8 @@ class ChatViewModel(
             try {
                 if (!recognizer.isReady()) {
                     val msg = when (_ui.value.backend) {
-                        RecognitionBackend.Cloud -> "請先在「設定」輸入 Gemini API key"
-                        else -> "模型尚未就緒,請稍候"
+                        RecognitionBackend.Cloud -> ServiceLocator.context.getString(R.string.chat_err_no_api_key)
+                        else -> ServiceLocator.context.getString(R.string.chat_err_model_not_ready)
                     }
                     repo.updateAssistantText(assistantId, msg)
                     _ui.update {
@@ -247,7 +248,7 @@ class ChatViewModel(
                 }
 
                 if (image != null && !recognizer.supportsImages()) {
-                    _ui.update { it.copy(errorMessage = "目前後端不支援圖片,已改用文字。") }
+                    _ui.update { it.copy(errorMessage = ServiceLocator.context.getString(R.string.chat_err_images_unsupported)) }
                 }
 
                 recognizer.chat(transcript).collect { delta ->
@@ -258,7 +259,7 @@ class ChatViewModel(
                     repo.updateAssistantText(assistantId, snapshot)
                 }
                 if (acc.isEmpty()) {
-                    val fallback = "(沒有產生內容)"
+                    val fallback = ServiceLocator.context.getString(R.string.chat_empty_response)
                     repo.updateAssistantText(assistantId, fallback)
                 }
             } catch (t: Throwable) {
@@ -266,9 +267,9 @@ class ChatViewModel(
                 // the Cloud backend — show a plain, actionable message rather than
                 // a raw Java exception string for elderly users.
                 val msg = if (t is java.io.IOException) {
-                    "網路連線失敗,請確認連線後再試"
+                    ServiceLocator.context.getString(R.string.chat_err_network)
                 } else {
-                    "回應失敗: ${t.message ?: t.javaClass.simpleName}"
+                    ServiceLocator.context.getString(R.string.chat_err_response, t.message ?: t.javaClass.simpleName)
                 }
                 repo.updateAssistantText(assistantId, msg)
                 _ui.update { it.copy(errorMessage = msg) }

@@ -33,6 +33,10 @@ fun ExerciseCatalogItem.toEntity(createdAt: Long, updatedAt: Long) = ExerciseCat
     updatedAt = updatedAt,
 )
 
+// Pure structural mapping: returns the stored (canonical) bytes verbatim so the
+// entity↔domain round-trip is identity and stays unit-testable without a Context.
+// Display localization is applied at the repository/UI edge via
+// [com.silverbp.android.strength.localized], not here.
 fun ExerciseCatalogItemEntity.toDomain() = ExerciseCatalogItem(
     id = id,
     name = name,

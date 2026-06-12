@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PDF 報告 (PdfReportRenderer)。等寬對齊的行保留尾端空白以維持欄位排版。 -->
+<resources>
+    <string name="pdf_report_title">居家血壓記錄報告</string>
+    <string name="pdf_report_range">區間  %1$s  ~  %2$s</string>
+    <string name="pdf_report_count">讀數筆數  %1$d</string>
+    <string name="pdf_report_mean">平均           %1$d / %2$d mmHg</string>
+    <string name="pdf_report_sd">SBP 標準差     %1$.1f mmHg</string>
+    <string name="pdf_report_pulse_mean">脈搏平均       %1$d bpm</string>
+    <string name="pdf_report_generated_at">由 SilverBP 產生於 %1$s</string>
+    <string name="pdf_report_detail_header">讀數明細 (頁 %1$d / %2$d)</string>
+    <string name="pdf_report_table_header">時間              SBP/DBP   脈搏  備註</string>
+    <string name="pdf_disclaimer_title">注意事項</string>
+    <string name="pdf_disclaimer_1">本 App 僅作為個人健康紀錄輔助工具,並非醫療裝置 (Medical Device)。任何讀數異常或健康疑慮,請諮詢醫療專業人員。</string>
+    <string name="pdf_disclaimer_2">指標說明:平均為算術平均;SD 為樣本標準差,反映讀數離散度;ARV (Average Real Variability) 為連續讀數差絕對值的平均,可較佳反映時序變異 (Mena et al., J Hypertens 2005;Wei et al., JAHA 2018)。</string>
+    <string name="pdf_disclaimer_3">居家血壓 (HBPM) 高血壓門檻參考:台灣 2022 與 ACC/AHA 2017 為 ≥130/80 mmHg;ESH 2023 為 ≥140/90 mmHg,治療目標 &lt;130/80。</string>
+    <string name="pdf_disclaimer_4">Powered by Gemma 3n vision model (Apache License 2.0)。</string>
+</resources>

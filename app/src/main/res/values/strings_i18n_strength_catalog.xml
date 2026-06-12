@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Seeded strength catalog display text (StrengthCatalogText). Keyed by exercise id. -->
+<resources>
+    <!-- Muscle group chips -->
+    <string name="muscle_chest">Chest</string>
+    <string name="muscle_triceps">Triceps</string>
+    <string name="muscle_shoulders">Shoulders</string>
+    <string name="muscle_upper_chest">Upper chest</string>
+    <string name="muscle_lateral_delts">Lateral delts</string>
+    <string name="muscle_lats">Lats</string>
+    <string name="muscle_biceps">Biceps</string>
+    <string name="muscle_back">Back</string>
+    <string name="muscle_rear_delts">Rear delts</string>
+    <string name="muscle_upper_back">Upper back</string>
+    <string name="muscle_forearms">Forearms</string>
+    <string name="muscle_quads">Quads</string>
+    <string name="muscle_glutes">Glutes</string>
+    <string name="muscle_core">Core</string>
+    <string name="muscle_hamstrings">Hamstrings</string>
+    <string name="muscle_lower_back">Lower back</string>
+    <string name="muscle_calves">Calves</string>
+    <string name="muscle_abs">Abs</string>
+    <string name="muscle_obliques">Obliques</string>
+    <string name="muscle_rectus_abdominis">Rectus abdominis</string>
+    <string name="muscle_lower_abs">Lower abs</string>
+    <string name="muscle_hip_flexors">Hip flexors</string>
+    <string name="muscle_cardio">Cardio</string>
+
+    <!-- Upper body -->
+    <string name="st_barbell_bench_press_name">Barbell bench press</string>
+    <string name="st_barbell_bench_press_desc">Lying barbell press; works the chest and triceps.</string>
+    <string name="st_dumbbell_bench_press_name">Dumbbell bench press</string>
+    <string name="st_dumbbell_bench_press_desc">Flat dumbbell press with a greater range of motion.</string>
+    <string name="st_incline_dumbbell_press_name">Incline dumbbell press</string>
+    <string name="st_incline_dumbbell_press_desc">Incline press to target the upper chest.</string>
+    <string name="st_dumbbell_shoulder_press_name">Dumbbell shoulder press</string>
+    <string name="st_dumbbell_shoulder_press_desc">Seated or standing overhead dumbbell press.</string>
+    <string name="st_lateral_raise_name">Dumbbell lateral raise</string>
+    <string name="st_lateral_raise_desc">Isolation move that builds shoulder width.</string>
+    <string name="st_lat_pulldown_name">Lat pulldown</string>
+    <string name="st_lat_pulldown_desc">Seated pulldown to build back width.</string>
+    <string name="st_seated_row_name">Seated row</string>
+    <string name="st_seated_row_desc">Pull the handle in to build mid-back thickness.</string>
+    <string name="st_bent_over_row_name">Barbell bent-over row</string>
+    <string name="st_bent_over_row_desc">Bent-over barbell pull to strengthen the whole back.</string>
+    <string name="st_face_pull_name">Face pull</string>
+    <string name="st_face_pull_desc">Pull the rope toward your face to improve shoulder posture.</string>
+    <string name="st_biceps_curl_name">Biceps curl</string>
+    <string name="st_biceps_curl_desc">Dumbbell or barbell curl for the front of the upper arm.</string>
+    <string name="st_hammer_curl_name">Hammer curl</string>
+    <string name="st_hammer_curl_desc">Neutral-grip curl that also works the forearms.</string>
+    <string name="st_triceps_pushdown_name">Triceps pushdown</string>
+    <string name="st_triceps_pushdown_desc">Cable pushdown to extend the triceps.</string>
+    <string name="st_overhead_triceps_ext_name">Overhead triceps extension</string>
+    <string name="st_overhead_triceps_ext_desc">Overhead dumbbell lowering to stretch the triceps.</string>
+    <string name="st_chest_fly_name">Dumbbell chest fly</string>
+    <string name="st_chest_fly_desc">Arcing open-and-close motion to isolate the chest.</string>
+
+    <!-- Lower body -->
+    <string name="st_barbell_squat_name">Barbell squat</string>
+    <string name="st_barbell_squat_desc">Back-loaded squat; a foundational lower-body strength move.</string>
+    <string name="st_goblet_squat_name">Goblet squat</string>
+    <string name="st_goblet_squat_desc">Squat holding a dumbbell at the chest; great for beginners.</string>
+    <string name="st_deadlift_name">Barbell deadlift</string>
+    <string name="st_deadlift_desc">Pull the barbell from the floor; a key posterior-chain move.</string>
+    <string name="st_romanian_deadlift_name">Romanian deadlift</string>
+    <string name="st_romanian_deadlift_desc">Slight-knee hip hinge to strengthen hamstrings and glutes.</string>
+    <string name="st_leg_press_name">Leg press</string>
+    <string name="st_leg_press_desc">Machine leg press for safe lower-body pushing.</string>
+    <string name="st_walking_lunge_name">Walking lunge</string>
+    <string name="st_walking_lunge_desc">Alternating forward lunges to train single-leg stability.</string>
+    <string name="st_bulgarian_split_squat_name">Bulgarian split squat</string>
+    <string name="st_bulgarian_split_squat_desc">Rear-foot-elevated single-leg squat; challenges balance and strength.</string>
+    <string name="st_leg_curl_name">Leg curl</string>
+    <string name="st_leg_curl_desc">Machine knee curl to isolate the hamstrings.</string>
+    <string name="st_leg_extension_name">Leg extension</string>
+    <string name="st_leg_extension_desc">Machine knee extension to isolate the front of the thigh.</string>
+    <string name="st_calf_raise_name">Calf raise</string>
+    <string name="st_calf_raise_desc">Rise onto the toes to work the calves.</string>
+    <string name="st_glute_bridge_name">Glute bridge</string>
+    <string name="st_glute_bridge_desc">Lying hip raise to activate the glutes.</string>
+    <string name="st_hip_thrust_name">Barbell hip thrust</string>
+    <string name="st_hip_thrust_desc">Shoulders-on-bench hip thrust; a top pick for glute growth.</string>
+
+    <!-- Core -->
+    <string name="st_plank_name">Plank</string>
+    <string name="st_plank_desc">Hold a straight body line on your forearms.</string>
+    <string name="st_side_plank_name">Side plank</string>
+    <string name="st_side_plank_desc">Side support on one arm to strengthen the obliques.</string>
+    <string name="st_crunch_name">Crunch</string>
+    <string name="st_crunch_desc">Lying curl-up to train the upper abs.</string>
+    <string name="st_russian_twist_name">Russian twist</string>
+    <string name="st_russian_twist_desc">Seated side-to-side twist to work the obliques.</string>
+    <string name="st_dead_bug_name">Dead bug</string>
+    <string name="st_dead_bug_desc">Lying opposite-limb reach to stabilize the core.</string>
+    <string name="st_hanging_leg_raise_name">Hanging leg raise</string>
+    <string name="st_hanging_leg_raise_desc">Hanging leg raise to challenge the lower abs.</string>
+
+    <!-- Full body -->
+    <string name="st_pull_up_name">Pull-up</string>
+    <string name="st_pull_up_desc">Pull up to the bar; a classic bodyweight move.</string>
+    <string name="st_push_up_name">Push-up</string>
+    <string name="st_push_up_desc">Push up from the floor; a chest press you can do anywhere.</string>
+    <string name="st_burpee_name">Burpee</string>
+    <string name="st_burpee_desc">Squat, plank, and jump combined; full-body and high-intensity.</string>
+    <string name="st_kettlebell_swing_name">Kettlebell swing</string>
+    <string name="st_kettlebell_swing_desc">Explosive hip-driven kettlebell swing for posterior chain and cardio.</string>
+</resources>

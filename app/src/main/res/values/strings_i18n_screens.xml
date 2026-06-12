@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Date-range chip labels (Insights, Report). range_all / range_this_month
+         reuse the existing keys in strings.xml. -->
+    <string name="range_7d">7 days</string>
+    <string name="range_30d">30 days</string>
+    <string name="range_90d">90 days</string>
+    <string name="range_last_month">Last month</string>
+
+    <!-- Report screen / ViewModel -->
+    <string name="report_range_count">%1$d readings in range</string>
+    <string name="report_file_size_kb">Size: %1$d KB</string>
+    <string name="report_generate_failed">Couldn\'t generate the report. Check your storage space and try again.</string>
+
+    <!-- Coach weekly report -->
+    <string name="coach_sodium_days_over">Sodium over target on %1$d days</string>
+
+    <!-- Misc UI bits -->
+    <string name="today_bp_measure_hint">Measure your BP before starting</string>
+    <string name="workout_set_reps">%1$d reps</string>
+    <string name="chart_fast_marker">Fast ▲</string>
+    <!-- java.time pattern; uses the current locale. -->
+    <string name="history_date_format">EEEE, MMM d</string>
+</resources>

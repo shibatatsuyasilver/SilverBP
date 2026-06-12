@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.R
 import com.silverbp.android.capture.CaptureSessionHolder
 import com.silverbp.android.core.Arm
 import com.silverbp.android.core.BpReading
@@ -122,7 +123,7 @@ class ConfirmReadingViewModel(
                 Log.e(TAG, "[Confirm] save failed: ${e.message}", e)
                 // 保留草稿並顯示錯誤,讓使用者可以重試
                 _saving.value = false
-                _saveError.value = "儲存失敗:${e.message ?: "未知錯誤"}"
+                _saveError.value = context.getString(R.string.confirm_save_failed, e.message ?: context.getString(R.string.err_unknown))
             }
         }
     }

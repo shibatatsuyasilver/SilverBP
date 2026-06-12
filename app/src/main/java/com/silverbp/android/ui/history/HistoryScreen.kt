@@ -184,7 +184,7 @@ private fun DaySectionCard(
     onEdit: (BpReading) -> Unit,
     onLongPress: (BpReading) -> Unit,
 ) {
-    val dateFmt = DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.TAIWAN)
+    val dateFmt = DateTimeFormatter.ofPattern(stringResource(R.string.history_date_format), Locale.getDefault())
     StandardCard(
         title = group.date.format(dateFmt),
         titleTrailing = {

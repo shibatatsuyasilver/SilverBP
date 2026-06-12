@@ -1,5 +1,8 @@
 package com.silverbp.android.recognition
 
+import androidx.annotation.StringRes
+import com.silverbp.android.R
+
 /**
  * Catalog of locally-runnable VLM variants. The user picks one in Settings.
  * Each variant is downloaded into `filesDir/models/<filename>` and loaded by
@@ -10,7 +13,7 @@ package com.silverbp.android.recognition
  */
 data class ModelVariant(
     val id: String,
-    val displayName: String,
+    @StringRes val displayNameRes: Int,
     val filename: String,
     val downloadUrl: String,
     val approxSizeBytes: Long,
@@ -21,7 +24,7 @@ data class ModelVariant(
      * Gated on a user setting in [com.silverbp.android.settings.UserSettings].
      */
     val supportsSpeculativeDecoding: Boolean,
-    val notes: String,
+    @StringRes val notesRes: Int,
     /**
      * Lowercase hex SHA-256 of the downloaded file. When non-null,
      * [ModelDownloader.download] verifies the bytes after download and aborts
@@ -46,7 +49,7 @@ object ModelCatalog {
     val variants: List<ModelVariant> = listOf(
         ModelVariant(
             id = "gemma-4-E2B-it",
-            displayName = "Gemma 4 E2B (推薦)",
+            displayNameRes = R.string.model_gemma4_e2b_name,
             // -mtp suffix forces a re-download for users on the pre-2026-05-05 file
             // (litert-community re-uploaded the URL in place to add MTP heads).
             filename = "gemma-4-E2B-it-mtp.litertlm",
@@ -54,29 +57,29 @@ object ModelCatalog {
             approxSizeBytes = 2_147_483_648L,  // ~2 GB
             supportsVision = true,
             supportsSpeculativeDecoding = true,
-            notes = "推薦給多數裝置 (約 0.7 GB GPU 記憶體)。MTP 加速 ~2x decode。",
+            notesRes = R.string.model_gemma4_e2b_notes,
             sha256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
         ),
         ModelVariant(
             id = "gemma-4-E4B-it",
-            displayName = "Gemma 4 E4B (高精度)",
+            displayNameRes = R.string.model_gemma4_e4b_name,
             filename = "gemma-4-E4B-it-mtp.litertlm",
             downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm",
             approxSizeBytes = 3_654_467_584L,  // 3.65 GB measured (pre-MTP); re-measure after download
             supportsVision = true,
             supportsSpeculativeDecoding = true,
-            notes = "需 GPU 記憶體較多 (旗艦機如 S24 Ultra)。MTP 加速 ~2x decode。",
+            notesRes = R.string.model_gemma4_e4b_notes,
             sha256 = "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
         ),
         ModelVariant(
             id = "gemma-3n-E4B-it",
-            displayName = "Gemma 3n E4B (iOS 同款)",
+            displayNameRes = R.string.model_gemma3n_e4b_name,
             filename = "gemma-3n-E4B-it-int4.task",
             downloadUrl = "https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task",
             approxSizeBytes = 4_400_000_000L,  // ~4.41 GB
             supportsVision = true,
             supportsSpeculativeDecoding = false,
-            notes = "與 iOS 版一致的模型 (.task 格式)。",
+            notesRes = R.string.model_gemma3n_e4b_notes,
             // Gated repo (Google license) — LFS OID isn't exposed unauthenticated.
             // Fill from your authenticated download: `shasum -a 256 <file>`.
             sha256 = null,

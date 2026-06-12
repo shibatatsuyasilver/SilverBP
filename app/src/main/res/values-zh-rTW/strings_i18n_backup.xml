@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 備份 / 還原 (BackupViewModel) -->
+    <string name="backup_err_open_export">無法開啟匯出目的地</string>
+    <string name="backup_err_open_import">無法開啟匯入來源</string>
+    <string name="backup_link_cancelled">已取消連結</string>
+    <string name="backup_link_failed">Google 連結失敗</string>
+    <string name="backup_consent_incomplete">授權未完成</string>
+    <string name="backup_auth_failed">授權失敗</string>
+    <string name="backup_need_relink">需重新連結 Google 帳號</string>
+    <string name="backup_not_linked">尚未連結 Google 帳號</string>
+    <string name="backup_read_failed">讀取失敗</string>
+
+    <!-- 自動備份 worker (AutoBackupWorker) -->
+    <string name="backup_err_no_recovery_code">未設定恢復碼</string>
+    <string name="backup_worker_no_account">未連結 Google 帳號</string>
+    <string name="backup_drive_revoked">Drive 權限已撤銷, 請重新連結</string>
+
+    <!-- 備份管理錯誤 (BackupManager) -->
+    <string name="backup_err_recovery_format">恢復碼格式錯誤</string>
+    <string name="backup_err_unwrap_key">無法解開備份檔金鑰(請確認恢復碼)</string>
+    <string name="backup_err_incomplete">備份檔不完整:預期 %1$d 筆,實際解出 %2$d 筆</string>
+</resources>

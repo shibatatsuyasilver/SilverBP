@@ -1,23 +1,23 @@
 <resources>
 
     <!-- Training hub: sub-section tabs -->
-    <string name="hub_section_plan">課表</string>
-    <string name="hub_section_library">動作庫</string>
-    <string name="hub_section_history">歷史</string>
+    <string name="hub_section_plan">Plan</string>
+    <string name="hub_section_library">Library</string>
+    <string name="hub_section_history">History</string>
 
     <!-- Training hub: plan section -->
-    <string name="hub_start_training">開始訓練</string>
-    <string name="hub_start_exercise">開始運動</string>
-    <string name="hub_start_picker_title">選擇訓練方式</string>
-    <string name="hub_pick_strength">重訓</string>
-    <string name="hub_today_task_title">今日訓練任務</string>
-    <string name="hub_today_task_rest">今天是休息日,放鬆一下吧</string>
-    <string name="hub_today_task_none">尚無今日訓練計畫</string>
-    <string name="hub_today_task_minutes">目標 %1$d 分鐘</string>
+    <string name="hub_start_training">Start workout</string>
+    <string name="hub_start_exercise">Start exercise</string>
+    <string name="hub_start_picker_title">Choose your workout type</string>
+    <string name="hub_pick_strength">Strength</string>
+    <string name="hub_today_task_title">Today\'s workout task</string>
+    <string name="hub_today_task_rest">Today is a rest day — take it easy</string>
+    <string name="hub_today_task_none">No workout planned for today yet</string>
+    <string name="hub_today_task_minutes">Goal: %1$d min</string>
 
     <!-- Training hub: history section -->
-    <string name="hub_history_cardio">有氧紀錄</string>
-    <string name="hub_history_strength">重訓紀錄</string>
-    <string name="hub_history_empty">尚無重訓紀錄</string>
+    <string name="hub_history_cardio">Cardio log</string>
+    <string name="hub_history_strength">Strength log</string>
+    <string name="hub_history_empty">No strength workouts yet</string>
 
 </resources>

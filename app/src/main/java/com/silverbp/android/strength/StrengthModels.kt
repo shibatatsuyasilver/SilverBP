@@ -1,14 +1,17 @@
 package com.silverbp.android.strength
 
+import androidx.annotation.StringRes
+import com.silverbp.android.R
+
 /**
  * Coarse body region for the exercise catalog filter chips. [raw] is the
- * persisted/synced discriminator; [labelZh] is the user-facing 中文 label.
+ * persisted/synced discriminator; [labelRes] is the user-facing label.
  */
-enum class BodyPart(val raw: String, val labelZh: String) {
-    UpperBody("upper", "上半身"),
-    LowerBody("lower", "下半身"),
-    Core("core", "核心"),
-    FullBody("full", "全身");
+enum class BodyPart(val raw: String, @StringRes val labelRes: Int) {
+    UpperBody("upper", R.string.bodypart_upper),
+    LowerBody("lower", R.string.bodypart_lower),
+    Core("core", R.string.bodypart_core),
+    FullBody("full", R.string.bodypart_full);
 
     companion object {
         fun fromRaw(s: String): BodyPart = entries.first { it.raw == s }

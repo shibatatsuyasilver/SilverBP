@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 內建重訓目錄顯示文字 (StrengthCatalogText)。以動作 id 為鍵。 -->
+<resources>
+    <!-- 肌群 chip -->
+    <string name="muscle_chest">胸部</string>
+    <string name="muscle_triceps">三頭肌</string>
+    <string name="muscle_shoulders">肩膀</string>
+    <string name="muscle_upper_chest">上胸</string>
+    <string name="muscle_lateral_delts">三角肌中束</string>
+    <string name="muscle_lats">背闊肌</string>
+    <string name="muscle_biceps">二頭肌</string>
+    <string name="muscle_back">背部</string>
+    <string name="muscle_rear_delts">後三角肌</string>
+    <string name="muscle_upper_back">上背</string>
+    <string name="muscle_forearms">前臂</string>
+    <string name="muscle_quads">股四頭肌</string>
+    <string name="muscle_glutes">臀部</string>
+    <string name="muscle_core">核心</string>
+    <string name="muscle_hamstrings">腿後肌</string>
+    <string name="muscle_lower_back">下背</string>
+    <string name="muscle_calves">小腿</string>
+    <string name="muscle_abs">腹部</string>
+    <string name="muscle_obliques">腹斜肌</string>
+    <string name="muscle_rectus_abdominis">腹直肌</string>
+    <string name="muscle_lower_abs">下腹</string>
+    <string name="muscle_hip_flexors">髖屈肌</string>
+    <string name="muscle_cardio">心肺</string>
+
+    <!-- 上半身 -->
+    <string name="st_barbell_bench_press_name">槓鈴臥推</string>
+    <string name="st_barbell_bench_press_desc">平躺槓鈴推舉,鍛鍊胸大肌與三頭肌。</string>
+    <string name="st_dumbbell_bench_press_name">啞鈴臥推</string>
+    <string name="st_dumbbell_bench_press_desc">啞鈴平板推舉,活動範圍更大。</string>
+    <string name="st_incline_dumbbell_press_name">上斜啞鈴推舉</string>
+    <string name="st_incline_dumbbell_press_desc">斜板強化上胸肌群。</string>
+    <string name="st_dumbbell_shoulder_press_name">啞鈴肩推</string>
+    <string name="st_dumbbell_shoulder_press_desc">坐姿或站姿啞鈴過頭推舉。</string>
+    <string name="st_lateral_raise_name">啞鈴側平舉</string>
+    <string name="st_lateral_raise_desc">雕塑肩部寬度的孤立動作。</string>
+    <string name="st_lat_pulldown_name">滑輪下拉</string>
+    <string name="st_lat_pulldown_desc">坐姿下拉,建立背部寬度。</string>
+    <string name="st_seated_row_name">坐姿划船</string>
+    <string name="st_seated_row_desc">拉動握把回收,鍛鍊中背厚度。</string>
+    <string name="st_bent_over_row_name">槓鈴俯身划船</string>
+    <string name="st_bent_over_row_desc">俯身上拉槓鈴,強化整體背肌。</string>
+    <string name="st_face_pull_name">臉拉</string>
+    <string name="st_face_pull_desc">繩索拉向臉部,改善肩部姿勢。</string>
+    <string name="st_biceps_curl_name">二頭彎舉</string>
+    <string name="st_biceps_curl_desc">啞鈴或槓鈴彎舉,鍛鍊上臂前側。</string>
+    <string name="st_hammer_curl_name">錘式彎舉</string>
+    <string name="st_hammer_curl_desc">中立握法彎舉,兼顧前臂。</string>
+    <string name="st_triceps_pushdown_name">三頭下壓</string>
+    <string name="st_triceps_pushdown_desc">繩索下壓伸展三頭肌。</string>
+    <string name="st_overhead_triceps_ext_name">過頭三頭伸展</string>
+    <string name="st_overhead_triceps_ext_desc">啞鈴過頭下放,拉長三頭肌。</string>
+    <string name="st_chest_fly_name">啞鈴飛鳥</string>
+    <string name="st_chest_fly_desc">弧線開合,孤立胸大肌。</string>
+
+    <!-- 下半身 -->
+    <string name="st_barbell_squat_name">槓鈴深蹲</string>
+    <string name="st_barbell_squat_desc">背槓下蹲,下肢力量基礎動作。</string>
+    <string name="st_goblet_squat_name">高腳杯深蹲</string>
+    <string name="st_goblet_squat_desc">胸前抱啞鈴深蹲,適合入門。</string>
+    <string name="st_deadlift_name">槓鈴硬舉</string>
+    <string name="st_deadlift_desc">從地面拉起槓鈴,後鏈主力動作。</string>
+    <string name="st_romanian_deadlift_name">羅馬尼亞硬舉</string>
+    <string name="st_romanian_deadlift_desc">微屈膝髖鉸鏈,強化腿後與臀。</string>
+    <string name="st_leg_press_name">腿推</string>
+    <string name="st_leg_press_desc">器械蹬腿,下肢安全推力訓練。</string>
+    <string name="st_walking_lunge_name">行走弓步</string>
+    <string name="st_walking_lunge_desc">交替前跨下蹲,訓練單腿穩定。</string>
+    <string name="st_bulgarian_split_squat_name">保加利亞分腿蹲</string>
+    <string name="st_bulgarian_split_squat_desc">後腳墊高單腿蹲,挑戰平衡與力量。</string>
+    <string name="st_leg_curl_name">腿後勾</string>
+    <string name="st_leg_curl_desc">器械屈膝,孤立腿後肌群。</string>
+    <string name="st_leg_extension_name">腿伸展</string>
+    <string name="st_leg_extension_desc">器械伸膝,孤立大腿前側。</string>
+    <string name="st_calf_raise_name">小腿提踵</string>
+    <string name="st_calf_raise_desc">墊腳尖上提,鍛鍊小腿肌肉。</string>
+    <string name="st_glute_bridge_name">臀橋</string>
+    <string name="st_glute_bridge_desc">仰臥挺髖,激活臀部肌群。</string>
+    <string name="st_hip_thrust_name">槓鈴臀推</string>
+    <string name="st_hip_thrust_desc">肩靠長凳挺髖,臀部增肌首選。</string>
+
+    <!-- 核心 -->
+    <string name="st_plank_name">棒式</string>
+    <string name="st_plank_desc">前臂撐地維持身體一直線。</string>
+    <string name="st_side_plank_name">側棒式</string>
+    <string name="st_side_plank_desc">側身單臂支撐,強化側腹。</string>
+    <string name="st_crunch_name">捲腹</string>
+    <string name="st_crunch_desc">仰臥捲起上半身,訓練上腹。</string>
+    <string name="st_russian_twist_name">俄羅斯轉體</string>
+    <string name="st_russian_twist_desc">坐姿左右轉體,鍛鍊腹斜肌。</string>
+    <string name="st_dead_bug_name">死蟲式</string>
+    <string name="st_dead_bug_desc">仰臥對側伸展,穩定核心。</string>
+    <string name="st_hanging_leg_raise_name">懸吊抬腿</string>
+    <string name="st_hanging_leg_raise_desc">懸吊抬腿,挑戰下腹力量。</string>
+
+    <!-- 全身 -->
+    <string name="st_pull_up_name">引體向上</string>
+    <string name="st_pull_up_desc">握槓上拉,經典自體重量動作。</string>
+    <string name="st_push_up_name">伏地挺身</string>
+    <string name="st_push_up_desc">俯撐推起,隨處可做的胸推。</string>
+    <string name="st_burpee_name">波比跳</string>
+    <string name="st_burpee_desc">蹲、撐、跳結合,全身高強度。</string>
+    <string name="st_kettlebell_swing_name">壺鈴擺盪</string>
+    <string name="st_kettlebell_swing_desc">髖部爆發擺盪壺鈴,後鏈與心肺兼顧。</string>
+</resources>

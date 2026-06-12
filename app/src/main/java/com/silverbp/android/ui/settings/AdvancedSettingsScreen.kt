@@ -248,7 +248,7 @@ fun AdvancedSettingsScreen(
                                 } else {
                                     stringResource(
                                         R.string.settings_speculative_unsupported_help,
-                                        selectedVariant.displayName,
+                                        stringResource(selectedVariant.displayNameRes),
                                     )
                                 },
                                 style = MaterialTheme.typography.bodySmall,
@@ -427,9 +427,9 @@ private fun ModelVariantRow(
             RadioButton(selected = isSelected, onClick = onSelect, enabled = isDownloaded)
             Spacer(Modifier.size(8.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(variant.displayName, fontWeight = FontWeight.Medium)
+                Text(stringResource(variant.displayNameRes), fontWeight = FontWeight.Medium)
                 Text(
-                    "%.2f GB · %s".format(variant.approxSizeGB, variant.notes),
+                    "%.2f GB · %s".format(variant.approxSizeGB, stringResource(variant.notesRes)),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (isDownloaded) {

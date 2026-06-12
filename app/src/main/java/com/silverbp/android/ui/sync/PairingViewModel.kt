@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.sync.CombinedRoomSyncSink
 import com.silverbp.android.sync.CombinedRoomSyncSource
@@ -67,7 +68,7 @@ class PairingViewModel(
         )
         _state.value = State.ShowingQr(
             qrUrl = payload.toUrl(),
-            statusText = "正在啟動 LAN 廣播…",
+            statusText = context.getString(R.string.pairing_status_starting_lan),
         )
         activeJob = viewModelScope.launch {
             try {
@@ -80,11 +81,11 @@ class PairingViewModel(
                 }
                 Log.i(TAG, "Show: NSD registered; awaiting incoming TCP connection")
                 _state.update {
-                    State.ShowingQr(payload.toUrl(), "等待對方掃描配對…")
+                    State.ShowingQr(payload.toUrl(), context.getString(R.string.pairing_status_waiting_scan))
                 }
                 val socket = withContext(Dispatchers.IO) { nsd.acceptIncoming() }
                 Log.i(TAG, "Show: incoming connection from ${socket.inetAddress}:${socket.port}")
-                _state.update { State.ShowingQr(payload.toUrl(), "正在進行 Noise XK 握手…") }
+                _state.update { State.ShowingQr(payload.toUrl(), context.getString(R.string.pairing_status_handshake)) }
                 val channel = StreamFrameChannel(
                     socket.getInputStream(),
                     socket.getOutputStream(),
@@ -99,7 +100,7 @@ class PairingViewModel(
                     Log.i(TAG, "Show: coroutine cancelled (expected on navigation away)")
                 } else {
                     Log.e(TAG, "Show: pairing failed", t)
-                    _state.value = State.Error("配對失敗:${t.message ?: t.javaClass.simpleName}")
+                    _state.value = State.Error(context.getString(R.string.pairing_err_failed, t.message ?: t.javaClass.simpleName))
                 }
             } finally {
                 runCatching { discovery?.stop() }
@@ -151,7 +152,7 @@ class PairingViewModel(
                     Log.i(TAG, "Scan: coroutine cancelled")
                 } else {
                     Log.e(TAG, "Scan: pairing failed", t)
-                    _state.value = State.Error("配對失敗:${t.message ?: t.javaClass.simpleName}")
+                    _state.value = State.Error(context.getString(R.string.pairing_err_failed, t.message ?: t.javaClass.simpleName))
                 }
             } finally {
                 runCatching { discovery?.stop() }
@@ -170,7 +171,7 @@ class PairingViewModel(
         try {
             pairingService.confirmAndPersist(current.outcome)
         } catch (t: Throwable) {
-            _state.value = State.Error("無法儲存配對:${t.message ?: t.javaClass.simpleName}")
+            _state.value = State.Error(context.getString(R.string.pairing_err_save, t.message ?: t.javaClass.simpleName))
             return
         }
         // Immediately follow with one bidirectional sync round over the same
@@ -265,7 +266,7 @@ class PairingViewModel(
                 )
             } catch (t: Throwable) {
                 Log.e(TAG, "InitialSync: failed", t)
-                _state.value = State.Error("配對成功但同步失敗:${t.message ?: t.javaClass.simpleName}")
+                _state.value = State.Error(context.getString(R.string.pairing_err_sync_after, t.message ?: t.javaClass.simpleName))
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.silverbp.android.coach
 
+import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,7 +43,7 @@ class CoachEngineWorkoutGateTest {
     fun `empty readings yield Caution to measure first, not Allow or Block`() {
         val g = CoachEngine.shouldAllowWorkout(emptyList(), now)
         assertTrue("expected Caution for no data, got $g", g is WorkoutBpGate.Caution)
-        assertTrue("expected measure-first reason: ${g.reason}", g.reason!!.contains("量"))
+        assertEquals(R.string.coach_gate_measure_first, g.reasonRes)
     }
 
     // --- BLOCK boundary: crisis ≥180/110 in last 24h ---

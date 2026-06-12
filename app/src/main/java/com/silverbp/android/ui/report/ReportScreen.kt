@@ -68,7 +68,7 @@ fun ReportScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    Text("區間共 ${state.readings.size} 筆讀數", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.report_range_count, state.readings.size), style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
@@ -101,7 +101,7 @@ fun ReportScreen(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
                         Text(file.name, style = MaterialTheme.typography.bodySmall)
-                        Text("大小 ${file.length() / 1024} KB", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.report_file_size_kb, file.length() / 1024), style = MaterialTheme.typography.labelSmall)
                         Button(
                             onClick = { context.sharePdf(file) },
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -119,11 +119,11 @@ fun ReportScreen(
 @Composable
 private fun RangeChips(current: ReportRange, onSelect: (ReportRange) -> Unit) {
     val pairs = listOf(
-        ReportRange.ThisMonth to "本月",
-        ReportRange.LastMonth to "上月",
-        ReportRange.Last30 to "30 天",
-        ReportRange.Last90 to "90 天",
-        ReportRange.AllTime to "全部",
+        ReportRange.ThisMonth to stringResource(R.string.range_this_month),
+        ReportRange.LastMonth to stringResource(R.string.range_last_month),
+        ReportRange.Last30 to stringResource(R.string.range_30d),
+        ReportRange.Last90 to stringResource(R.string.range_90d),
+        ReportRange.AllTime to stringResource(R.string.range_all),
     )
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         pairs.forEach { (r, label) ->

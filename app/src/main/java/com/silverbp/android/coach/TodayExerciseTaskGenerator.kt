@@ -1,7 +1,9 @@
 package com.silverbp.android.coach
 
+import com.silverbp.android.R
 import com.silverbp.android.chat.ChatMessage
 import com.silverbp.android.core.BpReading
+import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseRepository
@@ -35,6 +37,11 @@ class TodayExerciseTaskGenerator(
     private val chatFactory: suspend () -> ChatRecognizer,
     private val bp: BpRepository? = null,
     private val clock: Clock = Clock.systemDefaultZone(),
+    // Lazy so the seam stays Context-free in tests: only the BP-gate path
+    // resolves it, and only at runtime (when ServiceLocator is initialised).
+    private val measureHint: () -> String = {
+        ServiceLocator.context.getString(R.string.today_bp_measure_hint)
+    },
 ) {
 
     suspend fun generate(
@@ -96,7 +103,7 @@ class TodayExerciseTaskGenerator(
             repo.observeRange(now.minus(24, ChronoUnit.HOURS), now).first()
         }.getOrNull() ?: return null
         return if (CoachEngine.shouldAllowWorkout(recent, now) is WorkoutBpGate.Allow) null
-        else BP_MEASURE_HINT
+        else measureHint()
     }
 
     private fun fallback(baseTask: CoachTask, bpHint: String? = null): TodayTaskOverlay = TodayTaskOverlay(
@@ -138,10 +145,6 @@ class TodayExerciseTaskGenerator(
 
     companion object {
         private val JSON = Json { ignoreUnknownKeys = true; isLenient = true }
-
-        // User-facing safety nudge (Traditional-Chinese), emitted directly like
-        // the engine's gate reasons. Kept in sync with R.string.bpworkout_today_measure_first.
-        private const val BP_MEASURE_HINT = "先量血壓再開始"
     }
 }
 

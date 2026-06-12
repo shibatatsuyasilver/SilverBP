@@ -407,6 +407,12 @@
     <string name="settings_theme_light">淺色</string>
     <string name="settings_theme_dark">深色</string>
 
+    <!-- 設定頁:語言區塊 -->
+    <string name="settings_language_section">App 語言</string>
+    <string name="settings_language_system">跟隨系統</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_zh_tw">繁體中文</string>
+
     <!-- 設定頁:個人化區塊 -->
     <string name="settings_personalization_section">個人化</string>
     <string name="settings_user_nickname_label">教練如何稱呼您</string>

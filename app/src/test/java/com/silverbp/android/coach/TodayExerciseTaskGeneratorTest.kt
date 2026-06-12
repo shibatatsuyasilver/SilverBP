@@ -284,6 +284,7 @@ class TodayExerciseTaskGeneratorTest {
             chatFactory = { fakeRecognizer("""{"title":"今天先 18 分鐘","subtitle":"從家門口開始"}""") },
             bp = fakeBpRepo(listOf(reading(systolic = 190, diastolic = 120, at = fixedNow))),
             clock = fixedClock,
+            measureHint = { "先量血壓再開始" },
         )
         val result = gen.generate(plan, baseTask, settings)
         assertEquals("今天先 18 分鐘", result.title)
@@ -299,6 +300,7 @@ class TodayExerciseTaskGeneratorTest {
             chatFactory = { fakeRecognizer("ignored", ready = false) },
             bp = fakeBpRepo(emptyList()),
             clock = fixedClock,
+            measureHint = { "先量血壓再開始" },
         )
         val result = gen.generate(plan, baseTask, settings)
         assertEquals(baseTask.title, result.title)
@@ -325,6 +327,7 @@ class TodayExerciseTaskGeneratorTest {
             chatFactory = { error("chat should not be invoked for safety-hold task") },
             bp = fakeBpRepo(listOf(reading(systolic = 190, diastolic = 120, at = fixedNow))),
             clock = fixedClock,
+            measureHint = { "先量血壓再開始" },
         )
         val result = gen.generate(plan, baseTask.copy(safetyHold = true), settings)
         assertEquals(baseTask.title, result.title)

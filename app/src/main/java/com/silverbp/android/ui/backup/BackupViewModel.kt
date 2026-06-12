@@ -140,7 +140,7 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
                 withContext(Dispatchers.IO) {
                     ctx.contentResolver.openOutputStream(uri)?.use { os ->
                         backupManager.export(os, passphrase, options)
-                    } ?: error("無法開啟匯出目的地")
+                    } ?: error(ctx.getString(R.string.backup_err_open_export))
                 }
             }
         }
@@ -162,7 +162,7 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
                 withContext(Dispatchers.IO) {
                     ctx.contentResolver.openInputStream(uri)?.use { input ->
                         backupManager.import(input, passphrase, mode)
-                    } ?: error("無法開啟匯入來源")
+                    } ?: error(ctx.getString(R.string.backup_err_open_import))
                 }
             }
         }
@@ -212,10 +212,10 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
                     is GoogleAuthClient.TokenResult.Granted -> finishConnect(r.accessToken)
                     is GoogleAuthClient.TokenResult.NeedsConsent ->
                         _pendingConsentIntent.value = r.intentSender
-                    GoogleAuthClient.TokenResult.Cancelled -> emitError("已取消連結")
+                    GoogleAuthClient.TokenResult.Cancelled -> emitError(ctx.getString(R.string.backup_link_cancelled))
                 }
             } catch (t: Throwable) {
-                emitError(t.localizedMessage ?: "Google 連結失敗")
+                emitError(t.localizedMessage ?: ctx.getString(R.string.backup_link_failed))
             }
         }
     }
@@ -228,10 +228,10 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
                 when (val r = auth.parseConsentResult(data)) {
                     is GoogleAuthClient.TokenResult.Granted -> finishConnect(r.accessToken)
                     is GoogleAuthClient.TokenResult.NeedsConsent,
-                    GoogleAuthClient.TokenResult.Cancelled -> emitError("授權未完成")
+                    GoogleAuthClient.TokenResult.Cancelled -> emitError(ctx.getString(R.string.backup_consent_incomplete))
                 }
             } catch (t: Throwable) {
-                emitError(t.localizedMessage ?: "授權失敗")
+                emitError(t.localizedMessage ?: ctx.getString(R.string.backup_auth_failed))
             }
         }
     }
@@ -270,7 +270,7 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
             if (email.isBlank()) return
             val token = when (val r = auth.requestDriveToken(email)) {
                 is GoogleAuthClient.TokenResult.Granted -> r.accessToken
-                else -> error("需重新連結 Google 帳號")
+                else -> error(ctx.getString(R.string.backup_need_relink))
             }
             // 逐檔 runCatching — 單檔失敗不擋下一檔,盡量刪乾淨.
             withContext(Dispatchers.IO) {
@@ -316,20 +316,20 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val email = settings.flow.first().googleAccountEmail
                 if (email.isBlank()) {
-                    _driveListings.value = DriveListingState.Failed("尚未連結 Google 帳號")
+                    _driveListings.value = DriveListingState.Failed(ctx.getString(R.string.backup_not_linked))
                     return@launch
                 }
                 val token = when (val r = auth.requestDriveToken(email)) {
                     is GoogleAuthClient.TokenResult.Granted -> r.accessToken
                     else -> {
-                        _driveListings.value = DriveListingState.Failed("需重新連結 Google 帳號")
+                        _driveListings.value = DriveListingState.Failed(ctx.getString(R.string.backup_need_relink))
                         return@launch
                     }
                 }
                 val list = withContext(Dispatchers.IO) { drive.listBackups(token) }
                 _driveListings.value = DriveListingState.Loaded(list)
             } catch (t: Throwable) {
-                _driveListings.value = DriveListingState.Failed(t.localizedMessage ?: "讀取失敗")
+                _driveListings.value = DriveListingState.Failed(t.localizedMessage ?: ctx.getString(R.string.backup_read_failed))
             }
         }
     }
@@ -347,13 +347,13 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         ServiceLocator.applicationScope.launch {
             val email = settings.flow.first().googleAccountEmail
             if (email.isBlank()) {
-                emitError("尚未連結 Google 帳號")
+                emitError(ctx.getString(R.string.backup_not_linked))
                 return@launch
             }
             val token = when (val r = auth.requestDriveToken(email)) {
                 is GoogleAuthClient.TokenResult.Granted -> r.accessToken
                 else -> {
-                    emitError("需重新連結 Google 帳號")
+                    emitError(ctx.getString(R.string.backup_need_relink))
                     return@launch
                 }
             }

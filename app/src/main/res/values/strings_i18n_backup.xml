@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Backup / restore (BackupViewModel) -->
+    <string name="backup_err_open_export">Couldn\'t open the export destination</string>
+    <string name="backup_err_open_import">Couldn\'t open the import source</string>
+    <string name="backup_link_cancelled">Linking cancelled</string>
+    <string name="backup_link_failed">Google linking failed</string>
+    <string name="backup_consent_incomplete">Authorization not completed</string>
+    <string name="backup_auth_failed">Authorization failed</string>
+    <string name="backup_need_relink">Reconnect your Google account</string>
+    <string name="backup_not_linked">No Google account linked yet</string>
+    <string name="backup_read_failed">Read failed</string>
+
+    <!-- Auto-backup worker (AutoBackupWorker) -->
+    <string name="backup_err_no_recovery_code">No recovery code set</string>
+    <string name="backup_worker_no_account">No Google account linked</string>
+    <string name="backup_drive_revoked">Drive access was revoked. Please reconnect.</string>
+
+    <!-- Backup manager errors (BackupManager) -->
+    <string name="backup_err_recovery_format">Recovery code format is invalid</string>
+    <string name="backup_err_unwrap_key">Couldn\'t unwrap the backup key (check your recovery code)</string>
+    <string name="backup_err_incomplete">Backup file is incomplete: expected %1$d records, decoded %2$d</string>
+</resources>

@@ -1,24 +1,24 @@
 <resources>
 
     <!-- Weekly plan (calendar) -->
-    <string name="coach_weekly_plan_title">本週計畫</string>
-    <string name="coach_view_weekly_plan">查看本週計畫</string>
-    <string name="coach_weekly_plan_empty">這一天沒有安排</string>
-    <string name="coach_weekly_plan_today">今天</string>
-    <string name="coach_weekly_plan_skipped">已跳過</string>
+    <string name="coach_weekly_plan_title">This week\'s plan</string>
+    <string name="coach_view_weekly_plan">View this week\'s plan</string>
+    <string name="coach_weekly_plan_empty">Nothing scheduled for this day</string>
+    <string name="coach_weekly_plan_today">Today</string>
+    <string name="coach_weekly_plan_skipped">Skipped</string>
 
     <!-- Per-task actions -->
-    <string name="coach_task_action_move">移至其他天</string>
-    <string name="coach_task_action_skip">標記為跳過</string>
-    <string name="coach_task_action_unskip">取消跳過</string>
-    <string name="coach_task_move_reset">放回原本的日子</string>
+    <string name="coach_task_action_move">Move to another day</string>
+    <string name="coach_task_action_skip">Mark as skipped</string>
+    <string name="coach_task_action_unskip">Undo skip</string>
+    <string name="coach_task_move_reset">Move back to its original day</string>
 
     <!-- Reminder preferences -->
-    <string name="coach_reminder_section">每日提醒</string>
-    <string name="coach_reminder_enable">開啟每日提醒</string>
-    <string name="coach_reminder_enable_hint">在你選的時間與星期推送當天的任務提醒。</string>
-    <string name="coach_reminder_time_label">提醒時間</string>
-    <string name="coach_reminder_days_label">提醒星期</string>
-    <string name="coach_reminder_days_none">未選任何星期, 不會提醒。</string>
+    <string name="coach_reminder_section">Daily reminders</string>
+    <string name="coach_reminder_enable">Turn on daily reminders</string>
+    <string name="coach_reminder_enable_hint">Sends that day\'s task reminder at the time and on the days you choose.</string>
+    <string name="coach_reminder_time_label">Reminder time</string>
+    <string name="coach_reminder_days_label">Reminder days</string>
+    <string name="coach_reminder_days_none">No days selected — no reminders will be sent.</string>
 
 </resources>

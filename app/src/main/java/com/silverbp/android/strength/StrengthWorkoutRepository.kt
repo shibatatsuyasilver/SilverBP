@@ -27,7 +27,7 @@ class StrengthWorkoutRepository(
     suspend fun sessionWithSets(id: String): StrengthWorkoutSession? {
         val session = dao.sessionById(id) ?: return null
         val sets = dao.setsForSession(id)
-        val catalog = libraryDao.allOnce().associate { it.id to it.toDomain() }
+        val catalog = libraryDao.allOnce().associate { it.id to it.toDomain().localized() }
         return session.toDomain(sets, catalog)
     }
 

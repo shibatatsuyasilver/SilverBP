@@ -1,7 +1,10 @@
 package com.silverbp.android.coach
 
+import androidx.annotation.StringRes
+import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.settings.ExperienceLevel
@@ -240,7 +243,7 @@ class CoachEngine(
                     planId = planId,
                     dayOffset = offset,
                     module = LifestyleModule.Exercise,
-                    title = if (safety) "今日休息,聯絡醫師" else "散步 $perSessionMin 分鐘",
+                    title = if (safety) ServiceLocator.context.getString(R.string.coach_task_rest_contact_doctor) else ServiceLocator.context.getString(R.string.coach_task_walk_minutes, perSessionMin),
                     targetValue = if (safety) null else perSessionMin.toDouble(),
                     targetUnit = if (safety) null else "min",
                     intensity = intensity,
@@ -252,7 +255,7 @@ class CoachEngine(
                 planId = planId,
                 dayOffset = offset,
                 module = LifestyleModule.Diet,
-                title = "鈉攝取 < ${settings.dailySodiumTargetMg} 毫克",
+                title = ServiceLocator.context.getString(R.string.coach_task_sodium_target, settings.dailySodiumTargetMg),
                 targetValue = settings.dailySodiumTargetMg.toDouble(),
                 targetUnit = "mg",
                 intensity = TaskIntensity.Light,
@@ -262,7 +265,7 @@ class CoachEngine(
                 planId = planId,
                 dayOffset = offset,
                 module = LifestyleModule.Sleep,
-                title = "睡眠 ${settings.targetSleepHours} 小時",
+                title = ServiceLocator.context.getString(R.string.coach_task_sleep_hours, settings.targetSleepHours),
                 targetValue = settings.targetSleepHours.toDouble(),
                 targetUnit = "h",
                 intensity = TaskIntensity.Light,
@@ -272,7 +275,7 @@ class CoachEngine(
                 planId = planId,
                 dayOffset = offset,
                 module = LifestyleModule.Medication,
-                title = "依時服藥",
+                title = ServiceLocator.context.getString(R.string.coach_task_take_medication),
                 targetValue = 1.0,
                 targetUnit = "doses",
                 intensity = TaskIntensity.Light,
@@ -364,7 +367,7 @@ class CoachEngine(
          */
         fun shouldAllowWorkout(recentBp: List<BpReading>, now: Instant): WorkoutBpGate {
             if (recentBp.isEmpty()) {
-                return WorkoutBpGate.Caution("建議先量一次血壓再開始")
+                return WorkoutBpGate.Caution(R.string.coach_gate_measure_first)
             }
             val last24h = recentBp
                 .filter { it.timestamp >= now.minus(24, ChronoUnit.HOURS) }
@@ -372,7 +375,7 @@ class CoachEngine(
 
             // BLOCK — hypertensive crisis in the last 24h.
             if (last24h.any { it.isCritical() }) {
-                return WorkoutBpGate.Block("血壓過高(≥180/110),今天請先休息")
+                return WorkoutBpGate.Block(R.string.coach_gate_bp_too_high)
             }
 
             // CAUTION — 7-day SBP mean high, 3 consecutive elevated, or latest stage-2+.
@@ -382,7 +385,7 @@ class CoachEngine(
                 it.systolic >= STAGE1_SBP || it.diastolic >= STAGE1_DBP
             } == true
             if (sbpMeanHigh || threeConsecutiveElevated || latestStage2) {
-                return WorkoutBpGate.Caution("血壓偏高,建議降低強度")
+                return WorkoutBpGate.Caution(R.string.coach_gate_bp_elevated)
             }
 
             return WorkoutBpGate.Allow
@@ -510,21 +513,23 @@ class CoachEngine(
 }
 
 /**
- * Result of [CoachEngine.shouldAllowWorkout]. [reason] is an optional
- * user-facing Traditional-Chinese string the UI surfaces verbatim ([Allow]
- * carries none). Read it via `gate.reason`; branch on the subtype:
+ * Result of [CoachEngine.shouldAllowWorkout]. [reasonRes] is an optional
+ * user-facing string resource the UI resolves and surfaces ([Allow] carries
+ * none). Keeping it a [StringRes] id — not a resolved string — lets the gate
+ * stay a pure, Context-free decision the UI localizes at render time. Read it
+ * via `gate.reasonRes`; branch on the subtype:
  *  - [Allow]   — clear to start at the planned intensity.
  *  - [Caution] — let the user start but downgrade to Light / suggest measuring.
  *  - [Block]   — do NOT start a session today (hypertensive crisis).
  */
 sealed interface WorkoutBpGate {
-    val reason: String?
+    @get:StringRes val reasonRes: Int?
 
     object Allow : WorkoutBpGate {
-        override val reason: String? = null
+        override val reasonRes: Int? = null
     }
 
-    data class Caution(override val reason: String) : WorkoutBpGate
+    data class Caution(@StringRes override val reasonRes: Int) : WorkoutBpGate
 
-    data class Block(override val reason: String) : WorkoutBpGate
+    data class Block(@StringRes override val reasonRes: Int) : WorkoutBpGate
 }

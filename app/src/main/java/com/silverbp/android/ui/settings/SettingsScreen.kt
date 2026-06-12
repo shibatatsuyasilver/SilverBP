@@ -59,7 +59,9 @@ import com.silverbp.android.R
 import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.settings.AppLanguage
 import com.silverbp.android.settings.AppThemeMode
+import com.silverbp.android.settings.LocaleHelper
 import com.silverbp.android.ui.coach.formatTime
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
@@ -158,6 +160,32 @@ fun SettingsScreen(
                         RadioButton(
                             selected = state.appThemeMode == mode,
                             onClick = { vm.setAppThemeMode(mode) },
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(labelRes))
+                    }
+                }
+            }
+
+            // App language — framework per-app locale (System / English / 繁體中文).
+            // The value is read from LocaleManager, not `state` (it isn't persisted
+            // in DataStore); selecting one recreates the Activity so this recomposes
+            // with the new current language.
+            StandardCard(title = stringResource(R.string.settings_language_section)) {
+                val currentLang = LocaleHelper.current(context)
+                AppLanguage.entries.forEach { lang ->
+                    val labelRes = when (lang) {
+                        AppLanguage.System -> R.string.settings_language_system
+                        AppLanguage.English -> R.string.settings_language_english
+                        AppLanguage.TraditionalChinese -> R.string.settings_language_zh_tw
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = currentLang == lang,
+                            onClick = { vm.setAppLanguage(context, lang) },
                         )
                         Spacer(Modifier.size(8.dp))
                         Text(stringResource(labelRes))

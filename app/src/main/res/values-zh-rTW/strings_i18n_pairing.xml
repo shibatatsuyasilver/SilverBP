@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 配對狀態 (PairingViewModel) -->
+    <string name="pairing_status_starting_lan">正在啟動 LAN 廣播…</string>
+    <string name="pairing_status_waiting_scan">等待對方掃描配對…</string>
+    <string name="pairing_status_handshake">正在進行 Noise XK 握手…</string>
+    <string name="pairing_err_failed">配對失敗:%1$s</string>
+    <string name="pairing_err_save">無法儲存配對:%1$s</string>
+    <string name="pairing_err_sync_after">配對成功但同步失敗:%1$s</string>
+
+    <!-- 配對畫面 (PairingScreen) -->
+    <string name="pairing_title">配對裝置</string>
+    <string name="pairing_back">返回</string>
+    <string name="pairing_subtitle">配對另一台裝置以同步血壓資料</string>
+    <string name="pairing_wifi_note">兩台裝置需連到同一個 Wi-Fi。配對後資料只在 LAN 點對點傳輸,雲端永不會看到內容。</string>
+    <string name="pairing_show_qr">顯示 QR 配對碼</string>
+    <string name="pairing_scan_qr">掃描其他裝置 QR</string>
+    <string name="pairing_scan_instruction">用另一台裝置掃描下方的 QR 碼</string>
+    <string name="pairing_camera_permission">需要相機權限才能掃描 QR 碼</string>
+    <string name="pairing_grant_permission">授予權限</string>
+    <string name="pairing_verify_code_joiner">對方裝置上應該也顯示這個 6 位數</string>
+    <string name="pairing_verify_code_host">另一台裝置上應該也顯示這個 6 位數</string>
+    <string name="pairing_mitm_warning">如果兩邊號碼不同,代表中間人嘗試攔截 — 請取消配對</string>
+    <string name="pairing_numbers_differ">號碼不同 — 取消</string>
+    <string name="pairing_numbers_match">號碼相同 — 確認</string>
+    <string name="pairing_peer">配對對象:%1$s</string>
+    <string name="pairing_syncing">正在同步資料…</string>
+    <string name="pairing_complete">配對完成</string>
+    <string name="pairing_synced_count">已同步 %1$d 筆新資料</string>
+    <string name="pairing_already_synced">資料已同步</string>
+    <string name="pairing_done">完成</string>
+    <string name="pairing_retry">重試</string>
+    <string name="pairing_qr_cd">配對 QR 碼</string>
+</resources>

@@ -1,0 +1,22 @@
+<resources>
+
+    <!-- Onboarding: goal profile (Phase 4). Enum option labels are zh-TW and
+         come from the enums themselves (PrimaryGoal/ExperienceLevel/TrainingStyle);
+         these are the surrounding step copy + buttons. -->
+    <string name="onboarding_goal_back">上一步</string>
+    <string name="onboarding_goal_next">下一步</string>
+
+    <string name="onboarding_primary_goal_title">你的主要目標是什麼?</string>
+    <string name="onboarding_primary_goal_subtitle">我們會依此調整每週計畫的重點。</string>
+
+    <string name="onboarding_experience_title">你的運動經驗?</string>
+    <string name="onboarding_experience_subtitle">初學者會從較輕鬆的強度開始,逐步進階。</string>
+
+    <string name="onboarding_availability_title">你每週能運動幾天?</string>
+    <string name="onboarding_availability_subtitle">計畫會把運動分散到這些天數。</string>
+    <string name="onboarding_availability_days">%1$d 天 / 週</string>
+
+    <string name="onboarding_training_style_title">你偏好的訓練方式?</string>
+    <string name="onboarding_training_style_subtitle">影響有氧與重訓的比重(重訓內容稍後加入)。</string>
+
+</resources>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pairing status (PairingViewModel) -->
+    <string name="pairing_status_starting_lan">Starting LAN broadcast…</string>
+    <string name="pairing_status_waiting_scan">Waiting for the other device to scan…</string>
+    <string name="pairing_status_handshake">Performing Noise XK handshake…</string>
+    <string name="pairing_err_failed">Pairing failed: %1$s</string>
+    <string name="pairing_err_save">Couldn\'t save pairing: %1$s</string>
+    <string name="pairing_err_sync_after">Paired, but sync failed: %1$s</string>
+
+    <!-- Pairing screen (PairingScreen) -->
+    <string name="pairing_title">Pair device</string>
+    <string name="pairing_back">Back</string>
+    <string name="pairing_subtitle">Pair another device to sync your blood-pressure data</string>
+    <string name="pairing_wifi_note">Both devices must be on the same Wi-Fi. After pairing, data is sent peer-to-peer over the LAN only — the cloud never sees it.</string>
+    <string name="pairing_show_qr">Show QR pairing code</string>
+    <string name="pairing_scan_qr">Scan another device\'s QR</string>
+    <string name="pairing_scan_instruction">Scan the QR code below with your other device</string>
+    <string name="pairing_camera_permission">Camera permission is required to scan the QR code</string>
+    <string name="pairing_grant_permission">Grant permission</string>
+    <string name="pairing_verify_code_joiner">Your other device should show this same 6-digit number</string>
+    <string name="pairing_verify_code_host">The other device should show this same 6-digit number</string>
+    <string name="pairing_mitm_warning">If the numbers differ, someone may be intercepting — cancel the pairing</string>
+    <string name="pairing_numbers_differ">Numbers differ — cancel</string>
+    <string name="pairing_numbers_match">Numbers match — confirm</string>
+    <string name="pairing_peer">Paired with: %1$s</string>
+    <string name="pairing_syncing">Syncing data…</string>
+    <string name="pairing_complete">Pairing complete</string>
+    <string name="pairing_synced_count">Synced %1$d new records</string>
+    <string name="pairing_already_synced">Data is already in sync</string>
+    <string name="pairing_done">Done</string>
+    <string name="pairing_retry">Retry</string>
+    <string name="pairing_qr_cd">Pairing QR code</string>
+</resources>

@@ -449,7 +449,7 @@ private fun PrimaryGoalStep(
             FilterChip(
                 selected = selected == goal,
                 onClick = { onSelect(goal) },
-                label = { Text(goal.label) },
+                label = { Text(stringResource(goal.labelRes)) },
             )
         }
     }
@@ -474,7 +474,7 @@ private fun ExperienceStep(
             FilterChip(
                 selected = selected == level,
                 onClick = { onSelect(level) },
-                label = { Text(level.label) },
+                label = { Text(stringResource(level.labelRes)) },
             )
         }
     }
@@ -526,7 +526,7 @@ private fun TrainingStyleStep(
             FilterChip(
                 selected = selected == style,
                 onClick = { onSelect(style) },
-                label = { Text(style.label) },
+                label = { Text(stringResource(style.labelRes)) },
             )
         }
     }

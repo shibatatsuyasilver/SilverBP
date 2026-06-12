@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Onboarding goal profile (GoalProfile) -->
+    <string name="goal_primary_strength">Strength</string>
+    <string name="goal_primary_fat_loss">Fat loss</string>
+    <string name="goal_primary_general_fitness">Fitness</string>
+    <string name="goal_primary_hypertrophy">Muscle gain</string>
+    <string name="goal_experience_beginner">Beginner</string>
+    <string name="goal_experience_intermediate">Intermediate</string>
+    <string name="goal_experience_advanced">Advanced</string>
+    <string name="goal_style_full_body">Full body</string>
+    <string name="goal_style_cardio_focus">Cardio focus</string>
+    <string name="goal_style_strength_focus">Strength focus</string>
+    <string name="goal_style_body_weight">Bodyweight</string>
+
+    <!-- Body region filter (BodyPart) -->
+    <string name="bodypart_upper">Upper body</string>
+    <string name="bodypart_lower">Lower body</string>
+    <string name="bodypart_core">Core</string>
+    <string name="bodypart_full">Full body</string>
+</resources>

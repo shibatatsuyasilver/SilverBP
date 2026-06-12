@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 入門目標設定 (GoalProfile) -->
+    <string name="goal_primary_strength">力量</string>
+    <string name="goal_primary_fat_loss">減脂</string>
+    <string name="goal_primary_general_fitness">體能</string>
+    <string name="goal_primary_hypertrophy">增肌</string>
+    <string name="goal_experience_beginner">初學</string>
+    <string name="goal_experience_intermediate">中級</string>
+    <string name="goal_experience_advanced">進階</string>
+    <string name="goal_style_full_body">全身</string>
+    <string name="goal_style_cardio_focus">有氧為主</string>
+    <string name="goal_style_strength_focus">重訓為主</string>
+    <string name="goal_style_body_weight">自體重量</string>
+
+    <!-- 部位篩選 (BodyPart) -->
+    <string name="bodypart_upper">上半身</string>
+    <string name="bodypart_lower">下半身</string>
+    <string name="bodypart_core">核心</string>
+    <string name="bodypart_full">全身</string>
+</resources>

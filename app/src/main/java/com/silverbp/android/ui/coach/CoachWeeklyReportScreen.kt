@@ -102,7 +102,7 @@ private fun ReportSummaryCard(r: WeeklyReport) {
             ReportLine("SBP", "${"%.1f".format(r.sbpMean)} mmHg (${"%+.1f".format(r.sbpDelta)})")
             ReportLine(stringResource(R.string.coach_module_exercise), "${r.aerobicMin} / ${r.aerobicTarget} min")
             ReportLine(stringResource(R.string.coach_module_sleep), "${"%.1f".format(r.sleepMeanH)} h")
-            ReportLine(stringResource(R.string.coach_module_diet), "鈉超標 ${r.sodiumDaysOver} 天")
+            ReportLine(stringResource(R.string.coach_module_diet), stringResource(R.string.coach_sodium_days_over, r.sodiumDaysOver))
             ReportLine(stringResource(R.string.coach_module_medication), "${(r.medAdherence * 100).toInt()}%")
         }
     }

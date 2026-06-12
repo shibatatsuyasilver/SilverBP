@@ -7,6 +7,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.R
 import com.silverbp.android.capture.CaptureSessionHolder
 import com.silverbp.android.core.Source
 import com.silverbp.android.di.ServiceLocator
@@ -94,25 +95,25 @@ class CaptureFlowViewModel(
                 onSuccess()
             } catch (e: BpExtractionError.LowConfidence) {
                 Log.i(TAG, "[Capture] lowConfidence ${e.confidence}")
-                _phase.value = CapturePhase.Error("辨識信心度過低 (${(e.confidence * 100).toInt()}%),請重拍或手動輸入")
+                _phase.value = CapturePhase.Error(context.getString(R.string.capture_err_low_confidence, (e.confidence * 100).toInt()))
                 // still allow downstream manual entry with photo attached
                 CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             } catch (e: BpExtractionError.NetworkError) {
                 Log.w(TAG, "[Capture] network error")
-                _phase.value = CapturePhase.Error("無網路連線,請確認連線後再試,或先手動輸入")
+                _phase.value = CapturePhase.Error(context.getString(R.string.capture_err_no_network))
                 CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             } catch (e: BpExtractionError.ApiError) {
                 Log.w(TAG, "[Capture] api error ${e.code}")
                 val msg = when (e.code) {
-                    429 -> "Gemini 用量已達上限,請稍後再試或先手動輸入"
-                    401, 403 -> "Gemini API key 無效,請至「設定」檢查"
-                    else -> "雲端辨識失敗 (HTTP ${e.code}),請重試或先手動輸入"
+                    429 -> context.getString(R.string.capture_err_quota)
+                    401, 403 -> context.getString(R.string.capture_err_invalid_key)
+                    else -> context.getString(R.string.capture_err_cloud_http, e.code)
                 }
                 _phase.value = CapturePhase.Error(msg)
                 CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             } catch (e: Exception) {
                 Log.w(TAG, "[Capture] extract threw: $e")
-                _phase.value = CapturePhase.Error("辨識失敗:${e.message ?: "未知錯誤"}")
+                _phase.value = CapturePhase.Error(context.getString(R.string.capture_err_generic, e.message ?: context.getString(R.string.err_unknown)))
                 CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             }
         }
@@ -123,7 +124,7 @@ class CaptureFlowViewModel(
             val bmp = withContext(Dispatchers.IO) {
                 com.silverbp.android.recognition.decodeUriWithExif(context, uri)
             } ?: run {
-                _phase.value = CapturePhase.Error("無法載入照片")
+                _phase.value = CapturePhase.Error(context.getString(R.string.capture_err_load_photo))
                 return@launch
             }
             processCapturedImage(bmp, onSuccess)

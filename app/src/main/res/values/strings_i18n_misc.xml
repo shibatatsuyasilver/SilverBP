@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Coach tasks / workout gate (CoachEngine) -->
+    <string name="coach_task_rest_contact_doctor">Rest today; contact your doctor</string>
+    <string name="coach_task_walk_minutes">Walk for %1$d min</string>
+    <string name="coach_task_sodium_target">Sodium intake &lt; %1$d mg</string>
+    <string name="coach_task_sleep_hours">Sleep %1$.1f hours</string>
+    <string name="coach_task_take_medication">Take medication on time</string>
+    <string name="coach_gate_measure_first">Measure your blood pressure once before starting</string>
+    <string name="coach_gate_bp_too_high">Blood pressure too high (≥180/110); please rest today</string>
+    <string name="coach_gate_bp_elevated">Blood pressure is elevated; consider lowering the intensity</string>
+
+    <!-- Local model catalog (ModelCatalog) -->
+    <string name="model_gemma4_e2b_name">Gemma 4 E2B (Recommended)</string>
+    <string name="model_gemma4_e2b_notes">Recommended for most devices (~0.7 GB GPU memory). MTP ~2x decode speedup.</string>
+    <string name="model_gemma4_e4b_name">Gemma 4 E4B (High accuracy)</string>
+    <string name="model_gemma4_e4b_notes">Needs more GPU memory (flagships like the S24 Ultra). MTP ~2x decode speedup.</string>
+    <string name="model_gemma3n_e4b_name">Gemma 3n E4B (same as iOS)</string>
+    <string name="model_gemma3n_e4b_notes">Matches the iOS model (.task format).</string>
+</resources>

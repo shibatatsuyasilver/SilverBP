@@ -61,7 +61,7 @@ fun WorkoutBpGateDialog(
                 ),
             )
         },
-        text = { gate.reason?.let { Text(it) } },
+        text = { gate.reasonRes?.let { Text(stringResource(it)) } },
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onMeasure) {

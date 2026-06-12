@@ -2,7 +2,9 @@ package com.silverbp.android.backup
 
 import android.util.Log
 import androidx.room.withTransaction
+import com.silverbp.android.R
 import com.silverbp.android.core.db.SilverBpDatabase
+import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.sync.CombinedRoomSyncSink
 import com.silverbp.android.sync.CombinedRoomSyncSource
 import com.silverbp.android.sync.SettingsKvSyncMapper
@@ -127,7 +129,7 @@ class BackupManager(
             // 3. 推導 KEK / 產生 DEK / 雙重包裝.
             _exportPhase.value = Phase.Encrypting
             val entropy = RecoveryCode.decode(passphrase)
-                ?: throw IllegalArgumentException("恢復碼格式錯誤")
+                ?: throw IllegalArgumentException(ServiceLocator.context.getString(R.string.backup_err_recovery_format))
             val kdfSalt = BackupCrypto.randomSalt()
             val kdfParams = BackupCrypto.KdfParams()
             val passphraseStr = encodeEntropyForKdf(entropy)
@@ -202,7 +204,7 @@ class BackupManager(
 
             // 2. 解 DEK: 先試 Keystore,失敗回退到 recovery 路徑.
             val dek = unwrapDek(header, passphrase)
-                ?: throw IOException("無法解開備份檔金鑰(請確認恢復碼)")
+                ?: throw IOException(ServiceLocator.context.getString(R.string.backup_err_unwrap_key))
 
             // 3. 解密 payload(用原始 header bytes 當 AAD).
             _importPhase.value = Phase.Encrypting
@@ -217,7 +219,7 @@ class BackupManager(
             // 截斷的密文,這層是對 codec/邏輯錯誤的縱深防禦,避免靜默少匯入。
             if (records.size != header.recordCount) {
                 throw IOException(
-                    "備份檔不完整:預期 ${header.recordCount} 筆,實際解出 ${records.size} 筆",
+                    ServiceLocator.context.getString(R.string.backup_err_incomplete, header.recordCount, records.size),
                 )
             }
             _importPhase.value = Phase.Encoding(1f)

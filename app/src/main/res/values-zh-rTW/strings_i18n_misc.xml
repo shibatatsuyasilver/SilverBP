@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 教練任務 / 運動門檻 (CoachEngine) -->
+    <string name="coach_task_rest_contact_doctor">今日休息,聯絡醫師</string>
+    <string name="coach_task_walk_minutes">散步 %1$d 分鐘</string>
+    <string name="coach_task_sodium_target">鈉攝取 &lt; %1$d 毫克</string>
+    <string name="coach_task_sleep_hours">睡眠 %1$.1f 小時</string>
+    <string name="coach_task_take_medication">依時服藥</string>
+    <string name="coach_gate_measure_first">建議先量一次血壓再開始</string>
+    <string name="coach_gate_bp_too_high">血壓過高(≥180/110),今天請先休息</string>
+    <string name="coach_gate_bp_elevated">血壓偏高,建議降低強度</string>
+
+    <!-- 本機模型目錄 (ModelCatalog) -->
+    <string name="model_gemma4_e2b_name">Gemma 4 E2B (推薦)</string>
+    <string name="model_gemma4_e2b_notes">推薦給多數裝置 (約 0.7 GB GPU 記憶體)。MTP 加速 ~2x decode。</string>
+    <string name="model_gemma4_e4b_name">Gemma 4 E4B (高精度)</string>
+    <string name="model_gemma4_e4b_notes">需 GPU 記憶體較多 (旗艦機如 S24 Ultra)。MTP 加速 ~2x decode。</string>
+    <string name="model_gemma3n_e4b_name">Gemma 3n E4B (iOS 同款)</string>
+    <string name="model_gemma3n_e4b_notes">與 iOS 版一致的模型 (.task 格式)。</string>
+</resources>

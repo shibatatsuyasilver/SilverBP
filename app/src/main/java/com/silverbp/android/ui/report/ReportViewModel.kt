@@ -2,6 +2,7 @@ package com.silverbp.android.ui.report
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.di.ServiceLocator
@@ -74,7 +75,7 @@ class ReportViewModel(
                 // Disk full / no write permission / renderer failure: never let
                 // the tap silently no-op — surface a plain message.
                 android.util.Log.w("ReportViewModel", "PDF generation failed", t)
-                errorFlow.value = "報告產生失敗,請確認儲存空間後再試"
+                errorFlow.value = ServiceLocator.context.getString(R.string.report_generate_failed)
             } finally {
                 generatingFlow.value = false
             }

@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -69,6 +70,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.silverbp.android.R
 import com.silverbp.android.sync.pairing.QrPairingPayload
 import java.util.concurrent.Executors
 
@@ -94,10 +96,10 @@ fun PairingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("配對裝置") },
+                title = { Text(stringResource(R.string.pairing_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.Done, contentDescription = "返回")
+                        Icon(Icons.Default.Done, contentDescription = stringResource(R.string.pairing_back))
                     }
                 },
             )
@@ -162,13 +164,13 @@ private fun PickerStage(
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "配對另一台裝置以同步血壓資料",
+            text = stringResource(R.string.pairing_subtitle),
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = "兩台裝置需連到同一個 Wi-Fi。配對後資料只在 LAN 點對點傳輸,雲端永不會看到內容。",
+            text = stringResource(R.string.pairing_wifi_note),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -180,7 +182,7 @@ private fun PickerStage(
         ) {
             Icon(Icons.Default.QrCode, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("顯示 QR 配對碼")
+            Text(stringResource(R.string.pairing_show_qr))
         }
         Spacer(Modifier.height(12.dp))
         OutlinedButton(
@@ -189,7 +191,7 @@ private fun PickerStage(
         ) {
             Icon(Icons.Default.QrCodeScanner, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("掃描其他裝置 QR")
+            Text(stringResource(R.string.pairing_scan_qr))
         }
     }
 }
@@ -204,7 +206,7 @@ private fun ShowQrStage(qrUrl: String, status: String) {
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "用另一台裝置掃描下方的 QR 碼",
+            text = stringResource(R.string.pairing_scan_instruction),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -246,13 +248,13 @@ private fun ScanQrStage(onScanned: (String) -> Unit) {
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                "需要相機權限才能掃描 QR 碼",
+                stringResource(R.string.pairing_camera_permission),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(12.dp))
             Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) {
-                Text("授予權限")
+                Text(stringResource(R.string.pairing_grant_permission))
             }
         }
         return
@@ -274,7 +276,7 @@ private fun ConfirmSasStage(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = if (asJoiner) "對方裝置上應該也顯示這個 6 位數" else "另一台裝置上應該也顯示這個 6 位數",
+            text = if (asJoiner) stringResource(R.string.pairing_verify_code_joiner) else stringResource(R.string.pairing_verify_code_host),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -297,7 +299,7 @@ private fun ConfirmSasStage(
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "如果兩邊號碼不同,代表中間人嘗試攔截 — 請取消配對",
+            text = stringResource(R.string.pairing_mitm_warning),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -311,19 +313,19 @@ private fun ConfirmSasStage(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Text("號碼不同 — 取消")
+                Text(stringResource(R.string.pairing_numbers_differ))
             }
             Spacer(Modifier.width(12.dp))
             Button(
                 onClick = { onResult(true) },
                 modifier = Modifier.weight(1f),
             ) {
-                Text("號碼相同 — 確認")
+                Text(stringResource(R.string.pairing_numbers_match))
             }
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "配對對象:${outcome.peerDeviceId}",
+            text = stringResource(R.string.pairing_peer, outcome.peerDeviceId),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline,
         )
@@ -342,7 +344,7 @@ private fun SyncingStage(peerDeviceId: String) {
         androidx.compose.material3.CircularProgressIndicator()
         Spacer(Modifier.height(16.dp))
         Text(
-            "正在同步資料…",
+            stringResource(R.string.pairing_syncing),
             style = MaterialTheme.typography.titleMedium,
         )
         Spacer(Modifier.height(8.dp))
@@ -372,12 +374,12 @@ private fun DoneStage(peerDeviceId: String, syncedCount: Int, onClose: () -> Uni
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            "配對完成",
+            stringResource(R.string.pairing_complete),
             style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            if (syncedCount > 0) "已同步 ${syncedCount} 筆新資料" else "資料已同步",
+            if (syncedCount > 0) stringResource(R.string.pairing_synced_count, syncedCount) else stringResource(R.string.pairing_already_synced),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -390,7 +392,7 @@ private fun DoneStage(peerDeviceId: String, syncedCount: Int, onClose: () -> Uni
         )
         Spacer(Modifier.height(24.dp))
         Button(onClick = onClose) {
-            Text("完成")
+            Text(stringResource(R.string.pairing_done))
         }
     }
 }
@@ -412,7 +414,7 @@ private fun ErrorStage(message: String, onRetry: () -> Unit) {
         )
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
-            Text("重試")
+            Text(stringResource(R.string.pairing_retry))
         }
     }
 }
@@ -426,7 +428,7 @@ private fun QrImage(text: String, sizeDp: Int) {
     }
     Image(
         painter = BitmapPainter(bitmap.asImageBitmap()),
-        contentDescription = "配對 QR 碼",
+        contentDescription = stringResource(R.string.pairing_qr_cd),
         modifier = Modifier
             .size(sizeDp.dp)
             .background(androidx.compose.ui.graphics.Color.White)

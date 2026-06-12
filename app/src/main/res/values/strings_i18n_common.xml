@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared fallback strings introduced during the i18n externalization pass.
+  Grouped i18n string files (strings_i18n_*.xml) are merged with strings.xml at
+  build time; splitting them lets externalization proceed file-by-file.
+-->
+<resources>
+    <string name="err_unknown">Unknown error</string>
+
+    <!-- Capture flow (CaptureFlowViewModel) -->
+    <string name="capture_err_low_confidence">Recognition confidence too low (%1$d%%). Please retake or enter manually.</string>
+    <string name="capture_err_no_network">No network connection. Check your connection and retry, or enter manually.</string>
+    <string name="capture_err_quota">Gemini quota reached. Try again later, or enter manually.</string>
+    <string name="capture_err_invalid_key">Invalid Gemini API key. Check it in Settings.</string>
+    <string name="capture_err_cloud_http">Cloud recognition failed (HTTP %1$d). Retry, or enter manually.</string>
+    <string name="capture_err_generic">Recognition failed: %1$s</string>
+    <string name="capture_err_load_photo">Couldn\'t load photo.</string>
+</resources>

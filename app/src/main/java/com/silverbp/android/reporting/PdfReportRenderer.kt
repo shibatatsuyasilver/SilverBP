@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.silverbp.android.R
 import com.silverbp.android.analytics.StatsEngine
 import com.silverbp.android.core.BpReading
 import java.io.File
@@ -65,9 +66,9 @@ class PdfReportRenderer(private val context: Context) {
         val muted = Paint(body).apply { color = Color.DKGRAY; textSize = 11f }
 
         var y = 80f
-        canvas.drawText("居家血壓記錄報告", 60f, y, title); y += 36f
-        canvas.drawText("區間  ${dateFmt.format(from)}  ~  ${dateFmt.format(to)}", 60f, y, body); y += 24f
-        canvas.drawText("讀數筆數  ${readings.size}", 60f, y, mono); y += 18f
+        canvas.drawText(context.getString(R.string.pdf_report_title), 60f, y, title); y += 36f
+        canvas.drawText(context.getString(R.string.pdf_report_range, dateFmt.format(from), dateFmt.format(to)), 60f, y, body); y += 24f
+        canvas.drawText(context.getString(R.string.pdf_report_count, readings.size), 60f, y, mono); y += 18f
 
         if (readings.isNotEmpty()) {
             val sys = readings.map { it.systolic.toDouble() }
@@ -78,16 +79,16 @@ class PdfReportRenderer(private val context: Context) {
             val sdS = StatsEngine.standardDeviation(sys)
             val arvS = StatsEngine.averageRealVariability(sys)
             val meanP = if (pulse.isNotEmpty()) StatsEngine.mean(pulse).toInt() else null
-            canvas.drawText("平均           $meanS / $meanD mmHg", 60f, y, mono); y += 18f
-            canvas.drawText("SBP 標準差     %.1f mmHg".format(sdS), 60f, y, mono); y += 18f
+            canvas.drawText(context.getString(R.string.pdf_report_mean, meanS, meanD), 60f, y, mono); y += 18f
+            canvas.drawText(context.getString(R.string.pdf_report_sd, sdS), 60f, y, mono); y += 18f
             canvas.drawText("ARV            %.1f mmHg".format(arvS), 60f, y, mono); y += 18f
             if (meanP != null) {
-                canvas.drawText("脈搏平均       $meanP bpm", 60f, y, mono); y += 18f
+                canvas.drawText(context.getString(R.string.pdf_report_pulse_mean, meanP), 60f, y, mono); y += 18f
             }
         }
 
         y = (pageHeight - 60).toFloat()
-        canvas.drawText("由 SilverBP 產生於 ${dateFmt.format(Instant.now())}", 60f, y, muted)
+        canvas.drawText(context.getString(R.string.pdf_report_generated_at, dateFmt.format(Instant.now())), 60f, y, muted)
 
         doc.finishPage(page)
     }
@@ -101,8 +102,8 @@ class PdfReportRenderer(private val context: Context) {
             val header = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 13f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
             val cell = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 10f; typeface = Typeface.MONOSPACE }
             var y = 60f
-            canvas.drawText("讀數明細 (頁 ${i + 1} / $pages)", 60f, y, header); y += 24f
-            canvas.drawText("時間              SBP/DBP   脈搏  備註", 60f, y, header); y += 18f
+            canvas.drawText(context.getString(R.string.pdf_report_detail_header, i + 1, pages), 60f, y, header); y += 24f
+            canvas.drawText(context.getString(R.string.pdf_report_table_header), 60f, y, header); y += 18f
             val from = i * rowsPerPage
             val to = (from + rowsPerPage).coerceAtMost(sorted.size)
             for (r in sorted.subList(from, to)) {
@@ -123,8 +124,8 @@ class PdfReportRenderer(private val context: Context) {
         val title = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 18f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
         val body = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 11f }
         var y = 80f
-        canvas.drawText("注意事項", 60f, y, title); y += 28f
-        DISCLAIMER_PARAGRAPHS.forEach { para ->
+        canvas.drawText(context.getString(R.string.pdf_disclaimer_title), 60f, y, title); y += 28f
+        disclaimerParagraphs().forEach { para ->
             y = drawWrapped(canvas, para, 60f, y, body, pageWidth - 120f)
             y += 8f
         }
@@ -154,12 +155,12 @@ class PdfReportRenderer(private val context: Context) {
 
     private fun pageInfo(num: Int) = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, num).create()
 
-    companion object {
-        private val DISCLAIMER_PARAGRAPHS = listOf(
-            "本 App 僅作為個人健康紀錄輔助工具,並非醫療裝置 (Medical Device)。任何讀數異常或健康疑慮,請諮詢醫療專業人員。",
-            "指標說明:平均為算術平均;SD 為樣本標準差,反映讀數離散度;ARV (Average Real Variability) 為連續讀數差絕對值的平均,可較佳反映時序變異 (Mena et al., J Hypertens 2005;Wei et al., JAHA 2018)。",
-            "居家血壓 (HBPM) 高血壓門檻參考:台灣 2022 與 ACC/AHA 2017 為 ≥130/80 mmHg;ESH 2023 為 ≥140/90 mmHg,治療目標 <130/80。",
-            "Powered by Gemma 3n vision model (Apache License 2.0)。",
-        )
-    }
+    // Resolved per render (not cached at class load) so the report follows the
+    // current app language.
+    private fun disclaimerParagraphs() = listOf(
+        context.getString(R.string.pdf_disclaimer_1),
+        context.getString(R.string.pdf_disclaimer_2),
+        context.getString(R.string.pdf_disclaimer_3),
+        context.getString(R.string.pdf_disclaimer_4),
+    )
 }
