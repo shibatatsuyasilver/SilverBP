@@ -12,6 +12,9 @@ import com.silverbp.android.nutrition.NutritionRepository
 import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.nutrition.SodiumSource
 import com.silverbp.android.nutrition.currentMealType
+import com.silverbp.android.recognition.ModelBootstrap
+import com.silverbp.android.recognition.ModelCatalog
+import com.silverbp.android.recognition.NotConfiguredNutritionRecognizer
 import com.silverbp.android.recognition.NutritionRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
 import com.silverbp.android.settings.UserSettingsRepository
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,6 +59,13 @@ sealed interface NutritionCapturePhase {
     data object Idle : NutritionCapturePhase
     data object Analyzing : NutritionCapturePhase
     data class Error(val message: String) : NutritionCapturePhase
+
+    /**
+     * No usable food-recognition backend: the on-device model isn't downloaded
+     * and no cloud API key is set. The UI prompts to download the model or set
+     * up cloud, rather than silently dropping to manual entry.
+     */
+    data object NeedsModel : NutritionCapturePhase
 }
 
 class NutritionViewModel(
@@ -93,6 +104,18 @@ class NutritionViewModel(
 
     fun resetCapture() { _capturePhase.value = NutritionCapturePhase.Idle }
 
+    /**
+     * Download + preload the selected on-device model so food recognition can run.
+     * Progress is reported via [ServiceLocator.modelLoadStatus]; the Nutrition
+     * screen observes it. Wired to the "download model" action on [NutritionCapturePhase.NeedsModel].
+     */
+    fun downloadModel() {
+        viewModelScope.launch {
+            val variant = ModelCatalog.byId(ServiceLocator.userSettings.flow.first().selectedModelId)
+            ModelBootstrap.downloadAndPreload(appContext, variant)
+        }
+    }
+
     /** Analyse a camera preview bitmap, stage a draft, then [onReady] to navigate. */
     fun analyzeBitmap(bitmap: Bitmap, onReady: () -> Unit) {
         viewModelScope.launch {
@@ -113,9 +136,13 @@ class NutritionViewModel(
                     )
                     _capturePhase.value = NutritionCapturePhase.Idle
                     onReady()
+                } else if (recognizer is NotConfiguredNutritionRecognizer) {
+                    // No on-device model downloaded and no cloud key — prompt the
+                    // user to set one up instead of silently dropping to manual.
+                    _capturePhase.value = NutritionCapturePhase.NeedsModel
                 } else {
-                    // Model not loaded / no API key — fall back to manual entry,
-                    // keeping the photo so the user can fill in the numbers.
+                    // Backend is configured but the engine is still warming up
+                    // (startup window) — fall back to manual entry, keep the photo.
                     NutritionDraftHolder.put(manualDraft(photoName))
                     _capturePhase.value = NutritionCapturePhase.Idle
                     onReady()

@@ -730,6 +730,11 @@
     <string name="nutrition_analyzing">Analyzing…</string>
     <string name="nutrition_analyze_failed">Could not analyze — enter manually</string>
     <string name="nutrition_manual_entry">Manual entry</string>
+    <string name="nutrition_needs_model_title">Set up food recognition</string>
+    <string name="nutrition_needs_model_body">Food recognition needs the on-device model or a cloud key. Download the model (works offline), or add a Gemini API key in Settings.</string>
+    <string name="nutrition_download_model_cta">Download model</string>
+    <string name="nutrition_model_ready_reselect">Model ready — pick the photo again.</string>
+    <string name="nutrition_done">Done</string>
     <string name="nutrition_kcal_short">%1$d kcal</string>
     <string name="nutrition_meal_breakfast">Breakfast</string>
     <string name="nutrition_meal_lunch">Lunch</string>

@@ -52,16 +52,20 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.silverbp.android.R
+import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.nutrition.FoodLog
 import com.silverbp.android.nutrition.MealType
 import com.silverbp.android.nutrition.SodiumLevel
+import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.ui.coach.components.GoalRing
+import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
@@ -227,6 +231,53 @@ fun NutritionScreen(
                         Text(stringResource(R.string.nutrition_manual_entry))
                     }
                     Spacer(Modifier.height(AppSpacing.itemGap))
+                    OutlinedButton(onClick = { vm.resetCapture() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+                NutritionCapturePhase.NeedsModel -> CaptureOverlay {
+                    val modelPhase by ServiceLocator.modelLoadStatus.phase
+                        .collectAsStateWithLifecycle()
+                    Text(
+                        stringResource(R.string.nutrition_needs_model_title),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(AppSpacing.tight))
+                    Text(
+                        stringResource(R.string.nutrition_needs_model_body),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(AppSpacing.sectionGap))
+                    // Progress while the model downloads / loads (reuses the banner).
+                    ModelLoadBanner(phase = modelPhase)
+                    when (modelPhase) {
+                        ModelLoadPhase.Ready -> {
+                            Text(
+                                stringResource(R.string.nutrition_model_ready_reselect),
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(Modifier.height(AppSpacing.itemGap))
+                            Button(onClick = { vm.resetCapture() }) {
+                                Text(stringResource(R.string.nutrition_done))
+                            }
+                        }
+                        is ModelLoadPhase.Downloading, ModelLoadPhase.Loading -> Unit
+                        else -> {
+                            Button(onClick = { vm.downloadModel() }) {
+                                Text(stringResource(R.string.nutrition_download_model_cta))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(AppSpacing.itemGap))
+                    OutlinedButton(onClick = { vm.resetCapture(); onOpenConfirmNew() }) {
+                        Text(stringResource(R.string.nutrition_manual_entry))
+                    }
+                    Spacer(Modifier.height(AppSpacing.tight))
                     OutlinedButton(onClick = { vm.resetCapture() }) {
                         Text(stringResource(R.string.cancel))
                     }

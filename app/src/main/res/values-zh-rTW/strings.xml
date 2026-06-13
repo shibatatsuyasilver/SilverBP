@@ -730,6 +730,11 @@
     <string name="nutrition_analyzing">分析中…</string>
     <string name="nutrition_analyze_failed">辨識失敗,可改用手動輸入</string>
     <string name="nutrition_manual_entry">手動輸入</string>
+    <string name="nutrition_needs_model_title">設定飲食辨識</string>
+    <string name="nutrition_needs_model_body">飲食辨識需要裝置端模型或雲端金鑰。可下載模型(可離線使用),或到設定填入 Gemini API 金鑰。</string>
+    <string name="nutrition_download_model_cta">下載模型</string>
+    <string name="nutrition_model_ready_reselect">模型已就緒,請再選一次照片。</string>
+    <string name="nutrition_done">完成</string>
     <string name="nutrition_kcal_short">%1$d kcal</string>
     <string name="nutrition_meal_breakfast">早餐</string>
     <string name="nutrition_meal_lunch">午餐</string>

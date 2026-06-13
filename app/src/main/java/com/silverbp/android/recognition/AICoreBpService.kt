@@ -190,7 +190,12 @@ object AICoreBpService {
      * Low-level multimodal call for the nutrition pipeline
      * ([AICoreNutritionRecognizer]): run [promptText] over [bitmap], return raw
      * text. Unlike [extract] it skips [preprocessForOcr] (that LCD pass would
-     * wreck food colour). Larger token budget — nutrition JSON is longer.
+     * wreck food colour).
+     *
+     * NOTE: AICore (MLKit GenAI / Gemini Nano) caps [maxOutputTokens] at 256 —
+     * GenerateContentRequest.build() throws IllegalArgumentException above that,
+     * which surfaced as "could not analyze" for every food photo. The nutrition
+     * JSON must therefore fit in 256 tokens (keep the schema compact).
      */
     suspend fun generate(bitmap: Bitmap, promptText: String): String = withContext(Dispatchers.IO) {
         val m = client ?: throw BpExtractionError.ModelNotLoaded
@@ -202,7 +207,7 @@ object AICoreBpService {
             temperature = 0.0f
             topK = 1
             candidateCount = 1
-            maxOutputTokens = 512
+            maxOutputTokens = 256  // AICore hard cap; >256 throws IllegalArgumentException
         }
         val response = m.generateContent(req)
         response.candidates.firstOrNull()?.text ?: throw BpExtractionError.InvalidJson
