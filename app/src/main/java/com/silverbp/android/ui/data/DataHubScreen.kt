@@ -26,12 +26,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
-import com.silverbp.android.ui.history.GlucoseHistoryFilterAction
-import com.silverbp.android.ui.history.GlucoseHistoryScreen
-import com.silverbp.android.ui.history.GlucoseHistoryViewModel
-import com.silverbp.android.ui.history.HistoryFilterAction
-import com.silverbp.android.ui.history.HistoryScreen
-import com.silverbp.android.ui.history.HistoryViewModel
+import com.silverbp.android.ui.history.UnifiedHistoryFilterAction
+import com.silverbp.android.ui.history.UnifiedHistoryScreen
+import com.silverbp.android.ui.history.UnifiedHistoryViewModel
 import com.silverbp.android.ui.insights.GlucoseInsightsScreen
 import com.silverbp.android.ui.insights.InsightsScreen
 import com.silverbp.android.ui.member.MemberSwitcherChip
@@ -39,23 +36,28 @@ import com.silverbp.android.ui.theme.AppSpacing
 
 /** Segments of the Data (數據) tab, mirroring iOS DataHubView's [紀錄][分析] picker. */
 private enum class DataSection(val labelRes: Int) {
-    Records(R.string.tab_history),   // 紀錄 — reading list
-    Insights(R.string.tab_insights), // 分析 — charts
+    Records(R.string.tab_history),   // 紀錄 — unified reading list (both BP + glucose)
+    Insights(R.string.tab_insights), // 分析 — charts (per-type; charts can't merge)
 }
 
-/** Measurement type the Data tab is showing — BP (default) or glucose (v19). */
+/**
+ * Measurement type for the 分析 (Insights) segment only. The 紀錄 list is unified
+ * across both types (owner decision §4), so this switch lives inside 分析 — where
+ * the BP and glucose charts genuinely can't merge — rather than at the top level.
+ */
 private enum class MeasureType(val labelRes: Int) {
     Bp(R.string.measure_bp),
     Glucose(R.string.measure_glucose),
 }
 
 /**
- * The "數據" (Data) tab — mirrors iOS `DataHubView`. A 血壓|血糖 measurement-type
- * filter-chip row (v19) sits above the 紀錄|分析 segmented control. The segmented
- * control toggles between the history list (紀錄, default) and the analytics
- * charts (分析); the measurement-type chips pick whether those show blood pressure
- * (unchanged) or blood glucose. The member switcher scopes both. History stays
- * prominently reachable here instead of being buried under Coach.
+ * The "數據" (Data) tab — mirrors iOS `DataHubView`. A 紀錄|分析 segmented control
+ * toggles between the unified history list (紀錄, default — one day shows BOTH blood
+ * pressure and blood glucose) and the analytics charts (分析). Because the BP and
+ * glucose charts can't be merged, the 血壓|血糖 measurement-type switch is shown only
+ * inside the 分析 segment, picking between the BP [InsightsScreen] (incl. the
+ * multi-member compare mode, unchanged) and the [GlucoseInsightsScreen]. The member
+ * switcher scopes both segments. History stays prominently reachable here.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,17 +71,17 @@ fun DataHubScreen(
     // track wires the glucose confirm-edit route.
     onEditGlucose: (String) -> Unit = {},
 ) {
-    // Single HistoryViewModel shared between the list and the TopAppBar filter
-    // action so changing range/sort in the app bar drives the same list. Same for
-    // glucose. Both are hoisted here (cheap when not displayed — they only collect
-    // while their screen is composed via WhileSubscribed).
-    val historyVm: HistoryViewModel = viewModel()
-    val glucoseHistoryVm: GlucoseHistoryViewModel = viewModel()
+    // Single UnifiedHistoryViewModel shared between the list and the TopAppBar
+    // filter action so changing range/sort in the app bar drives the same list.
+    // Hoisted here (cheap when not displayed — it only collects while its screen
+    // is composed via WhileSubscribed).
+    val unifiedHistoryVm: UnifiedHistoryViewModel = viewModel()
     val snackbarHostState = remember { SnackbarHostState() }
     var section by remember { mutableIntStateOf(DataSection.Records.ordinal) }
-    var measure by remember { mutableIntStateOf(MeasureType.Bp.ordinal) }
+    // Insights-only measurement type; default BP (compare mode lives on the BP side).
+    var insightsMeasure by remember { mutableIntStateOf(MeasureType.Bp.ordinal) }
     val active = DataSection.entries[section]
-    val activeMeasure = MeasureType.entries[measure]
+    val activeInsightsMeasure = MeasureType.entries[insightsMeasure]
 
     Scaffold(
         topBar = {
@@ -87,11 +89,9 @@ fun DataHubScreen(
                 title = { Text(stringResource(R.string.tab_data), fontWeight = FontWeight.SemiBold) },
                 actions = {
                     MemberSwitcherChip(onManageMembers = onManageMembers)
+                    // The unified list's range/sort filter; only in the 紀錄 segment.
                     if (active == DataSection.Records) {
-                        when (activeMeasure) {
-                            MeasureType.Bp -> HistoryFilterAction(historyVm)
-                            MeasureType.Glucose -> GlucoseHistoryFilterAction(glucoseHistoryVm)
-                        }
+                        UnifiedHistoryFilterAction(unifiedHistoryVm)
                     }
                 },
             )
@@ -103,22 +103,6 @@ fun DataHubScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // 血壓 | 血糖 measurement-type switch (above the 紀錄|分析 control).
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap),
-                horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
-            ) {
-                MeasureType.entries.forEachIndexed { idx, m ->
-                    FilterChip(
-                        selected = measure == idx,
-                        onClick = { measure = idx },
-                        label = { Text(stringResource(m.labelRes)) },
-                    )
-                }
-            }
-
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -135,27 +119,38 @@ fun DataHubScreen(
                 }
             }
 
-            when (activeMeasure) {
-                MeasureType.Bp -> when (active) {
-                    DataSection.Records -> HistoryScreen(
-                        onEdit = onEditReading,
-                        snackbarHostState = snackbarHostState,
-                        modifier = Modifier.weight(1f),
-                        vm = historyVm,
-                    )
-                    DataSection.Insights -> InsightsScreen(
+            // 血壓 | 血糖 type switch — only meaningful for 分析 (charts can't merge).
+            if (active == DataSection.Insights) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                ) {
+                    MeasureType.entries.forEachIndexed { idx, m ->
+                        FilterChip(
+                            selected = insightsMeasure == idx,
+                            onClick = { insightsMeasure = idx },
+                            label = { Text(stringResource(m.labelRes)) },
+                        )
+                    }
+                }
+            }
+
+            when (active) {
+                DataSection.Records -> UnifiedHistoryScreen(
+                    onEditBp = onEditReading,
+                    onEditGlucose = onEditGlucose,
+                    snackbarHostState = snackbarHostState,
+                    modifier = Modifier.weight(1f),
+                    vm = unifiedHistoryVm,
+                )
+                DataSection.Insights -> when (activeInsightsMeasure) {
+                    MeasureType.Bp -> InsightsScreen(
                         onOpenReport = onOpenReport,
                         modifier = Modifier.weight(1f),
                     )
-                }
-                MeasureType.Glucose -> when (active) {
-                    DataSection.Records -> GlucoseHistoryScreen(
-                        onEdit = onEditGlucose,
-                        snackbarHostState = snackbarHostState,
-                        modifier = Modifier.weight(1f),
-                        vm = glucoseHistoryVm,
-                    )
-                    DataSection.Insights -> GlucoseInsightsScreen(
+                    MeasureType.Glucose -> GlucoseInsightsScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }

@@ -97,8 +97,11 @@ class GlucoseHistoryViewModel(
     }
 }
 
-/** [DateRange] applied to a glucose reading's timestamp (the BP variant takes a BpReading). */
-private fun DateRange.matchesGlucose(reading: GlucoseReading, today: LocalDate, zone: ZoneId): Boolean {
+/**
+ * [DateRange] applied to a glucose reading's timestamp (the BP variant takes a BpReading).
+ * Package-internal so [UnifiedHistoryViewModel] can reuse the same range predicate.
+ */
+internal fun DateRange.matchesGlucose(reading: GlucoseReading, today: LocalDate, zone: ZoneId): Boolean {
     if (this == DateRange.All) return true
     val d = reading.timestamp.atZone(zone).toLocalDate()
     return when (this) {

@@ -1,0 +1,15 @@
+<resources>
+
+    <!-- 一日整合血壓+血糖歷史. 一天的卡片同時列出血壓與血糖條目;分析 segment
+         仍保留自己的 血壓|血糖 切換. 鍵集與 values/ 完全一致 (audit M27). -->
+
+    <!-- 該成員血壓與血糖皆無任何紀錄時的空狀態. -->
+    <string name="combined_history_empty">還沒有任何紀錄</string>
+    <!-- 日卡內各型別條目前的區段小標題. -->
+    <string name="combined_section_bp">血壓</string>
+    <string name="combined_section_glucose">血糖</string>
+    <!-- 各型別單行當日摘要(筆數·平均),顯示於各區段標題下方. -->
+    <string name="combined_day_bp_summary">%1$d 筆 · 平均 %2$d/%3$d</string>
+    <string name="combined_day_glucose_summary">%1$d 筆 · 平均 %2$s %3$s</string>
+
+</resources>
