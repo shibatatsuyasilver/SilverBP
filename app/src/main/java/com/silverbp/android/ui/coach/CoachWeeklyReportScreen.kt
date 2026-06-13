@@ -17,6 +17,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +30,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.coach.WeeklyReport
 import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.paywall.GateReason
+import com.silverbp.android.ui.paywall.LocalPaywallController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +40,9 @@ fun CoachWeeklyReportScreen(
     vm: CoachWeeklyReportViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    // Premium gate (Phase 3): the app-wide hoisted paywall (PaywallHost). The
+    // narration upsell CTA opens it with the AiCoach reason.
+    val paywall = LocalPaywallController.current
 
     Scaffold(
         topBar = {
@@ -69,26 +75,48 @@ fun CoachWeeklyReportScreen(
             state.report?.let { report ->
                 ReportSummaryCard(report)
             }
-            SectionCard(stringResource(R.string.coach_narration_title)) {
-                if (state.streaming && state.narration.isEmpty()) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                } else {
-                    if (state.streaming) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            // Premium tiering (Phase 3): the report numbers above are FREE. Only
+            // the AI-written narrative is gated. Free tier shows an upsell card in
+            // place of the prose; Premium streams the narration exactly as before.
+            // With PREMIUM_ENFORCED=false narrationPremium is always true → no change.
+            if (!state.narrationPremium) {
+                SectionCard(stringResource(R.string.coach_narration_title)) {
+                    Text(
+                        stringResource(R.string.gate_ai_coach_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        stringResource(R.string.gate_ai_coach_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = { paywall.show(GateReason.AiCoach) }) {
+                        Text(stringResource(R.string.gate_upgrade_cta))
                     }
-                    Text(
-                        state.narration.ifBlank {
-                            stringResource(R.string.coach_narration_placeholder)
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
                 }
-                state.error?.let { err ->
-                    Text(
-                        err,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+            } else {
+                SectionCard(stringResource(R.string.coach_narration_title)) {
+                    if (state.streaming && state.narration.isEmpty()) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    } else {
+                        if (state.streaming) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                        Text(
+                            state.narration.ifBlank {
+                                stringResource(R.string.coach_narration_placeholder)
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    state.error?.let { err ->
+                        Text(
+                            err,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }

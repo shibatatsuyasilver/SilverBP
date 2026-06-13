@@ -47,6 +47,12 @@ android {
 
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
 
+        // Phase 3 (Play Billing) master gate. FALSE during beta → every premium
+        // gate stays unlocked (EntitlementManager.isPremium() short-circuits to
+        // true) so beta testers see ZERO behaviour change. Flip to "true" in the
+        // release buildType when subscriptions go live — one line, see RELEASE.md.
+        buildConfigField("boolean", "PREMIUM_ENFORCED", "false")
+
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
@@ -177,6 +183,10 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.play.services.auth)
+
+    // Play Billing (subscriptions). Degrades gracefully when no products are
+    // configured (emulator) — see BillingClientWrapper.
+    implementation(libs.play.billing.ktx)
 
     implementation(libs.vico.compose.m3)
     implementation(libs.vico.core)

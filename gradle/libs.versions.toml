@@ -45,6 +45,11 @@ credentials = "1.3.0"
 googleid = "1.1.1"
 playServicesAuth = "21.3.0"
 
+# Play Billing 8.x — Play mandates 8+ from 2026-08-31. billing-ktx bundles the
+# coroutine extensions + the com.android.vending.BILLING permission (library
+# manifest merge), so no manual permission entry is needed.
+playBilling = "8.3.0"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -130,6 +135,9 @@ androidx-credentials = { group = "androidx.credentials", name = "credentials", v
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+
+# Play Billing — subscriptions (silverbp_premium). ktx = + coroutine extensions.
+play-billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "playBilling" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

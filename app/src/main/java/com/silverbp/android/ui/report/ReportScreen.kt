@@ -21,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +34,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.sharing.sharePdf
+import com.silverbp.android.ui.paywall.GateReason
+import com.silverbp.android.ui.paywall.LocalPaywallController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +45,9 @@ fun ReportScreen(
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
+    // Premium gate (Phase 3): the app-wide hoisted paywall (PaywallHost). The
+    // inline PDF upsell card's CTA opens it with the PdfDetail reason.
+    val paywall = LocalPaywallController.current
 
     Scaffold(
         topBar = {
@@ -69,6 +75,31 @@ fun ReportScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(stringResource(R.string.report_range_count, state.readings.size), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            // Premium tiering note (Phase 3): the free summary PDF is never
+            // blocked — this only tells the free user the per-reading table is a
+            // Premium add-on and offers an upgrade. Hidden when premium (which is
+            // always the case while PREMIUM_ENFORCED=false → zero behaviour change).
+            if (!state.isPremium) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            stringResource(R.string.gate_pdf_detail_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            stringResource(R.string.gate_pdf_detail_body),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        TextButton(onClick = { paywall.show(GateReason.PdfDetail) }) {
+                            Text(stringResource(R.string.gate_upgrade_cta))
+                        }
+                    }
                 }
             }
 

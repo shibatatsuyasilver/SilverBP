@@ -3,6 +3,7 @@ package com.silverbp.android
 import android.app.Application
 import com.silverbp.android.achievements.MedalNotifier
 import com.silverbp.android.achievements.StepSyncScheduler
+import com.silverbp.android.billing.EntitlementRevalidationScheduler
 import com.silverbp.android.coach.CoachNotifier
 import com.silverbp.android.coach.CoachReminderScheduler
 import com.silverbp.android.coach.MedicationReminderScheduler
@@ -43,6 +44,7 @@ class SilverBpApplication : Application() {
         appScope.launch { reconcileStepSync() }
         appScope.launch { reconcileCoach() }
         appScope.launch { reconcileBpSync() }
+        appScope.launch { reconcileEntitlement() }
 
         // Watcher fires anomaly notifications in real time as the user logs
         // new readings; lives for the app process's lifetime.
@@ -73,6 +75,20 @@ class SilverBpApplication : Application() {
         if (s.enableCoach && s.dietTrackingEnabled) {
             NutritionBackfillWorker.enqueue(this)
         }
+    }
+
+    /**
+     * Resolve the subscription entitlement on every cold start (writes the
+     * last-known cache via [EntitlementManager.queryPurchasesOnStartup]) and
+     * keep the 24 h revalidation worker scheduled. Both are safe when Play is
+     * unavailable (emulator / unpublished product): the query degrades to empty
+     * → Free (still unlocked while PREMIUM_ENFORCED=false), and the worker
+     * self-retries behind its network constraint. Always scheduled — there is no
+     * user toggle for billing; the master gate is the BuildConfig flag.
+     */
+    private suspend fun reconcileEntitlement() {
+        runCatching { ServiceLocator.entitlementManager.queryPurchasesOnStartup() }
+        EntitlementRevalidationScheduler.schedule(this)
     }
 
     /**

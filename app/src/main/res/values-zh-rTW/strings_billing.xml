@@ -1,0 +1,70 @@
+<resources>
+
+    <!-- Phase 3 — Play Billing 訂閱、付費牆、進階徽章、DEBUG entitlement 覆蓋卡。
+         與 values/strings_billing.xml 鍵集一致(audit M27)。圖示/切換控件有
+         contentDescription(audit M31)。付費牆與閘門 agent 依這些鍵實作。 -->
+
+    <!-- 進階徽章(被閘的列上共用的「進階」徽章) -->
+    <string name="premium_badge_label">進階</string>
+    <string name="premium_badge_cd">進階功能</string>
+
+    <!-- 付費牆 sheet -->
+    <string name="paywall_title">解鎖 SilverBP 進階版</string>
+    <string name="paywall_subtitle">照顧全家人:完整報告與進階 AI。</string>
+    <string name="paywall_benefit_members">新增無限位家庭成員</string>
+    <string name="paywall_benefit_pdf">給醫師看的完整多頁 PDF 報告</string>
+    <string name="paywall_benefit_ai">進階 AI 教練與更長的聊天記憶</string>
+    <string name="paywall_family_note">一份訂閱涵蓋你照顧的所有人——可為長輩購買、由你自己管理。</string>
+
+    <!-- 價格卡。%1$s = Play 回傳的格式化價格(例如 NT$90)。 -->
+    <string name="paywall_plan_monthly">月訂閱</string>
+    <string name="paywall_plan_yearly">年訂閱</string>
+    <string name="paywall_plan_price_monthly">%1$s / 月</string>
+    <string name="paywall_plan_price_yearly">%1$s / 年</string>
+    <string name="paywall_plan_best_value">最划算</string>
+    <string name="paywall_plan_free_trial">7 天免費試用</string>
+    <string name="paywall_plan_card_cd">%1$s 方案,%2$s</string>
+
+    <!-- 動作 -->
+    <string name="paywall_subscribe">訂閱</string>
+    <string name="paywall_restore">恢復購買</string>
+    <string name="paywall_manage">管理訂閱</string>
+    <string name="paywall_close">關閉</string>
+
+    <!-- 狀態 -->
+    <string name="paywall_unavailable">目前無法購買訂閱,請稍後再試。</string>
+    <string name="paywall_pending">你的購買正在確認中,完成後即解鎖進階版。</string>
+    <string name="paywall_restore_none">此帳號沒有可用的訂閱。</string>
+    <string name="paywall_restore_found">歡迎回來——你的進階版訂閱已生效。</string>
+    <string name="paywall_loading">載入方案中…</string>
+
+    <!-- 設定:進階版 / 訂閱卡 -->
+    <string name="settings_premium_title">進階版訂閱</string>
+    <string name="settings_premium_status_free">免費方案</string>
+    <string name="settings_premium_status_premium">進階版——使用中</string>
+    <string name="settings_premium_cta_upgrade">升級到進階版</string>
+    <string name="settings_premium_cta_manage">管理訂閱</string>
+
+    <!-- DEBUG 專用 entitlement 覆蓋卡(鏡像既有 DEBUG sync 卡)。讓我們不需上架
+         Play 商品即可驗證付費牆。 -->
+    <string name="debug_entitlement_title">除錯:模擬訂閱狀態</string>
+    <string name="debug_entitlement_follow_real">跟隨真實 Play 狀態</string>
+    <string name="debug_entitlement_premium">模擬進階版</string>
+    <string name="debug_entitlement_free">模擬免費版</string>
+    <string name="debug_entitlement_cd">模擬訂閱狀態選擇器</string>
+
+    <!-- 免費使用者點擊進階動作時顯示的閘門提示 -->
+    <string name="gate_member_title">新增家庭成員是進階功能</string>
+    <string name="gate_pdf_detail_title">完整 PDF 報告是進階功能</string>
+    <string name="gate_ai_coach_title">進階 AI 教練是進階功能</string>
+    <string name="gate_ai_chat_title">更長的聊天記憶是進階功能</string>
+    <!-- 免費使用者由被閘動作進入付費牆 sheet 時,顯示在閘門標題下方的通用內文。 -->
+    <string name="gate_body">訂閱 SilverBP 進階版,即可解鎖此功能與所有其他進階功能。</string>
+
+    <!-- 內嵌閘門卡共用的升級行動呼籲(PDF 提示、教練敘事)。 -->
+    <string name="gate_upgrade_cta">升級到進階版</string>
+    <!-- 內嵌升級提示內文(免費體驗仍可用,這些說明進階版額外提供什麼,不擋基本動作)。 -->
+    <string name="gate_pdf_detail_body">免費報告含摘要頁與免責頁。進階版額外提供給醫師看的完整逐筆紀錄表。</string>
+    <string name="gate_ai_coach_body">本週數據已顯示於下方。進階版額外提供解讀趨勢的 AI 敘事。</string>
+
+</resources>

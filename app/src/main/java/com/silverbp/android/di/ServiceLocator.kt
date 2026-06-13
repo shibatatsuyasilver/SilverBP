@@ -39,6 +39,8 @@ import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.backup.auto.AutoBackupScheduler
 import com.silverbp.android.backup.auto.GoogleAuthClient
 import com.silverbp.android.backup.auto.GoogleDriveBackupClient
+import com.silverbp.android.billing.BillingClientWrapper
+import com.silverbp.android.billing.EntitlementManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -142,6 +144,34 @@ object ServiceLocator {
     }
 
     val userSettings: UserSettingsRepository by lazy { UserSettingsRepository(context) }
+
+    // ============================================================
+    // Play Billing (Phase 3) — subscription + entitlement resolution.
+    // ============================================================
+
+    /**
+     * Wraps the Play [com.android.billingclient.api.BillingClient] for the single
+     * "silverbp_premium" sub. Uses [applicationScope] so an in-flight
+     * acknowledge/refresh outlives any UI scope. Degrades to empty results on the
+     * emulator (no products) — never crashes.
+     */
+    val billingClient: BillingClientWrapper by lazy {
+        BillingClientWrapper(context, applicationScope)
+    }
+
+    /**
+     * Single source of truth for premium gating. Gates call [EntitlementManager.isPremium];
+     * Settings reads [EntitlementManager.entitlement] for the real sub status.
+     * With BuildConfig.PREMIUM_ENFORCED=false (beta) isPremium() is always true
+     * unless a DEBUG override is set.
+     */
+    val entitlementManager: EntitlementManager by lazy {
+        EntitlementManager(
+            gateway = billingClient,
+            settings = userSettings,
+            scope = applicationScope,
+        )
+    }
 
     val modelLoadStatus: ModelLoadStatus by lazy { ModelLoadStatus() }
 

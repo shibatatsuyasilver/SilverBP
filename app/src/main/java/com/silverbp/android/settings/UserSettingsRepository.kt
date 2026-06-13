@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import com.silverbp.android.backup.auto.AutoBackupFrequency
+import com.silverbp.android.billing.EntitlementSnapshot
+import com.silverbp.android.billing.EntitlementStore
 import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
@@ -23,7 +25,7 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "user_settings")
 
-class UserSettingsRepository(private val context: Context) {
+class UserSettingsRepository(private val context: Context) : EntitlementStore {
 
     // Sensitive free-text fields (API key / prompts / nickname) are stored
     // encrypted once the user opts into at-rest encryption. The marker is the
@@ -88,6 +90,12 @@ class UserSettingsRepository(private val context: Context) {
         val EXPERIENCE_LEVEL = stringPreferencesKey("experience_level")
         val WEEKLY_AVAILABILITY_DAYS = intPreferencesKey("weekly_availability_days")
         val TRAINING_STYLE = stringPreferencesKey("training_style")
+
+        // Play Billing (Phase 3). Both device-local — intentionally absent from
+        // snapshotKv/applyKvSingle so they never ride settings sync (each device
+        // resolves its own Play account; the debug override is local-only too).
+        val LAST_KNOWN_ENTITLEMENT = stringPreferencesKey("last_known_entitlement")
+        val DEBUG_PREMIUM_OVERRIDE = stringPreferencesKey("debug_premium_override")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -142,6 +150,8 @@ class UserSettingsRepository(private val context: Context) {
             experienceLevel = prefs[Keys.EXPERIENCE_LEVEL] ?: "",
             weeklyAvailabilityDays = prefs[Keys.WEEKLY_AVAILABILITY_DAYS] ?: 0,
             trainingStyle = prefs[Keys.TRAINING_STYLE] ?: "",
+            lastKnownEntitlement = prefs[Keys.LAST_KNOWN_ENTITLEMENT] ?: "Free",
+            debugPremiumOverride = prefs[Keys.DEBUG_PREMIUM_OVERRIDE],
         )
     }
 
@@ -254,6 +264,30 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setTrainingStyle(v: TrainingStyle) {
         context.dataStore.edit { it[Keys.TRAINING_STYLE] = v.raw }
+    }
+
+    // ============================================================
+    // Play Billing (Phase 3) — both device-local, NOT in settings sync.
+    // [EntitlementStore] surfaces just these two to EntitlementManager.
+    // ============================================================
+
+    override val entitlementSnapshots: Flow<EntitlementSnapshot> = context.dataStore.data.map { prefs ->
+        EntitlementSnapshot(
+            lastKnownEntitlement = prefs[Keys.LAST_KNOWN_ENTITLEMENT] ?: "Free",
+            debugPremiumOverride = prefs[Keys.DEBUG_PREMIUM_OVERRIDE],
+        )
+    }
+
+    /** Cache the resolved tier so the manager can emit it on the next cold start. */
+    override suspend fun setLastKnownEntitlement(raw: String) {
+        context.dataStore.edit { it[Keys.LAST_KNOWN_ENTITLEMENT] = raw }
+    }
+
+    /** DEBUG-only paywall override: "premium" / "free" / null (=follow real). */
+    suspend fun setDebugPremiumOverride(v: String?) {
+        context.dataStore.edit {
+            if (v == null) it.remove(Keys.DEBUG_PREMIUM_OVERRIDE) else it[Keys.DEBUG_PREMIUM_OVERRIDE] = v
+        }
     }
 
     suspend fun setAppLockEnabled(v: Boolean) {

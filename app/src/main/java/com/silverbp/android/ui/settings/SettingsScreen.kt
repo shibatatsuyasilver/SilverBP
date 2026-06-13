@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -48,6 +49,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -62,8 +65,12 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.AppLanguage
 import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.settings.LocaleHelper
+import com.silverbp.android.billing.Entitlement
 import com.silverbp.android.ui.coach.formatTime
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.paywall.GateReason
+import com.silverbp.android.ui.paywall.LocalPaywallController
+import com.silverbp.android.ui.paywall.openManageSubscription
 import com.silverbp.android.ui.theme.AppSpacing
 import java.time.DayOfWeek
 import java.time.format.TextStyle
@@ -379,6 +386,21 @@ fun SettingsScreen(
                 ) { Text(stringResource(R.string.member_manage_entry)) }
             }
 
+            // Premium / subscription — an explicit entry point the paying adult
+            // child can find (not only hidden behind a gate). Shows the real Play
+            // sub status; "Upgrade" opens the paywall, "Manage" deep-links to Play.
+            PremiumCard(entitlement = vm.entitlement)
+
+            // DEBUG-only simulate-entitlement card (mirrors the DEBUG sync card
+            // above). Lets us demo the paywall/gates without published Play
+            // products: "Simulate Free" forces isPremium()=false so gates fire.
+            if (BuildConfig.DEBUG) {
+                DebugEntitlementCard(
+                    override = state.debugPremiumOverride,
+                    onSelect = { vm.setDebugPremiumOverride(it) },
+                )
+            }
+
             // Backup / Restore — encrypted .sbpbk snapshot export/import to
             // user's chosen storage (Google Drive, iCloud, local file).
             // Survives uninstall; cross-device + cross-platform with iOS BPCoach.
@@ -643,6 +665,94 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     ) {
         Text(label, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+    }
+}
+
+/**
+ * Premium / subscription card. Reads the RESOLVED real entitlement (not the
+ * isPremium() gate value) so the status row reflects the user's actual Play
+ * subscription. When Free → "Upgrade" opens the paywall via the app-wide
+ * [LocalPaywallController]; when Premium → "Manage subscription" opens the same
+ * paywall (whose Manage button deep-links to Play).
+ */
+@Composable
+private fun PremiumCard(entitlement: kotlinx.coroutines.flow.StateFlow<Entitlement>) {
+    val context = LocalContext.current
+    val tier by entitlement.collectAsStateWithLifecycle()
+    val paywall = LocalPaywallController.current
+    val isPremium = tier == Entitlement.Premium
+    StandardCard(title = stringResource(R.string.settings_premium_title)) {
+        Text(
+            stringResource(
+                if (isPremium) R.string.settings_premium_status_premium
+                else R.string.settings_premium_status_free
+            ),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.size(4.dp))
+        Button(
+            // Free → open the paywall to subscribe; Premium → deep-link straight
+            // to Play subscription management (no need for the upsell sheet).
+            onClick = {
+                if (isPremium) openManageSubscription(context)
+                else paywall.show(GateReason.Generic)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                stringResource(
+                    if (isPremium) R.string.settings_premium_cta_manage
+                    else R.string.settings_premium_cta_upgrade
+                )
+            )
+        }
+    }
+}
+
+/**
+ * DEBUG-only entitlement override selector — 3-way radio
+ * (Follow real / Simulate Premium / Simulate Free) writing
+ * [SettingsViewModel.setDebugPremiumOverride]. Mirrors the existing DEBUG sync
+ * card's idiom. The current [override] string ("premium"/"free"/null) selects
+ * the radio. The group carries a contentDescription (audit M31).
+ */
+@Composable
+private fun DebugEntitlementCard(override: String?, onSelect: (String?) -> Unit) {
+    val groupCd = stringResource(R.string.debug_entitlement_cd)
+    StandardCard(title = stringResource(R.string.debug_entitlement_title)) {
+        Column(modifier = Modifier.semantics { contentDescription = groupCd }) {
+            DebugEntitlementOption(
+                label = stringResource(R.string.debug_entitlement_follow_real),
+                selected = override == null,
+                onClick = { onSelect(null) },
+            )
+            DebugEntitlementOption(
+                label = stringResource(R.string.debug_entitlement_premium),
+                selected = override == "premium",
+                onClick = { onSelect("premium") },
+            )
+            DebugEntitlementOption(
+                label = stringResource(R.string.debug_entitlement_free),
+                selected = override == "free",
+                onClick = { onSelect("free") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DebugEntitlementOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = androidx.compose.ui.semantics.Role.RadioButton, onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(Modifier.size(8.dp))
+        Text(label)
     }
 }
 

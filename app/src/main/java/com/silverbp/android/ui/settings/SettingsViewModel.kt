@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.achievements.StepSyncScheduler
+import com.silverbp.android.billing.Entitlement
+import com.silverbp.android.billing.EntitlementManager
 import com.silverbp.android.coach.CoachReminderScheduler
 import com.silverbp.android.coach.NutritionBackfillWorker
 import com.silverbp.android.coach.SleepBackfillWorker
@@ -33,11 +35,31 @@ import kotlinx.coroutines.withContext
 
 class SettingsViewModel(
     private val repo: UserSettingsRepository = ServiceLocator.userSettings,
+    private val entitlementManager: EntitlementManager = ServiceLocator.entitlementManager,
 ) : ViewModel() {
 
     val state: StateFlow<UserSettings> = repo.flow.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserSettings()
     )
+
+    /**
+     * The RESOLVED real subscription tier (cache ∪ live Play), for the Settings
+     * Premium card's status row. NOT the gate truth — gates use
+     * [EntitlementManager.isPremium]; this is purely "what does the user's Play
+     * account say". Surfaced as-is from the manager's StateFlow.
+     */
+    val entitlement: StateFlow<Entitlement> = entitlementManager.entitlement
+
+    /**
+     * DEBUG-only: write the simulate-entitlement override ("premium"/"free"/null)
+     * so we can demo the paywall locally without published Play products. Reflected
+     * back into [state] via the DataStore flow ([UserSettings.debugPremiumOverride])
+     * for the radio selection. No-op meaning in release (the override is ignored
+     * there, and this card isn't shown).
+     */
+    fun setDebugPremiumOverride(value: String?) {
+        viewModelScope.launch { repo.setDebugPremiumOverride(value) }
+    }
 
     private val _hcDenied = Channel<Unit>(capacity = Channel.BUFFERED)
     /** Emits when the user dismissed/denied the Health Connect READ_STEPS prompt. UI shows a snackbar. */

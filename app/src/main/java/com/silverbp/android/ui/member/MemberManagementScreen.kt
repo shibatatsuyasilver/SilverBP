@@ -49,6 +49,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.R
 import com.silverbp.android.core.Member
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.paywall.GateReason
+import com.silverbp.android.ui.paywall.LocalPaywallController
 import kotlinx.coroutines.launch
 
 /**
@@ -86,6 +88,7 @@ object MemberPalette {
 @Composable
 fun MemberManagementScreen(onClose: () -> Unit) {
     val repo = remember { ServiceLocator.memberRepository }
+    val entitlements = remember { ServiceLocator.entitlementManager }
     val scope = rememberCoroutineScope()
 
     val members by repo.observeActive().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -94,6 +97,10 @@ fun MemberManagementScreen(onClose: () -> Unit) {
     androidx.compose.runtime.LaunchedEffect(members) {
         archived = repo.getAll().filter { it.archived }
     }
+
+    // Premium gate (Phase 3): the app-wide hoisted paywall (PaywallHost). A free
+    // user tapping "add member" calls paywall.show(GateReason.AddMember).
+    val paywall = LocalPaywallController.current
 
     var editing by remember { mutableStateOf<Member?>(null) }
     var showEditor by remember { mutableStateOf(false) }
@@ -117,8 +124,15 @@ fun MemberManagementScreen(onClose: () -> Unit) {
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
-                    // SINGLE PREMIUM GATE POINT (Phase 3): wrap this body with an
-                    // entitlement check before opening the editor. Phase 1 = open.
+                    // SINGLE PREMIUM GATE POINT (Phase 3). Free allows only the
+                    // owner; adding ANY further member needs Premium. With
+                    // PREMIUM_ENFORCED=false isPremium() is always true, so this
+                    // behaves exactly as before (editor opens). Editing an existing
+                    // member is NOT gated — that path is in MemberRow.onEdit.
+                    if (!entitlements.isPremium()) {
+                        paywall.show(GateReason.AddMember)
+                        return@ExtendedFloatingActionButton
+                    }
                     editing = null
                     showEditor = true
                 },

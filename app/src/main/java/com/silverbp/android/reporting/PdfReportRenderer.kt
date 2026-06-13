@@ -41,11 +41,15 @@ class PdfReportRenderer(private val context: Context) {
         // Whose readings these are — printed on the cover so the doctor knows the
         // subject. Empty → cover omits the line (single-user installs are unaffected).
         memberName: String = "",
+        // Premium tiering (Phase 3): when false (free tier) the per-reading detail
+        // table pages are skipped, leaving the cover summary + disclaimer only.
+        // Defaults true so existing callers / tests keep the full report.
+        includeDetail: Boolean = true,
     ): File {
         val doc = PdfDocument()
         try {
             drawCover(doc, readings, from, to, memberName)
-            if (readings.isNotEmpty()) drawTable(doc, readings)
+            if (includeDetail && readings.isNotEmpty()) drawTable(doc, readings)
             drawDisclaimer(doc)
         } finally {
             // doc closed below after writing

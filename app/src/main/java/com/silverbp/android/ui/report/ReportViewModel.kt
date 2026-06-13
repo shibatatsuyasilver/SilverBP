@@ -3,6 +3,7 @@ package com.silverbp.android.ui.report
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.R
+import com.silverbp.android.billing.EntitlementManager
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.member.CurrentMemberStore
@@ -34,6 +35,11 @@ data class ReportUiState(
     val generatedFile: File? = null,
     val isGenerating: Boolean = false,
     val errorMessage: String? = null,
+    // Premium tiering (Phase 3): false → the free summary-only PDF was produced
+    // and the screen should show the "full report is Premium" upsell note. With
+    // PREMIUM_ENFORCED=false isPremium() is always true, so this stays true and
+    // the upsell never shows (zero behaviour change vs. today).
+    val isPremium: Boolean = true,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -41,6 +47,7 @@ class ReportViewModel(
     private val repo: BpRepository = ServiceLocator.bpRepository,
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
+    private val entitlements: EntitlementManager = ServiceLocator.entitlementManager,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(ReportRange.Last30)
@@ -54,10 +61,20 @@ class ReportViewModel(
         generatedFlow,
         generatingFlow,
         errorFlow,
-    ) { all, range, file, generating, error ->
+        // entitlement is folded in only as a recomposition trigger so the upsell
+        // note re-evaluates when the resolved tier changes; the actual decision is
+        // entitlements.isPremium() (layers BuildConfig + debug override).
+        entitlements.entitlement,
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val all = values[0] as List<BpReading>
+        val range = values[1] as ReportRange
+        val file = values[2] as File?
+        val generating = values[3] as Boolean
+        val error = values[4] as String?
         val (from, to) = boundsFor(range)
         val filtered = all.filter { it.timestamp in from..to }
-        ReportUiState(range, filtered, file, generating, error)
+        ReportUiState(range, filtered, file, generating, error, isPremium = entitlements.isPremium())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReportUiState())
 
     fun setRange(r: ReportRange) {
@@ -94,8 +111,18 @@ class ReportViewModel(
                         ?.takeIf { it.isNotBlank() }
                         ?: ServiceLocator.context.getString(R.string.member_me)
                 }
+                // Premium tiering (Phase 3): free tier gets cover summary +
+                // disclaimer only; Premium gets the full per-reading table. The
+                // free summary is NEVER blocked. With PREMIUM_ENFORCED=false this
+                // is always true → full report, exactly as before.
                 val file = com.silverbp.android.reporting.PdfReportRenderer(ServiceLocator.context)
-                    .render(readings, from = from, to = to, memberName = name)
+                    .render(
+                        readings,
+                        from = from,
+                        to = to,
+                        memberName = name,
+                        includeDetail = entitlements.isPremium(),
+                    )
                 generatedFlow.value = file
                 onReady(file)
             } catch (t: Throwable) {
