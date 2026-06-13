@@ -47,6 +47,25 @@ class BackupContainerTest {
     }
 
     @Test
+    fun `current write version is v2 (v18 multi-member)`() {
+        assertEquals(2, BackupContainer.FORMAT_VERSION)
+    }
+
+    @Test
+    fun `read accepts older v1 container (backward compat)`() {
+        // A pre-v18 (.sbpbk v1) backup must still import — the container framing
+        // is identical across versions; only the encrypted payload differs.
+        val sink = ByteArrayOutputStream()
+        sink.write(BackupContainer.MAGIC)
+        sink.write(0x00); sink.write(BackupContainer.MIN_SUPPORTED_VERSION)  // version 1
+        sink.write(0x00); sink.write(0x01)  // header_len = 1
+        sink.write(0x42)  // header byte
+        sink.write(ByteArray(16) { it.toByte() })  // payload
+        val parsed = BackupContainer.read(ByteArrayInputStream(sink.toByteArray()))
+        assertEquals(BackupContainer.MIN_SUPPORTED_VERSION, parsed.version)
+    }
+
+    @Test
     fun `read rejects truncated file`() {
         // 只寫 magic 不寫 version
         val bytes = BackupContainer.MAGIC

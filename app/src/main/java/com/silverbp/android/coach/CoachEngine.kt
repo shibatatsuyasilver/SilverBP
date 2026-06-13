@@ -53,7 +53,10 @@ class CoachEngine(
      */
     suspend fun detectAnomaly(now: Instant = clock.instant()): CoachEvent.Anomaly? {
         val from = now.minus(24, ChronoUnit.HOURS)
-        val readings: List<BpReading> = bp.observeRange(from, now).first()
+        // Coach is owner-only by design (roadmap §3): family members don't get
+        // their own anomaly alerts / weekly plans, so we read the owner's BP.
+        val ownerId = ServiceLocator.memberRepository.ownerId()
+        val readings: List<BpReading> = bp.observeRange(ownerId, from, now).first()
             .sortedBy { it.timestamp }
         if (readings.size < ANOMALY_MIN_CONSECUTIVE) return null
 
@@ -109,8 +112,9 @@ class CoachEngine(
         val fourteenDaysAgo = now.minus(14, ChronoUnit.DAYS)
         val s = settings.flow.first()
 
-        val recentBp = bp.observeRange(sevenDaysAgo, now).first()
-        val priorBp = bp.observeRange(fourteenDaysAgo, sevenDaysAgo).first()
+        val ownerId = ServiceLocator.memberRepository.ownerId()
+        val recentBp = bp.observeRange(ownerId, sevenDaysAgo, now).first()
+        val priorBp = bp.observeRange(ownerId, fourteenDaysAgo, sevenDaysAgo).first()
 
         val sbpMean = if (recentBp.isEmpty()) 0.0
             else recentBp.map { it.systolic.toDouble() }.average()
@@ -154,7 +158,8 @@ class CoachEngine(
         val now = clock.instant()
         val sevenDaysAgo = now.minus(7, ChronoUnit.DAYS)
 
-        val recentBp = bp.observeRange(sevenDaysAgo, now).first().sortedBy { it.timestamp }
+        val ownerId = ServiceLocator.memberRepository.ownerId()
+        val recentBp = bp.observeRange(ownerId, sevenDaysAgo, now).first().sortedBy { it.timestamp }
         val recentExercise = exercise.observeRange(sevenDaysAgo, now).first()
         val priorPlans = coachRepo.recentPlans(2)
         val s = settings.flow.first()

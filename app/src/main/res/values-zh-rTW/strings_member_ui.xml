@@ -1,0 +1,12 @@
+<resources>
+
+    <!-- 成員 UI 串接 + 切換器 chip (v18, roadmap §3-6). 管理畫面也會用到的 key 放在
+         strings_member.xml;這裡只放 chip / 報告 / 記錄流程專用的字串. -->
+
+    <!-- 切換器 bottom sheet -->
+    <string name="member_switcher_sheet_title">這是誰的紀錄?</string>
+
+    <!-- PDF 報告封面:這是誰的紀錄(印給醫師看). -->
+    <string name="pdf_report_subject">對象  %1$s</string>
+
+</resources>

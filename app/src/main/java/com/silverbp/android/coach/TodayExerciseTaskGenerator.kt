@@ -99,8 +99,9 @@ class TodayExerciseTaskGenerator(
     private suspend fun bpGateHint(): String? {
         val repo = bp ?: return null
         val now = clock.instant()
+        // Workout gate is owner-only in Phase 1 (exercise isn't member-scoped).
         val recent: List<BpReading> = runCatching {
-            repo.observeRange(now.minus(24, ChronoUnit.HOURS), now).first()
+            repo.observeRange(repo.ownerId(), now.minus(24, ChronoUnit.HOURS), now).first()
         }.getOrNull() ?: return null
         return if (CoachEngine.shouldAllowWorkout(recent, now) is WorkoutBpGate.Allow) null
         else measureHint()

@@ -30,8 +30,19 @@ object BackupContainer {
         0x53, 0x42, 0x50, 0x42, 0x4B, 0x00, 0x00, 0x00,
     )
 
-    /** 容器格式版號. Header CBOR 的 `format_version` 鍵與此值需保持一致. */
-    const val FORMAT_VERSION: Int = 1
+    /**
+     * 容器格式版號. Header CBOR 的 `format_version` 鍵與此值需保持一致.
+     *
+     * v2 (v18 家人成員):payload 多了 MEMBER record、BP/medication record 帶
+     * memberId 欄位。容器**二進位 framing 未變**(magic + u16 version + u16
+     * header_len + header + ciphertext),所以新版只是把 version 整數寫成 2;
+     * 讀取端([read])接受 [MIN_SUPPORTED_VERSION]..[FORMAT_VERSION],舊 v1
+     * 備份照常匯入(無 MEMBER record → 匯入器合成 owner,見 BackupManager)。
+     */
+    const val FORMAT_VERSION: Int = 2
+
+    /** 仍可匯入的最舊容器版本(v1 = pre-v18,單一使用者格式). */
+    const val MIN_SUPPORTED_VERSION: Int = 1
 
     /** Header CBOR 最大長度 — u16 上限,留 32 KB 緩衝給未來欄位擴充. */
     const val MAX_HEADER_LEN: Int = 32 * 1024
@@ -86,9 +97,13 @@ object BackupContainer {
             throw IOException("Not an .sbpbk file (magic mismatch: ${magic.toHex()})")
         }
         val version = input.readU16BE("version")
-        // 目前只支援版本 1; 之後升版時這裡擴充 + format_version 鍵在 header 內也要更新.
-        if (version != FORMAT_VERSION) {
-            throw IOException("Unsupported .sbpbk version: $version (expected $FORMAT_VERSION)")
+        // 接受 v1..v2 — 容器 framing 跨版本相同,只有 payload 內容隨版本擴充。
+        // 拒絕未知/未來版本(避免誤把更新格式當舊格式解)。
+        if (version < MIN_SUPPORTED_VERSION || version > FORMAT_VERSION) {
+            throw IOException(
+                "Unsupported .sbpbk version: $version " +
+                    "(supported $MIN_SUPPORTED_VERSION..$FORMAT_VERSION)",
+            )
         }
         val headerLen = input.readU16BE("header_len")
         if (headerLen > MAX_HEADER_LEN) {

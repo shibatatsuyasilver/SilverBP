@@ -55,6 +55,7 @@ import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
 import com.silverbp.android.ui.exercise.machine.MachineCaptureScreen
 import com.silverbp.android.ui.exercise.machine.MachineConfirmScreen
+import com.silverbp.android.ui.member.MemberManagementScreen
 import com.silverbp.android.ui.nutrition.BarcodeScanScreen
 import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
 import com.silverbp.android.ui.nutrition.NutritionScreen
@@ -273,7 +274,11 @@ fun AppNavHost() {
                 onOpenManageMedications = { rootNav.navigate(Routes.COACH_MANAGE_MEDICATIONS) },
                 onOpenBackup = { rootNav.navigate(Routes.BACKUP) },
                 onOpenAdvanced = { rootNav.navigate(Routes.SETTINGS_ADVANCED) },
+                onOpenManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
             )
+        }
+        composable(Routes.MEMBER_MANAGE) {
+            MemberManagementScreen(onClose = { rootNav.popBackStack() })
         }
         composable(Routes.SETTINGS_ADVANCED) {
             com.silverbp.android.ui.settings.AdvancedSettingsScreen(
@@ -464,6 +469,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onCapture = { rootNav.navigate(Routes.CAPTURE) },
             onAddManual = { rootNav.navigate(Routes.CONFIRM_NEW) },
             onOpenSettings = { rootNav.navigate(Routes.SETTINGS) },
+            onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
         )
     }
     composable(TabDestination.Coach.route) {
@@ -491,6 +497,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
         DataHubScreen(
             onEditReading = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
             onOpenReport = { rootNav.navigate(Routes.REPORT) },
+            onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
         )
     }
     composable(TabDestination.Nutrition.route) {

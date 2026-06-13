@@ -5,7 +5,10 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "bp_reading", indices = [Index("timestamp")])
+@Entity(
+    tableName = "bp_reading",
+    indices = [Index("timestamp"), Index("memberId", "timestamp")],
+)
 data class BpReadingEntity(
     @PrimaryKey val id: String,
     val systolic: Int,
@@ -22,6 +25,11 @@ data class BpReadingEntity(
     val note: String,
     val irregularHeartbeat: Boolean,
     val medicationId: String?,
+    /**
+     * Owning member id (v18). Backfilled to the owner for pre-v18 rows; the
+     * `(memberId, timestamp)` index above is the primary member-scoped query path.
+     */
+    val memberId: String = "",
     val createdAt: Long,
     val updatedAt: Long,
     /** Packed HLC string for cross-device LWW. Lex-sortable; defaults to "0" pre-sync. */
@@ -32,6 +40,11 @@ data class BpReadingEntity(
      * BpSyncWorker] can retry it. Device-local: never synced or backed up (a
      * fresh device re-mirrors and gets its own id), see [com.silverbp.android.
      * sync.BpReadingSyncMapper].
+     *
+     * Non-owner members' readings stay null **by design**: only the owner's BP
+     * is mirrored to Health Connect (writing a family member's BP into the
+     * device owner's Google Health would be a correctness/privacy bug), see the
+     * mirror guard in [com.silverbp.android.core.BpRepository].
      */
     val hcRecordId: String? = null,
 )
@@ -47,7 +60,7 @@ data class UserProfileEntity(
     val guideline: String,
 )
 
-@Entity(tableName = "medication")
+@Entity(tableName = "medication", indices = [Index("memberId")])
 data class MedicationEntity(
     @PrimaryKey val id: String,
     val name: String,
@@ -56,6 +69,11 @@ data class MedicationEntity(
     val kind: String = MedicationKind.MEDICATION,
     /** Packed HLC for cross-device LWW; "0" pre-sync. v7→v8 migration. */
     val hlcUpdatedAt: String = "0",
+    /**
+     * Owning member id (v18). Backfilled to the owner for pre-v18 rows. Schedule
+     * / dose rows inherit ownership via FK rather than storing it redundantly.
+     */
+    val memberId: String = "",
 )
 
 object MedicationKind {

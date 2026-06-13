@@ -144,18 +144,36 @@ object CoachNotifier {
         mgr.notify(NOTIF_ID_ALERT, notif)
     }
 
+    /**
+     * @param ownerMedication true when the medication belongs to the device
+     *   owner — keeps the original copy. false addresses a family member by
+     *   [memberName] in the title (v18; see strings_member_coach.xml).
+     * @param memberName the owning member's display name; the resolved "Me"
+     *   fallback is already substituted by the caller, so it is never blank
+     *   when [ownerMedication] is false.
+     */
     fun postMedicationReminder(
         context: Context,
         med: MedicationEntity,
         schedule: MedicationScheduleEntity,
+        ownerMedication: Boolean = true,
+        memberName: String = "",
     ) {
         if (!MedalNotifier.hasPostPermission(context)) return
         val mgr = context.getSystemService<NotificationManager>() ?: return
         val timeStr = "%02d:%02d".format(schedule.hour, schedule.minute)
-        val title = context.getString(
-            R.string.medication_reminder_notification_title,
-            med.name,
-        )
+        val title = if (ownerMedication) {
+            context.getString(
+                R.string.medication_reminder_notification_title,
+                med.name,
+            )
+        } else {
+            context.getString(
+                R.string.medication_reminder_notification_title_member,
+                memberName,
+                med.name,
+            )
+        }
         val body = if (med.dose.isNotBlank()) {
             context.getString(
                 R.string.medication_reminder_notification_body_with_dose,

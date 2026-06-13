@@ -48,6 +48,13 @@ data class BpReading(
     val note: String = "",
     val irregularHeartbeat: Boolean = false,
     val medicationId: UUID? = null,
+    /**
+     * The member this reading belongs to. Empty string means "resolve to owner"
+     * (v17 rows backfilled to the owner id by MIGRATION_17_18; new drafts default
+     * to the current member). Non-owner readings are never mirrored to Health
+     * Connect — see [com.silverbp.android.core.BpRepository].
+     */
+    val memberId: String = "",
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
     /**
@@ -65,6 +72,29 @@ data class UserProfile(
     val hasCKD: Boolean = false,
     val hasASCVD: Boolean = false,
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
+)
+
+/**
+ * A care recipient profile (the device owner plus, on Premium, family members).
+ * Mirrors [com.silverbp.android.core.db.MemberEntity]; see its KDoc for the
+ * single-owner invariant. [displayName] empty → UI shows the localized "Me"
+ * fallback (never persisted as a literal).
+ */
+data class Member(
+    val id: UUID = UUID.randomUUID(),
+    val displayName: String = "",
+    val isOwner: Boolean = false,
+    val birthYear: Int? = null,
+    val hasDiabetes: Boolean = false,
+    val hasCKD: Boolean = false,
+    val hasASCVD: Boolean = false,
+    val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
+    /** 0..7 fixed palette index for the avatar / chart identity colour. */
+    val colorIndex: Int = 0,
+    val sortOrder: Int = 0,
+    val archived: Boolean = false,
+    val createdAt: Instant = Instant.now(),
+    val updatedAt: Instant = Instant.now(),
 )
 
 data class Medication(

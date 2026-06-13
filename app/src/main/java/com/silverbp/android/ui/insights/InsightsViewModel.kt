@@ -9,12 +9,15 @@ import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.GuidelineClassifier
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.PartOfDay
+import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.UserSettingsRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import java.time.ZoneId
@@ -39,15 +42,17 @@ data class InsightsUiState(
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class InsightsViewModel(
     private val repo: BpRepository = ServiceLocator.bpRepository,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
+    private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(InsightsRange.Last30)
 
     val state: StateFlow<InsightsUiState> = combine(
-        repo.observeAll(),
+        currentMember.flow.flatMapLatest { repo.observeAll(it) },
         rangeFlow,
         settings.flow,
     ) { all, range, user ->

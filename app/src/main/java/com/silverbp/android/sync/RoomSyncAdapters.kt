@@ -131,6 +131,9 @@ class CombinedRoomSyncSource(
     // Nutrition / food_log (v16). Optional so older callers compile.
     private val foodLogDao: FoodLogDao? = null,
     private val foodLogMapper: FoodLogSyncMapper? = null,
+    // Family member (v18). Optional so older callers compile.
+    private val memberDao: com.silverbp.android.core.db.MemberDao? = null,
+    private val memberMapper: MemberSyncMapper? = null,
 ) : SyncRecordSource {
 
     override suspend fun recordsSince(
@@ -139,6 +142,17 @@ class CombinedRoomSyncSource(
     ): List<SyncRecord> {
         if (limit <= 0) return emptyList()
         val out = ArrayList<SyncRecord>(limit.coerceAtMost(256))
+
+        // 0. member — emit FIRST so a peer/import has every owning member row
+        // before the BP/medication rows that reference it land.
+        var memberCount = 0
+        if (memberDao != null && memberMapper != null) {
+            for (m in memberDao.getAll()) {
+                if (out.size >= limit) return out
+                out += memberMapper.encode(m, hlcFor(m.hlcUpdatedAt))
+                memberCount++
+            }
+        }
 
         // 1. bp_reading
         val bpRows = bpDao.observeAll().first()
@@ -281,7 +295,7 @@ class CombinedRoomSyncSource(
 
         Log.i(
             "CombinedSyncSrc",
-            "emit bp=${bpRows.size} ex=${sessions.size} med=${meds.size} " +
+            "emit member=$memberCount bp=${bpRows.size} ex=${sessions.size} med=${meds.size} " +
                 "sched=${schedules.size} dose=${doses.size} step=${stepLogs.size} " +
                 "ach=${achievements.size} plan=${coachPlans.size} " +
                 "task=${coachTasks.size} sleep=${sleeps.size} diet=${diets.size} " +
@@ -315,6 +329,15 @@ class CombinedRoomSyncSource(
 
     suspend fun snapshotAll(includeChat: Boolean = true): List<SyncRecord> {
         val out = ArrayList<SyncRecord>()
+
+        // 0. member — first so import has every owning member before the
+        // BP/medication rows that carry its id (and before backward-compat
+        // owner-resolution kicks in for any memberless rows).
+        if (memberDao != null && memberMapper != null) {
+            for (m in memberDao.getAll()) {
+                out += memberMapper.encode(m, hlcFor(m.hlcUpdatedAt))
+            }
+        }
 
         // 1. bp_reading
         for (row in bpDao.observeAll().first()) {
@@ -450,6 +473,15 @@ class CombinedRoomSyncSource(
  * Phase 2 multi-entity sink. Dispatches an inbound [SyncRecord] to the
  * mapper that knows how to apply it. Unknown record types are ignored so
  * a future schema bump on one device doesn't crash the older peer.
+ *
+ * B6 LWW gate: every dispatch is wrapped in an [com.silverbp.android.sync.engine.
+ * LwwMerger] so a record is applied **iff `record.hlc > local`** (live row's
+ * `hlcUpdatedAt` OR any tombstone hlc, whichever is greater). This is the gate
+ * the mapper doc-comments always delegated upward; without it stale peer copies
+ * blindly REPLACEd newer local edits and stale tombstones resurrect-then-deleted
+ * rows every round. The per-type table/pk lookup is [LwwTables]; types not in
+ * that allowlist (chat_*, settings_kv, route_point, medication_dose) keep their
+ * own apply semantics — see the [LwwTables] KDoc for why each is exempt.
  */
 class CombinedRoomSyncSink(
     private val bpMapper: BpReadingSyncMapper,
@@ -479,37 +511,70 @@ class CombinedRoomSyncSink(
     private val bpWorkoutAssociationMapper: BpWorkoutAssociationSyncMapper? = null,
     // Nutrition / food_log (v16). Optional so older callers compile.
     private val foodLogMapper: FoodLogSyncMapper? = null,
+    // Family member (v18). Optional so older callers compile.
+    private val memberMapper: MemberSyncMapper? = null,
+    // B6 LWW gate dependency. Required to read the local high-water HLC; when
+    // null the gate is disabled (the record always applies) — kept optional so
+    // legacy test callers that don't care about LWW still compile. Both
+    // production wirings (ServiceLocator backup + PairingViewModel LAN) supply
+    // it.
+    private val syncDao: SyncDao? = null,
 ) : SyncRecordSink {
     private val perTypeCount = java.util.concurrent.ConcurrentHashMap<SyncEntityType, Int>()
+
+    /** Per-type write dispatch — runs only after the LWW gate accepts. */
+    private suspend fun dispatch(record: SyncRecord) {
+        when (record.type) {
+            SyncEntityType.BP_READING -> bpMapper.apply(record)
+            SyncEntityType.EXERCISE_SESSION -> exerciseSessionMapper.apply(record)
+            SyncEntityType.ROUTE_POINT -> routePointMapper.apply(record)
+            SyncEntityType.MEDICATION -> medicationMapper.apply(record)
+            SyncEntityType.MEDICATION_SCHEDULE -> medicationScheduleMapper.apply(record)
+            SyncEntityType.MEDICATION_DOSE -> medicationDoseMapper.apply(record)
+            SyncEntityType.DAILY_STEP_LOG -> dailyStepLogMapper.apply(record)
+            SyncEntityType.ACHIEVEMENT -> achievementMapper.apply(record)
+            SyncEntityType.COACH_PLAN -> coachPlanMapper.apply(record)
+            SyncEntityType.COACH_TASK -> coachTaskMapper.apply(record)
+            SyncEntityType.SLEEP_LOG -> sleepLogMapper.apply(record)
+            SyncEntityType.DIET_CHECK -> dietCheckMapper.apply(record)
+            SyncEntityType.EXERCISE_CATALOG_ITEM -> exerciseCatalogItemMapper?.apply(record)
+            SyncEntityType.STRENGTH_WORKOUT_SESSION -> strengthWorkoutSessionMapper?.apply(record)
+            SyncEntityType.SET_LOG -> setLogMapper?.apply(record)
+            SyncEntityType.BP_WORKOUT_ASSOCIATION -> bpWorkoutAssociationMapper?.apply(record)
+            SyncEntityType.CHAT_SESSION -> chatSessionMapper?.apply(record)
+            SyncEntityType.CHAT_MESSAGE -> chatMessageMapper?.apply(record)
+            SyncEntityType.SETTINGS_KV -> settingsKvMapper?.apply(record)
+            SyncEntityType.FOOD_LOG -> foodLogMapper?.apply(record)
+            SyncEntityType.MEMBER -> memberMapper?.apply(record)
+            else -> {
+                // Forward-compat: silently drop record types this build
+                // doesn't yet understand (e.g. future BLOB_META).
+            }
+        }
+    }
+
+    /**
+     * Local high-water HLC for [record]'s identity: max(live row hlc, tombstone
+     * hlc). Null when the type isn't pk-gated or there's no local trace, in
+     * which case the gate always applies.
+     */
+    private suspend fun localHlc(record: SyncRecord): Hlc? {
+        val dao = syncDao ?: return null
+        val (table, pkCol) = LwwTables.pkColumnFor(record.type) ?: return null
+        val live = dao.localRowHlc(table, pkCol, record.pk)
+        val tomb = dao.tombstoneFor(record.type.tableName, record.pk)?.hlc
+        return LwwTables.resolveLocalHlc(live, tomb)
+    }
+
+    private val gate = com.silverbp.android.sync.engine.LwwMerger(
+        inner = { record -> dispatch(record) },
+        localHlc = { record -> localHlc(record) },
+    )
+
     override suspend fun apply(record: SyncRecord) {
         perTypeCount.merge(record.type, 1, Int::plus)
         try {
-            when (record.type) {
-                SyncEntityType.BP_READING -> bpMapper.apply(record)
-                SyncEntityType.EXERCISE_SESSION -> exerciseSessionMapper.apply(record)
-                SyncEntityType.ROUTE_POINT -> routePointMapper.apply(record)
-                SyncEntityType.MEDICATION -> medicationMapper.apply(record)
-                SyncEntityType.MEDICATION_SCHEDULE -> medicationScheduleMapper.apply(record)
-                SyncEntityType.MEDICATION_DOSE -> medicationDoseMapper.apply(record)
-                SyncEntityType.DAILY_STEP_LOG -> dailyStepLogMapper.apply(record)
-                SyncEntityType.ACHIEVEMENT -> achievementMapper.apply(record)
-                SyncEntityType.COACH_PLAN -> coachPlanMapper.apply(record)
-                SyncEntityType.COACH_TASK -> coachTaskMapper.apply(record)
-                SyncEntityType.SLEEP_LOG -> sleepLogMapper.apply(record)
-                SyncEntityType.DIET_CHECK -> dietCheckMapper.apply(record)
-                SyncEntityType.EXERCISE_CATALOG_ITEM -> exerciseCatalogItemMapper?.apply(record)
-                SyncEntityType.STRENGTH_WORKOUT_SESSION -> strengthWorkoutSessionMapper?.apply(record)
-                SyncEntityType.SET_LOG -> setLogMapper?.apply(record)
-                SyncEntityType.BP_WORKOUT_ASSOCIATION -> bpWorkoutAssociationMapper?.apply(record)
-                SyncEntityType.CHAT_SESSION -> chatSessionMapper?.apply(record)
-                SyncEntityType.CHAT_MESSAGE -> chatMessageMapper?.apply(record)
-                SyncEntityType.SETTINGS_KV -> settingsKvMapper?.apply(record)
-                SyncEntityType.FOOD_LOG -> foodLogMapper?.apply(record)
-                else -> {
-                    // Forward-compat: silently drop record types this build
-                    // doesn't yet understand (e.g. future BLOB_META).
-                }
-            }
+            gate.apply(record)
         } catch (t: Throwable) {
             Log.e(
                 "CombinedSyncSink",

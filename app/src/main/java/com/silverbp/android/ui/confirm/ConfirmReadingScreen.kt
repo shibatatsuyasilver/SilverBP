@@ -1,6 +1,9 @@
 package com.silverbp.android.ui.confirm
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,10 +63,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.Arm
+import com.silverbp.android.core.Member
 import com.silverbp.android.core.PartOfDay
 import com.silverbp.android.core.Posture
 import com.silverbp.android.core.Source
 import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.member.MemberPalette
 import com.silverbp.android.ui.theme.BpRedSbp
 import java.time.Instant
 import java.time.LocalDate
@@ -86,6 +91,7 @@ fun ConfirmReadingScreen(
     val draft by vm.draft.collectAsStateWithLifecycle()
     val saving by vm.saving.collectAsStateWithLifecycle()
     val saveError by vm.saveError.collectAsStateWithLifecycle()
+    val activeMembers by vm.activeMembers.collectAsStateWithLifecycle()
 
     val isEditing = remember(readingIdArg) {
         readingIdArg != null && readingIdArg != "new" && readingIdArg != "draft" &&
@@ -190,6 +196,18 @@ fun ConfirmReadingScreen(
                         HorizontalDivider()
                         ConfidenceRow(draft.confidence)
                     }
+                }
+            }
+
+            // Attribution row — reassign THIS reading before saving (does not
+            // change the global member selection). Hidden for single-member installs.
+            if (activeMembers.size > 1) {
+                SectionCard(stringResource(R.string.member_reading_owner_label)) {
+                    MemberAttributionRow(
+                        members = activeMembers,
+                        selectedId = draft.memberId,
+                        onSelect = { id -> vm.update { it.copy(memberId = id) } },
+                    )
                 }
             }
 
@@ -478,5 +496,67 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     ) {
         Text(label, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+/** Horizontal row of selectable member avatars to attribute THIS reading. */
+@Composable
+private fun MemberAttributionRow(
+    members: List<Member>,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        members.forEach { member ->
+            val id = member.id.toString()
+            val selected = id == selectedId
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onSelect(id) }
+                    .padding(4.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MemberPalette.colorFor(member.colorIndex))
+                        .then(
+                            if (selected) {
+                                Modifier.border(
+                                    width = 3.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape,
+                                )
+                            } else Modifier,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        member.displayName.ifBlank { stringResource(R.string.member_me) }.take(1).uppercase(),
+                        color = MemberPalette.onColor,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Spacer(Modifier.size(4.dp))
+                Text(
+                    member.displayName.ifBlank { stringResource(R.string.member_me) },
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        }
     }
 }

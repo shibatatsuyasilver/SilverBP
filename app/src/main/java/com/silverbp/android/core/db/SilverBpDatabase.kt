@@ -38,8 +38,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         SetLogEntity::class,
         BpWorkoutAssociationEntity::class,
         FoodLogEntity::class,
+        MemberEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -60,6 +61,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun strengthWorkoutDao(): StrengthWorkoutDao
     abstract fun bpWorkoutAssociationDao(): BpWorkoutAssociationDao
     abstract fun foodLogDao(): FoodLogDao
+    abstract fun memberDao(): MemberDao
 
     companion object {
         const val DB_NAME = "silverbp.db"
@@ -103,6 +105,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_14_15,
                 MIGRATION_15_16,
                 MIGRATION_16_17,
+                MIGRATION_17_18,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -808,5 +811,116 @@ internal val MIGRATION_16_17: Migration = object : Migration(16, 17) {
         db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `distanceUnitRaw` TEXT")
         db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `floors` INTEGER")
         db.execSQL("ALTER TABLE `exercise_session` ADD COLUMN `rawMetricsJson` TEXT")
+    }
+}
+
+/**
+ * v17 → v18: introduce multi-member (family) profiles. Creates the `member`
+ * table, backfills the single owner row from `user_profile` (frozen — left
+ * untouched), and stamps every existing `bp_reading` / `medication` row with the
+ * owner's id so the new member-scoped queries return them unchanged.
+ *
+ * Owner backfill: read `user_profile LIMIT 1` (onboarding always creates it) and
+ * reuse its id / displayName / birthYear / three history flags / guideline with
+ * `isOwner = 1`. If the table is empty (defensive — should not happen in
+ * practice) a fresh UUID + empty displayName is synthesized so the invariant
+ * "exactly one owner" still holds and orphaned readings resolve to it.
+ *
+ * The single-owner invariant is NOT expressed as a partial unique index (Room
+ * can't declare `WHERE isOwner = 1`); the migration inserts exactly one owner
+ * and [com.silverbp.android.core.member.MemberRepository] preserves it.
+ *
+ * `member.archived` / `member.hlcUpdatedAt` are NOT NULL with no SQL DEFAULT to
+ * match Room's render of the Kotlin-level defaults (`= false` / `= "0"`), as
+ * with set_log / food_log in earlier migrations. The new `memberId` columns on
+ * `bp_reading` / `medication` need a SQL DEFAULT for the ADD COLUMN on existing
+ * rows; the composite / single indices match Room's generated names.
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/18.json` after building.
+ */
+internal val MIGRATION_17_18: Migration = object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `member` (
+              `id` TEXT NOT NULL,
+              `displayName` TEXT NOT NULL,
+              `isOwner` INTEGER NOT NULL,
+              `birthYear` INTEGER,
+              `hasDiabetes` INTEGER NOT NULL,
+              `hasCKD` INTEGER NOT NULL,
+              `hasASCVD` INTEGER NOT NULL,
+              `guideline` TEXT NOT NULL,
+              `colorIndex` INTEGER NOT NULL,
+              `sortOrder` INTEGER NOT NULL,
+              `archived` INTEGER NOT NULL,
+              `createdAt` INTEGER NOT NULL,
+              `updatedAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_member_isOwner` ON `member` (`isOwner`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_member_sortOrder` ON `member` (`sortOrder`)",
+        )
+
+        // Backfill the owner row from the (frozen) user_profile singleton.
+        var ownerId = ""
+        var displayName = ""
+        var birthYear: Long? = null
+        var hasDiabetes = 0
+        var hasCKD = 0
+        var hasASCVD = 0
+        var guideline = "taiwan2022"
+        db.query(
+            "SELECT id, displayName, birthYear, hasDiabetes, hasCKD, hasASCVD, guideline " +
+                "FROM user_profile LIMIT 1",
+        ).use { c ->
+            if (c.moveToFirst()) {
+                ownerId = c.getString(0)
+                displayName = c.getString(1)
+                birthYear = if (c.isNull(2)) null else c.getLong(2)
+                hasDiabetes = c.getInt(3)
+                hasCKD = c.getInt(4)
+                hasASCVD = c.getInt(5)
+                guideline = c.getString(6)
+            }
+        }
+        // Empty user_profile (defensive): synthesize a fresh owner so the
+        // single-owner invariant holds and existing readings resolve to it.
+        if (ownerId.isEmpty()) ownerId = java.util.UUID.randomUUID().toString()
+
+        val now = System.currentTimeMillis()
+        db.execSQL(
+            "INSERT INTO `member` (`id`, `displayName`, `isOwner`, `birthYear`, `hasDiabetes`, " +
+                "`hasCKD`, `hasASCVD`, `guideline`, `colorIndex`, `sortOrder`, `archived`, " +
+                "`createdAt`, `updatedAt`, `hlcUpdatedAt`) " +
+                "VALUES (?, ?, 1, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, '0')",
+            arrayOf<Any?>(
+                ownerId, displayName, birthYear, hasDiabetes, hasCKD, hasASCVD,
+                guideline, now, now,
+            ),
+        )
+
+        // bp_reading: add memberId, point existing rows at the owner, index the
+        // primary member-scoped query path (memberId, timestamp).
+        db.execSQL("ALTER TABLE `bp_reading` ADD COLUMN `memberId` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("UPDATE `bp_reading` SET `memberId` = ?", arrayOf<Any?>(ownerId))
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_bp_reading_memberId_timestamp` " +
+                "ON `bp_reading` (`memberId`, `timestamp`)",
+        )
+
+        // medication: same ADD COLUMN + backfill + index. schedule/dose unchanged.
+        db.execSQL("ALTER TABLE `medication` ADD COLUMN `memberId` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("UPDATE `medication` SET `memberId` = ?", arrayOf<Any?>(ownerId))
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_memberId` ON `medication` (`memberId`)",
+        )
     }
 }

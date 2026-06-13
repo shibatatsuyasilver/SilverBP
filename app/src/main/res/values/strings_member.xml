@@ -1,0 +1,46 @@
+<resources>
+
+    <!-- Family members (v18). The switcher chip is hidden when only one member
+         exists, so single-user installs never see any of this. "Me" is the UI
+         fallback for the owner when displayName is empty (never persisted). -->
+
+    <!-- Switcher + owner fallback -->
+    <string name="member_me">Me</string>
+    <string name="member_switcher_cd">Switch member</string>
+
+    <!-- Management screen -->
+    <string name="member_manage_title">Family members</string>
+    <string name="member_manage_entry">Manage family members</string>
+    <string name="member_add">Add member</string>
+    <string name="member_edit">Edit member</string>
+
+    <!-- Editor fields -->
+    <string name="member_name_label">Name</string>
+    <string name="member_birth_year">Birth year</string>
+    <string name="member_color">Colour</string>
+    <string name="member_color_cd">Identity colour</string>
+    <string name="member_guideline">Blood pressure guideline</string>
+    <string name="member_has_diabetes">Diabetes</string>
+    <string name="member_has_ckd">Chronic kidney disease</string>
+    <string name="member_has_ascvd">Cardiovascular disease (ASCVD)</string>
+    <string name="member_save">Save</string>
+
+    <!-- Archive / unarchive (soft delete) -->
+    <string name="member_archive">Archive</string>
+    <string name="member_unarchive">Restore</string>
+    <string name="member_archived_section">Archived</string>
+
+    <!-- Delete confirmation -->
+    <string name="member_delete_confirm_title">Remove this member?</string>
+    <string name="member_delete_confirm_body">Their records are kept and stay viewable. They will just be hidden from the member switcher. You can restore them later.</string>
+    <string name="member_delete_confirm_action">Remove</string>
+    <string name="member_delete_confirm_cancel">Cancel</string>
+
+    <!-- Record-attribution control on the confirm screen -->
+    <string name="member_reading_owner_label">Recorded for</string>
+
+    <!-- Owner cannot be archived (single-owner invariant) -->
+    <string name="member_owner_badge">You</string>
+    <string name="member_owner_cannot_archive">The main profile can\'t be removed.</string>
+
+</resources>

@@ -74,7 +74,10 @@ class WorkoutSummaryViewModel(
         val windowStart = now.minus(POST_BP_WINDOW_MIN, java.time.temporal.ChronoUnit.MINUTES)
         val sessionStart = live?.let { java.time.Instant.ofEpochMilli(it.startedAtMillis) }
         val from = if (sessionStart != null && sessionStart.isAfter(windowStart)) sessionStart else windowStart
-        return bpRepo.observeRange(from, now).first()
+        // Exercise / post-workout BP is owner-only in Phase 1 (sessions aren't
+        // member-scoped), so we read the owner's recent BP.
+        val ownerId = ServiceLocator.memberRepository.ownerId()
+        return bpRepo.observeRange(ownerId, from, now).first()
             .maxByOrNull { it.timestamp }?.id?.toString()
     }
 

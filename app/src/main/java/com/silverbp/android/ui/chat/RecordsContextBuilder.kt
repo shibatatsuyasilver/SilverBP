@@ -81,7 +81,10 @@ class RecordsContextBuilder(
     }
 
     private suspend fun appendLatestBp(sb: StringBuilder, zone: ZoneId) {
-        val latest = runCatching { bp.observeLatest().first() }.getOrNull()
+        // Chat / Coach context is owner-only by design (roadmap §3): the prompt
+        // summarises the device owner's records, not other family members'.
+        val ownerId = ServiceLocator.memberRepository.ownerId()
+        val latest = runCatching { bp.observeLatest(ownerId).first() }.getOrNull()
         sb.appendLine(CoachPrompts.Records.sectionLatestBp)
         if (latest == null) {
             sb.appendLine("- ${CoachPrompts.Records.noRecord}")
@@ -105,11 +108,12 @@ class RecordsContextBuilder(
     private suspend fun appendBpStats(sb: StringBuilder, now: Instant) {
         val sevenDaysAgo = now.minusSeconds(7 * 24 * 3600L)
         val thirtyDaysAgo = now.minusSeconds(30 * 24 * 3600L)
+        val ownerId = ServiceLocator.memberRepository.ownerId()
         val recent7 = runCatching {
-            bp.observeRange(sevenDaysAgo, now).first()
+            bp.observeRange(ownerId, sevenDaysAgo, now).first()
         }.getOrNull().orEmpty()
         val recent30 = runCatching {
-            bp.observeRange(thirtyDaysAgo, now).first()
+            bp.observeRange(ownerId, thirtyDaysAgo, now).first()
         }.getOrNull().orEmpty()
 
         sb.appendLine(CoachPrompts.Records.sectionBpStats)

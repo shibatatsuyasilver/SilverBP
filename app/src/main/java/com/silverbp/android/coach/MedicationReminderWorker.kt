@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.flow.first
 
@@ -36,7 +37,23 @@ class MedicationReminderWorker(
             val med = ServiceLocator.database.medicationDao().findById(schedule.medicationId)
                 ?: return@runCatching Result.success()
 
-            CoachNotifier.postMedicationReminder(applicationContext, med, schedule)
+            // Resolve the owning member so a non-owner family member's medication
+            // is addressed by name (v18). A missing member row falls back to the
+            // owner's unchanged copy; a blank displayName uses the "Me" string.
+            val memberRow = ServiceLocator.database.medicationDoseDao()
+                .memberForMedication(med.id)
+            val ownerMedication = memberRow?.isOwner ?: true
+            val memberName = memberRow?.displayName
+                ?.ifBlank { applicationContext.getString(R.string.member_me) }
+                .orEmpty()
+
+            CoachNotifier.postMedicationReminder(
+                applicationContext,
+                med,
+                schedule,
+                ownerMedication = ownerMedication,
+                memberName = memberName,
+            )
 
             // Self-reschedule for the next matching instant. If this throws,
             // the cold-start sweep in SilverBpApplication.reconcileCoach will

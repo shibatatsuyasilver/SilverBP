@@ -4,7 +4,10 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Upsert
+import androidx.sqlite.db.SimpleSQLiteQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -17,6 +20,25 @@ interface SyncDao {
 
     @Query("SELECT * FROM tombstone WHERE entityType = :entityType AND pk = :pk LIMIT 1")
     suspend fun tombstoneFor(entityType: String, pk: String): TombstoneEntity?
+
+    /**
+     * Reads the live row's `hlcUpdatedAt` for the B6 LWW gate. [table] /
+     * [pkColumn] come from a fixed in-code allowlist
+     * ([com.silverbp.android.sync.LwwTables]), never from wire input, so this
+     * raw query can't be turned into SQL injection by a peer; [pk] is a bound
+     * parameter. Returns null when no such row exists (record always applies).
+     */
+    @RawQuery
+    suspend fun rawHlc(query: SupportSQLiteQuery): String?
+
+    /** Convenience wrapper that builds the parameterised [rawHlc] query. */
+    suspend fun localRowHlc(table: String, pkColumn: String, pk: String): String? =
+        rawHlc(
+            SimpleSQLiteQuery(
+                "SELECT hlcUpdatedAt FROM $table WHERE $pkColumn = ? LIMIT 1",
+                arrayOf<Any>(pk),
+            ),
+        )
 
     @Query("SELECT * FROM tombstone WHERE hlc > :sinceHlc ORDER BY hlc")
     suspend fun tombstonesSince(sinceHlc: String): List<TombstoneEntity>

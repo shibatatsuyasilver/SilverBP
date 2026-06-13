@@ -31,7 +31,9 @@ import java.time.temporal.ChronoUnit
 suspend fun evaluateWorkoutBpGate(): WorkoutBpGate {
     val now = Instant.now()
     val from = now.minus(24, ChronoUnit.HOURS)
-    val recent = ServiceLocator.bpRepository.observeRange(from, now).first()
+    // Workout gate is owner-only in Phase 1 (exercise isn't member-scoped).
+    val ownerId = ServiceLocator.memberRepository.ownerId()
+    val recent = ServiceLocator.bpRepository.observeRange(ownerId, from, now).first()
     return CoachEngine.shouldAllowWorkout(recent, now)
 }
 

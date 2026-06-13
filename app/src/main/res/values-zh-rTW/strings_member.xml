@@ -1,0 +1,45 @@
+<resources>
+
+    <!-- 家人成員 (v18). 只有一位成員時切換器隱藏,單人使用者完全無感. displayName
+         為空時 owner 顯示 fallback「我」(不寫進 DB). -->
+
+    <!-- 切換器 + owner fallback -->
+    <string name="member_me">我</string>
+    <string name="member_switcher_cd">切換成員</string>
+
+    <!-- 管理畫面 -->
+    <string name="member_manage_title">家人成員</string>
+    <string name="member_manage_entry">管理家人成員</string>
+    <string name="member_add">新增成員</string>
+    <string name="member_edit">編輯成員</string>
+
+    <!-- 編輯欄位 -->
+    <string name="member_name_label">姓名</string>
+    <string name="member_birth_year">出生年</string>
+    <string name="member_color">顏色</string>
+    <string name="member_color_cd">識別顏色</string>
+    <string name="member_guideline">血壓指引</string>
+    <string name="member_has_diabetes">糖尿病</string>
+    <string name="member_has_ckd">慢性腎臟病</string>
+    <string name="member_has_ascvd">心血管疾病(ASCVD)</string>
+    <string name="member_save">儲存</string>
+
+    <!-- 封存 / 取消封存(軟刪除) -->
+    <string name="member_archive">封存</string>
+    <string name="member_unarchive">復原</string>
+    <string name="member_archived_section">已封存</string>
+
+    <!-- 刪除確認 -->
+    <string name="member_delete_confirm_title">要移除這位成員嗎?</string>
+    <string name="member_delete_confirm_body">他的紀錄會保留且仍可查看,只是從成員切換器中隱藏.之後可以再復原.</string>
+    <string name="member_delete_confirm_action">移除</string>
+    <string name="member_delete_confirm_cancel">取消</string>
+
+    <!-- 記錄畫面的歸屬選擇 -->
+    <string name="member_reading_owner_label">記錄對象</string>
+
+    <!-- owner 不可封存(單一 owner 不變式) -->
+    <string name="member_owner_badge">本人</string>
+    <string name="member_owner_cannot_archive">主要檔案無法移除.</string>
+
+</resources>

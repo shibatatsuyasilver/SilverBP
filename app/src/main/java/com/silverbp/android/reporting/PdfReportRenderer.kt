@@ -34,10 +34,17 @@ class PdfReportRenderer(private val context: Context) {
     private val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.TAIWAN).withZone(zone)
     private val ymd = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(zone)
 
-    fun render(readings: List<BpReading>, from: Instant, to: Instant): File {
+    fun render(
+        readings: List<BpReading>,
+        from: Instant,
+        to: Instant,
+        // Whose readings these are — printed on the cover so the doctor knows the
+        // subject. Empty → cover omits the line (single-user installs are unaffected).
+        memberName: String = "",
+    ): File {
         val doc = PdfDocument()
         try {
-            drawCover(doc, readings, from, to)
+            drawCover(doc, readings, from, to, memberName)
             if (readings.isNotEmpty()) drawTable(doc, readings)
             drawDisclaimer(doc)
         } finally {
@@ -52,7 +59,7 @@ class PdfReportRenderer(private val context: Context) {
         return out
     }
 
-    private fun drawCover(doc: PdfDocument, readings: List<BpReading>, from: Instant, to: Instant) {
+    private fun drawCover(doc: PdfDocument, readings: List<BpReading>, from: Instant, to: Instant, memberName: String) {
         val page = doc.startPage(pageInfo(1))
         val canvas = page.canvas
         val title = Paint().apply {
@@ -67,6 +74,9 @@ class PdfReportRenderer(private val context: Context) {
 
         var y = 80f
         canvas.drawText(context.getString(R.string.pdf_report_title), 60f, y, title); y += 36f
+        if (memberName.isNotBlank()) {
+            canvas.drawText(context.getString(R.string.pdf_report_subject, memberName), 60f, y, body); y += 24f
+        }
         canvas.drawText(context.getString(R.string.pdf_report_range, dateFmt.format(from), dateFmt.format(to)), 60f, y, body); y += 24f
         canvas.drawText(context.getString(R.string.pdf_report_count, readings.size), 60f, y, mono); y += 18f
 

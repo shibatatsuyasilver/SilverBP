@@ -1,0 +1,13 @@
+<resources>
+
+    <!-- Member-aware UI threading + switcher chip (v18, roadmap §3-6). Keys that
+         the management screen also needs live in strings_member.xml; these are the
+         ones only the chip / report / confirm flow use. -->
+
+    <!-- Switcher bottom sheet -->
+    <string name="member_switcher_sheet_title">Whose readings?</string>
+
+    <!-- PDF report cover: whose readings these are (printed for the doctor). -->
+    <string name="pdf_report_subject">Subject  %1$s</string>
+
+</resources>

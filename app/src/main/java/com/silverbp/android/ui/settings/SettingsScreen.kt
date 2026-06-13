@@ -76,6 +76,7 @@ fun SettingsScreen(
     onOpenManageMedications: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
     onOpenAdvanced: () -> Unit = {},
+    onOpenManageMembers: () -> Unit = {},
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -366,6 +367,16 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+            }
+
+            // Family members (v18) — manage care-recipient profiles. Each member
+            // keeps their own BP history / charts / reports; the switcher chip on
+            // Today/Data appears only once a second member exists.
+            StandardCard(title = stringResource(R.string.member_manage_title)) {
+                Button(
+                    onClick = onOpenManageMembers,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.member_manage_entry)) }
             }
 
             // Backup / Restore — encrypted .sbpbk snapshot export/import to

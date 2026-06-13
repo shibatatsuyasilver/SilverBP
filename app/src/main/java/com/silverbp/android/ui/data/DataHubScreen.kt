@@ -27,6 +27,7 @@ import com.silverbp.android.ui.history.HistoryFilterAction
 import com.silverbp.android.ui.history.HistoryScreen
 import com.silverbp.android.ui.history.HistoryViewModel
 import com.silverbp.android.ui.insights.InsightsScreen
+import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.theme.AppSpacing
 
 /** Segments of the Data (數據) tab, mirroring iOS DataHubView's [紀錄][分析] picker. */
@@ -45,6 +46,9 @@ private enum class DataSection(val labelRes: Int) {
 fun DataHubScreen(
     onEditReading: (String) -> Unit,
     onOpenReport: () -> Unit,
+    // Default no-op so AppNavHost compiles unchanged until it wires the
+    // MEMBER_MANAGE navigation (the chip self-hides for single-member installs).
+    onManageMembers: () -> Unit = {},
 ) {
     // Single HistoryViewModel shared between the list and the TopAppBar filter
     // action so changing range/sort in the app bar drives the same list.
@@ -58,6 +62,7 @@ fun DataHubScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.tab_data), fontWeight = FontWeight.SemiBold) },
                 actions = {
+                    MemberSwitcherChip(onManageMembers = onManageMembers)
                     if (active == DataSection.Records) HistoryFilterAction(historyVm)
                 },
             )

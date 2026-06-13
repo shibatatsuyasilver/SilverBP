@@ -45,10 +45,14 @@ class BpAnomalyWatcher(
     @OptIn(FlowPreview::class)
     fun start(scope: CoroutineScope) {
         scope.launch {
+            // Anomaly alerts are owner-only by design (roadmap §3); observe the
+            // owner's BP stream as the trigger. detectAnomaly() also reads the
+            // owner, so the trigger and the scan agree.
+            val ownerId = ServiceLocator.memberRepository.ownerId()
             // .drop(1) skips the initial cached emission so we don't re-trip on
             // app cold start. .debounce coalesces bursts when the user types
             // several historical readings in quick succession (manual entry).
-            bp.observeAll()
+            bp.observeAll(ownerId)
                 .drop(1)
                 .debounce(500)
                 .collect {

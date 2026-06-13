@@ -1,0 +1,18 @@
+<resources>
+
+    <!-- 成員管理畫面 + 編輯 sheet (v18). 此檔僅放 strings_member.xml 沒有的鍵.
+         切換器/owner/編輯欄位字串在該檔;這裡補管理清單專屬文案. -->
+
+    <!-- 排序控制(純圖示 — 需 contentDescription,audit M31) -->
+    <string name="member_move_up">上移</string>
+    <string name="member_move_down">下移</string>
+
+    <!-- 編輯 sheet 欄位提示 -->
+    <string name="member_name_placeholder">例:外婆</string>
+    <string name="member_birth_year_placeholder">例:1948</string>
+    <string name="member_birth_year_invalid">請輸入四位數年份</string>
+
+    <!-- 清單輔助說明 -->
+    <string name="member_manage_hint">新增你照護的家人成員.每位成員各自保有自己的紀錄, 圖表與報告.</string>
+
+</resources>

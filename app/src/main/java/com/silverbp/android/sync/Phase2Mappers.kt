@@ -59,6 +59,7 @@ import com.silverbp.android.sync.mapping.SyncRecordMapper
  *   1: name                  (string)
  *   2: dose                  (string)
  *   3: kindRaw               (string, "medication"|"supplement")
+ *   4: memberId              (string, v18 owning member; absent on pre-v18 peers)
  *
  * ### medication_schedule payload
  *   1: medicationId          (string UUID)
@@ -226,6 +227,13 @@ class RoutePointSyncMapper(
 class MedicationSyncMapper(
     private val dao: MedicationDao,
     private val syncDao: SyncDao,
+    /**
+     * Resolves the owner member id for inbound medication records that arrive
+     * without a memberId (old peers / pre-v18 backups). Defaults to "" so
+     * existing callers/tests compile; production wires
+     * [com.silverbp.android.core.member.MemberRepository.ownerId].
+     */
+    private val ownerIdProvider: suspend () -> String = { "" },
 ) : SyncRecordMapper<MedicationEntity> {
 
     override fun encode(entity: MedicationEntity, hlc: Hlc): SyncRecord {
@@ -233,6 +241,7 @@ class MedicationSyncMapper(
             1 to SyncValue.Text(entity.name),
             2 to SyncValue.Text(entity.dose),
             3 to SyncValue.Text(entity.kind),
+            4 to SyncValue.Text(entity.memberId),
         )
         return SyncRecord(
             type = SyncEntityType.MEDICATION,
@@ -264,6 +273,9 @@ class MedicationSyncMapper(
             dose = (p[2] as? SyncValue.Text)?.value ?: "",
             kind = (p[3] as? SyncValue.Text)?.value ?: "medication",
             hlcUpdatedAt = record.hlc.packed,
+            // Tag 4 (v18). Absent / blank on a pre-v18 peer or backup → owner.
+            memberId = (p[4] as? SyncValue.Text)?.value?.takeIf { it.isNotBlank() }
+                ?: ownerIdProvider(),
         )
         dao.upsert(entity)
     }
@@ -428,6 +440,11 @@ class MedicationDoseSyncMapper(
         // platforms don't accumulate duplicate doses for the same regimen
         // slot. Existing row's id is preserved; new rows take the wire pk.
         val existing = dao.findByContent(dayStart, medicationId, scheduledHour)
+        // B6 LWW gate (in-mapper because dose is content-keyed, not pk-keyed, so
+        // the sink-level pk lookup can't find the local row). Drop stale/equal
+        // records: a pre-sync local row ("0") always loses to a real inbound HLC.
+        val localHlc = existing?.hlcUpdatedAt
+        if (localHlc != null && localHlc != "0" && record.hlc.packed <= localHlc) return
         val entity = MedicationDoseEntity(
             id = existing?.id ?: record.pk,
             dayStart = dayStart,

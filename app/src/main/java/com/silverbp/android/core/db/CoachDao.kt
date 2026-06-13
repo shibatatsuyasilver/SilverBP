@@ -27,6 +27,18 @@ data class CoachAdherenceRow(
     val done: Int,
 )
 
+/**
+ * Owning-member identity for a medication, resolved by [MedicationDoseDao.memberForMedication]
+ * (v18). The reminder notification needs the member's [displayName] to address a
+ * non-owner family member's medication by name; [isOwner] selects between the
+ * owner's unchanged copy and the per-member copy. `displayName` may be blank
+ * (the owner's UI fallback) — callers substitute the localized "Me" string.
+ */
+data class MedicationMemberRow(
+    val displayName: String,
+    val isOwner: Boolean,
+)
+
 @Dao
 interface CoachPlanDao {
 
@@ -183,4 +195,17 @@ interface MedicationDoseDao {
         medicationId: String,
         scheduledHour: Int,
     ): MedicationDoseEntity?
+
+    /**
+     * Resolve a medication to its owning member's display identity (v18) so the
+     * reminder notification can address a family member's medication by name.
+     * Returns null only if the medication or its member row is missing; callers
+     * then fall back to the owner's unchanged copy.
+     */
+    @Query(
+        "SELECT m.displayName AS displayName, m.isOwner AS isOwner " +
+            "FROM medication med JOIN member m ON m.id = med.memberId " +
+            "WHERE med.id = :medicationId LIMIT 1"
+    )
+    suspend fun memberForMedication(medicationId: String): MedicationMemberRow?
 }

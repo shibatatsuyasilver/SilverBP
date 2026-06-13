@@ -11,13 +11,18 @@ import com.silverbp.android.core.Arm
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.PartOfDay
+import com.silverbp.android.core.Member
 import com.silverbp.android.core.Posture
 import com.silverbp.android.core.Source
+import com.silverbp.android.core.member.CurrentMemberStore
+import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -30,10 +35,19 @@ private const val TAG = "ConfirmReading"
 class ConfirmReadingViewModel(
     private val repo: BpRepository = ServiceLocator.bpRepository,
     private val context: Context = ServiceLocator.context,
+    private val members: MemberRepository = ServiceLocator.memberRepository,
+    private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
 ) : ViewModel() {
 
     private val _draft = MutableStateFlow(BpReadingDraft())
     val draft: StateFlow<BpReadingDraft> = _draft.asStateFlow()
+
+    /**
+     * Active members for the in-screen attribution row. The row is shown only
+     * when there is more than one — single-member installs never see it.
+     */
+    val activeMembers: StateFlow<List<Member>> = members.observeActive()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving.asStateFlow()
@@ -63,14 +77,18 @@ class ConfirmReadingViewModel(
         if (initialized) return
         initialized = true
         viewModelScope.launch {
+            // New/draft readings default to the currently-selected member; editing
+            // an existing reading keeps its own memberId (carried in fromReading).
+            val selectedMemberId = currentMember.current()
             when {
                 arg == null || arg == "new" -> {
-                    _draft.value = BpReadingDraft(timestamp = Instant.now())
+                    _draft.value = BpReadingDraft(timestamp = Instant.now(), memberId = selectedMemberId)
                     editingId = null
                 }
                 arg == "draft" -> {
                     val taken = CaptureSessionHolder.take()
-                    _draft.value = taken ?: BpReadingDraft(timestamp = Instant.now())
+                    _draft.value = (taken ?: BpReadingDraft(timestamp = Instant.now()))
+                        .let { if (it.memberId.isBlank()) it.copy(memberId = selectedMemberId) else it }
                     editingId = null
                 }
                 else -> {
@@ -112,6 +130,9 @@ class ConfirmReadingViewModel(
                         photoFilename = photoFilename, confidence = current.confidence,
                         source = current.source, note = current.note,
                         irregularHeartbeat = current.irregularHeartbeat,
+                        // Carry the (possibly reassigned) attribution so editing
+                        // doesn't silently re-home the reading to the owner.
+                        memberId = current.memberId,
                     )
                 } else {
                     current.toReading(photoFilename)
