@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
+import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
@@ -103,6 +104,7 @@ fun HistoryScreen(
                 val group = state.grouped[groupIdx]
                 DaySectionCard(
                     group = group,
+                    guideline = state.guideline,
                     onEdit = { reading -> onEdit(reading.id.toString()) },
                     onLongPress = { reading -> deleteTarget = reading },
                 )
@@ -181,6 +183,7 @@ fun HistoryFilterAction(vm: HistoryViewModel) {
 @Composable
 private fun DaySectionCard(
     group: DayGroup,
+    guideline: HypertensionGuideline,
     onEdit: (BpReading) -> Unit,
     onLongPress: (BpReading) -> Unit,
 ) {
@@ -209,6 +212,7 @@ private fun DaySectionCard(
         group.readings.forEachIndexed { idx, reading ->
             ReadingRow(
                 reading = reading,
+                guideline = guideline,
                 onClick = { onEdit(reading) },
                 onLongClick = { onLongPress(reading) },
             )
@@ -221,8 +225,13 @@ private fun DaySectionCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ReadingRow(reading: BpReading, onClick: () -> Unit, onLongClick: () -> Unit = {}) {
-    val cat = classify(reading.systolic, reading.diastolic)
+private fun ReadingRow(
+    reading: BpReading,
+    guideline: HypertensionGuideline,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+) {
+    val cat = classify(reading.systolic, reading.diastolic, guideline)
     val color = colorFor(cat)
     val fmt = remember {
         DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)

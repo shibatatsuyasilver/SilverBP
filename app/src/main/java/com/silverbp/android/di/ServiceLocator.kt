@@ -496,6 +496,9 @@ object ServiceLocator {
             // 向後相容:匯入 pre-v18 (無 member 表) 備份時合成 owner,
             // 讓無 memberId 的讀數歸 owner。
             ensureOwnerId = { memberRepository.ownerId() },
+            // Replace 模式清空 member 表後,丟掉 MemberRepository 記憶體中的
+            // owner id 快取,否則冷啟動暖好的舊 id 會繼續被回傳(findings 1 & 4)。
+            invalidateOwnerCache = { memberRepository.invalidateOwnerCache() },
         )
     }
 }

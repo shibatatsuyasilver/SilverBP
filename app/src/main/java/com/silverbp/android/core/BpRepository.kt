@@ -55,9 +55,20 @@ class BpRepository(
             memberId = memberId,
             updatedAt = now,
             createdAt = if (existing == null) now else reading.createdAt,
-            // Keep any prior mirror id the caller didn't carry, so editing an
-            // unchanged reading doesn't needlessly clear it and re-mirror.
-            hcRecordId = reading.hcRecordId ?: existing?.hcRecordId,
+            // Owner rows keep any prior mirror id the caller didn't carry, so
+            // editing an unchanged reading doesn't needlessly clear it and
+            // re-mirror. Non-owner rows must ALWAYS have hcRecordId == null
+            // (roadmap §3-5): re-attributing a previously-mirrored owner reading
+            // to a family member would otherwise inherit the owner's stale mirror
+            // id off `existing`, leaving a non-owner row pointing at the owner's
+            // Health Connect record (a cross-member privacy bug). Dropping it here
+            // also re-satisfies the §3-5 invariant if the reading is later moved
+            // back to the owner (null id → the mirror guard re-mirrors it).
+            hcRecordId = if (memberId == ownerId) {
+                reading.hcRecordId ?: existing?.hcRecordId
+            } else {
+                null
+            },
         )
         if (existing == null) dao.insert(toSave.toEntity()) else dao.update(toSave.toEntity())
 
