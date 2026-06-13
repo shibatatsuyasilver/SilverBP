@@ -41,6 +41,8 @@ import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.PartOfDay
+import com.silverbp.android.ui.insights.MemberSeries
+import com.silverbp.android.ui.insights.TrendMetric
 import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.categoryShortLabel
 import com.silverbp.android.ui.components.classify
@@ -345,6 +347,261 @@ fun DaypartCategoryHeatmap(
         }
     }
 }
+
+// --- Multi-member comparison charts (roadmap: analysis compare mode) ----------
+// These ADD a comparison rendering beside the single-member charts above; the
+// single-member composables are untouched so compare-OFF behaviour is unchanged.
+// Overlay charts (time-series, scatter) draw one colour per member on a shared
+// canvas; small-multiples (distribution, heatmap) stack one titled mini-chart per
+// member. Member series colours are pre-resolved (collision-reassigned) by
+// InsightsViewModel.buildSeries; legends/titles always carry the member NAME so
+// members are never distinguished by colour alone (a11y, audit M31 class).
+
+/**
+ * Overlay trend chart: one smooth weekday line per member in [series], plotting
+ * the systolic or diastolic average per [metric]. Reuses [TimeSeriesChart]'s
+ * Mon→Sun weekday bucketing per member; yMin/yMax span every member's chosen-
+ * metric weekday averages so the lines share one scale. A member with <2
+ * range-filtered readings is skipped (its line is dropped) while the others draw.
+ * The legend lists each member's name + colour dot (wraps for many members).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MultiMemberTimeSeriesChart(
+    series: List<MemberSeries>,
+    metric: TrendMetric,
+    modifier: Modifier = Modifier,
+) {
+    val zone = ZoneId.systemDefault()
+    // Per-member weekday averages of the chosen metric, keyed Mon=0 … Sun=6.
+    // present = the weekday slots that member actually has readings for.
+    data class MemberWeekday(val series: MemberSeries, val present: List<Int>, val avg: List<Double>)
+    val perMember = series.mapNotNull { ms ->
+        val sum = DoubleArray(7)
+        val counts = IntArray(7)
+        ms.insights.readings.forEach { r ->
+            val i = r.timestamp.atZone(zone).dayOfWeek.value - 1
+            sum[i] += if (metric == TrendMetric.Systolic) r.systolic else r.diastolic
+            counts[i]++
+        }
+        val present = (0..6).filter { counts[it] > 0 }
+        if (present.isEmpty()) null
+        else MemberWeekday(ms, present, present.map { sum[it] / counts[it] })
+    }
+    if (perMember.isEmpty()) {
+        EmptyChart(stringResource(R.string.chart_no_data_short), modifier.height(220.dp))
+        return
+    }
+    val allAvg = perMember.flatMap { it.avg }
+    val yMin = (allAvg.min() - 10).coerceAtLeast(40.0).toInt()
+    val yMax = (allAvg.max() + 10).coerceAtMost(220.0).toInt()
+
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val measurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(color = gridColor, fontSize = 11.sp)
+    val locale = Locale.getDefault()
+    val dayLabels = (0..6).map {
+        DayOfWeek.of(it + 1).getDisplayName(java.time.format.TextStyle.SHORT, locale)
+    }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            series.forEach { ms -> LegendDot(ms.color, memberLabel(ms)) }
+        }
+        Box {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .padding(8.dp),
+            ) {
+                val xPad = 10f
+                val labelH = 18.dp.toPx()
+                val plotH = (size.height - labelH).coerceAtLeast(1f)
+                fun xOf(slot: Int) = xPad + slot * ((size.width - 2 * xPad) / 6f)
+                fun yOf(v: Double) = mapY(v, yMin, yMax, plotH)
+
+                // faint horizontal gridlines (matches the single-member chart)
+                for (g in 0..3) {
+                    val gy = plotH * g / 3f
+                    drawLine(gridColor.copy(alpha = 0.15f), Offset(0f, gy), Offset(size.width, gy), strokeWidth = 1f)
+                }
+
+                // weekday labels (Mon → Sun)
+                dayLabels.forEachIndexed { i, lbl ->
+                    val layout = measurer.measure(lbl, labelStyle)
+                    val lx = (xOf(i) - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
+                    drawText(layout, topLeft = Offset(lx, plotH + (labelH - layout.size.height) / 2f))
+                }
+
+                val stroke = Stroke(width = 8f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                perMember.forEach { m ->
+                    val pts = m.present.mapIndexed { k, slot -> Offset(xOf(slot), yOf(m.avg[k])) }
+                    if (pts.size >= 2) {
+                        drawPath(smoothLinePath(pts), color = m.series.color, style = stroke)
+                    } else {
+                        pts.forEach { drawCircle(m.series.color, 7f, it) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Overlay scatter: systolic (y) × diastolic (x) with each member's points drawn
+ * in that member's colour (NOT BP-category colour — compare mode distinguishes by
+ * member). Axes span every member's points so no reading falls off-canvas; reuses
+ * [ScatterChart]'s tick/gridline/axis-title drawing. The legend lists member names.
+ * Members with no range-filtered readings simply contribute no points.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MultiMemberScatterChart(
+    series: List<MemberSeries>,
+    modifier: Modifier = Modifier,
+) {
+    val all = series.flatMap { it.insights.readings }
+    if (all.size < 5) {
+        EmptyChart(stringResource(R.string.chart_need_5), modifier.height(220.dp))
+        return
+    }
+    val xs = all.map { it.diastolic }
+    val ys = all.map { it.systolic }
+    // Same axis padding as the single-member scatter so the 60/80/100 ticks show
+    // while still expanding past them for outliers.
+    val xMin = minOf(xs.min() - 5, 55).coerceAtLeast(30)
+    val xMax = maxOf(xs.max() + 5, 105).coerceAtMost(170)
+    val yMin = (ys.min() - 10).coerceAtLeast(40)
+    val yMax = (ys.max() + 10).coerceAtMost(270)
+
+    val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val measurer = rememberTextMeasurer()
+    val tickStyle = TextStyle(color = axisColor, fontSize = 10.sp)
+    val sysTitle = "${stringResource(R.string.chart_legend_systolic)} ${stringResource(R.string.mmhg)}"
+    val diaTitle = "${stringResource(R.string.chart_legend_diastolic)} ${stringResource(R.string.mmhg)}"
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            series.forEach { ms -> LegendDot(ms.color, memberLabel(ms)) }
+        }
+        Canvas(modifier = Modifier.fillMaxWidth().height(240.dp)) {
+            val gap = 4f
+            val diaLay = measurer.measure(diaTitle, tickStyle)
+            val tickH = measurer.measure("100", tickStyle).size.height.toFloat()
+            val plotL = 4f
+            val plotR = (size.width - 40f).coerceAtLeast(plotL + 1f)
+            val plotT = 22f
+            val plotB = (size.height - (tickH + gap + diaLay.size.height + gap)).coerceAtLeast(plotT + 1f)
+            fun px(d: Int) = plotL + (d - xMin).toFloat() / (xMax - xMin) * (plotR - plotL)
+            fun py(s: Int) = plotB - (s - yMin).toFloat() / (yMax - yMin) * (plotB - plotT)
+
+            // systolic gridlines + ticks (solid horizontal, every 25)
+            var ty = ((yMin + 24) / 25) * 25
+            while (ty <= yMax) {
+                val yy = py(ty)
+                drawLine(axisColor.copy(alpha = 0.18f), Offset(plotL, yy), Offset(plotR, yy), strokeWidth = 1f)
+                val lay = measurer.measure(ty.toString(), tickStyle)
+                drawText(lay, topLeft = Offset(plotR + 6f, yy - lay.size.height / 2f))
+                ty += 25
+            }
+            // diastolic gridlines + ticks (dashed vertical, every 20)
+            val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
+            var tx = ((xMin + 19) / 20) * 20
+            while (tx <= xMax) {
+                val xx = px(tx)
+                drawLine(axisColor.copy(alpha = 0.18f), Offset(xx, plotT), Offset(xx, plotB), strokeWidth = 1f, pathEffect = dash)
+                val lay = measurer.measure(tx.toString(), tickStyle)
+                drawText(lay, topLeft = Offset(xx - lay.size.width / 2f, plotB + gap))
+                tx += 20
+            }
+            // axis titles
+            val sysLay = measurer.measure(sysTitle, tickStyle)
+            drawText(sysLay, topLeft = Offset((size.width - sysLay.size.width).coerceAtLeast(0f), 2f))
+            drawText(diaLay, topLeft = Offset(0f, plotB + gap + tickH + gap))
+            // member-coloured points (compare mode: colour = member, not category)
+            series.forEach { ms ->
+                ms.insights.readings.forEach { r ->
+                    drawCircle(ms.color.copy(alpha = 0.85f), radius = 7f, center = Offset(px(r.diastolic), py(r.systolic)))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Small-multiples distribution: one titled [DistributionDonut] per member stacked
+ * vertically (a member-named header above each donut), so multiple members read on
+ * a phone. Category colours inside each donut are unchanged from the single-member
+ * version — the title carries the member identity, not colour.
+ */
+@Composable
+fun MultiMemberDistribution(
+    series: List<MemberSeries>,
+    modifier: Modifier = Modifier,
+) {
+    if (series.isEmpty()) {
+        EmptyChart(stringResource(R.string.chart_no_data), modifier.height(180.dp))
+        return
+    }
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        series.forEach { ms ->
+            MemberSectionTitle(ms)
+            DistributionDonut(ms.insights.distribution)
+        }
+    }
+}
+
+/**
+ * Small-multiples heatmap: one titled [DaypartCategoryHeatmap] per member stacked
+ * vertically (a member-named header above each grid). Reuses the single-member
+ * heatmap composable directly per member.
+ */
+@Composable
+fun MultiMemberHeatmap(
+    series: List<MemberSeries>,
+    modifier: Modifier = Modifier,
+) {
+    if (series.isEmpty()) {
+        EmptyChart(stringResource(R.string.chart_no_data), modifier.height(180.dp))
+        return
+    }
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        series.forEach { ms ->
+            MemberSectionTitle(ms)
+            DaypartCategoryHeatmap(ms.insights.daypartCategory)
+        }
+    }
+}
+
+/**
+ * Small-multiples section header: a member colour dot + name above each mini-chart
+ * (the name disambiguates so the colour is never the only cue — a11y).
+ */
+@Composable
+private fun MemberSectionTitle(series: MemberSeries) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.size(12.dp)) { drawCircle(series.color) }
+        Spacer(Modifier.size(6.dp))
+        Text(
+            memberLabel(series),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/** Owner with an empty name shows the localized "Me"; others show their name. */
+@Composable
+private fun memberLabel(series: MemberSeries): String =
+    series.name.ifBlank { stringResource(R.string.member_me) }
 
 @Composable
 private fun LegendDot(color: Color, label: String) {
