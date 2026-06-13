@@ -6,9 +6,11 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.media.ExifInterface
+import android.util.Log
 import android.net.Uri
 import androidx.core.graphics.createBitmap
 import java.io.File
@@ -79,26 +81,28 @@ fun calculateInSampleSize(width: Int, height: Int, maxDim: Int): Int {
     return inSampleSize
 }
 
+/**
+ * Decode a gallery/content [uri] to a software bitmap bounded to [maxDim].
+ *
+ * Uses [ImageDecoder] (API 28+; minSdk is 33) rather than [BitmapFactory]:
+ * modern phones save album photos as HEIC/HDR (10-bit), which BitmapFactory
+ * frequently fails to decode (returns null) — surfacing to the user as
+ * "could not analyze" whenever a food photo is picked from the gallery.
+ * ImageDecoder decodes HEIC/HDR/AVIF/WebP/JPEG/PNG, applies EXIF orientation
+ * automatically, and — with a SOFTWARE allocator — yields a bitmap that can be
+ * JPEG-compressed for the recognizer (HARDWARE bitmaps cannot be compressed).
+ */
 fun decodeUriWithExif(context: Context, uri: Uri, maxDim: Int = 2048): Bitmap? {
-    // Bounds-only pass first so gallery photos aren't decoded at full
-    // resolution (OOM on large images); then decode with inSampleSize.
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use {
-        BitmapFactory.decodeStream(it, null, bounds)
-    } ?: return null
-    val opts = BitmapFactory.Options().apply {
-        inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxDim)
-    }
-    val bitmap = context.contentResolver.openInputStream(uri)?.use {
-        BitmapFactory.decodeStream(it, null, opts)
-    } ?: return null
+    val source = ImageDecoder.createSource(context.contentResolver, uri)
     return try {
-        val orientation = context.contentResolver.openInputStream(uri)?.use {
-            val exif = ExifInterface(it)
-            exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED)
-        } ?: ExifInterface.ORIENTATION_UNDEFINED
-        bitmap.rotateByExif(orientation)
+        ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            decoder.setTargetSampleSize(
+                calculateInSampleSize(info.size.width, info.size.height, maxDim)
+            )
+        }
     } catch (e: Exception) {
-        bitmap
+        Log.w("ImagePreprocess", "decodeUriWithExif failed for $uri", e)
+        null
     }
 }

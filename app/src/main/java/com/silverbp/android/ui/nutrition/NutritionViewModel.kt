@@ -122,6 +122,7 @@ class NutritionViewModel(
                 }
             } catch (t: Throwable) {
                 // Analysis failed — still let the user log it manually with the photo.
+                android.util.Log.w("NutritionVM", "analyze failed: ${t::class.simpleName}: ${t.message}", t)
                 NutritionDraftHolder.put(manualDraft(photoName))
                 _capturePhase.value = NutritionCapturePhase.Error(t.message ?: "analysis failed")
             }

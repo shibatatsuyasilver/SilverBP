@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,7 +69,6 @@ import java.io.File
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -296,6 +296,10 @@ private fun DailySummaryCard(state: NutritionUiState) {
 private fun SodiumTrendCard(state: NutritionUiState) {
     val days = state.last7DaysSodium
     if (days.isEmpty()) return
+    // Follow the in-app language (per-app locale), not the device locale —
+    // Locale.getDefault() returns the device locale here and would render the
+    // weekday labels in Chinese even when English is selected.
+    val locale = LocalConfiguration.current.locales[0]
     val scaleMax = maxOf(state.sodiumTargetMg.toDouble(), days.maxOf { it.sodiumMg }).coerceAtLeast(1.0)
     StandardCard(title = stringResource(R.string.nutrition_trend_title)) {
         Row(
@@ -323,7 +327,7 @@ private fun SodiumTrendCard(state: NutritionUiState) {
                             .background(barColor),
                     )
                     Text(
-                        d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                        d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, locale),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -336,7 +340,10 @@ private fun SodiumTrendCard(state: NutritionUiState) {
 @Composable
 private fun MealRow(log: FoodLog, onClick: () -> Unit) {
     val context = LocalContext.current
-    val fmt = remember { DateTimeFormatter.ofPattern("MM/dd HH:mm", Locale.TAIWAN).withZone(ZoneId.systemDefault()) }
+    val locale = LocalConfiguration.current.locales[0]
+    val fmt = remember(locale) {
+        DateTimeFormatter.ofPattern("MM/dd HH:mm", locale).withZone(ZoneId.systemDefault())
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
