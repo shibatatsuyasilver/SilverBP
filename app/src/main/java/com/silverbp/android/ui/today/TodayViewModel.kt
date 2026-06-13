@@ -8,6 +8,9 @@ import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightRepository
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
@@ -48,6 +51,20 @@ data class TodayUiState(
     val todayBp: List<BpReading> = emptyList(),
     /** The selected member's glucose readings taken today, timestamp-ASC. */
     val todayGlucose: List<GlucoseReading> = emptyList(),
+    /**
+     * The selected member's most-recent weight reading (latest-ever, not
+     * today-scoped). Unlike BP/glucose, weight is tracked as a single hero value
+     * — a "today's weigh-in" list adds no clinical signal — so this mirrors the
+     * old latest-ever card via [WeightRepository.observeLatest]. null = no data.
+     */
+    val latestWeight: WeightReading? = null,
+    /**
+     * BMI for [latestWeight] using the selected member's profile height, or null
+     * when there's no weight reading or the member's heightCm is missing/invalid.
+     * Computed here (not in the screen) so the card can render the 過輕/正常/過重/
+     * 肥胖 band without re-reading the member row. See [WeightGuideline].
+     */
+    val weightBmi: Double? = null,
     /** Local calendar date the card is scoped to (drives the "今天 M/D (週X)" title). */
     val today: LocalDate = LocalDate.now(),
     val modelPhase: ModelLoadPhase = ModelLoadPhase.Idle,
@@ -67,6 +84,7 @@ class TodayViewModel(
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
     private val glucose: GlucoseRepository = ServiceLocator.glucoseRepository,
+    private val weight: WeightRepository = ServiceLocator.weightRepository,
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
 
@@ -126,16 +144,44 @@ class TodayViewModel(
         settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) },
     ) { readings, unit -> readings to unit }
 
+    // Selected member's latest weight reading paired with the BMI it implies for
+    // that member's profile height. Weight is a latest-ever hero (no today-scoped
+    // list — see [TodayUiState.latestWeight]), so this follows member selection
+    // via flatMapLatest like guidelineFlow but skips the day ticker. heightCm is
+    // resolved off the member row (null when missing/unresolvable), so the BMI is
+    // null until both a reading and a height exist. Pairs reading+BMI in a single
+    // source to avoid an extra combine arity downstream.
+    private val latestWeightFlow = currentMember.flow.flatMapLatest { id ->
+        weight.observeLatest(id).map { reading ->
+            val heightCm = runCatching { members.findById(UUID.fromString(id)) }
+                .getOrNull()?.heightCm
+            val bmi = reading?.let { WeightGuideline.bmi(it.valueKg, heightCm) }
+            reading to bmi
+        }
+    }
+
+    // Both the guideline and the latest weight are member-derived; folding them
+    // into one source keeps the outer state combine at five typed args (Kotlin's
+    // combine only has typed overloads up to arity five — a sixth flow would force
+    // the type-erased vararg form).
+    private val guidelineWeightFlow = combine(
+        guidelineFlow,
+        latestWeightFlow,
+    ) { guideline, weight -> guideline to weight }
+
     val state: StateFlow<TodayUiState> = combine(
         todayBpFlow,
         modelStatus.phase,
-        guidelineFlow,
+        guidelineWeightFlow,
         todayGlucoseFlow,
         dayTicker,
-    ) { bp, phase, guideline, (glucoseReadings, glucoseUnit), today ->
+    ) { bp, phase, (guideline, weight), (glucoseReadings, glucoseUnit), today ->
+        val (latestWeight, weightBmi) = weight
         TodayUiState(
             todayBp = bp,
             todayGlucose = glucoseReadings,
+            latestWeight = latestWeight,
+            weightBmi = weightBmi,
             today = today,
             modelPhase = phase,
             guideline = guideline,

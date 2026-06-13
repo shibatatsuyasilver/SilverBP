@@ -1,0 +1,36 @@
+<resources>
+
+    <!-- Weight management (體重, Phase 2). Manual entry only this phase — no camera/photo.
+         Canonical unit is kg; lb is a display convenience. Display unit comes from
+         UserSettings.weightUnit. Identical key set in values-zh-rTW (audit M27). -->
+
+    <!-- Feature + entry points -->
+    <string name="weight_title">Weight</string>
+    <string name="weight_log_cta">Log weight</string>
+    <string name="weight_save">Save</string>
+
+    <!-- Value + units -->
+    <string name="weight_value_label">Weight</string>
+    <string name="weight_unit_kg">kg</string>
+    <string name="weight_unit_lb">lb</string>
+
+    <!-- Confirm / editor -->
+    <string name="weight_confirm_title">Confirm weight</string>
+    <string name="weight_note_label">Note</string>
+
+    <!-- Today card -->
+    <string name="weight_today_label">Today</string>
+    <string name="weight_bmi_label">BMI</string>
+    <string name="weight_target_label">Target</string>
+
+    <!-- History -->
+    <string name="weight_history_title">Weight history</string>
+    <string name="weight_no_data">No weight logged yet</string>
+
+    <!-- BMI categories -->
+    <string name="weight_category_underweight">Underweight</string>
+    <string name="weight_category_normal">Normal</string>
+    <string name="weight_category_overweight">Overweight</string>
+    <string name="weight_category_obese">Obese</string>
+
+</resources>

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,14 +32,15 @@ import com.silverbp.android.R
 
 /**
  * The "+" record chooser shown over [TodayScreen]: a day's record now covers
- * both blood pressure and blood glucose, so the top-right add button opens this
- * sheet to pick which to capture instead of jumping straight into the BP camera.
+ * blood pressure, blood glucose and weight, so the top-right add button opens
+ * this sheet to pick which to capture instead of jumping straight into the BP
+ * camera.
  *
  * Self-contained — the host only owns the [visible] flag (set true on the "+"
- * onClick) and supplies the two capture callbacks; this composable renders
+ * onClick) and supplies the capture callbacks; this composable renders
  * nothing while [visible] is false and dismisses itself on selection or scrim
  * tap. Mirrors the [com.silverbp.android.ui.member.MemberEditorSheet]
- * ModalBottomSheet idiom. Both options carry a contentDescription (audit M31).
+ * ModalBottomSheet idiom. Every option carries a contentDescription (audit M31).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +49,7 @@ fun AddMeasurementSheet(
     onDismiss: () -> Unit,
     onCaptureBp: () -> Unit,
     onCaptureGlucose: () -> Unit,
+    onAddWeight: () -> Unit,
 ) {
     if (!visible) return
 
@@ -88,6 +91,18 @@ fun AddMeasurementSheet(
                 onClick = {
                     onDismiss()
                     onCaptureGlucose()
+                },
+            )
+
+            // 量體重 → manual weight entry (no camera this phase). The CTA label
+            // doubles as the contentDescription — it already reads as the action.
+            AddMeasurementRow(
+                icon = Icons.Filled.MonitorWeight,
+                label = stringResource(R.string.weight_log_cta),
+                contentDescription = stringResource(R.string.weight_log_cta),
+                onClick = {
+                    onDismiss()
+                    onAddWeight()
                 },
             )
         }

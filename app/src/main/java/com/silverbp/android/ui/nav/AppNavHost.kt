@@ -50,6 +50,7 @@ import com.silverbp.android.ui.coach.MedicationEditScreen
 import com.silverbp.android.ui.coach.MedicationManageScreen
 import com.silverbp.android.ui.confirm.ConfirmGlucoseScreen
 import com.silverbp.android.ui.confirm.ConfirmReadingScreen
+import com.silverbp.android.ui.confirm.ConfirmWeightScreen
 import com.silverbp.android.ui.data.DataHubScreen
 import com.silverbp.android.ui.exercise.ExerciseDetailScreen
 import com.silverbp.android.ui.exercise.ExerciseHomeScreen
@@ -220,6 +221,20 @@ fun AppNavHost() {
         ) { entry ->
             val id = entry.arguments?.getString(Routes.ARG_GLUCOSE_ID)
             ConfirmGlucoseScreen(
+                readingIdArg = id,
+                onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onCancel = { rootNav.popBackStack() },
+            )
+        }
+        // Body-weight confirm (Phase 2). One route handles "new" (manual), "draft"
+        // (staged camera read, later phase), and an existing-id edit — the
+        // {weightId} arg captures "new"/"draft"/<uuid> and the VM's initWith routes them.
+        composable(
+            "${Routes.WEIGHT_CONFIRM}/{${Routes.ARG_WEIGHT_ID}}",
+            arguments = listOf(navArgument(Routes.ARG_WEIGHT_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString(Routes.ARG_WEIGHT_ID)
+            ConfirmWeightScreen(
                 readingIdArg = id,
                 onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onCancel = { rootNav.popBackStack() },
@@ -518,6 +533,10 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             // existing Confirm flows (BP ConfirmReading / glucose ConfirmGlucose).
             onEditBp = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
             onEditGlucose = { id -> rootNav.navigate(Routes.glucoseConfirmEdit(id)) },
+            // Weight (Phase 2, manual): + opens manual logging; tapping the card
+            // edits the shown reading. (Weight history joins the Data hub later.)
+            onLogWeight = { rootNav.navigate(Routes.WEIGHT_CONFIRM_NEW) },
+            onEditWeight = { id -> rootNav.navigate(Routes.weightConfirmEdit(id)) },
             // Both "今天 N 筆" affordances open the unified Data-tab history.
             onViewBpHistory = openHistory,
             onViewGlucoseHistory = openHistory,
