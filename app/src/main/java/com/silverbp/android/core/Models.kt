@@ -85,6 +85,10 @@ data class Member(
     val displayName: String = "",
     val isOwner: Boolean = false,
     val birthYear: Int? = null,
+    val heightCm: Int? = null,
+    /** Biological sex for body-composition context: "M" | "F" | "Other" | null. */
+    val biologicalSex: String? = null,
+    val targetWeightKg: Double? = null,
     val hasDiabetes: Boolean = false,
     val hasCKD: Boolean = false,
     val hasASCVD: Boolean = false,

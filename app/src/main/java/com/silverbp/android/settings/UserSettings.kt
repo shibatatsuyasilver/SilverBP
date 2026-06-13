@@ -122,6 +122,14 @@ data class UserSettings(
      */
     val glucoseUnit: String = "mgdl",
 
+    /**
+     * Preferred body-weight display/entry unit. Raw value of
+     * [com.silverbp.android.core.WeightUnit] — "kg" (default, canonical) or "lb".
+     * Storage is always canonical kg; this drives how values are shown and the
+     * default unit when entering a reading.
+     */
+    val weightUnit: String = "kg",
+
     /** Opt-in: read sleep duration from Health Connect. Off by default — user must grant the perm. */
     val sleepTrackingEnabled: Boolean = false,
     /** Opt-in: read nutrition (sodium) from Health Connect. */

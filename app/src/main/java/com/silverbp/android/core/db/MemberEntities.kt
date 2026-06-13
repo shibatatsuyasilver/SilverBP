@@ -23,6 +23,9 @@ data class MemberEntity(
     /** Exactly one row true; anchor for HC mirror + owner-only data (see class KDoc). */
     val isOwner: Boolean,
     val birthYear: Int?,
+    val heightCm: Int? = null,
+    val biologicalSex: String? = null,
+    val targetWeightKg: Double? = null,
     val hasDiabetes: Boolean,
     val hasCKD: Boolean,
     val hasASCVD: Boolean,
