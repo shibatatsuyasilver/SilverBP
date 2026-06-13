@@ -1,0 +1,291 @@
+package com.silverbp.android.ui.onboarding
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.silverbp.android.R
+import com.silverbp.android.core.NetworkInfo
+import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.recognition.DeviceCapabilities
+import com.silverbp.android.recognition.DeviceCapabilities.RecommendedBackend
+import com.silverbp.android.recognition.ModelBootstrap
+import com.silverbp.android.recognition.ModelCatalog
+import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.ui.components.StandardCard
+import kotlinx.coroutines.launch
+
+private const val AI_STUDIO_KEY_URL = "https://aistudio.google.com/app/apikey"
+
+private fun RecommendedBackend.toBackend(): RecognitionBackend = when (this) {
+    RecommendedBackend.AICore -> RecognitionBackend.AICore
+    RecommendedBackend.OnDevice -> RecognitionBackend.Local
+    RecommendedBackend.Cloud -> RecognitionBackend.Cloud
+}
+
+/**
+ * First-launch AI backend picker. Shown by [com.silverbp.android.ui.nav.AppNavHost]
+ * after onboarding is complete but before the Google sign-in gate, whenever
+ * `pickedAiBackend` is still false. Pre-selects the option recommended for this
+ * phone (Pixel AICore → on-device RAM → cloud) and explains each in plain terms.
+ *
+ * The on-device choice only kicks off the multi-GB download when on Wi-Fi and
+ * after an explicit confirm; the "type readings myself" escape hatch sets the
+ * flag and proceeds without any download. [onCompleted] runs exactly once and
+ * releases HOME.
+ */
+@Composable
+fun OnboardingModelScreen(onCompleted: () -> Unit) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val scope = rememberCoroutineScope()
+
+    var recommended by remember { mutableStateOf<RecommendedBackend?>(null) }
+    var selected by remember { mutableStateOf<RecognitionBackend?>(null) }
+    var apiKey by remember { mutableStateOf("") }
+    var keyError by remember { mutableStateOf(false) }
+    var showDownloadDialog by remember { mutableStateOf(false) }
+
+    // Compute the recommendation once (AICore availability is a suspend probe).
+    LaunchedEffect(Unit) {
+        val rec = DeviceCapabilities.recommendBackend(context)
+        recommended = rec
+        selected = rec.toBackend()
+    }
+
+    fun applyAndFinish(backend: RecognitionBackend, download: Boolean) {
+        scope.launch {
+            val s = ServiceLocator.userSettings
+            when (backend) {
+                RecognitionBackend.Local -> {
+                    s.setRecognitionBackend(RecognitionBackend.Local)
+                    s.setSelectedModelId(ModelCatalog.default.id)
+                }
+                RecognitionBackend.Cloud -> {
+                    s.setGeminiApiKey(apiKey.trim())
+                    s.setRecognitionBackend(RecognitionBackend.Cloud)
+                }
+                RecognitionBackend.AICore -> {
+                    s.setRecognitionBackend(RecognitionBackend.AICore)
+                }
+            }
+            s.setPickedAiBackend(true)
+            // Kick off any background model work AFTER the flag is set so the
+            // HOME ModelLoadBanner reflects progress. These return immediately.
+            if (backend == RecognitionBackend.Local && download) {
+                ModelBootstrap.downloadAndPreload(context, ModelCatalog.default, null)
+            } else if (backend == RecognitionBackend.AICore) {
+                ModelBootstrap.preloadAICore(context)
+            }
+            onCompleted()
+        }
+    }
+
+    fun onContinue() {
+        when (selected) {
+            RecognitionBackend.Local ->
+                if (NetworkInfo.isOnWifi(context)) showDownloadDialog = true
+                else applyAndFinish(RecognitionBackend.Local, download = false)
+            RecognitionBackend.Cloud ->
+                if (apiKey.isBlank()) keyError = true
+                else applyAndFinish(RecognitionBackend.Cloud, download = false)
+            RecognitionBackend.AICore -> applyAndFinish(RecognitionBackend.AICore, download = false)
+            null -> Unit
+        }
+    }
+
+    if (showDownloadDialog) {
+        AlertDialog(
+            onDismissRequest = { showDownloadDialog = false },
+            title = { Text(stringResource(R.string.onboarding_model_download_title)) },
+            text = { Text(stringResource(R.string.onboarding_model_download_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDownloadDialog = false
+                    applyAndFinish(RecognitionBackend.Local, download = true)
+                }) { Text(stringResource(R.string.onboarding_model_download_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDownloadDialog = false
+                    applyAndFinish(RecognitionBackend.Local, download = false)
+                }) { Text(stringResource(R.string.onboarding_model_download_later)) }
+            },
+        )
+    }
+
+    Scaffold { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                stringResource(R.string.onboarding_model_title),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                stringResource(R.string.onboarding_model_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (selected == null) {
+                Spacer(Modifier.size(24.dp))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                return@Column
+            }
+
+            // On-device
+            OptionCard(
+                title = stringResource(R.string.onboarding_model_local_title),
+                desc = stringResource(R.string.onboarding_model_local_desc),
+                selected = selected == RecognitionBackend.Local,
+                recommended = recommended == RecommendedBackend.OnDevice,
+                onSelect = { selected = RecognitionBackend.Local },
+            ) {
+                if (selected == RecognitionBackend.Local && !NetworkInfo.isOnWifi(context)) {
+                    Text(
+                        stringResource(R.string.onboarding_model_local_wifi_needed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Cloud
+            OptionCard(
+                title = stringResource(R.string.onboarding_model_cloud_title),
+                desc = stringResource(R.string.onboarding_model_cloud_desc),
+                selected = selected == RecognitionBackend.Cloud,
+                recommended = recommended == RecommendedBackend.Cloud,
+                onSelect = { selected = RecognitionBackend.Cloud },
+            ) {
+                if (selected == RecognitionBackend.Cloud) {
+                    OutlinedButton(onClick = { uriHandler.openUri(AI_STUDIO_KEY_URL) }) {
+                        Text(stringResource(R.string.onboarding_model_cloud_get_key))
+                    }
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { apiKey = it; keyError = false },
+                        label = { Text(stringResource(R.string.onboarding_model_cloud_key_label)) },
+                        isError = keyError,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        stringResource(
+                            if (keyError) R.string.onboarding_model_cloud_key_error
+                            else R.string.onboarding_model_cloud_key_help
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (keyError) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // AICore — only when usable (recommended exactly when available).
+            if (recommended == RecommendedBackend.AICore) {
+                OptionCard(
+                    title = stringResource(R.string.onboarding_model_aicore_title),
+                    desc = stringResource(R.string.onboarding_model_aicore_desc),
+                    selected = selected == RecognitionBackend.AICore,
+                    recommended = true,
+                    onSelect = { selected = RecognitionBackend.AICore },
+                )
+            }
+
+            Spacer(Modifier.size(8.dp))
+            Button(onClick = { onContinue() }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.onboarding_model_confirm))
+            }
+            TextButton(
+                onClick = { applyAndFinish(RecognitionBackend.Local, download = false) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    stringResource(R.string.onboarding_model_skip),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OptionCard(
+    title: String,
+    desc: String,
+    selected: Boolean,
+    recommended: Boolean,
+    onSelect: () -> Unit,
+    extra: @Composable () -> Unit = {},
+) {
+    StandardCard(
+        modifier = Modifier.clickable { onSelect() },
+        containerColor = if (selected) MaterialTheme.colorScheme.surfaceVariant
+        else MaterialTheme.colorScheme.surface,
+    ) {
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            RadioButton(selected = selected, onClick = onSelect)
+            Spacer(Modifier.size(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (recommended) {
+                    AssistChip(
+                        onClick = onSelect,
+                        label = { Text(stringResource(R.string.onboarding_model_recommended)) },
+                    )
+                }
+                Text(title, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                extra()
+            }
+        }
+    }
+}

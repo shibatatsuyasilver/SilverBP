@@ -1,0 +1,33 @@
+<resources>
+
+    <!-- First-launch AI backend picker (OnboardingModelScreen). Shown after
+         onboarding, before the Google sign-in gate, whenever pickedAiBackend
+         is still false. The recommended option is pre-selected from the
+         device's RAM / AICore availability. -->
+    <string name="onboarding_model_title">選擇拍照辨識的方式</string>
+    <string name="onboarding_model_subtitle">SilverBP 可以直接從照片讀出血壓計上的數值。選擇它的運作方式——我們已依你的手機標出最適合的選項。</string>
+    <string name="onboarding_model_recommended">為你的手機推薦</string>
+
+    <string name="onboarding_model_local_title">本機 AI</string>
+    <string name="onboarding_model_local_desc">在你的手機上私密執行,不需網路或金鑰。需在 Wi-Fi 下一次性下載約 2GB。</string>
+    <string name="onboarding_model_local_wifi_needed">你目前不是 Wi-Fi。連上 Wi-Fi 後,即可在「設定」進行下載。</string>
+
+    <string name="onboarding_model_cloud_title">雲端 AI(Google Gemini)</string>
+    <string name="onboarding_model_cloud_desc">適合較舊的手機。使用網路、免大型下載,需要一組免費的 Google 金鑰。</string>
+    <string name="onboarding_model_cloud_get_key">取得免費金鑰</string>
+    <string name="onboarding_model_cloud_key_label">貼上你的 Google AI Studio 金鑰</string>
+    <string name="onboarding_model_cloud_key_help">點「取得免費金鑰」、登入、建立金鑰後,複製貼到這裡。</string>
+    <string name="onboarding_model_cloud_key_error">請貼上金鑰,或改選其他選項。</string>
+
+    <string name="onboarding_model_aicore_title">Gemini Nano(內建)</string>
+    <string name="onboarding_model_aicore_desc">你的 Pixel 內建 Gemini Nano,在裝置上執行——快速、私密,免下載免金鑰。</string>
+
+    <string name="onboarding_model_skip">我先自己手動輸入</string>
+    <string name="onboarding_model_confirm">繼續</string>
+
+    <string name="onboarding_model_download_title">下載 AI 模型?</string>
+    <string name="onboarding_model_download_body">這會在 Wi-Fi 下下載約 2GB。你也可以稍後在「設定」進行。</string>
+    <string name="onboarding_model_download_confirm">立即下載</string>
+    <string name="onboarding_model_download_later">暫時不要</string>
+
+</resources>

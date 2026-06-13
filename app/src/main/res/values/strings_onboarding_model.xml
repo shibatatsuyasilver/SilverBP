@@ -1,0 +1,33 @@
+<resources>
+
+    <!-- First-launch AI backend picker (OnboardingModelScreen). Shown after
+         onboarding, before the Google sign-in gate, whenever pickedAiBackend
+         is still false. The recommended option is pre-selected from the
+         device's RAM / AICore availability. -->
+    <string name="onboarding_model_title">Choose how photo reading works</string>
+    <string name="onboarding_model_subtitle">SilverBP can read your monitor\'s numbers straight from a photo. Pick how it should run — we\'ve highlighted the best fit for your phone.</string>
+    <string name="onboarding_model_recommended">Recommended for your phone</string>
+
+    <string name="onboarding_model_local_title">On-device AI</string>
+    <string name="onboarding_model_local_desc">Runs privately on your phone. No internet or key needed. One-time ~2 GB download over Wi-Fi.</string>
+    <string name="onboarding_model_local_wifi_needed">You\'re not on Wi-Fi right now. The download will be ready in Settings once you connect to Wi-Fi.</string>
+
+    <string name="onboarding_model_cloud_title">Cloud AI (Google Gemini)</string>
+    <string name="onboarding_model_cloud_desc">Best for older phones. Uses the internet, no large download. Needs a free Google key.</string>
+    <string name="onboarding_model_cloud_get_key">Get a free key</string>
+    <string name="onboarding_model_cloud_key_label">Paste your Google AI Studio key</string>
+    <string name="onboarding_model_cloud_key_help">Tap “Get a free key”, sign in, create a key, then copy it here.</string>
+    <string name="onboarding_model_cloud_key_error">Please paste a key, or choose another option.</string>
+
+    <string name="onboarding_model_aicore_title">Gemini Nano (built-in)</string>
+    <string name="onboarding_model_aicore_desc">Your Pixel runs Gemini Nano on-device — fast and private, with no download or key.</string>
+
+    <string name="onboarding_model_skip">I\'ll type readings myself for now</string>
+    <string name="onboarding_model_confirm">Continue</string>
+
+    <string name="onboarding_model_download_title">Download AI model?</string>
+    <string name="onboarding_model_download_body">This downloads about 2 GB over Wi-Fi. You can also do it later in Settings.</string>
+    <string name="onboarding_model_download_confirm">Download now</string>
+    <string name="onboarding_model_download_later">Not now</string>
+
+</resources>

@@ -107,4 +107,9 @@ object Routes {
     // onboarding is complete but while UserSettings.googleAccountEmail is blank.
     // Hard gate — clears itself from the back stack once the account is linked.
     const val ONBOARDING_LINK = "onboarding/link"
+
+    // First-launch AI backend picker. Routed from AppNavHost after onboarding is
+    // complete but before the Google sign-in gate, while UserSettings.pickedAiBackend
+    // is false. Clears itself from the back stack on completion.
+    const val ONBOARDING_MODEL = "onboarding/model"
 }

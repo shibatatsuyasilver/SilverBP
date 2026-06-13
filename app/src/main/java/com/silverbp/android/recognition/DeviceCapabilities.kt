@@ -1,5 +1,7 @@
 package com.silverbp.android.recognition
 
+import android.app.ActivityManager
+import android.content.Context
 import android.os.Build
 import android.util.Log
 
@@ -51,6 +53,40 @@ object DeviceCapabilities {
         }
         Log.i(TAG, "[DeviceCaps] vision backend = GPU (SOC_MODEL=$soc HARDWARE=${Build.HARDWARE})")
         return VisionBackend.GPU
+    }
+
+    /** Which AI backend the first-launch picker should pre-select for this device. */
+    enum class RecommendedBackend { AICore, OnDevice, Cloud }
+
+    /**
+     * Minimum total device RAM to recommend the on-device LiteRT-LM path.
+     * The smallest variant (Gemma E2B) mmaps ~2 GB of weights at runtime, plus
+     * the vision encoder's ~290 MiB attention buffer and normal app/runtime
+     * headroom. Below ~6 GB total RAM the on-device path is likely to thrash or
+     * OOM, so we steer those phones to the cloud API instead.
+     */
+    const val ON_DEVICE_MIN_RAM_BYTES: Long = 6L * 1024 * 1024 * 1024
+
+    /** Total physical RAM reported by the platform, in bytes (0 if unavailable). */
+    fun totalRamBytes(context: Context): Long {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return 0L
+        val info = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(info)
+        return info.totalMem
+    }
+
+    /**
+     * Recommendation for the first-launch backend picker:
+     *  - [RecommendedBackend.AICore] when Gemini Nano via AICore is usable (Pixel 9/10);
+     *  - [RecommendedBackend.OnDevice] when the phone has enough RAM for LiteRT-LM;
+     *  - [RecommendedBackend.Cloud] otherwise (older / low-RAM phones).
+     * Since AICore is recommended exactly when [AICoreBpService.isAvailable], the
+     * picker can also use the return value to decide whether to show the AICore card.
+     */
+    suspend fun recommendBackend(context: Context): RecommendedBackend = when {
+        AICoreBpService.isAvailable() -> RecommendedBackend.AICore
+        totalRamBytes(context) >= ON_DEVICE_MIN_RAM_BYTES -> RecommendedBackend.OnDevice
+        else -> RecommendedBackend.Cloud
     }
 
     fun currentSocModel(): String =

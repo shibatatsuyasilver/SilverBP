@@ -44,6 +44,7 @@ class UserSettingsRepository(private val context: Context) {
         val ONBOARD = booleanPreferencesKey("did_onboard")
         val SKIPPED_GOOGLE_LINK = booleanPreferencesKey("skipped_google_link")
         val MODEL_DOWNLOADED = booleanPreferencesKey("model_downloaded")
+        val PICKED_AI_BACKEND = booleanPreferencesKey("picked_ai_backend")
         val BACKEND = stringPreferencesKey("recognition_backend")
         val MODEL_ID = stringPreferencesKey("selected_model_id")
         val GEMINI_KEY = stringPreferencesKey("gemini_api_key")
@@ -99,6 +100,7 @@ class UserSettingsRepository(private val context: Context) {
             didOnboard = prefs[Keys.ONBOARD] ?: false,
             skippedGoogleLink = prefs[Keys.SKIPPED_GOOGLE_LINK] ?: false,
             modelDownloaded = prefs[Keys.MODEL_DOWNLOADED] ?: false,
+            pickedAiBackend = prefs[Keys.PICKED_AI_BACKEND] ?: false,
             recognitionBackend = prefs[Keys.BACKEND]
                 ?.let { RecognitionBackend.fromRaw(it) }
                 ?: RecognitionBackend.Local,
@@ -160,6 +162,9 @@ class UserSettingsRepository(private val context: Context) {
     }
     suspend fun setModelDownloaded(value: Boolean) {
         context.dataStore.edit { it[Keys.MODEL_DOWNLOADED] = value }
+    }
+    suspend fun setPickedAiBackend(value: Boolean) {
+        context.dataStore.edit { it[Keys.PICKED_AI_BACKEND] = value }
     }
     suspend fun setRecognitionBackend(b: RecognitionBackend) {
         context.dataStore.edit { it[Keys.BACKEND] = b.raw }

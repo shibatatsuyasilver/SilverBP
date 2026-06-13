@@ -22,6 +22,13 @@ data class UserSettings(
      */
     val skippedGoogleLink: Boolean = false,
     val modelDownloaded: Boolean = false,
+    /**
+     * True once the user has been through the first-launch AI backend picker
+     * ([com.silverbp.android.ui.onboarding.OnboardingModelScreen]). Gates that
+     * one-time screen in [com.silverbp.android.ui.nav.AppNavHost]; the escape
+     * hatch ("type readings myself") also sets it so the picker never re-fires.
+     */
+    val pickedAiBackend: Boolean = false,
 
     /** "local" (default) or "cloud" — picks which [com.silverbp.android.recognition.BpRecognizer] to use. */
     val recognitionBackend: RecognitionBackend = RecognitionBackend.Local,

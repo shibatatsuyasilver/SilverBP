@@ -59,6 +59,7 @@ import com.silverbp.android.ui.nutrition.BarcodeScanScreen
 import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
 import com.silverbp.android.ui.nutrition.NutritionScreen
 import com.silverbp.android.ui.onboarding.LinkAccountScreen
+import com.silverbp.android.ui.onboarding.OnboardingModelScreen
 import com.silverbp.android.ui.onboarding.OnboardingNicknameScreen
 import com.silverbp.android.ui.report.ReportScreen
 import com.silverbp.android.ui.settings.SettingsScreen
@@ -88,13 +89,32 @@ fun AppNavHost() {
         }
     }
 
-    // Chained second gate (Phase 5): once onboarding is satisfied, prompt for a
-    // linked Google account so data is backed up to Drive. Soft gate — a user
-    // who can't or won't sign in can tap 「稍後再說」, which sets skippedGoogleLink
+    // Chained second gate: once onboarding is satisfied, let the user pick how AI
+    // photo-reading runs (on-device / cloud / AICore), pre-selecting what suits
+    // this phone. One-time — the picker's escape hatch also sets pickedAiBackend,
     // so this never re-fires. Chained AFTER needsOnboarding so it never fires
-    // while still un-onboarded; once googleAccountEmail is set it becomes false.
+    // while still un-onboarded.
+    val needsModelChoice: Boolean? = rootSettings?.let {
+        needsOnboarding == false && !it.pickedAiBackend
+    }
+    LaunchedEffect(needsModelChoice) {
+        if (needsModelChoice == true) {
+            rootNav.navigate(Routes.ONBOARDING_MODEL) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    // Chained third gate (Phase 5): once onboarding AND the AI picker are
+    // satisfied, prompt for a linked Google account so data is backed up to
+    // Drive. Soft gate — a user who can't or won't sign in can tap 「稍後再說」,
+    // which sets skippedGoogleLink so this never re-fires. Chained AFTER the
+    // model choice so it never fires before the picker; once googleAccountEmail
+    // is set it becomes false.
     val needsGoogleSignIn: Boolean? = rootSettings?.let {
-        needsOnboarding == false && it.googleAccountEmail.isBlank() && !it.skippedGoogleLink
+        needsOnboarding == false && it.pickedAiBackend &&
+            it.googleAccountEmail.isBlank() && !it.skippedGoogleLink
     }
     LaunchedEffect(needsGoogleSignIn) {
         if (needsGoogleSignIn == true) {
@@ -133,6 +153,16 @@ fun AppNavHost() {
                 onCompleted = {
                     rootNav.navigate(Routes.HOME) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+        composable(Routes.ONBOARDING_MODEL) {
+            OnboardingModelScreen(
+                onCompleted = {
+                    rootNav.navigate(Routes.HOME) {
+                        popUpTo(Routes.ONBOARDING_MODEL) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
