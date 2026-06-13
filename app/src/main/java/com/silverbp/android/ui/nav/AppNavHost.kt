@@ -39,6 +39,7 @@ import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.ui.achievements.MedalsScreen
 import com.silverbp.android.ui.capture.CaptureScreen
 import com.silverbp.android.ui.capture.GlucoseCaptureScreen
+import com.silverbp.android.ui.capture.WeightCaptureScreen
 import com.silverbp.android.ui.chat.ChatScreen
 import com.silverbp.android.ui.coach.CoachLogDietScreen
 import com.silverbp.android.ui.coach.CoachLogMedicationScreen
@@ -226,9 +227,25 @@ fun AppNavHost() {
                 onCancel = { rootNav.popBackStack() },
             )
         }
+        // Body-weight scale-display capture → confirm (Phase 3). Mirrors the glucose
+        // CAPTURE/CONFIRM pair: the camera/gallery shot is OCR'd, a draft staged in
+        // WeightCaptureSessionHolder, then onAnalyzed opens WEIGHT_CONFIRM_DRAFT to
+        // consume it. The manual fallback (camera unavailable / OCR fails / emulator)
+        // opens a blank WEIGHT_CONFIRM_NEW form — manual entry is always available.
+        composable(Routes.WEIGHT_CAPTURE) {
+            WeightCaptureScreen(
+                onAnalyzed = {
+                    rootNav.navigate(Routes.WEIGHT_CONFIRM_DRAFT) {
+                        popUpTo(Routes.WEIGHT_CAPTURE) { inclusive = true }
+                    }
+                },
+                onBack = { rootNav.popBackStack() },
+                onManual = { rootNav.navigate(Routes.WEIGHT_CONFIRM_NEW) },
+            )
+        }
         // Body-weight confirm (Phase 2). One route handles "new" (manual), "draft"
-        // (staged camera read, later phase), and an existing-id edit — the
-        // {weightId} arg captures "new"/"draft"/<uuid> and the VM's initWith routes them.
+        // (staged camera read), and an existing-id edit — the {weightId} arg captures
+        // "new"/"draft"/<uuid> and the VM's initWith routes them.
         composable(
             "${Routes.WEIGHT_CONFIRM}/{${Routes.ARG_WEIGHT_ID}}",
             arguments = listOf(navArgument(Routes.ARG_WEIGHT_ID) { type = NavType.StringType }),
@@ -533,9 +550,11 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             // existing Confirm flows (BP ConfirmReading / glucose ConfirmGlucose).
             onEditBp = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
             onEditGlucose = { id -> rootNav.navigate(Routes.glucoseConfirmEdit(id)) },
-            // Weight (Phase 2, manual): + opens manual logging; tapping the card
-            // edits the shown reading. (Weight history joins the Data hub later.)
-            onLogWeight = { rootNav.navigate(Routes.WEIGHT_CONFIRM_NEW) },
+            // Weight (Phase 3): + opens the scale-photo capture flow, which OCRs the
+            // display and offers manual entry as the always-available fallback;
+            // tapping the card edits the shown reading. (Weight history joins the
+            // Data hub later.)
+            onLogWeight = { rootNav.navigate(Routes.WEIGHT_CAPTURE) },
             onEditWeight = { id -> rootNav.navigate(Routes.weightConfirmEdit(id)) },
             // Both "今天 N 筆" affordances open the unified Data-tab history.
             onViewBpHistory = openHistory,

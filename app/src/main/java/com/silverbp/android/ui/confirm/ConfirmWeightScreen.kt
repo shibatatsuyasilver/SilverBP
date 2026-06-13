@@ -52,6 +52,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.R
+import com.silverbp.android.capture.WeightCaptureSessionHolder
 import com.silverbp.android.core.Member
 import com.silverbp.android.core.WeightReading
 import com.silverbp.android.core.WeightSource
@@ -114,6 +115,31 @@ fun ConfirmWeightScreen(
         if (loaded) return@LaunchedEffect
         loaded = true
         val preferredUnit = WeightUnit.fromRaw(ServiceLocator.userSettings.flow.first().weightUnit)
+        // Camera/OCR hand-off: consume the staged scale-photo draft (value + unit
+        // + photo) instead of opening blank. Falls back to a blank manual draft if
+        // nothing was staged (e.g. recognition produced no value).
+        if (readingIdArg == "draft") {
+            val staged = WeightCaptureSessionHolder.take()
+            draft = if (staged != null) {
+                WeightDraftUi(
+                    valueText = staged.valueText,
+                    displayUnit = staged.displayUnit,
+                    timestamp = staged.timestamp,
+                    source = staged.source,
+                    note = staged.note,
+                    memberId = staged.memberId.ifBlank { ServiceLocator.currentMemberStore.current() },
+                    photoFilename = staged.photoFilename,
+                )
+            } else {
+                WeightDraftUi(
+                    timestamp = Instant.now(),
+                    displayUnit = preferredUnit,
+                    memberId = ServiceLocator.currentMemberStore.current(),
+                )
+            }
+            editingId = null
+            return@LaunchedEffect
+        }
         val id = readingIdArg?.let { runCatching { UUID.fromString(it) }.getOrNull() }
         val existing = id?.let { repo.findById(it) }
         if (existing != null) {
@@ -240,6 +266,8 @@ private data class WeightDraftUi(
     val source: WeightSource = WeightSource.Manual,
     val note: String = "",
     val memberId: String = "",
+    /** Carried from a camera/OCR draft so the scale photo is saved with the reading. */
+    val photoFilename: String? = null,
 ) {
     /** Parsed numeric value in [displayUnit], or null while empty/partial. */
     val parsedValue: Double?
@@ -272,6 +300,7 @@ private data class WeightDraftUi(
         timestamp = timestamp,
         source = source,
         note = note,
+        photoFilename = photoFilename,
     )
 
     companion object {
@@ -282,6 +311,7 @@ private data class WeightDraftUi(
             source = r.source,
             note = r.note,
             memberId = r.memberId,
+            photoFilename = r.photoFilename,
         )
 
         /** One-decimal display for both units — body weight is meaningful to ~0.1. */
