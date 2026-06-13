@@ -788,8 +788,8 @@
     <string name="hc_rationale_heading">為什麼 SilverBP 需要 Health Connect 權限?</string>
     <string name="hc_rationale_read_label">讀取步數 / 睡眠 / 營養</string>
     <string name="hc_rationale_read_body">用於每日步數成就徽章、連續達標天數,以及睡眠與營養趨勢,並與你的血壓量測結合,提供更完整的健康觀察。經你授權後,也會在背景讀取,以回補缺漏的日子並讓趨勢保持最新。</string>
-    <string name="hc_rationale_write_label">寫入血壓 / 運動(含路徑)/ 營養</string>
-    <string name="hc_rationale_write_body">在你新增血壓紀錄、完成一次運動(含 GPS 路徑)或記錄一餐飲食時,可選擇性寫入 Health Connect,讓 Google Health 等其他健康 app 也能讀取(由你自行控制,可隨時關閉)。</string>
+    <string name="hc_rationale_write_label">寫入血壓 / 血糖 / 運動(含路徑)/ 營養</string>
+    <string name="hc_rationale_write_body">在你新增血壓紀錄、血糖紀錄、完成一次運動(含 GPS 路徑)或記錄一餐飲食時,可選擇性寫入 Health Connect,讓 Google Health 等其他健康 app 也能讀取(由你自行控制,可隨時關閉)。</string>
     <string name="hc_rationale_usage_label">資料如何被使用?</string>
     <string name="hc_rationale_usage_body">• 全部運算與儲存在你的手機本機,不會上傳至我們的伺服器。唯一的例外是選用的 Google Drive 備份,若你開啟,會將端對端加密的快照上傳至你自己的 Drive。\n• 你可以隨時在系統 Health Connect 設定中撤銷任何權限。\n• 撤銷後,SilverBP 會停止背景同步,既有的本地紀錄不會被刪除。</string>
     <string name="hc_rationale_disclaimer">本應用程式提供的內容僅供參考,並非醫療設備或醫療診斷。</string>

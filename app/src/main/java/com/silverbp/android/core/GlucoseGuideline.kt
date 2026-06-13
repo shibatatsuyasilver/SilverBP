@@ -39,18 +39,40 @@ class GlucoseClassifier {
         return when (context) {
             MeasureContext.Fasting,
             MeasureContext.BeforeMeal -> when {
-                valueMgdl >= 126.0 -> GlucoseCategory.High
-                valueMgdl >= 100.0 -> GlucoseCategory.Elevated
+                valueMgdl >= 126.0 - BOUNDARY_EPSILON -> GlucoseCategory.High
+                valueMgdl >= 100.0 - BOUNDARY_EPSILON -> GlucoseCategory.Elevated
                 else -> GlucoseCategory.Normal
             }
             // After-meal, random and bedtime share the post-prandial scale.
             MeasureContext.AfterMeal,
             MeasureContext.Random,
             MeasureContext.Bedtime -> when {
-                valueMgdl >= 200.0 -> GlucoseCategory.High
-                valueMgdl >= 140.0 -> GlucoseCategory.Elevated
+                valueMgdl >= 200.0 - BOUNDARY_EPSILON -> GlucoseCategory.High
+                valueMgdl >= 140.0 - BOUNDARY_EPSILON -> GlucoseCategory.Elevated
                 else -> GlucoseCategory.Normal
             }
         }
+    }
+
+    private companion object {
+        /**
+         * Snap-up tolerance on the diabetes-range cut-points (≥ thresholds only).
+         *
+         * The canonical value is mg/dL, but a user can enter the exact ADA/WHO
+         * diagnostic cut-points in mmol/L: 11.1 mmol = the 2-hour OGTT diabetes
+         * line. With the 18.016 mmol→mg/dL factor that lands at 199.978 mg/dL —
+         * 0.022 below the literal 200.0 gate. The field then *displays* 200 (both
+         * formatters round), so without this tolerance a saved reading would show
+         * "200 mg/dL" next to an *Elevated* (prediabetes) badge — a persisted
+         * contradiction that also under-reports diabetes-range glucose.
+         *
+         * 0.05 mg/dL is larger than the worst-case conversion noise at the 0.1-mmol
+         * entry granularity (≤ ~0.018 mg/dL) yet far below the 1 mg/dL display
+         * resolution, so it pulls the cut-points back onto the displayed integer
+         * without ever upgrading a direct mg/dL entry (125/139/199 stay Elevated).
+         * Applied only to the upgrade (≥) bands; the hypoglycaemia < boundaries are
+         * exact per the roadmap §4-1 and are deliberately left untouched.
+         */
+        const val BOUNDARY_EPSILON: Double = 0.05
     }
 }
