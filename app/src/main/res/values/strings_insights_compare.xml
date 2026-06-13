@@ -1,0 +1,22 @@
+<resources>
+
+    <!-- Insights multi-member comparison mode (analysis-page view; not persisted).
+         Charts overlay/small-multiple several members; the single-member view is
+         unchanged. Mirrors the zh-rTW set key-for-key (audit M27). Comparison
+         lines/points are always labelled by name — never colour-only (audit M31). -->
+
+    <!-- Compare toggle above the range chips -->
+    <string name="compare_members_toggle">Compare members</string>
+    <!-- Shown when compare is on but fewer than two members are selected -->
+    <string name="compare_select_hint">Select at least two members to compare.</string>
+
+    <!-- SBP/DBP segmented toggle for the comparison trend line -->
+    <string name="compare_metric_systolic">Systolic</string>
+    <string name="compare_metric_diastolic">Diastolic</string>
+
+    <!-- contentDescription for the per-member legend dot. %1$s = member name -->
+    <string name="compare_member_legend_cd">Series for %1$s</string>
+    <!-- Per-member stats summary row label. %1$d = mean SBP, %2$d = mean DBP -->
+    <string name="compare_stats_mean">Mean %1$d/%2$d</string>
+
+</resources>
