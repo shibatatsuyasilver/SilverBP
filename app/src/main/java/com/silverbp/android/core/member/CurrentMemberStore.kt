@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -23,6 +25,15 @@ private val Context.currentMemberDataStore by preferencesDataStore(name = "curre
  * The [flow] falls back to the owner id whenever the stored value is blank /
  * missing / points at an archived-or-deleted member, so callers always observe
  * a valid member id without special-casing the empty state.
+ *
+ * [flow] re-resolves not only when the DataStore selection changes but also when
+ * the active-member set changes (combined with [MemberRepository.observeActive]).
+ * Archiving/deleting the currently-selected member writes the Room `member`
+ * table, not this DataStore, so without that combine a flatMapLatest subscriber
+ * (Today/History/Insights/Report) would stay pinned to the now-hidden member's
+ * data while the switcher chip silently fell back to the owner. Recombining on
+ * the member set re-runs [resolve] the instant the selection leaves the active
+ * set, so the data screens fall back to the owner immediately.
  */
 class CurrentMemberStore(
     private val context: Context,
@@ -33,9 +44,14 @@ class CurrentMemberStore(
     }
 
     /** Emits the selected member id, falling back to the owner when unset/invalid. */
-    val flow: Flow<String> = context.currentMemberDataStore.data.map { prefs ->
-        resolve(prefs[Keys.CURRENT_MEMBER_ID])
-    }
+    val flow: Flow<String> = combine(
+        context.currentMemberDataStore.data.map { prefs -> prefs[Keys.CURRENT_MEMBER_ID] },
+        // Recompute whenever a member is archived/unarchived/deleted so the
+        // resolution below reacts to the selection leaving the active set.
+        members.observeActive(),
+    ) { stored, active ->
+        resolve(stored, active.map { it.id.toString() })
+    }.distinctUntilChanged()
 
     /** One-shot read of the resolved current member id. */
     suspend fun current(): String = flow.first()
@@ -49,11 +65,14 @@ class CurrentMemberStore(
         context.currentMemberDataStore.edit { it.remove(Keys.CURRENT_MEMBER_ID) }
     }
 
-    private suspend fun resolve(stored: String?): String {
+    /**
+     * Resolve [stored] against the live [activeIds] (already excludes archived /
+     * deleted members). An id that has left the active set — archived, deleted,
+     * or never existed — falls back to the owner so the UI is never stranded on a
+     * member with no switcher entry.
+     */
+    private suspend fun resolve(stored: String?, activeIds: List<String>): String {
         if (stored.isNullOrBlank()) return members.ownerId()
-        // A member that was archived/deleted shouldn't strand the UI on a member
-        // with no switcher entry — fall back to the owner.
-        val existing = runCatching { members.findById(java.util.UUID.fromString(stored)) }.getOrNull()
-        return if (existing != null && !existing.archived) stored else members.ownerId()
+        return if (stored in activeIds) stored else members.ownerId()
     }
 }

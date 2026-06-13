@@ -76,12 +76,24 @@ class ReportViewModel(
                 val memberId = currentMember.current()
                 val all = repo.observeAll(memberId).first()
                 val readings = all.filter { it.timestamp in from..to }
-                // Cover prints whose readings these are — doctors need the name.
-                // Empty displayName (owner left unnamed) falls back to the
-                // localized "Me" so the literal is never persisted (audit M27).
-                val name = members.findById(UUID.fromString(memberId))?.displayName
-                    ?.takeIf { it.isNotBlank() }
-                    ?: ServiceLocator.context.getString(R.string.member_me)
+                // Cover prints whose readings these are — doctors need the name in
+                // a multi-member family. But a solo install (chip hidden, never
+                // opted into family) must NOT get a redundant "Subject: Me" line on
+                // the doctor-facing PDF (roadmap §3-7 "single-user installs are
+                // unaffected"). So only resolve a subject when there's more than
+                // one active member, mirroring the switcher-chip / attribution-row
+                // visibility rule; with a single member pass blank so the renderer's
+                // isNotBlank() guard omits the line. The "Me" fallback covers an
+                // unnamed non-owner only in the multi-member case (never persisted
+                // as a literal — audit M27).
+                val multiMember = members.observeActive().first().size > 1
+                val name = if (!multiMember) {
+                    ""
+                } else {
+                    members.findById(UUID.fromString(memberId))?.displayName
+                        ?.takeIf { it.isNotBlank() }
+                        ?: ServiceLocator.context.getString(R.string.member_me)
+                }
                 val file = com.silverbp.android.reporting.PdfReportRenderer(ServiceLocator.context)
                     .render(readings, from = from, to = to, memberName = name)
                 generatedFlow.value = file

@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
+import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.components.BpReadingValue
 import com.silverbp.android.ui.components.ModelLoadBanner
@@ -123,7 +124,7 @@ fun TodayScreen(
                 state.latest == null -> EmptyTodayState()
                 else -> {
                     val reading = state.latest!!
-                    LatestReadingCard(reading, modifier = Modifier.padding(horizontal = AppSpacing.screenH))
+                    LatestReadingCard(reading, state.guideline, modifier = Modifier.padding(horizontal = AppSpacing.screenH))
 
                     Text(
                         text = stringResource(R.string.today_readings_logged, state.totalCount),
@@ -137,7 +138,7 @@ fun TodayScreen(
                         title = stringResource(R.string.today_protip_title),
                     ) {
                         Text(
-                            text = stringResource(proTipRes(reading.systolic, reading.diastolic)),
+                            text = stringResource(proTipRes(reading.systolic, reading.diastolic, state.guideline)),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -180,8 +181,12 @@ private fun EmptyTodayState() {
 }
 
 @Composable
-private fun LatestReadingCard(reading: BpReading, modifier: Modifier = Modifier) {
-    val cat = classify(reading.systolic, reading.diastolic)
+private fun LatestReadingCard(
+    reading: BpReading,
+    guideline: HypertensionGuideline,
+    modifier: Modifier = Modifier,
+) {
+    val cat = classify(reading.systolic, reading.diastolic, guideline)
     val color = colorFor(cat)
     val zone = ZoneId.systemDefault()
     val fmt = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm", Locale.TAIWAN).withZone(zone)
@@ -244,8 +249,9 @@ private fun greetingRes(): Int = when (LocalTime.now().hour) {
     else -> R.string.today_greeting_evening
 }
 
-/** Pro-tip body selected by the reading's BP classification. */
-private fun proTipRes(systolic: Int, diastolic: Int): Int = when (classify(systolic, diastolic)) {
+/** Pro-tip body selected by the reading's BP classification (member's guideline). */
+private fun proTipRes(systolic: Int, diastolic: Int, guideline: HypertensionGuideline): Int =
+    when (classify(systolic, diastolic, guideline)) {
     BpCategory.Normal -> R.string.today_protip_normal
     BpCategory.Elevated -> R.string.today_protip_elevated
     BpCategory.Stage1 -> R.string.today_protip_stage1

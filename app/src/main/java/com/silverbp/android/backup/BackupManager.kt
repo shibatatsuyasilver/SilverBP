@@ -47,6 +47,17 @@ class BackupManager(
      * test constructor.
      */
     private val ensureOwnerId: suspend () -> String = { "" },
+    /**
+     * Drops [com.silverbp.android.core.member.MemberRepository]'s memoized owner
+     * id. A Replace-mode restore runs `DELETE FROM member` and then re-creates
+     * the owner from the backup's MEMBER records (whose owner id may differ from
+     * the live one on a cross-device restore). The cache, warmed on cold start by
+     * the anomaly watcher, would otherwise keep returning the now-deleted id and
+     * strand every owner-scoped read on a phantom member (findings 1 & 4). Called
+     * inside the import transaction right after [clearSyncTables]. No-op default
+     * for the legacy test constructor.
+     */
+    private val invalidateOwnerCache: () -> Unit = {},
 ) {
 
     sealed class Phase {
@@ -250,6 +261,12 @@ class BackupManager(
             database.withTransaction {
                 if (mode == ImportMode.Replace) {
                     clearSyncTables()
+                    // The owner row was just deleted; drop the memoized owner id so
+                    // ensureOwnerId() / the MEMBER records below re-establish it
+                    // instead of resolving to the stale (now-deleted) id. Done
+                    // inside the transaction so a rollback leaves the cache in a
+                    // state consistent with the rolled-back table.
+                    invalidateOwnerCache()
                 }
                 if (!hasMemberRecords) {
                     ensureOwnerId()

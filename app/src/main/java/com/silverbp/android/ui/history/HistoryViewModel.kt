@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.member.CurrentMemberStore
+import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -45,6 +49,8 @@ data class HistoryUiState(
     val range: DateRange = DateRange.All,
     val sort: SortOrder = SortOrder.Newest,
     val grouped: List<DayGroup> = emptyList(),
+    /** Selected member's guideline — classifies each reading row's category colour. */
+    val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
     val isLoading: Boolean = true,
     val error: Boolean = false,
 )
@@ -60,16 +66,28 @@ data class DayGroup(
 class HistoryViewModel(
     private val repo: BpRepository = ServiceLocator.bpRepository,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
+    private val members: MemberRepository = ServiceLocator.memberRepository,
+    private val settings: UserSettingsRepository = ServiceLocator.userSettings,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(DateRange.All)
     private val sortFlow = MutableStateFlow(SortOrder.Newest)
 
+    // The selected member's own guideline (roadmap §3-1); falls back to the
+    // owner's settings guideline if the member row can't be resolved.
+    private val guidelineFlow = currentMember.flow.flatMapLatest { id ->
+        settings.flow.map { user ->
+            runCatching { members.findById(UUID.fromString(id)) }.getOrNull()?.guideline
+                ?: user.guideline
+        }
+    }
+
     val state: StateFlow<HistoryUiState> = combine(
         currentMember.flow.flatMapLatest { repo.observeAll(it) },
         rangeFlow,
         sortFlow,
-    ) { all, range, sort ->
+        guidelineFlow,
+    ) { all, range, sort, guideline ->
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
         val filtered = all.filter { range.matches(it, today, zone) }
@@ -83,7 +101,7 @@ class HistoryViewModel(
             }
             .sortedByDescending { if (sort == SortOrder.Newest) it.date else LocalDate.MIN }
             .let { if (sort == SortOrder.Oldest) it.sortedBy { g -> g.date } else it }
-        HistoryUiState(range = range, sort = sort, grouped = groups, isLoading = false)
+        HistoryUiState(range = range, sort = sort, grouped = groups, guideline = guideline, isLoading = false)
     }
         .catch { emit(HistoryUiState(isLoading = false, error = true)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
