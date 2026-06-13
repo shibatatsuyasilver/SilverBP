@@ -1,6 +1,7 @@
 package com.silverbp.android.ui.insights
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -126,8 +128,13 @@ fun InsightsScreen(
 
 @Composable
 private fun CompareToggleRow(compareMode: Boolean, onChange: (Boolean) -> Unit) {
+    // Whole row is one toggleable unit so TalkBack announces "Compare members,
+    // switch, on/off" rather than an unlabeled control (audit M31 class).
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenH),
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = compareMode, role = Role.Switch, onValueChange = onChange)
+            .padding(horizontal = AppSpacing.screenH),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -135,7 +142,7 @@ private fun CompareToggleRow(compareMode: Boolean, onChange: (Boolean) -> Unit) 
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.weight(1f),
         )
-        Switch(checked = compareMode, onCheckedChange = onChange)
+        Switch(checked = compareMode, onCheckedChange = null)
     }
 }
 

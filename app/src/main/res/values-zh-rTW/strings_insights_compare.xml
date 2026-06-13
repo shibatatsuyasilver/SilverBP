@@ -13,8 +13,6 @@
     <string name="compare_metric_systolic">收縮壓</string>
     <string name="compare_metric_diastolic">舒張壓</string>
 
-    <!-- 每位成員圖例色點的 contentDescription。%1$s = 成員名 -->
-    <string name="compare_member_legend_cd">%1$s 的資料線</string>
     <!-- 每位成員摘要列標籤。%1$d = 平均收縮壓、%2$d = 平均舒張壓 -->
     <string name="compare_stats_mean">平均 %1$d/%2$d</string>
 
