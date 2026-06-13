@@ -4,6 +4,7 @@ import android.app.Activity
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * The minimal Play-Billing surface [EntitlementManager] depends on. Pulling it
@@ -13,8 +14,8 @@ import kotlinx.coroutines.flow.Flow
  *
  * Everything here is "graceful when Play is unavailable": on the emulator (no
  * products configured) [queryActiveSubscriptions] / [queryProductDetails] return
- * empty lists and never throw, so the manager simply resolves to [Entitlement.Free]
- * (which, with PREMIUM_ENFORCED=false, still means everything is unlocked).
+ * empty/null and never throw, so the manager keeps the last-known cache instead
+ * of clobbering Premium with Free (see [queryActiveEntitlement] / finding round 1).
  */
 interface BillingGateway {
 
@@ -28,21 +29,44 @@ interface BillingGateway {
     val purchaseUpdates: Flow<List<Purchase>>
 
     /**
-     * Query the active subscription purchases for "silverbp_premium". Returns an
-     * empty list when Play is unavailable, the connection can't be made, or no
-     * products are configured — never throws.
+     * The live [purchaseUpdates] set mapped to a resolved [Entitlement] so
+     * [EntitlementManager] can react to a freshly-completed purchase WITHOUT ever
+     * touching a raw [Purchase] (whose ctor JSON-parses — keeping it out of the
+     * manager keeps the manager JVM-unit-testable). A PURCHASED sub maps to
+     * Premium; PENDING/UNSPECIFIED to Free (see [activeEntitlementFromPurchases]).
+     *
+     * NOTE: this is a *positive-signal* stream — every emission here is a real,
+     * just-observed purchase set, so unlike [queryActiveEntitlement] it never
+     * needs a "couldn't query" sentinel. The manager promotes to Premium on a
+     * Premium emission; it does NOT downgrade to Free off this stream (a real
+     * downgrade is confirmed only by a successful [queryActiveEntitlement]).
      */
-    suspend fun queryActiveSubscriptions(): List<Purchase>
+    val entitlementUpdates: Flow<Entitlement>
+        get() = purchaseUpdates.map { activeEntitlementFromPurchases(it) }
 
     /**
-     * Resolve the live entitlement (the [queryActiveSubscriptions] result mapped
-     * through [activeEntitlementFromPurchases]). This is what [EntitlementManager]
-     * consumes so it never touches a raw [Purchase] — keeping [Purchase] (whose
-     * ctor JSON-parses) out of the manager makes the manager JVM-unit-testable
-     * with a trivial fake. Returns [Entitlement.Free] when Play is unavailable.
+     * Query the active subscription purchases for "silverbp_premium". Returns
+     * `null` when Play is unavailable / the connection can't be made / the query
+     * came back non-OK (i.e. "could NOT determine"), an empty list when the query
+     * succeeded but found no active subs, and a non-empty list otherwise. Never
+     * throws. The null-vs-empty distinction lets [queryActiveEntitlement] avoid
+     * downgrading a paying subscriber to Free on a transient Play hiccup.
      */
-    suspend fun queryActiveEntitlement(): Entitlement =
-        activeEntitlementFromPurchases(queryActiveSubscriptions())
+    suspend fun queryActiveSubscriptions(): List<Purchase>?
+
+    /**
+     * Resolve the live entitlement from [queryActiveSubscriptions]. Returns:
+     *  - `null` when Play could NOT be queried (unavailable / non-OK) — the caller
+     *    ([EntitlementManager.refresh]) must then KEEP the last-known cache rather
+     *    than overwrite Premium with Free (finding round 1, #1).
+     *  - [Entitlement.Premium] / [Entitlement.Free] on a CONFIRMED query result
+     *    (mapped through [activeEntitlementFromPurchases]; PENDING grants nothing).
+     *
+     * Kept off raw [Purchase] so the manager stays JVM-unit-testable with a
+     * trivial fake.
+     */
+    suspend fun queryActiveEntitlement(): Entitlement? =
+        queryActiveSubscriptions()?.let { activeEntitlementFromPurchases(it) }
 
     /**
      * Resolve the configured base plans / offers for "silverbp_premium". Empty

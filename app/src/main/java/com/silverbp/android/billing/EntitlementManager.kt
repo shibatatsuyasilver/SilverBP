@@ -17,10 +17,16 @@ import kotlinx.coroutines.launch
  *
  *  1. **DataStore last-known cache** — emitted *immediately* on cold start so the
  *     UI never flickers and an offline user who already paid isn't locked out.
- *  2. **Live Play purchases** — [queryPurchasesOnStartup] / [refresh] query the
- *     [BillingGateway]; a PURCHASED sub writes Premium back to the cache, an
- *     empty result writes Free. PENDING purchases grant nothing
- *     (see [activeEntitlementFromPurchases]).
+ *  2. **Live Play purchases** — two inputs:
+ *       a) [queryPurchasesOnStartup] / [refresh] do a *pull* query of the
+ *          [BillingGateway]; a CONFIRMED PURCHASED sub writes Premium back to the
+ *          cache, a CONFIRMED empty result writes Free. A `null` ("could not
+ *          query" — Play unavailable / non-OK) leaves the cache untouched so a
+ *          transient hiccup never downgrades a paying subscriber (finding #1).
+ *       b) [BillingGateway.entitlementUpdates] is the *push* stream off the
+ *          PurchasesUpdatedListener; a freshly-completed purchase promotes us to
+ *          Premium immediately (so the paywall auto-dismisses — findings #2/#3).
+ *     PENDING purchases grant nothing (see [activeEntitlementFromPurchases]).
  *  3. **DEBUG override** — only consulted by [isPremium] (not [entitlement]); lets
  *     us demo the paywall locally without published products.
  *
@@ -85,6 +91,23 @@ class EntitlementManager(
                     if (BuildConfig.DEBUG) debugOverride = parseOverride(snap.debugPremiumOverride)
                 }
         }
+        // Wire the live-purchase PUSH input (findings #2/#3): the
+        // PurchasesUpdatedListener emits the freshly-completed purchase set, which
+        // the gateway maps to an Entitlement. A Premium emission means the user
+        // JUST bought a sub — promote immediately + persist so the paywall's
+        // LaunchedEffect(entitlement) auto-dismisses and gates unlock without a
+        // restart / manual restore. We DON'T downgrade to Free off this stream: a
+        // real downgrade is confirmed only by a successful pull [refresh]; a
+        // USER_CANCELED / error never reaches entitlementUpdates as Premium, and a
+        // stray Free here must not clobber a cached Premium.
+        scope.launch {
+            gateway.entitlementUpdates.collect { live ->
+                if (live == Entitlement.Premium) {
+                    _entitlement.value = Entitlement.Premium
+                    runCatching { settings.setLastKnownEntitlement(Entitlement.Premium.name) }
+                }
+            }
+        }
     }
 
     /**
@@ -109,10 +132,20 @@ class EntitlementManager(
      * Re-query live Play purchases and persist the resolved tier. Called on
      * startup, by the 24 h revalidation worker, and after a purchase / "restore
      * purchases" tap. Failures are swallowed → the last-known cache stands.
+     *
+     * CRITICAL (finding #1): only a CONFIRMED query result overwrites the cache.
+     * [BillingGateway.queryActiveEntitlement] returns `null` when Play could not
+     * be queried (unavailable / non-OK / connection exhausted) — indistinguishable
+     * from a thrown error for cache-safety purposes — and we leave the last-known
+     * tier untouched in that case. We persist a downgrade to Free ONLY on a real
+     * OK query that found zero active PURCHASED subs. This prevents a transient
+     * Play hiccup (or the 24 h worker firing on "network up, Play unreachable")
+     * from silently downgrading a paying subscriber and poisoning the cache.
      */
     suspend fun refresh() {
         val resolved = runCatching { gateway.queryActiveEntitlement() }
-            .getOrElse { return } // gateway unavailable → keep cached value
+            .getOrNull() // thrown error → null, same as "could not query"
+            ?: return // gateway unavailable / non-OK → keep cached value
         _entitlement.value = resolved
         runCatching { settings.setLastKnownEntitlement(resolved.name) }
     }

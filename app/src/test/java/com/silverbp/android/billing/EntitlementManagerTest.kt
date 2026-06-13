@@ -4,6 +4,8 @@ import android.app.Activity
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -99,7 +101,7 @@ class EntitlementManagerTest {
         assertEquals("Free", store.written)
     }
 
-    @Test fun `refresh keeps the cached tier when the gateway is unavailable`() = runTest {
+    @Test fun `refresh keeps the cached tier when the gateway throws`() = runTest {
         // Emulator path: gateway throws → cache stands, nothing written.
         val store = FakeStore(cached = "Premium")
         val gateway = FakeGateway(throwOnQuery = true)
@@ -108,6 +110,65 @@ class EntitlementManagerTest {
         mgr.refresh()
         advanceUntilIdle()
         assertEquals(Entitlement.Premium, mgr.entitlement.value)
+        assertEquals(null, store.written)
+    }
+
+    @Test fun `refresh keeps the cached Premium when Play could not be queried (null)`() = runTest {
+        // Finding #1: a transient Play hiccup (connection exhausted / non-OK
+        // response) surfaces as queryActiveEntitlement()==null, NOT Free. The
+        // cache must NOT be poisoned with Free — a paying subscriber stays Premium.
+        val store = FakeStore(cached = "Premium")
+        val gateway = FakeGateway(live = null) // null = "could not query"
+        val mgr = EntitlementManager(gateway, store, scope = TestScope(StandardTestDispatcher(testScheduler)))
+        advanceUntilIdle()
+        mgr.refresh()
+        advanceUntilIdle()
+        assertEquals(Entitlement.Premium, mgr.entitlement.value)
+        assertEquals(null, store.written) // nothing persisted on an unavailable query
+    }
+
+    @Test fun `refresh downgrades to Free only on a confirmed empty query`() = runTest {
+        // The legitimate cancel/expiry path: an OK query that genuinely found no
+        // active subs (Free, NOT null) DOES persist the downgrade.
+        val store = FakeStore(cached = "Premium")
+        val gateway = FakeGateway(live = Entitlement.Free)
+        val mgr = EntitlementManager(gateway, store, scope = TestScope(StandardTestDispatcher(testScheduler)))
+        advanceUntilIdle()
+        mgr.refresh()
+        advanceUntilIdle()
+        assertEquals(Entitlement.Free, mgr.entitlement.value)
+        assertEquals("Free", store.written)
+    }
+
+    // -------- live-purchase PUSH input (findings #2 / #3) ----------------------
+
+    @Test fun `a live PURCHASED emission promotes to Premium and caches it`() = runTest {
+        // Findings #2/#3: the PurchasesUpdatedListener fires after a successful
+        // purchase → gateway.entitlementUpdates emits Premium → the manager flips
+        // _entitlement to Premium WITHOUT a restart/restore, so PaywallSheet's
+        // LaunchedEffect(entitlement) auto-dismisses.
+        val store = FakeStore(cached = "Free")
+        val gateway = FakeGateway()
+        val mgr = EntitlementManager(gateway, store, scope = TestScope(StandardTestDispatcher(testScheduler)))
+        advanceUntilIdle()
+        assertEquals(Entitlement.Free, mgr.entitlement.value)
+        gateway.emitPurchase(Purchase.PurchaseState.PURCHASED)
+        advanceUntilIdle()
+        assertEquals(Entitlement.Premium, mgr.entitlement.value)
+        assertEquals("Premium", store.written)
+    }
+
+    @Test fun `a live PENDING-only emission does not promote and does not clobber the cache`() = runTest {
+        // PENDING grants nothing; the push stream must not flip us to Premium, and
+        // a non-Premium emission must NOT downgrade a cached Premium (downgrades
+        // are confirmed only by a successful pull refresh).
+        val store = FakeStore(cached = "Premium")
+        val gateway = FakeGateway()
+        val mgr = EntitlementManager(gateway, store, scope = TestScope(StandardTestDispatcher(testScheduler)))
+        advanceUntilIdle()
+        gateway.emitPurchase(Purchase.PurchaseState.PENDING)
+        advanceUntilIdle()
+        assertEquals(Entitlement.Premium, mgr.entitlement.value) // cache untouched
         assertEquals(null, store.written)
     }
 
@@ -126,14 +187,28 @@ class EntitlementManagerTest {
     }
 
     /** Fake gateway. The manager consumes [queryActiveEntitlement] (resolved
-     *  tier), so we never construct a real [Purchase] (whose ctor JSON-parses). */
+     *  tier) + [entitlementUpdates] (push), so we never construct a real
+     *  [Purchase] except via the state-int constructor exercised by Robolectric;
+     *  here the push stream is driven through [emitPurchase] with bare state ints
+     *  mapped via [entitlementFromStates] (no JSON-parsing ctor). */
     private class FakeGateway(
-        private val live: Entitlement = Entitlement.Free,
+        /** Resolved live tier; `null` models "could not query" (unavailable / non-OK). */
+        private val live: Entitlement? = Entitlement.Free,
         private val throwOnQuery: Boolean = false,
     ) : BillingGateway {
-        override val purchaseUpdates = flow<List<Purchase>> { }
-        override suspend fun queryActiveSubscriptions(): List<Purchase> = emptyList()
-        override suspend fun queryActiveEntitlement(): Entitlement {
+        private val _entitlementUpdates = MutableSharedFlow<Entitlement>(extraBufferCapacity = 4)
+        override val purchaseUpdates: Flow<List<Purchase>> = flow { }
+        // Override the resolved-entitlement push stream directly (bare states →
+        // entitlementFromStates) so the test never needs a real Purchase.
+        override val entitlementUpdates: Flow<Entitlement> = _entitlementUpdates
+
+        /** Drive a live purchase-update emission from a bare PurchaseState int. */
+        suspend fun emitPurchase(state: Int) {
+            _entitlementUpdates.emit(entitlementFromStates(listOf(state)))
+        }
+
+        override suspend fun queryActiveSubscriptions(): List<Purchase>? = null
+        override suspend fun queryActiveEntitlement(): Entitlement? {
             if (throwOnQuery) throw IllegalStateException("Play unavailable")
             return live
         }
