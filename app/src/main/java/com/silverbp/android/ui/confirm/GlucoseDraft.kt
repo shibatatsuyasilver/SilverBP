@@ -98,9 +98,15 @@ data class GlucoseDraft(
         /**
          * Format a value for the editable field: mg/dL shows a whole integer
          * (meters never read fractional mg/dL); mmol/L keeps one decimal.
+         *
+         * mg/dL **rounds** (not truncates) so the mg/dL ↔ mmol/L toggle is a
+         * lossless display round-trip: e.g. 200 → 11.1 mmol → 199.978 mg/dL must
+         * read back as 200, not 199. Truncation (toLong) always biased downward
+         * and could cross a medical threshold (a post-meal 200 → 199 = High →
+         * Elevated). See the round-trip unit test.
          */
         fun formatValue(value: Double, unit: GlucoseUnit): String = when (unit) {
-            GlucoseUnit.Mgdl -> value.toLong().toString()
+            GlucoseUnit.Mgdl -> Math.round(value).toString()
             GlucoseUnit.Mmol -> String.format(java.util.Locale.US, "%.1f", value)
         }
     }
