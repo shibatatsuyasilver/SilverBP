@@ -53,6 +53,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -277,6 +281,7 @@ private fun CameraTopBar(
 @Composable
 private fun ShutterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     // 72-dp white circle with a thin inner ring — matches the BP/machine shutter.
+    val shutterCd = stringResource(R.string.capture_button)
     Box(
         modifier = modifier
             .size(72.dp)
@@ -284,6 +289,7 @@ private fun ShutterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             .background(Color.White)
             .border(BorderStroke(2.dp, Color.Black.copy(alpha = 0.25f)), CircleShape)
             .clickable(onClick = onClick)
+            .semantics { contentDescription = shutterCd; role = Role.Button }
             .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {
