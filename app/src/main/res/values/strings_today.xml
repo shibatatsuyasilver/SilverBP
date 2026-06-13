@@ -1,0 +1,33 @@
+<resources>
+
+    <!-- Today's unified daily-record card (owner decision §1/§2): one card whose
+         title is today's date, with an equal-footing blood-pressure section and
+         blood-glucose section. Each section shows today's latest reading or an
+         inline "no reading today · log one" prompt. The date inside %1$s is
+         formatted in code ("M/d (E)") so the weekday localizes automatically.
+         Identical key set in values-zh-rTW (audit M27); inline actions and
+         tappable reading rows carry a contentDescription (audit M31). -->
+
+    <!-- Card title: %1$s is the formatted "6/13 (Fri)" date. -->
+    <string name="today_card_title">Today · %1$s</string>
+
+    <!-- Section headings inside the unified card. -->
+    <string name="today_section_bp">Blood pressure</string>
+    <string name="today_section_glucose">Blood glucose</string>
+
+    <!-- Inline empty-section prompt + its log action. -->
+    <string name="today_empty_today">No reading today</string>
+    <string name="today_record_one">Log one</string>
+
+    <!-- "N readings today" affordance shown when a section has more than one. -->
+    <string name="today_count_today">%1$d today</string>
+
+    <!-- contentDescription for the inline log actions (audit M31). -->
+    <string name="today_record_bp_a11y">Log a blood-pressure reading</string>
+    <string name="today_record_glucose_a11y">Log a blood-glucose reading</string>
+
+    <!-- contentDescription for tapping a shown reading row to edit it (audit M31). -->
+    <string name="today_edit_bp_a11y">Edit this blood-pressure reading</string>
+    <string name="today_edit_glucose_a11y">Edit this blood-glucose reading</string>
+
+</resources>

@@ -1,0 +1,31 @@
+<resources>
+
+    <!-- Today 整合一日紀錄卡（業主裁定 §1/§2）：一張以「今天日期」為標題的卡,
+         內含同等並列的血壓區與血糖區。各區顯示今天最新一筆,或就地「今天還沒記錄·
+         記一筆」提示。%1$s 內的日期在程式以 "M/d (E)" 格式化,星期自動本地化。
+         鍵集與 values 完全一致(audit M27);inline 動作與可點擊條目皆帶
+         contentDescription(audit M31)。 -->
+
+    <!-- 卡片標題:%1$s 為格式化後的「6/13（週五）」。 -->
+    <string name="today_card_title">今天 · %1$s</string>
+
+    <!-- 整合卡內的分區標題。 -->
+    <string name="today_section_bp">血壓</string>
+    <string name="today_section_glucose">血糖</string>
+
+    <!-- 就地空狀態提示與其記錄動作。 -->
+    <string name="today_empty_today">今天還沒記錄</string>
+    <string name="today_record_one">記一筆</string>
+
+    <!-- 某區超過一筆時顯示的「今天 N 筆」入口。 -->
+    <string name="today_count_today">今天 %1$d 筆</string>
+
+    <!-- inline 記錄動作的 contentDescription(audit M31)。 -->
+    <string name="today_record_bp_a11y">記錄一筆血壓</string>
+    <string name="today_record_glucose_a11y">記錄一筆血糖</string>
+
+    <!-- 點擊已顯示條目進入編輯的 contentDescription(audit M31)。 -->
+    <string name="today_edit_bp_a11y">編輯這筆血壓</string>
+    <string name="today_edit_glucose_a11y">編輯這筆血糖</string>
+
+</resources>

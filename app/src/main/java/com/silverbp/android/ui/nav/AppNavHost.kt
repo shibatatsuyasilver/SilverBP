@@ -483,23 +483,44 @@ private fun HomeWithTabs(rootNav: NavHostController) {
                 .nestedScroll(fabScroll)
         ) {
             NavHost(navController = tabsNav, startDestination = TabDestination.Today.route) {
-                tabsGraph(rootNav)
+                tabsGraph(rootNav, tabsNav)
             }
         }
     }
 }
 
-private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
+private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHostController) {
     composable(TabDestination.Today.route) {
+        // "今天 N 筆" jumps to the Data tab's unified history (紀錄) — same bottom-tab
+        // switch the NavigationBar performs, so the day's combined BP+glucose record
+        // is right there. Unified history isn't type-filterable (it's one combined
+        // list), so both section affordances land on the same place.
+        val openHistory: () -> Unit = {
+            tabsNav.navigate(TabDestination.Data.route) {
+                popUpTo(TabDestination.Today.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
         TodayScreen(
-            onCapture = { rootNav.navigate(Routes.CAPTURE) },
+            // The "+" is now a chooser (量血壓 / 量血糖). The single onCapture →
+            // Routes.CAPTURE was split so the BP option (and the BP section's
+            // inline "記一筆") open the BP camera, while the glucose option (and
+            // the glucose section's inline "記一筆") open the meter-capture flow,
+            // which itself offers manual entry as the always-available path
+            // (the emulator can't run LiteRT, so OCR degrades to manual).
+            onCaptureBp = { rootNav.navigate(Routes.CAPTURE) },
+            onCaptureGlucose = { rootNav.navigate(Routes.GLUCOSE_CAPTURE) },
             onAddManual = { rootNav.navigate(Routes.CONFIRM_NEW) },
             onOpenSettings = { rootNav.navigate(Routes.SETTINGS) },
             onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
-            // The GlucoseCard "記血糖" button opens the meter-capture flow, which
-            // itself offers manual entry as the primary always-available path
-            // (the emulator can't run LiteRT, so OCR degrades to manual).
-            onRecordGlucose = { rootNav.navigate(Routes.GLUCOSE_CAPTURE) },
+            // Tapping a reading in the unified Today card edits it via the
+            // existing Confirm flows (BP ConfirmReading / glucose ConfirmGlucose).
+            onEditBp = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
+            onEditGlucose = { id -> rootNav.navigate(Routes.glucoseConfirmEdit(id)) },
+            // Both "今天 N 筆" affordances open the unified Data-tab history.
+            onViewBpHistory = openHistory,
+            onViewGlucoseHistory = openHistory,
         )
     }
     composable(TabDestination.Coach.route) {

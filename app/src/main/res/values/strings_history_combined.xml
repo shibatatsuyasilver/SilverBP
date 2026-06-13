@@ -1,0 +1,16 @@
+<resources>
+
+    <!-- Unified history (一日整合血壓+血糖). One day's card lists both BP and
+         glucose entries side by side; the 分析 segment keeps its own 血壓|血糖
+         switch. Identical key set in values-zh-rTW (audit M27). -->
+
+    <!-- Empty state when neither BP nor glucose has any readings for the member. -->
+    <string name="combined_history_empty">No readings yet</string>
+    <!-- Section sub-header inside a day card, before that type's entries. -->
+    <string name="combined_section_bp">Blood pressure</string>
+    <string name="combined_section_glucose">Blood glucose</string>
+    <!-- Per-type one-line day summary (count · mean), shown under each section header. -->
+    <string name="combined_day_bp_summary">%1$d · avg %2$d/%3$d</string>
+    <string name="combined_day_glucose_summary">%1$d · avg %2$s %3$s</string>
+
+</resources>
