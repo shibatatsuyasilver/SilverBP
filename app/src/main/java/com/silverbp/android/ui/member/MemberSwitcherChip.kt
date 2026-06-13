@@ -32,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -68,11 +70,17 @@ fun MemberSwitcherChip(onManageMembers: () -> Unit) {
     val current = members.firstOrNull { it.id.toString() == currentId } ?: members.first()
     var showSheet by remember { mutableStateOf(false) }
 
+    // TalkBack reads the chip as "Recording for <name>, tap to switch member" —
+    // the avatar/name inside are decorative once the chip carries this label.
+    val chipCd = stringResource(R.string.member_switcher_cd_current, displayNameOrFallback(current))
+
     Surface(
         onClick = { showSheet = true },
         shape = RoundedCornerShape(50),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.padding(end = 4.dp),
+        modifier = Modifier
+            .padding(end = 4.dp)
+            .semantics { contentDescription = chipCd },
     ) {
         Row(
             modifier = Modifier.padding(start = 6.dp, end = 12.dp, top = 5.dp, bottom = 5.dp),
