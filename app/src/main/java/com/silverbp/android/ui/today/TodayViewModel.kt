@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.GlucoseReading
+import com.silverbp.android.core.GlucoseRepository
+import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
@@ -27,6 +30,10 @@ data class TodayUiState(
     val modelPhase: ModelLoadPhase = ModelLoadPhase.Idle,
     /** Selected member's guideline — classifies the latest-reading card colour/label. */
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
+    /** Selected member's most recent glucose reading (v19), or null when none. */
+    val latestGlucose: GlucoseReading? = null,
+    /** User's preferred glucose display unit (mg/dL default). */
+    val glucoseUnit: GlucoseUnit = GlucoseUnit.Mgdl,
     val isLoading: Boolean = true,
     val error: Boolean = false,
 )
@@ -38,6 +45,7 @@ class TodayViewModel(
     private val modelStatus: ModelLoadStatus = ServiceLocator.modelLoadStatus,
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
+    private val glucose: GlucoseRepository = ServiceLocator.glucoseRepository,
 ) : ViewModel() {
 
     // The selected member's own guideline (roadmap §3-1); falls back to the
@@ -49,16 +57,27 @@ class TodayViewModel(
         }
     }
 
+    // Selected member's latest glucose reading (v19) paired with the user's unit
+    // preference so the card renders the value in mg/dL or mmol/L without a fourth
+    // combine source. Follows the same member selection as the BP card.
+    private val glucoseFlow = combine(
+        currentMember.flow.flatMapLatest { glucose.observeLatest(it) },
+        settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) },
+    ) { latest, unit -> latest to unit }
+
     val state: StateFlow<TodayUiState> = combine(
         currentMember.flow.flatMapLatest { repo.observeAll(it) },
         modelStatus.phase,
         guidelineFlow,
-    ) { all, phase, guideline ->
+        glucoseFlow,
+    ) { all, phase, guideline, (latestGlucose, glucoseUnit) ->
         TodayUiState(
             latest = all.firstOrNull(),
             totalCount = all.size,
             modelPhase = phase,
             guideline = guideline,
+            latestGlucose = latestGlucose,
+            glucoseUnit = glucoseUnit,
             isLoading = false,
         )
     }

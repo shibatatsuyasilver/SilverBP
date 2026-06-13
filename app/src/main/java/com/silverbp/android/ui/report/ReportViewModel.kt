@@ -6,6 +6,7 @@ import com.silverbp.android.R
 import com.silverbp.android.billing.EntitlementManager
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
@@ -48,6 +49,7 @@ class ReportViewModel(
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val entitlements: EntitlementManager = ServiceLocator.entitlementManager,
+    private val glucoseRepo: GlucoseRepository = ServiceLocator.glucoseRepository,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(ReportRange.Last30)
@@ -93,6 +95,12 @@ class ReportViewModel(
                 val memberId = currentMember.current()
                 val all = repo.observeAll(memberId).first()
                 val readings = all.filter { it.timestamp in from..to }
+                // Glucose for the same member/range (v19). observeRange is already
+                // member-scoped + time-bounded; empty → the renderer omits the
+                // glucose summary/table (BP-only report, unchanged).
+                val glucoseReadings = runCatching {
+                    glucoseRepo.observeRange(memberId, from, to).first()
+                }.getOrNull().orEmpty()
                 // Cover prints whose readings these are — doctors need the name in
                 // a multi-member family. But a solo install (chip hidden, never
                 // opted into family) must NOT get a redundant "Subject: Me" line on
@@ -122,6 +130,7 @@ class ReportViewModel(
                         to = to,
                         memberName = name,
                         includeDetail = entitlements.isPremium(),
+                        glucoseReadings = glucoseReadings,
                     )
                 generatedFlow.value = file
                 onReady(file)

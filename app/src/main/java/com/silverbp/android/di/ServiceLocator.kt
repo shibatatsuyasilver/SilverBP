@@ -13,6 +13,7 @@ import com.silverbp.android.coach.ExerciseRepoSummaryProvider
 import com.silverbp.android.coach.TodayExerciseTaskGenerator
 import com.silverbp.android.recognition.chat.ChatRecognizerFactory
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.db.SilverBpDatabase
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
@@ -23,6 +24,7 @@ import com.silverbp.android.exercise.SessionCheckpointStore
 import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.StepCounterReader
 import com.silverbp.android.health.HealthConnectBpBridge
+import com.silverbp.android.health.HealthConnectGlucoseBridge
 import com.silverbp.android.health.HealthConnectBridge
 import com.silverbp.android.health.HealthConnectNutritionBridge
 import com.silverbp.android.nutrition.NutritionRepository
@@ -48,6 +50,7 @@ import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
+import com.silverbp.android.sync.GlucoseReadingSyncMapper
 import com.silverbp.android.sync.BpWorkoutAssociationSyncMapper
 import com.silverbp.android.sync.ChatMessageSyncMapper
 import com.silverbp.android.sync.ChatSessionSyncMapper
@@ -132,6 +135,22 @@ object ServiceLocator {
         )
     }
 
+    /**
+     * Blood-glucose readings (v19), member-scoped with the same owner-only
+     * Health Connect mirror guard as [bpRepository]. The mirror writes a
+     * [androidx.health.connect.client.records.BloodGlucoseRecord] via
+     * [healthConnectGlucoseBridge]; the bridge independently checks the glucose
+     * write permission, and the owner-only guard lives in the repository.
+     */
+    val glucoseRepository: GlucoseRepository by lazy {
+        GlucoseRepository(
+            dao = database.glucoseDao(),
+            members = memberRepository,
+            healthConnect = healthConnectGlucoseBridge,
+            healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+        )
+    }
+
     val chatRepository: ChatRepository by lazy { ChatRepository(database.chatDao()) }
 
     val nutritionRepository: NutritionRepository by lazy {
@@ -182,6 +201,11 @@ object ServiceLocator {
     val healthConnectBridge: HealthConnectBridge by lazy { HealthConnectBridge(context) }
 
     val healthConnectBpBridge: HealthConnectBpBridge by lazy { HealthConnectBpBridge(context) }
+
+    /** Owner-only one-way mirror of glucose readings to Health Connect (v19). */
+    val healthConnectGlucoseBridge: HealthConnectGlucoseBridge by lazy {
+        HealthConnectGlucoseBridge(context)
+    }
 
     val healthConnectNutritionBridge: HealthConnectNutritionBridge by lazy {
         HealthConnectNutritionBridge(context)
@@ -307,6 +331,14 @@ object ServiceLocator {
 
     val memberSyncMapper: MemberSyncMapper by lazy {
         MemberSyncMapper(database.memberDao(), database.syncDao())
+    }
+
+    val glucoseReadingSyncMapper: GlucoseReadingSyncMapper by lazy {
+        GlucoseReadingSyncMapper(
+            database.glucoseDao(),
+            database.syncDao(),
+            ownerIdProvider = { memberRepository.ownerId() },
+        )
     }
 
     /** Phase 2 mappers — exercise + medication. Same lifetime/scope rules as
@@ -485,6 +517,8 @@ object ServiceLocator {
                     foodLogMapper = foodLogSyncMapper,
                     memberDao = database.memberDao(),
                     memberMapper = memberSyncMapper,
+                    glucoseDao = database.glucoseDao(),
+                    glucoseMapper = glucoseReadingSyncMapper,
                 )
             },
             sinkFactory = {
@@ -510,6 +544,7 @@ object ServiceLocator {
                     bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
                     foodLogMapper = foodLogSyncMapper,
                     memberMapper = memberSyncMapper,
+                    glucoseMapper = glucoseReadingSyncMapper,
                     // B6 LWW gate: import compares record.hlc vs the local row's
                     // hlcUpdatedAt + tombstone hlc before applying.
                     syncDao = database.syncDao(),
@@ -522,7 +557,7 @@ object ServiceLocator {
             appVersionCode = BuildConfig.VERSION_CODE,
             // Room schema version — keep in lock-step with SilverBpDatabase.
             // 升 schema 時改這裡(備份檔頭會記下,匯入時做相容處理).
-            schemaVersion = 18,
+            schemaVersion = 19,
             // 向後相容:匯入 pre-v18 (無 member 表) 備份時合成 owner,
             // 讓無 memberId 的讀數歸 owner。
             ensureOwnerId = { memberRepository.ownerId() },

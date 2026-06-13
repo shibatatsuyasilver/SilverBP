@@ -11,6 +11,10 @@ package com.silverbp.android.sync.engine
  * [MEMBER] (tag 23) is the v18 family-member table — next free tag after the
  * 1–22 + 64/65 already in use. iOS BPCoach must mirror it 1:1 when it adopts
  * multi-member.
+ *
+ * [GLUCOSE_READING] (tag 24) is the v19 blood-glucose table — next free tag after
+ * MEMBER. Born member-native (carries memberId); iOS BPCoach mirrors it 1:1 when
+ * it adopts glucose.
  */
 enum class SyncEntityType(val tag: Int, val tableName: String) {
     BP_READING(1, "bp_reading"),
@@ -36,6 +40,7 @@ enum class SyncEntityType(val tag: Int, val tableName: String) {
     BP_WORKOUT_ASSOCIATION(21, "bp_workout_association"),
     FOOD_LOG(22, "food_log"),
     MEMBER(23, "member"),
+    GLUCOSE_READING(24, "glucose_reading"),
     SETTINGS_KV(64, "settings_kv"),
     BLOB_META(65, "blob_meta");
 

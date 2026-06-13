@@ -10,6 +10,14 @@
     <string name="pdf_report_generated_at">由 SilverBP 產生於 %1$s</string>
     <string name="pdf_report_detail_header">讀數明細 (頁 %1$d / %2$d)</string>
     <string name="pdf_report_table_header">時間              SBP/DBP   脈搏  備註</string>
+    <!-- 血糖節 (v19)。報告上正準單位為 mg/dL。 -->
+    <string name="pdf_glucose_section_title">血糖</string>
+    <string name="pdf_glucose_count">血糖筆數  %1$d</string>
+    <string name="pdf_glucose_fasting_mean">空腹均值       %1$d mg/dL  (n=%2$d)</string>
+    <string name="pdf_glucose_postmeal_mean">餐後均值       %1$d mg/dL  (n=%2$d)</string>
+    <string name="pdf_glucose_low_events">低血糖事件     %1$d</string>
+    <string name="pdf_glucose_detail_header">血糖明細 (頁 %1$d / %2$d)</string>
+    <string name="pdf_glucose_table_header">時間              mg/dL  量測時機     備註</string>
     <string name="pdf_disclaimer_title">注意事項</string>
     <string name="pdf_disclaimer_1">本 App 僅作為個人健康紀錄輔助工具,並非醫療裝置 (Medical Device)。任何讀數異常或健康疑慮,請諮詢醫療專業人員。</string>
     <string name="pdf_disclaimer_2">指標說明:平均為算術平均;SD 為樣本標準差,反映讀數離散度;ARV (Average Real Variability) 為連續讀數差絕對值的平均,可較佳反映時序變異 (Mena et al., J Hypertens 2005;Wei et al., JAHA 2018)。</string>

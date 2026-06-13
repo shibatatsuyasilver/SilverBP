@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -25,9 +26,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +42,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
+import com.silverbp.android.core.GlucoseClassifier
+import com.silverbp.android.core.GlucoseReading
+import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.components.BpReadingValue
@@ -47,6 +53,11 @@ import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
+import com.silverbp.android.ui.components.formatGlucoseValue
+import com.silverbp.android.ui.components.glucoseCategoryLabel
+import com.silverbp.android.ui.components.glucoseColorFor
+import com.silverbp.android.ui.components.glucoseUnitLabel
+import com.silverbp.android.ui.components.measureContextLabel
 import com.silverbp.android.ui.theme.AppSpacing
 import java.time.LocalTime
 import java.time.ZoneId
@@ -62,6 +73,9 @@ fun TodayScreen(
     // Default no-op so AppNavHost compiles unchanged until it wires the
     // MEMBER_MANAGE navigation (the chip self-hides for single-member installs).
     onManageMembers: () -> Unit = {},
+    // Default no-op so AppNavHost compiles unchanged until the capture/confirm
+    // track wires the glucose confirm route.
+    onRecordGlucose: () -> Unit = {},
     vm: TodayViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -147,6 +161,94 @@ fun TodayScreen(
                     Spacer(Modifier.height(AppSpacing.sectionGap))
                 }
             }
+
+            // Glucose card (v19): follows the selected member exactly like the BP
+            // card. Shown below the BP content (and below the empty-BP state) so it
+            // never displaces the primary BP surface; hidden while loading/error.
+            if (!state.isLoading && !state.error) {
+                GlucoseCard(
+                    reading = state.latestGlucose,
+                    unit = state.glucoseUnit,
+                    onRecordGlucose = onRecordGlucose,
+                    modifier = Modifier.padding(horizontal = AppSpacing.screenH),
+                )
+                Spacer(Modifier.height(AppSpacing.sectionGap))
+            }
+        }
+    }
+}
+
+/**
+ * Today's glucose card: the selected member's most recent reading (value in the
+ * user's unit + category colour + timing) and a "log glucose" button. Empty state
+ * when the member has no readings. Parallels [LatestReadingCard] (BP).
+ */
+@Composable
+private fun GlucoseCard(
+    reading: GlucoseReading?,
+    unit: GlucoseUnit,
+    onRecordGlucose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    StandardCard(
+        modifier = modifier,
+        title = stringResource(R.string.glucose_title),
+        titleTrailing = {
+            TextButton(onClick = onRecordGlucose) {
+                Text(stringResource(R.string.glucose_record))
+            }
+        },
+    ) {
+        if (reading == null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Bloodtype,
+                    contentDescription = stringResource(R.string.glucose_card_cd),
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    stringResource(R.string.glucose_card_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            val cat = remember(reading) {
+                GlucoseClassifier().classify(reading.valueMgdl, reading.measureContext)
+            }
+            val color = glucoseColorFor(cat)
+            val fmt = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm", Locale.TAIWAN)
+                .withZone(ZoneId.systemDefault())
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    glucoseCategoryLabel(cat),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    formatGlucoseValue(reading.valueMgdl, unit),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    glucoseUnitLabel(unit),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+            Text(
+                "${measureContextLabel(reading.measureContext)} · ${fmt.format(reading.timestamp)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

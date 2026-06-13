@@ -121,6 +121,12 @@
 4. 隱私政策 URL 會被比對 — 我們的 `docs/privacy.html` 已含對應揭露,直接過。
 5. 提交。狀態會顯示「審核中」;**通過前不能正式發布**(測試軌道通常可以)。
 
+> ⚠️ **v1.2 血糖(Phase 2)新增 `WRITE_BLOOD_GLUCOSE` → 必須重送本聲明。**
+> AndroidManifest 已加入 `android.permission.health.WRITE_BLOOD_GLUCOSE`(血糖一律寫入式單向鏡像,僅 owner 成員)。新增任何 `health.*` 權限都會讓既有的健康應用程式聲明失效,需在本頁逐項清單再補一條使用理由並**重新提交**(審核同樣需數天到數週),且**必須在 v1.2 正式發布前通過**。理由文案沿用上面格式:
+> - `WRITE_BLOOD_GLUCOSE`:「使用者手動或拍照記錄的血糖值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
+>
+> 與 B5 初次申報同流程,排在 Phase 2 第一週與開發並行送審(roadmap §4-4 critical path)。`docs/privacy.html` 的健康資料揭露也要同步增列血糖。
+
 ### C-9. 前景服務權限聲明 ⚠️ 需要影片
 
 路徑:政策 → 應用程式內容 →「**前景服務權限**」(或在「敏感應用程式權限」內)。

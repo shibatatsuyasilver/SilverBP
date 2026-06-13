@@ -1,0 +1,84 @@
+<resources>
+
+    <!-- Blood glucose (血糖, v19). Manual entry is the primary path; OCR reuses
+         the Gemma engine on real devices only. Canonical unit is mg/dL; mmol/L is
+         a display convenience. Identical key set in values-zh-rTW (audit M27). -->
+
+    <!-- Feature + entry points -->
+    <string name="glucose_title">Blood glucose</string>
+    <string name="glucose_record">Log glucose</string>
+    <string name="glucose_save">Save</string>
+
+    <!-- Today card -->
+    <string name="glucose_card_empty">No glucose readings yet</string>
+    <string name="glucose_card_cd">Blood glucose</string>
+
+    <!-- Value + units -->
+    <string name="glucose_value_label">Blood glucose</string>
+    <string name="glucose_unit_mgdl">mg/dL</string>
+    <string name="glucose_unit_mmol">mmol/L</string>
+    <string name="glucose_unit_label">Unit</string>
+
+    <!-- Measurement context -->
+    <string name="context_label">Timing</string>
+    <string name="context_fasting">Fasting</string>
+    <string name="context_before_meal">Before meal</string>
+    <string name="context_after_meal">After meal</string>
+    <string name="context_bedtime">Bedtime</string>
+    <string name="context_random">Random</string>
+
+    <!-- Categories -->
+    <string name="category_verylow">Very low</string>
+    <string name="category_low">Low</string>
+    <string name="category_normal">Normal</string>
+    <string name="category_elevated">Elevated</string>
+    <string name="category_high">High</string>
+
+    <!-- Low-glucose on-save warning card (the acute case) -->
+    <string name="glucose_low_warning_title">Low blood glucose</string>
+    <string name="glucose_low_warning_body">This reading is low. If you feel unwell, take fast-acting sugar and re-check. This app is not a medical device.</string>
+
+    <!-- History + Insights -->
+    <string name="glucose_history_title">Glucose history</string>
+    <string name="glucose_history_empty">No glucose readings yet</string>
+    <string name="glucose_insights_title">Glucose insights</string>
+    <string name="glucose_insights_empty">Not enough data yet</string>
+    <string name="glucose_avg_fasting">Fasting average</string>
+    <string name="glucose_avg_post_meal">After-meal average</string>
+    <string name="glucose_low_events">Low events</string>
+
+    <!-- DataHub measurement-type switch -->
+    <string name="measure_bp">Blood pressure</string>
+    <string name="measure_glucose">Blood glucose</string>
+
+    <!-- Confirm / editor -->
+    <string name="glucose_confirm_title">Confirm reading</string>
+    <string name="glucose_confirm_title_edit">Edit reading</string>
+    <string name="glucose_note">Note</string>
+    <string name="glucose_note_hint">Add a note (optional)</string>
+    <string name="glucose_delete">Delete</string>
+    <string name="glucose_delete_confirm_title">Delete this reading?</string>
+    <string name="glucose_delete_confirm_body">This glucose reading will be permanently removed.</string>
+
+    <!-- Capture (OCR) -->
+    <string name="glucose_capture_title">Photograph your meter</string>
+    <string name="glucose_capture_hint">Point the camera at your glucose meter display.</string>
+    <string name="glucose_analyzing">Reading the display…</string>
+    <string name="glucose_analyze_failed">Could not read the display. Try again or enter manually.</string>
+    <string name="glucose_manual_entry">Enter manually</string>
+
+    <!-- Medical disclaimer (reused from BP pattern) -->
+    <string name="glucose_disclaimer">This app is not a medical device. Readings and categories are for reference only — consult a clinician for diagnosis.</string>
+
+    <!-- Premium gate (free 10 records per member, paywall on the 11th) -->
+    <string name="glucose_paywall_reason">Unlock unlimited glucose tracking with Premium.</string>
+    <string name="glucose_free_limit_note">Free plan: up to 10 glucose readings per member. Existing readings always stay viewable.</string>
+
+    <!-- Today / History / Insights surfaces (Today+DataHub track) -->
+    <string name="glucose_value_unit">%1$s %2$s</string>
+    <string name="glucose_record_a11y">Log a glucose reading</string>
+    <string name="glucose_readings_logged">%1$d glucose readings logged</string>
+    <string name="glucose_trend_title">Glucose trend</string>
+    <string name="glucose_context_distribution_title">By timing</string>
+
+</resources>

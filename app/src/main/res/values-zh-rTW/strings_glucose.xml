@@ -1,0 +1,83 @@
+<resources>
+
+    <!-- 血糖 (v19). 人工輸入為主要路徑;OCR 重用 Gemma 引擎(僅實機可跑). 正準單位
+         為 mg/dL,mmol/L 為顯示用. 鍵集與 values/ 完全一致 (audit M27). -->
+
+    <!-- 功能 + 入口 -->
+    <string name="glucose_title">血糖</string>
+    <string name="glucose_record">記血糖</string>
+    <string name="glucose_save">儲存</string>
+
+    <!-- Today 卡片 -->
+    <string name="glucose_card_empty">尚無血糖紀錄</string>
+    <string name="glucose_card_cd">血糖</string>
+
+    <!-- 數值 + 單位 -->
+    <string name="glucose_value_label">血糖值</string>
+    <string name="glucose_unit_mgdl">mg/dL</string>
+    <string name="glucose_unit_mmol">mmol/L</string>
+    <string name="glucose_unit_label">單位</string>
+
+    <!-- 量測時機 -->
+    <string name="context_label">量測時機</string>
+    <string name="context_fasting">空腹</string>
+    <string name="context_before_meal">餐前</string>
+    <string name="context_after_meal">餐後</string>
+    <string name="context_bedtime">睡前</string>
+    <string name="context_random">隨機</string>
+
+    <!-- 分類 -->
+    <string name="category_verylow">過低</string>
+    <string name="category_low">偏低</string>
+    <string name="category_normal">正常</string>
+    <string name="category_elevated">偏高</string>
+    <string name="category_high">過高</string>
+
+    <!-- 低血糖儲存時就地警示卡(急性情況) -->
+    <string name="glucose_low_warning_title">血糖偏低</string>
+    <string name="glucose_low_warning_body">此次數值偏低。如有不適,請補充快速吸收的糖分並重新量測。本 App 並非醫療器材。</string>
+
+    <!-- 歷史 + 分析 -->
+    <string name="glucose_history_title">血糖歷史</string>
+    <string name="glucose_history_empty">尚無血糖紀錄</string>
+    <string name="glucose_insights_title">血糖分析</string>
+    <string name="glucose_insights_empty">資料尚不足</string>
+    <string name="glucose_avg_fasting">空腹平均</string>
+    <string name="glucose_avg_post_meal">餐後平均</string>
+    <string name="glucose_low_events">低血糖次數</string>
+
+    <!-- DataHub 量測類型切換 -->
+    <string name="measure_bp">血壓</string>
+    <string name="measure_glucose">血糖</string>
+
+    <!-- 確認 / 編輯 -->
+    <string name="glucose_confirm_title">確認紀錄</string>
+    <string name="glucose_confirm_title_edit">編輯紀錄</string>
+    <string name="glucose_note">備註</string>
+    <string name="glucose_note_hint">新增備註(選填)</string>
+    <string name="glucose_delete">刪除</string>
+    <string name="glucose_delete_confirm_title">刪除此筆紀錄?</string>
+    <string name="glucose_delete_confirm_body">此筆血糖紀錄將永久移除。</string>
+
+    <!-- 拍照辨識 (OCR) -->
+    <string name="glucose_capture_title">拍攝您的血糖機</string>
+    <string name="glucose_capture_hint">將相機對準血糖機的顯示螢幕。</string>
+    <string name="glucose_analyzing">辨識顯示中…</string>
+    <string name="glucose_analyze_failed">無法辨識顯示螢幕。請重試或手動輸入。</string>
+    <string name="glucose_manual_entry">手動輸入</string>
+
+    <!-- 醫療免責聲明(沿用血壓模式) -->
+    <string name="glucose_disclaimer">本 App 並非醫療器材。數值與分類僅供參考,診斷請諮詢醫療專業人員。</string>
+
+    <!-- 付費閘(每成員免費 10 筆,第 11 筆出付費牆) -->
+    <string name="glucose_paywall_reason">升級 Premium,解鎖無限血糖紀錄。</string>
+    <string name="glucose_free_limit_note">免費版:每位成員最多 10 筆血糖紀錄。既有紀錄永遠可看。</string>
+
+    <!-- Today / 歷史 / 分析 介面(Today+DataHub track) -->
+    <string name="glucose_value_unit">%1$s %2$s</string>
+    <string name="glucose_record_a11y">記錄一筆血糖</string>
+    <string name="glucose_readings_logged">已記錄 %1$d 筆血糖</string>
+    <string name="glucose_trend_title">血糖趨勢</string>
+    <string name="glucose_context_distribution_title">依量測時機</string>
+
+</resources>
