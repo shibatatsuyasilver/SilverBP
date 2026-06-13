@@ -14,6 +14,7 @@ import com.silverbp.android.coach.TodayExerciseTaskGenerator
 import com.silverbp.android.recognition.chat.ChatRecognizerFactory
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.GlucoseRepository
+import com.silverbp.android.core.WeightRepository
 import com.silverbp.android.core.db.SilverBpDatabase
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
@@ -147,6 +148,22 @@ object ServiceLocator {
             dao = database.glucoseDao(),
             members = memberRepository,
             healthConnect = healthConnectGlucoseBridge,
+            healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+        )
+    }
+
+    /**
+     * Body-weight readings (kg canonical), member-scoped with the same owner-only
+     * Health Connect mirror guard as [glucoseRepository]. The HC mirror is wired
+     * in a later phase via the HealthConnectWeightBridge; for now [healthConnect]
+     * is null so the mirror is inert, with the same coarse on/off lambda kept in
+     * place for when the bridge lands.
+     */
+    val weightRepository: WeightRepository by lazy {
+        WeightRepository(
+            dao = database.weightDao(),
+            members = memberRepository,
+            healthConnect = null,
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
         )
     }

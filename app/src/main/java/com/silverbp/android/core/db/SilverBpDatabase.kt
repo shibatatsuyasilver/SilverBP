@@ -40,8 +40,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         FoodLogEntity::class,
         MemberEntity::class,
         GlucoseReadingEntity::class,
+        WeightLogEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -64,6 +65,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun foodLogDao(): FoodLogDao
     abstract fun memberDao(): MemberDao
     abstract fun glucoseDao(): GlucoseDao
+    abstract fun weightDao(): WeightDao
 
     companion object {
         const val DB_NAME = "silverbp.db"
@@ -109,6 +111,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_16_17,
                 MIGRATION_17_18,
                 MIGRATION_18_19,
+                MIGRATION_19_20,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -974,6 +977,64 @@ internal val MIGRATION_18_19: Migration = object : Migration(18, 19) {
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS `index_glucose_reading_memberId_timestamp` " +
                 "ON `glucose_reading` (`memberId`, `timestamp`)",
+        )
+    }
+}
+
+/**
+ * v19 → v20: introduce the Weight management (體重) feature. Adds three nullable
+ * profile columns to `member` (`heightCm`, `biologicalSex`, `targetWeightKg` —
+ * used for BMI / goal tracking) and creates `weight_log` for the body-weight
+ * readings. Pure ADD COLUMN + CREATE TABLE, no FK into other tables, so the
+ * feature is self-contained.
+ *
+ * `weight_log` is born member-native — `memberId` is NOT NULL with **no backfill**
+ * (the table is new, so there are no pre-v20 rows to stamp; new rows resolve the
+ * owner at insert time via [com.silverbp.android.core.WeightRepository]), mirroring
+ * `glucose_reading` in MIGRATION_18_19.
+ *
+ * The new `member` columns are all nullable so the ADD COLUMN needs no SQL DEFAULT
+ * (existing rows get NULL). `hlcUpdatedAt` is NOT NULL with no SQL DEFAULT to match
+ * Room's render of the Kotlin-level `= "0"` default (mirrors set_log / food_log /
+ * member / glucose_reading in earlier migrations). The nullable columns
+ * (photoFilename, hcRecordId) need none. The two indices match Room's generated
+ * names (`index_weight_log_timestamp` / `index_weight_log_memberId_timestamp`).
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/20.json` after building.
+ */
+internal val MIGRATION_19_20: Migration = object : Migration(19, 20) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `member` ADD COLUMN `heightCm` INTEGER")
+        db.execSQL("ALTER TABLE `member` ADD COLUMN `biologicalSex` TEXT")
+        db.execSQL("ALTER TABLE `member` ADD COLUMN `targetWeightKg` REAL")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `weight_log` (
+              `id` TEXT NOT NULL,
+              `memberId` TEXT NOT NULL,
+              `valueKg` REAL NOT NULL,
+              `displayUnit` TEXT NOT NULL,
+              `timestamp` INTEGER NOT NULL,
+              `source` TEXT NOT NULL,
+              `confidence` REAL NOT NULL,
+              `note` TEXT NOT NULL,
+              `photoFilename` TEXT,
+              `createdAt` INTEGER NOT NULL,
+              `updatedAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              `hcRecordId` TEXT,
+              PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_weight_log_timestamp` " +
+                "ON `weight_log` (`timestamp`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_weight_log_memberId_timestamp` " +
+                "ON `weight_log` (`memberId`, `timestamp`)",
         )
     }
 }
