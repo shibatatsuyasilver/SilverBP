@@ -66,11 +66,14 @@ fun glucoseUnitLabel(unit: com.silverbp.android.core.GlucoseUnit): String = stri
 
 /**
  * Formats a canonical mg/dL value for display in [unit]: an integer for mg/dL
- * (the Taiwanese meter convention), one decimal place for mmol/L.
+ * (the Taiwanese meter convention), one decimal place for mmol/L. mg/dL
+ * **rounds** rather than truncates so display matches the value the user saved
+ * (a stored 199.978 from a mmol round-trip shows as 200, not 199) — consistent
+ * with [com.silverbp.android.ui.confirm.GlucoseDraft.Companion.formatValue].
  */
 fun formatGlucoseValue(valueMgdl: Double, unit: com.silverbp.android.core.GlucoseUnit): String =
     when (unit) {
-        com.silverbp.android.core.GlucoseUnit.Mgdl -> valueMgdl.toInt().toString()
+        com.silverbp.android.core.GlucoseUnit.Mgdl -> Math.round(valueMgdl).toString()
         com.silverbp.android.core.GlucoseUnit.Mmol ->
             "%.1f".format(com.silverbp.android.core.GlucoseUnit.mgdlToMmol(valueMgdl))
     }

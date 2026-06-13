@@ -69,8 +69,9 @@
   <p>All data described below is collected only when you actively use the corresponding feature. The one exception is that, after you opt in to Health Connect, SilverBP periodically reads your Health Connect steps, sleep, and nutrition data in the background (via a scheduled WorkManager backfill) so your trends stay up to date. This background-read data is processed and stored only on your device and is never uploaded to us.</p>
   <ul>
     <li><strong>Blood-pressure readings</strong> — systolic, diastolic, pulse, posture, arm, time of day, free-text notes you enter.</li>
+    <li><strong>Blood-glucose readings</strong> — value (mg/dL or mmol/L), measurement context (fasting, before/after meal, bedtime, random), time of day, and free-text notes you enter.</li>
     <li><strong>Exercise sessions</strong> — type (walk / run), duration, distance, GPS path, calories, optional notes. GPS is recorded only while you have explicitly started a session.</li>
-    <li><strong>Health Connect data (optional)</strong> — when you opt in, SilverBP reads steps, sleep, and nutrition from Health Connect, and writes blood-pressure, exercise (including route), and nutrition data back to Health Connect. With your permission it also reads these record types in the background to keep your trends current.</li>
+    <li><strong>Health Connect data (optional)</strong> — when you opt in, SilverBP reads steps, sleep, and nutrition from Health Connect, and writes blood-pressure, blood-glucose, exercise (including route), and nutrition data back to Health Connect. Only the account owner's readings are written; other family members' readings stay on the device. With your permission it also reads these record types in the background to keep your trends current.</li>
     <li><strong>Microphone (optional)</strong> — the chat feature uses the Android Speech Recognizer to transcribe your voice into text in real time. Audio is processed by the system speech recognizer and is not stored or uploaded by SilverBP.</li>
     <li><strong>Camera (optional)</strong> — used to photograph your home blood-pressure monitor display so the on-device model can extract numbers. Photos are processed locally and saved into the app's private storage; you can delete them at any time.</li>
     <li><strong>Nickname</strong> — a short label you may enter during onboarding so the coach can address you. Optional and editable in Settings.</li>
@@ -92,7 +93,7 @@
     <li><strong>Google Maps</strong> — exercise route maps are rendered by the Google Maps Android SDK. Your map view interactions are subject to <a href="https://policies.google.com/privacy">Google's Privacy Policy</a>. Recorded GPS coordinates remain on your device.</li>
     <li><strong>LAN sync (optional)</strong> — when paired with another of your devices on the same Wi-Fi, blood-pressure and exercise records are exchanged peer-to-peer over an end-to-end encrypted Noise XK channel. The data does not pass through any cloud server.</li>
     <li><strong>Cloud recognition (optional)</strong> — if you opt to use the Google Gemini cloud route for OCR, the photo of your monitor display is sent to Google's Gemini API using the API key you configured. This is governed by Google's API terms.</li>
-    <li id="drive-backup-en"><strong>Google Drive backup (optional)</strong> — if you connect Google Drive and enable backup, SilverBP periodically uploads a <code>.sbpbk</code> snapshot of your health database (blood-pressure, exercise, nutrition, sleep and related records) to the hidden <code>appDataFolder</code> of <em>your own</em> Google Drive. The snapshot is end-to-end encrypted with a key derived from your recovery code before it leaves the device, so neither we nor Google can read it. To remove it: disconnect Drive and delete the backups from within SilverBP, then revoke the app's Drive access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+    <li id="drive-backup-en"><strong>Google Drive backup (optional)</strong> — if you connect Google Drive and enable backup, SilverBP periodically uploads a <code>.sbpbk</code> snapshot of your health database (blood-pressure, blood-glucose, exercise, nutrition, sleep and related records) to the hidden <code>appDataFolder</code> of <em>your own</em> Google Drive. The snapshot is end-to-end encrypted with a key derived from your recovery code before it leaves the device, so neither we nor Google can read it. To remove it: disconnect Drive and delete the backups from within SilverBP, then revoke the app's Drive access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
   </ul>
 
   <h2>4. Sharing with third parties</h2>
@@ -146,8 +147,9 @@
   <p>下列資料只有在您主動使用對應功能時才會蒐集。唯一的例外是:當您啟用 Health Connect 後,本 App 會透過排程的 WorkManager 回補作業,在背景定期讀取您的 Health Connect 步數、睡眠與營養資料,讓您的趨勢保持最新。這些背景讀取的資料僅在您的裝置上處理與儲存,絕不上傳至我們。</p>
   <ul>
     <li><strong>血壓讀數</strong> — 收縮壓、舒張壓、脈搏、姿勢、左右臂、時段以及您填寫的備註。</li>
+    <li><strong>血糖讀數</strong> — 數值(mg/dL 或 mmol/L)、量測情境(空腹、餐前、餐後、睡前、隨機)、時段以及您填寫的備註。</li>
     <li><strong>運動紀錄</strong> — 類型(走路 / 跑步)、時間、距離、GPS 路徑、卡路里以及備註。GPS 僅在您主動開始 session 時記錄。</li>
-    <li><strong>Health Connect 資料(選用)</strong> — 啟用後,本 App 會從 Health Connect 讀取步數、睡眠、營養,並把血壓、運動(含路徑)與營養資料寫回 Health Connect。經您授權後,也會在背景讀取這些資料類型,讓您的趨勢保持最新。</li>
+    <li><strong>Health Connect 資料(選用)</strong> — 啟用後,本 App 會從 Health Connect 讀取步數、睡眠、營養,並把血壓、血糖、運動(含路徑)與營養資料寫回 Health Connect。僅帳號擁有者本人的讀數會寫回,其他家庭成員的讀數僅保留於本機。經您授權後,也會在背景讀取這些資料類型,讓您的趨勢保持最新。</li>
     <li><strong>麥克風(選用)</strong> — 聊天功能使用 Android Speech Recognizer 即時把您的語音轉成文字。音訊由系統語音辨識服務處理,本 App 不儲存、不上傳。</li>
     <li><strong>相機(選用)</strong> — 用於拍攝家用血壓計螢幕,讓裝置端模型辨識數字。照片在本機處理並儲存於本 App 私有空間,您可隨時刪除。</li>
     <li><strong>暱稱</strong> — 您在引導頁可選擇輸入一個簡短稱呼,讓教練稱呼您。可選,可在設定中修改。</li>
@@ -169,7 +171,7 @@
     <li><strong>Google 地圖</strong> — 運動路徑地圖由 Google Maps Android SDK 繪製,適用 <a href="https://policies.google.com/privacy">Google 隱私政策</a>。您所記錄的 GPS 座標仍儲存在本機。</li>
     <li><strong>區網同步(選用)</strong> — 在同一 Wi-Fi 上配對另一台您的裝置時,血壓與運動紀錄透過端對端加密的 Noise XK 通道直接交換。資料不經任何雲端伺服器。</li>
     <li><strong>雲端辨識(選用)</strong> — 如您選擇使用 Google Gemini 雲端 OCR,血壓計螢幕的照片會以您所設定的 API key 傳送至 Google Gemini API,適用 Google 的 API 條款。</li>
-    <li id="drive-backup-zh"><strong>Google Drive 備份(選用)</strong> — 若您連結 Google Drive 並啟用備份,本 App 會定期將健康資料庫的 <code>.sbpbk</code> 快照(血壓、運動、營養、睡眠及相關紀錄)上傳至<em>您自己</em> Google Drive 的隱藏 <code>appDataFolder</code>。快照在離開裝置前已用您的復原碼衍生的金鑰做端對端加密,因此我們與 Google 都無法讀取。若要移除:在 SilverBP 內中斷 Drive 連結並刪除備份,再到 <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> 撤銷本 App 的 Drive 存取權。</li>
+    <li id="drive-backup-zh"><strong>Google Drive 備份(選用)</strong> — 若您連結 Google Drive 並啟用備份,本 App 會定期將健康資料庫的 <code>.sbpbk</code> 快照(血壓、血糖、運動、營養、睡眠及相關紀錄)上傳至<em>您自己</em> Google Drive 的隱藏 <code>appDataFolder</code>。快照在離開裝置前已用您的復原碼衍生的金鑰做端對端加密,因此我們與 Google 都無法讀取。若要移除:在 SilverBP 內中斷 Drive 連結並刪除備份,再到 <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> 撤銷本 App 的 Drive 存取權。</li>
   </ul>
 
   <h2>4. 第三方分享</h2>
