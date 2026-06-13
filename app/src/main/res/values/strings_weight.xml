@@ -33,4 +33,12 @@
     <string name="weight_category_overweight">Overweight</string>
     <string name="weight_category_obese">Obese</string>
 
+    <!-- Scale-photo capture (Phase 3). Identical key set in values-zh-rTW (audit M27). -->
+    <string name="weight_capture_title">Weigh by photo</string>
+    <string name="weight_capture_photo">Take photo</string>
+    <string name="weight_capture_gallery">Gallery</string>
+    <string name="weight_capture_manual">Enter manually</string>
+    <string name="weight_analyzing">Analyzing…</string>
+    <string name="weight_analyze_failed">Couldn\'t read the scale — enter manually</string>
+
 </resources>
