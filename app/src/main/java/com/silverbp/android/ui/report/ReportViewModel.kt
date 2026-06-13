@@ -5,12 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.member.CurrentMemberStore
+import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -18,6 +22,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.UUID
 
 enum class ReportRange(val days: Long?) {
     ThisMonth(null), LastMonth(null), Last30(30), Last90(90), AllTime(null);
@@ -31,8 +36,11 @@ data class ReportUiState(
     val errorMessage: String? = null,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReportViewModel(
     private val repo: BpRepository = ServiceLocator.bpRepository,
+    private val members: MemberRepository = ServiceLocator.memberRepository,
+    private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(ReportRange.Last30)
@@ -41,7 +49,7 @@ class ReportViewModel(
     private val errorFlow = MutableStateFlow<String?>(null)
 
     val state: StateFlow<ReportUiState> = combine(
-        repo.observeAll(),
+        currentMember.flow.flatMapLatest { repo.observeAll(it) },
         rangeFlow,
         generatedFlow,
         generatingFlow,
@@ -65,10 +73,17 @@ class ReportViewModel(
             errorFlow.value = null
             try {
                 val (from, to) = boundsFor(rangeFlow.value)
-                val all = repo.observeAll().first()
+                val memberId = currentMember.current()
+                val all = repo.observeAll(memberId).first()
                 val readings = all.filter { it.timestamp in from..to }
+                // Cover prints whose readings these are — doctors need the name.
+                // Empty displayName (owner left unnamed) falls back to the
+                // localized "Me" so the literal is never persisted (audit M27).
+                val name = members.findById(UUID.fromString(memberId))?.displayName
+                    ?.takeIf { it.isNotBlank() }
+                    ?: ServiceLocator.context.getString(R.string.member_me)
                 val file = com.silverbp.android.reporting.PdfReportRenderer(ServiceLocator.context)
-                    .render(readings, from = from, to = to)
+                    .render(readings, from = from, to = to, memberName = name)
                 generatedFlow.value = file
                 onReady(file)
             } catch (t: Throwable) {

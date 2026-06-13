@@ -1,0 +1,8 @@
+<resources>
+
+    <!-- 成員專屬服藥提醒文案(v18)。僅在藥物屬於非 owner 家人成員時使用;
+         owner 本人的藥物維持 strings.xml 既有文案。%1$s = 成員名稱,
+         %2$s = 藥物名稱。 -->
+    <string name="medication_reminder_notification_title_member">%1$s該服用 %2$s 了</string>
+
+</resources>

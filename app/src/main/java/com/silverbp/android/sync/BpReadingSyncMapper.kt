@@ -30,16 +30,29 @@ import com.silverbp.android.sync.mapping.SyncRecordMapper
  *  14: medicationId    (string? — UUID lowercase hex with dashes)
  *  15: createdAtMs     (int)
  *  16: updatedAtMs     (int)
+ *  17: memberId        (string — v18 owning member; absent on pre-v18 peers)
  *
  * `reading_tag` membership is emitted as separate records (Phase 2);
  * `hcRecordId` stays local (platform-specific Health Connect dedup key).
  *
- * Caller is responsible for the LWW gate (`record.hlc > local.hlcUpdatedAt`);
- * this mapper just shapes data and writes through the DAOs.
+ * The LWW gate lives in [com.silverbp.android.sync.CombinedRoomSyncSink]; this
+ * mapper just shapes data and writes through the DAOs.
+ *
+ * Backward compat (tag 17): records from a pre-v18 peer/backup carry no memberId
+ * field; [ownerIdProvider] resolves the missing value to the owner member so an
+ * old reading isn't orphaned with an empty memberId (which the member-scoped UI
+ * queries would never surface).
  */
 class BpReadingSyncMapper(
     private val bpDao: BpDao,
     private val syncDao: SyncDao,
+    /**
+     * Resolves the owner member id for inbound records that arrive without a
+     * memberId (old peers / pre-v18 backups). Defaults to "" so the existing
+     * unit tests and any caller that predates multi-member compile unchanged;
+     * production wires [com.silverbp.android.core.member.MemberRepository.ownerId].
+     */
+    private val ownerIdProvider: suspend () -> String = { "" },
 ) : SyncRecordMapper<BpReadingEntity> {
 
     private object Field {
@@ -59,6 +72,7 @@ class BpReadingSyncMapper(
         const val MEDICATION_ID = 14
         const val CREATED_AT_MS = 15
         const val UPDATED_AT_MS = 16
+        const val MEMBER_ID = 17
     }
 
     override fun encode(entity: BpReadingEntity, hlc: Hlc): SyncRecord {
@@ -79,6 +93,7 @@ class BpReadingSyncMapper(
             Field.MEDICATION_ID to (entity.medicationId?.let { SyncValue.Text(it) } ?: SyncValue.Null),
             Field.CREATED_AT_MS to SyncValue.Int64(entity.createdAt),
             Field.UPDATED_AT_MS to SyncValue.Int64(entity.updatedAt),
+            Field.MEMBER_ID to SyncValue.Text(entity.memberId),
         )
         return SyncRecord(
             type = SyncEntityType.BP_READING,
@@ -123,6 +138,12 @@ class BpReadingSyncMapper(
             note = extractString(p, Field.NOTE),
             irregularHeartbeat = extractBool(p, Field.IRREGULAR_HEARTBEAT),
             medicationId = optionalString(p, Field.MEDICATION_ID),
+            // Tag 17 (v18). Absent / blank on a pre-v18 peer or backup → resolve
+            // to the owner so the reading isn't orphaned outside every
+            // member-scoped query.
+            memberId = optionalString(p, Field.MEMBER_ID)
+                ?.takeIf { it.isNotBlank() }
+                ?: ownerIdProvider(),
             createdAt = extractInt(p, Field.CREATED_AT_MS),
             updatedAt = extractInt(p, Field.UPDATED_AT_MS),
             hlcUpdatedAt = record.hlc.packed,

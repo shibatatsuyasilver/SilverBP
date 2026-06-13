@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
+import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.components.BpReadingValue
 import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.components.StandardCard
@@ -57,6 +58,9 @@ fun TodayScreen(
     onCapture: () -> Unit,
     onAddManual: () -> Unit,
     onOpenSettings: () -> Unit,
+    // Default no-op so AppNavHost compiles unchanged until it wires the
+    // MEMBER_MANAGE navigation (the chip self-hides for single-member installs).
+    onManageMembers: () -> Unit = {},
     vm: TodayViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -74,6 +78,7 @@ fun TodayScreen(
                     }
                 },
                 actions = {
+                    MemberSwitcherChip(onManageMembers = onManageMembers)
                     IconButton(onClick = onCapture) {
                         Icon(
                             Icons.Filled.AddCircle,

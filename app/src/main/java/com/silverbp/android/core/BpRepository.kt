@@ -3,6 +3,7 @@ package com.silverbp.android.core
 import com.silverbp.android.core.db.BpDao
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.health.HealthConnectBpBridge
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -11,24 +12,47 @@ import java.util.UUID
 
 class BpRepository(
     private val dao: BpDao,
+    private val members: MemberRepository,
     private val healthConnect: HealthConnectBpBridge? = null,
     /** Coarse on/off for the Health Connect mirror; defaults off for tests. */
     private val healthConnectEnabled: suspend () -> Boolean = { false },
 ) {
 
-    fun observeLatest(): Flow<BpReading?> = dao.observeLatest().map { it?.toDomain() }
+    // ============================================================
+    // Member-scoped reads (v18) — the primary API.
+    // ============================================================
 
-    fun observeAll(): Flow<List<BpReading>> = dao.observeAll().map { list -> list.map { it.toDomain() } }
+    fun observeLatest(memberId: String): Flow<BpReading?> =
+        dao.observeLatest(memberId).map { it?.toDomain() }
 
-    fun observeRange(from: Instant, to: Instant): Flow<List<BpReading>> =
-        dao.observeRange(from.toEpochMilli(), to.toEpochMilli()).map { list -> list.map { it.toDomain() } }
+    fun observeAll(memberId: String): Flow<List<BpReading>> =
+        dao.observeAll(memberId).map { list -> list.map { it.toDomain() } }
+
+    fun observeRange(memberId: String, from: Instant, to: Instant): Flow<List<BpReading>> =
+        dao.observeRange(memberId, from.toEpochMilli(), to.toEpochMilli())
+            .map { list -> list.map { it.toDomain() } }
+
+    suspend fun count(memberId: String): Int = dao.count(memberId)
+
+    /**
+     * The device owner's member id. Owner-only consumers (Coach, Chat context,
+     * exercise/workout BP gates, the anomaly watcher — none of which are
+     * member-scoped in Phase 1) call this to scope their reads explicitly
+     * instead of relying on a magic un-scoped query.
+     */
+    suspend fun ownerId(): String = members.ownerId()
 
     suspend fun findById(id: UUID): BpReading? = dao.findById(id.toString())?.toDomain()
 
     suspend fun upsert(reading: BpReading) {
         val now = Instant.now()
         val existing = dao.findById(reading.id.toString())
+        // Empty memberId (legacy drafts) resolves to the owner so a reading is
+        // never stranded without an owner.
+        val ownerId = members.ownerId()
+        val memberId = reading.memberId.ifBlank { ownerId }
         val toSave = reading.copy(
+            memberId = memberId,
             updatedAt = now,
             createdAt = if (existing == null) now else reading.createdAt,
             // Keep any prior mirror id the caller didn't carry, so editing an
@@ -43,7 +67,14 @@ class BpRepository(
         // settings read can't throw out of here. On success we stamp the returned
         // record id back so [com.silverbp.android.health.BpSyncWorker] knows this
         // one is done and won't retry it (mirrors ExerciseRepository.upsert).
-        if (healthConnect != null && runCatching { healthConnectEnabled() }.getOrDefault(false)) {
+        //
+        // Owner-only guard (roadmap §3-5): a family member's BP must NOT be
+        // written into the device owner's Google Health — that's a correctness /
+        // privacy bug. Non-owner rows stay hcRecordId == null by design.
+        if (memberId == ownerId &&
+            healthConnect != null &&
+            runCatching { healthConnectEnabled() }.getOrDefault(false)
+        ) {
             val hcId = healthConnect.write(toSave)
             if (hcId != null && hcId != toSave.hcRecordId) {
                 dao.update(toSave.copy(hcRecordId = hcId, updatedAt = Instant.now()).toEntity())
@@ -52,6 +83,4 @@ class BpRepository(
     }
 
     suspend fun delete(id: UUID) = dao.delete(id.toString())
-
-    suspend fun count(): Int = dao.count()
 }

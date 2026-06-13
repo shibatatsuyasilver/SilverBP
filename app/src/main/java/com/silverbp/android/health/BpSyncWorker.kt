@@ -44,7 +44,14 @@ class BpSyncWorker(
         }
 
         val dao = ServiceLocator.database.bpDao()
-        val pending = runCatching { dao.findUnmirrored() }.getOrElse {
+        // Only the owner's readings are ever mirrored (roadmap §3-5); scope the
+        // retry set to the owner so non-owner rows (hcRecordId null by design)
+        // aren't repeatedly re-attempted.
+        val ownerId = runCatching { ServiceLocator.memberRepository.ownerId() }.getOrElse {
+            Log.w(TAG, "[BpSync] owner lookup failed; will retry", it)
+            return Result.retry()
+        }
+        val pending = runCatching { dao.findUnmirrored(ownerId) }.getOrElse {
             Log.w(TAG, "[BpSync] query failed; will retry", it)
             return Result.retry()
         }

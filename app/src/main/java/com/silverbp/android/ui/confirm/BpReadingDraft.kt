@@ -27,6 +27,12 @@ data class BpReadingDraft(
     val photo: Bitmap? = null,
     val photoFilename: String? = null,
     val source: Source = Source.Manual,
+    /**
+     * Member this reading is attributed to (v18). Defaults to the current
+     * selection when a new draft is created; empty resolves to the owner in
+     * [com.silverbp.android.core.BpRepository.upsert].
+     */
+    val memberId: String = "",
 ) {
     val isValid: Boolean
         get() = systolic in 61..259 && diastolic in 31..159 && diastolic < systolic
@@ -36,7 +42,7 @@ data class BpReadingDraft(
         timestamp = timestamp, arm = arm, posture = posture, partOfDay = partOfDay,
         beforeMedication = beforeMedication, irregularHeartbeat = irregularHeartbeat,
         confidence = confidence, note = note, photoFilename = photoFilename ?: this.photoFilename,
-        source = source,
+        source = source, memberId = memberId,
     )
 
     companion object {
@@ -45,7 +51,7 @@ data class BpReadingDraft(
             timestamp = r.timestamp, arm = r.arm, posture = r.posture, partOfDay = r.partOfDay,
             beforeMedication = r.beforeMedication, irregularHeartbeat = r.irregularHeartbeat,
             confidence = r.confidence, note = r.note, photoFilename = r.photoFilename,
-            source = r.source,
+            source = r.source, memberId = r.memberId,
         )
     }
 }

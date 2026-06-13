@@ -1,0 +1,19 @@
+<resources>
+
+    <!-- Member management screen + editor sheet (v18). Keys here are ONLY the
+         ones not already in strings_member.xml. Switcher/owner/editor-field
+         strings live there; this file adds the management-list-specific copy. -->
+
+    <!-- Reorder controls (icon-only — contentDescription required, audit M31) -->
+    <string name="member_move_up">Move up</string>
+    <string name="member_move_down">Move down</string>
+
+    <!-- Editor sheet field hints -->
+    <string name="member_name_placeholder">e.g. Grandma</string>
+    <string name="member_birth_year_placeholder">e.g. 1948</string>
+    <string name="member_birth_year_invalid">Enter a 4-digit year</string>
+
+    <!-- List affordances -->
+    <string name="member_manage_hint">Add the family members you care for. Each keeps their own readings, charts and reports.</string>
+
+</resources>

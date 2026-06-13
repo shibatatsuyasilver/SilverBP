@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.di.ServiceLocator
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -53,15 +56,17 @@ data class DayGroup(
     val meanDiastolic: Int,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModel(
     private val repo: BpRepository = ServiceLocator.bpRepository,
+    private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(DateRange.All)
     private val sortFlow = MutableStateFlow(SortOrder.Newest)
 
     val state: StateFlow<HistoryUiState> = combine(
-        repo.observeAll(),
+        currentMember.flow.flatMapLatest { repo.observeAll(it) },
         rangeFlow,
         sortFlow,
     ) { all, range, sort ->

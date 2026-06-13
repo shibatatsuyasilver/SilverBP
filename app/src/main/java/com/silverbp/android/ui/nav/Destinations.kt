@@ -91,6 +91,10 @@ object Routes {
     fun nutritionConfirmEdit(id: String) = "nutrition/confirm/$id"
     const val NUTRITION_BARCODE = "nutrition/barcode"
 
+    // Family-member management (v18) — opened from a Settings card. Screen comes
+    // in a later iteration; this is the route constant the editor/list will use.
+    const val MEMBER_MANAGE = "member/manage"
+
     // Cross-device sync pairing — opened from SettingsScreen's "跨裝置同步" row.
     const val SYNC_PAIRING = "sync/pairing"
 

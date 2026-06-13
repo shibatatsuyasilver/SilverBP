@@ -38,6 +38,15 @@ class BackupManager(
     private val appVersionName: String,
     private val appVersionCode: Int,
     private val schemaVersion: Int,
+    /**
+     * Ensures an owner member exists and returns its id. Wired to
+     * [com.silverbp.android.core.member.MemberRepository.ownerId], which
+     * synthesises an owner if the table is empty. Called on import of a pre-v18
+     * (member-less) backup so the owner is present before BP/medication records
+     * resolve their absent memberId to it. Defaults to a no-op for the legacy
+     * test constructor.
+     */
+    private val ensureOwnerId: suspend () -> String = { "" },
 ) {
 
     sealed class Phase {
@@ -117,7 +126,8 @@ class BackupManager(
             // 2. 編碼明文載荷.
             _exportPhase.value = Phase.Encoding(0.5f)
             val manifest = BackupCodec.Manifest(
-                manifestVersion = 1,
+                // v2 = v18 家人成員格式(含 MEMBER record + memberId 欄位)。
+                manifestVersion = 2,
                 sourcePlatform = "android",
                 schemaVersion = schemaVersion,
                 hlcNodeIdHex = localNodeIdHex,
@@ -232,9 +242,17 @@ class BackupManager(
             val sink = sinkFactory()
             var appliedCount = 0
             var skippedCount = 0
+            // 向後相容:pre-v18 備份沒有 MEMBER record。確保 owner 成員存在,讓
+            // 無 memberId 的 BP/用藥列在 apply 時能解析成 owner(否則會落在
+            // 任何 member-scoped 查詢都看不到的空 memberId 上)。Replace 模式下這
+            // 要在 clearSyncTables 之後執行,所以放進同一個 transaction。
+            val hasMemberRecords = records.any { it.type == SyncEntityType.MEMBER }
             database.withTransaction {
                 if (mode == ImportMode.Replace) {
                     clearSyncTables()
+                }
+                if (!hasMemberRecords) {
+                    ensureOwnerId()
                 }
                 for (record in records) {
                     try {
@@ -292,7 +310,7 @@ class BackupManager(
         entropy.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
 
     /**
-     * Replace 模式: 清空 22 個 sync 表 + tombstones.
+     * Replace 模式: 清空 23 個 sync 表 + tombstones.
      * 不碰 sync_device / sync_outbox(LAN 配對狀態) 與 user_settings DataStore.
      *
      * 呼叫端([import])已經在 Room withTransaction 內,這裡不再自己開
@@ -324,6 +342,10 @@ class BackupManager(
         db.execSQL("DELETE FROM chat_session")
         db.execSQL("DELETE FROM bp_reading")
         db.execSQL("DELETE FROM user_profile")
+        // member (v18) — cleared like any other sync table; the owner is then
+        // restored from the backup's MEMBER records, or synthesised by
+        // [ensureOwnerId] when importing a pre-v18 (member-less) backup.
+        db.execSQL("DELETE FROM member")
         db.execSQL("DELETE FROM tombstone")
     }
 

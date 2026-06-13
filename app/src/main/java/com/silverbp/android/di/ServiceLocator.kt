@@ -14,6 +14,8 @@ import com.silverbp.android.coach.TodayExerciseTaskGenerator
 import com.silverbp.android.recognition.chat.ChatRecognizerFactory
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.db.SilverBpDatabase
+import com.silverbp.android.core.member.CurrentMemberStore
+import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.exercise.ExerciseController
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSessionLiveStore
@@ -63,6 +65,7 @@ import com.silverbp.android.sync.ExerciseSessionSyncMapper
 import com.silverbp.android.sync.MedicationDoseSyncMapper
 import com.silverbp.android.sync.MedicationScheduleSyncMapper
 import com.silverbp.android.sync.MedicationSyncMapper
+import com.silverbp.android.sync.MemberSyncMapper
 import com.silverbp.android.sync.RoutePointSyncMapper
 import com.silverbp.android.sync.SyncCoordinator
 import com.silverbp.android.sync.pairing.EncryptedPairingKeyStore
@@ -104,9 +107,21 @@ object ServiceLocator {
 
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 
+    /** Member (family) profiles + the single-owner invariant; anchor for the HC mirror guard. */
+    val memberRepository: MemberRepository by lazy { MemberRepository(database.memberDao()) }
+
+    /**
+     * Currently-selected member, persisted device-locally (NOT in settings sync).
+     * Falls back to the owner when unset; survives process death.
+     */
+    val currentMemberStore: CurrentMemberStore by lazy {
+        CurrentMemberStore(context, memberRepository)
+    }
+
     val bpRepository: BpRepository by lazy {
         BpRepository(
             dao = database.bpDao(),
+            members = memberRepository,
             healthConnect = healthConnectBpBridge,
             // Coarse gate: only mirror to Health Connect when the user has the
             // integration switched on. The bridge still independently checks
@@ -253,7 +268,15 @@ object ServiceLocator {
      * Room entities; everything below it is platform-neutral.
      */
     val bpReadingSyncMapper: BpReadingSyncMapper by lazy {
-        BpReadingSyncMapper(database.bpDao(), database.syncDao())
+        BpReadingSyncMapper(
+            database.bpDao(),
+            database.syncDao(),
+            ownerIdProvider = { memberRepository.ownerId() },
+        )
+    }
+
+    val memberSyncMapper: MemberSyncMapper by lazy {
+        MemberSyncMapper(database.memberDao(), database.syncDao())
     }
 
     /** Phase 2 mappers — exercise + medication. Same lifetime/scope rules as
@@ -268,7 +291,11 @@ object ServiceLocator {
     }
 
     val medicationSyncMapper: MedicationSyncMapper by lazy {
-        MedicationSyncMapper(database.medicationDao(), database.syncDao())
+        MedicationSyncMapper(
+            database.medicationDao(),
+            database.syncDao(),
+            ownerIdProvider = { memberRepository.ownerId() },
+        )
     }
 
     val medicationScheduleSyncMapper: MedicationScheduleSyncMapper by lazy {
@@ -426,6 +453,8 @@ object ServiceLocator {
                     bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
                     foodLogDao = database.foodLogDao(),
                     foodLogMapper = foodLogSyncMapper,
+                    memberDao = database.memberDao(),
+                    memberMapper = memberSyncMapper,
                 )
             },
             sinkFactory = {
@@ -450,6 +479,10 @@ object ServiceLocator {
                     settingsKvMapper = settingsKvSyncMapper,
                     bpWorkoutAssociationMapper = bpWorkoutAssociationSyncMapper,
                     foodLogMapper = foodLogSyncMapper,
+                    memberMapper = memberSyncMapper,
+                    // B6 LWW gate: import compares record.hlc vs the local row's
+                    // hlcUpdatedAt + tombstone hlc before applying.
+                    syncDao = database.syncDao(),
                 )
             },
             settingsKvMapper = settingsKvSyncMapper,
@@ -459,7 +492,10 @@ object ServiceLocator {
             appVersionCode = BuildConfig.VERSION_CODE,
             // Room schema version — keep in lock-step with SilverBpDatabase.
             // 升 schema 時改這裡(備份檔頭會記下,匯入時做相容處理).
-            schemaVersion = 16,
+            schemaVersion = 18,
+            // 向後相容:匯入 pre-v18 (無 member 表) 備份時合成 owner,
+            // 讓無 memberId 的讀數歸 owner。
+            ensureOwnerId = { memberRepository.ownerId() },
         )
     }
 }

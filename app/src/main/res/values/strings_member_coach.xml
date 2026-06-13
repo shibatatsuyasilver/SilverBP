@@ -1,0 +1,9 @@
+<resources>
+
+    <!-- Member-aware medication reminder copy (v18). Used only when the
+         medication belongs to a NON-owner family member; the owner's own
+         medications keep the unchanged copy in strings.xml. %1$s = member
+         display name, %2$s = medication name. -->
+    <string name="medication_reminder_notification_title_member">Time for %1$s to take %2$s</string>
+
+</resources>

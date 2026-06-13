@@ -37,6 +37,7 @@ class BpReadingSyncMapperTest {
         note = "晚餐後一小時",
         irregularHeartbeat = true,
         medicationId = "11111111-2222-3333-4444-555555555555",
+        memberId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
         createdAt = 1_730_000_000_500L,
         updatedAt = 1_730_000_001_000L,
         hlcUpdatedAt = "0".repeat(32),
@@ -71,6 +72,42 @@ class BpReadingSyncMapperTest {
         assertEquals(SyncValue.Text("11111111-2222-3333-4444-555555555555"), p[14])
         assertEquals(SyncValue.Int64(1_730_000_000_500L), p[15])
         assertEquals(SyncValue.Int64(1_730_000_001_000L), p[16])
+        // tag 17 — v18 owning member id.
+        assertEquals(SyncValue.Text("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), p[17])
+    }
+
+    @Test
+    fun apply_carries_memberId_when_present() = runTest {
+        val bpDao = FakeBpDao()
+        val mapper = BpReadingSyncMapper(bpDao, FakeSyncDao()) // owner provider unused
+        val hlc = Hlc.of(1_730_000_001_000L, 0, 0xABCDL)
+        mapper.apply(mapper.encode(fixture(), hlc))
+        assertEquals("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", bpDao.findById(fixture().id)?.memberId)
+    }
+
+    @Test
+    fun apply_resolves_absent_memberId_to_owner() = runTest {
+        // A pre-v18 peer / backup sends no tag-17 field → resolve to owner.
+        val bpDao = FakeBpDao()
+        val mapper = BpReadingSyncMapper(
+            bpDao,
+            FakeSyncDao(),
+            ownerIdProvider = { "owner-id-1" },
+        )
+        val rec = SyncRecord(
+            type = SyncEntityType.BP_READING,
+            pk = fixture().id,
+            hlc = Hlc.of(1_730_000_001_000L, 0, 0xABCDL),
+            deletedAt = null,
+            payload = mapOf(
+                1 to SyncValue.Int64(120),
+                2 to SyncValue.Int64(78),
+                4 to SyncValue.Int64(1_730_000_000_000L),
+                // no tag 17
+            ),
+        )
+        mapper.apply(rec)
+        assertEquals("owner-id-1", bpDao.findById(fixture().id)?.memberId)
     }
 
     @Test
@@ -146,13 +183,24 @@ class BpReadingSyncMapperTest {
             flowOf(rows.values.sortedByDescending { it.timestamp })
         override fun observeRange(from: Long, to: Long): Flow<List<BpReadingEntity>> =
             flowOf(rows.values.filter { it.timestamp in from..to }.sortedBy { it.timestamp })
+        override fun observeLatest(memberId: String): Flow<BpReadingEntity?> =
+            flowOf(rows.values.filter { it.memberId == memberId }.maxByOrNull { it.timestamp })
+        override fun observeAll(memberId: String): Flow<List<BpReadingEntity>> =
+            flowOf(rows.values.filter { it.memberId == memberId }.sortedByDescending { it.timestamp })
+        override fun observeRange(memberId: String, from: Long, to: Long): Flow<List<BpReadingEntity>> =
+            flowOf(
+                rows.values.filter { it.memberId == memberId && it.timestamp in from..to }
+                    .sortedBy { it.timestamp },
+            )
+        override suspend fun count(memberId: String): Int =
+            rows.values.count { it.memberId == memberId }
         override suspend fun findById(id: String): BpReadingEntity? = rows[id]
         override suspend fun insert(r: BpReadingEntity) { rows[r.id] = r }
         override suspend fun update(r: BpReadingEntity) { rows[r.id] = r }
         override suspend fun delete(id: String) { rows.remove(id) }
         override suspend fun count(): Int = rows.size
-        override suspend fun findUnmirrored(): List<BpReadingEntity> =
-            rows.values.filter { it.hcRecordId == null }
+        override suspend fun findUnmirrored(ownerId: String): List<BpReadingEntity> =
+            rows.values.filter { it.hcRecordId == null && it.memberId == ownerId }
     }
 
     private class FakeSyncDao : SyncDao {
@@ -164,6 +212,7 @@ class BpReadingSyncMapperTest {
         override suspend fun upsertTombstone(tombstone: TombstoneEntity) {
             tombstones[tombstone.entityType to tombstone.pk] = tombstone
         }
+        override suspend fun rawHlc(query: androidx.sqlite.db.SupportSQLiteQuery): String? = null
         override suspend fun tombstoneFor(entityType: String, pk: String): TombstoneEntity? =
             tombstones[entityType to pk]
         override suspend fun tombstonesSince(sinceHlc: String): List<TombstoneEntity> =

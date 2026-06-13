@@ -248,6 +248,7 @@ class StrengthSyncMappersTest {
         override suspend fun upsertTombstone(tombstone: TombstoneEntity) {
             tombstones[tombstone.entityType to tombstone.pk] = tombstone
         }
+        override suspend fun rawHlc(query: androidx.sqlite.db.SupportSQLiteQuery): String? = null
         override suspend fun tombstoneFor(entityType: String, pk: String): TombstoneEntity? =
             tombstones[entityType to pk]
         override suspend fun tombstonesSince(sinceHlc: String): List<TombstoneEntity> =

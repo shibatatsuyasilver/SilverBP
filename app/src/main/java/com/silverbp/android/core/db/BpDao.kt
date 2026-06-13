@@ -18,6 +18,23 @@ interface BpDao {
     @Query("SELECT * FROM bp_reading WHERE timestamp BETWEEN :from AND :to ORDER BY timestamp ASC")
     fun observeRange(from: Long, to: Long): Flow<List<BpReadingEntity>>
 
+    // --- Member-scoped variants (v18). Use the (memberId, timestamp) index. ---
+
+    @Query("SELECT * FROM bp_reading WHERE memberId = :memberId ORDER BY timestamp DESC LIMIT 1")
+    fun observeLatest(memberId: String): Flow<BpReadingEntity?>
+
+    @Query("SELECT * FROM bp_reading WHERE memberId = :memberId ORDER BY timestamp DESC")
+    fun observeAll(memberId: String): Flow<List<BpReadingEntity>>
+
+    @Query(
+        "SELECT * FROM bp_reading WHERE memberId = :memberId AND timestamp BETWEEN :from AND :to " +
+            "ORDER BY timestamp ASC",
+    )
+    fun observeRange(memberId: String, from: Long, to: Long): Flow<List<BpReadingEntity>>
+
+    @Query("SELECT COUNT(*) FROM bp_reading WHERE memberId = :memberId")
+    suspend fun count(memberId: String): Int
+
     @Query("SELECT * FROM bp_reading WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): BpReadingEntity?
 
@@ -33,9 +50,16 @@ interface BpDao {
     @Query("SELECT COUNT(*) FROM bp_reading")
     suspend fun count(): Int
 
-    /** Readings not yet mirrored to Health Connect — the retry/backfill set. */
-    @Query("SELECT * FROM bp_reading WHERE hcRecordId IS NULL ORDER BY timestamp ASC")
-    suspend fun findUnmirrored(): List<BpReadingEntity>
+    /**
+     * Readings not yet mirrored to Health Connect — the retry/backfill set.
+     * Scoped to the owner: only the owner's BP is ever mirrored, so non-owner
+     * rows (which stay `hcRecordId == null` by design) must not be retried.
+     */
+    @Query(
+        "SELECT * FROM bp_reading WHERE hcRecordId IS NULL AND memberId = :ownerId " +
+            "ORDER BY timestamp ASC",
+    )
+    suspend fun findUnmirrored(ownerId: String): List<BpReadingEntity>
 }
 
 @Dao
@@ -54,6 +78,14 @@ interface MedicationDao {
 
     @Query("SELECT * FROM medication WHERE kind = :kind ORDER BY name ASC")
     fun observeByKind(kind: String): Flow<List<MedicationEntity>>
+
+    /**
+     * Member-scoped list for the medication management UI (v18). Reminder
+     * enumeration stays global (all members) — this phone is the household care
+     * hub — so [observeAll] is kept for the scheduler/sync paths.
+     */
+    @Query("SELECT * FROM medication WHERE memberId = :memberId ORDER BY name ASC")
+    fun observeForMember(memberId: String): Flow<List<MedicationEntity>>
 
     @Query("SELECT * FROM medication WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): MedicationEntity?

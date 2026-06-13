@@ -5,7 +5,10 @@ import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.db.BpDao
 import com.silverbp.android.core.db.BpReadingEntity
+import com.silverbp.android.core.db.MemberDao
+import com.silverbp.android.core.db.MemberEntity
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.recognition.chat.ChatRecognizer
@@ -344,23 +347,51 @@ class TodayExerciseTaskGeneratorTest {
     )
 
     private fun fakeBpRepo(readings: List<BpReading>): BpRepository =
-        BpRepository(object : BpDao {
-            override fun observeRange(from: Long, to: Long): Flow<List<BpReadingEntity>> =
-                flowOf(
-                    readings
-                        .filter { it.timestamp.toEpochMilli() in from..to }
-                        .map { it.toEntity() },
-                )
+        BpRepository(
+            object : BpDao {
+                // bpGateHint() now reads the owner-scoped overload (it resolves
+                // the owner via BpRepository.ownerId()), so the filter lives here.
+                override fun observeRange(memberId: String, from: Long, to: Long): Flow<List<BpReadingEntity>> =
+                    flowOf(
+                        readings
+                            .filter { it.timestamp.toEpochMilli() in from..to }
+                            .map { it.toEntity() },
+                    )
 
-            override fun observeLatest() = error("unused")
-            override fun observeAll() = error("unused")
-            override suspend fun findById(id: String): BpReadingEntity? = error("unused")
-            override suspend fun insert(r: BpReadingEntity) = error("unused")
-            override suspend fun update(r: BpReadingEntity) = error("unused")
-            override suspend fun delete(id: String) = error("unused")
-            override suspend fun count(): Int = error("unused")
-            override suspend fun findUnmirrored() = error("unused")
-        })
+                override fun observeRange(from: Long, to: Long) = error("unused")
+                override fun observeLatest() = error("unused")
+                override fun observeAll() = error("unused")
+                override fun observeLatest(memberId: String) = error("unused")
+                override fun observeAll(memberId: String) = error("unused")
+                override suspend fun count(memberId: String): Int = error("unused")
+                override suspend fun findById(id: String): BpReadingEntity? = error("unused")
+                override suspend fun insert(r: BpReadingEntity) = error("unused")
+                override suspend fun update(r: BpReadingEntity) = error("unused")
+                override suspend fun delete(id: String) = error("unused")
+                override suspend fun count(): Int = error("unused")
+                override suspend fun findUnmirrored(ownerId: String) = error("unused")
+            },
+            members = MemberRepository(FakeOwnerMemberDao()),
+        )
+
+    /** Minimal MemberDao that always resolves a single stable owner. */
+    private class FakeOwnerMemberDao : MemberDao {
+        private val owner = MemberEntity(
+            id = "owner-test", displayName = "", isOwner = true, birthYear = null,
+            hasDiabetes = false, hasCKD = false, hasASCVD = false, guideline = "taiwan2022",
+            colorIndex = 0, sortOrder = 0, archived = false, createdAt = 0, updatedAt = 0,
+        )
+        override fun observeActive() = flowOf(listOf(owner))
+        override suspend fun getAll() = listOf(owner)
+        override suspend fun getOwner() = owner
+        override suspend fun findById(id: String) = owner.takeIf { it.id == id }
+        override suspend fun upsert(m: MemberEntity) = Unit
+        override suspend fun archive(id: String, now: Long) = Unit
+        override suspend fun unarchive(id: String, now: Long) = Unit
+        override suspend fun updateSortOrder(id: String, sortOrder: Int, now: Long) = Unit
+        override suspend fun count() = 1
+        override suspend fun deleteById(id: String) = Unit
+    }
 
     private fun fakeRecognizer(response: String, ready: Boolean = true) = object : ChatRecognizer {
         override fun isReady(): Boolean = ready

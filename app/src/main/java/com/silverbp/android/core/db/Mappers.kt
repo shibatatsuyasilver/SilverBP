@@ -4,6 +4,7 @@ import com.silverbp.android.core.Arm
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.Medication
+import com.silverbp.android.core.Member
 import com.silverbp.android.core.PartOfDay
 import com.silverbp.android.core.Posture
 import com.silverbp.android.core.Source
@@ -32,6 +33,7 @@ fun BpReading.toEntity() = BpReadingEntity(
     note = note,
     irregularHeartbeat = irregularHeartbeat,
     medicationId = medicationId?.toString(),
+    memberId = memberId,
     createdAt = createdAt.toEpochMilli(),
     updatedAt = updatedAt.toEpochMilli(),
     hcRecordId = hcRecordId,
@@ -53,6 +55,7 @@ fun BpReadingEntity.toDomain() = BpReading(
     note = note,
     irregularHeartbeat = irregularHeartbeat,
     medicationId = medicationId?.let(UUID::fromString),
+    memberId = memberId,
     createdAt = Instant.ofEpochMilli(createdAt),
     updatedAt = Instant.ofEpochMilli(updatedAt),
     hcRecordId = hcRecordId,
@@ -72,6 +75,38 @@ fun UserProfileEntity.toDomain() = UserProfile(
 
 fun Medication.toEntity() = MedicationEntity(id = id.toString(), name = name, dose = dose)
 fun MedicationEntity.toDomain() = Medication(id = UUID.fromString(id), name = name, dose = dose)
+
+fun Member.toEntity() = MemberEntity(
+    id = id.toString(),
+    displayName = displayName,
+    isOwner = isOwner,
+    birthYear = birthYear,
+    hasDiabetes = hasDiabetes,
+    hasCKD = hasCKD,
+    hasASCVD = hasASCVD,
+    guideline = guideline.raw,
+    colorIndex = colorIndex,
+    sortOrder = sortOrder,
+    archived = archived,
+    createdAt = createdAt.toEpochMilli(),
+    updatedAt = updatedAt.toEpochMilli(),
+)
+
+fun MemberEntity.toDomain() = Member(
+    id = UUID.fromString(id),
+    displayName = displayName,
+    isOwner = isOwner,
+    birthYear = birthYear,
+    hasDiabetes = hasDiabetes,
+    hasCKD = hasCKD,
+    hasASCVD = hasASCVD,
+    guideline = HypertensionGuideline.fromRaw(guideline),
+    colorIndex = colorIndex,
+    sortOrder = sortOrder,
+    archived = archived,
+    createdAt = Instant.ofEpochMilli(createdAt),
+    updatedAt = Instant.ofEpochMilli(updatedAt),
+)
 fun Tag.toEntity() = TagEntity(id = id.toString(), name = name)
 fun TagEntity.toDomain() = Tag(id = UUID.fromString(id), name = name)
 

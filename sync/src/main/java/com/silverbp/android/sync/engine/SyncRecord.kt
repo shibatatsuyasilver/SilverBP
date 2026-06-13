@@ -7,6 +7,10 @@ package com.silverbp.android.sync.engine
  *
  * Phase 1 only emits [BP_READING], [READING_TAG], [TAG], [MEDICATION] and
  * [USER_PROFILE]; the remaining tags are reserved for Phase 2.
+ *
+ * [MEMBER] (tag 23) is the v18 family-member table — next free tag after the
+ * 1–22 + 64/65 already in use. iOS BPCoach must mirror it 1:1 when it adopts
+ * multi-member.
  */
 enum class SyncEntityType(val tag: Int, val tableName: String) {
     BP_READING(1, "bp_reading"),
@@ -31,6 +35,7 @@ enum class SyncEntityType(val tag: Int, val tableName: String) {
     SET_LOG(20, "set_log"),
     BP_WORKOUT_ASSOCIATION(21, "bp_workout_association"),
     FOOD_LOG(22, "food_log"),
+    MEMBER(23, "member"),
     SETTINGS_KV(64, "settings_kv"),
     BLOB_META(65, "blob_meta");
 
