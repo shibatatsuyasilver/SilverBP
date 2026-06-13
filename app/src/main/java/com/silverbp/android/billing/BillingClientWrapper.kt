@@ -162,23 +162,30 @@ class BillingClientWrapper(
     // Purchases
     // ============================================================
 
-    override suspend fun queryActiveSubscriptions(): List<Purchase> {
-        if (!ensureConnected()) return emptyList()
+    override suspend fun queryActiveSubscriptions(): List<Purchase>? {
+        // Connection unavailable → null ("could NOT query"), NOT empty ("no subs").
+        // The manager keeps the last-known cache on null so a transient Play hiccup
+        // never downgrades a paying subscriber to Free (finding round 1, #1).
+        if (!ensureConnected()) return null
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
-        val purchases: List<Purchase> = suspendCancellableCoroutine { cont ->
+        // null = query came back non-OK (couldn't determine); empty list = OK with
+        // no active subs. Distinguished so refresh() only persists a downgrade to
+        // Free on a CONFIRMED OK query that genuinely returned zero subs.
+        val queried: List<Purchase>? = suspendCancellableCoroutine { cont ->
             client.queryPurchasesAsync(params) { result, list ->
                 if (!cont.isActive) return@queryPurchasesAsync
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                     cont.resume(list)
                 } else {
-                    Log.i(TAG, "[Billing] queryPurchases empty: ${result.responseCode} ${result.debugMessage}")
-                    cont.resume(emptyList())
+                    Log.i(TAG, "[Billing] queryPurchases unavailable: ${result.responseCode} ${result.debugMessage}")
+                    cont.resume(null)
                 }
             }
         }
+        val purchases: List<Purchase> = queried ?: return null
         // Opportunistically acknowledge anything that completed while we were
         // away (e.g. purchased on another device, restored here), and surface
         // the live set so a manual refresh updates UI immediately.
