@@ -71,8 +71,10 @@ data class MemberSeries(
 
 /**
  * Lightweight metadata for one active member, used to render the compare
- * multi-select chips before any member is selected. [color] is the member's
- * own palette colour (NOT collision-reassigned — chips are labelled by name).
+ * multi-select chips. [color] is the member's own palette colour as produced by
+ * [activeMembersState]; the [state] combine then overrides it with the matching
+ * [MemberSeries.color] (collision-reassigned) for any member that is in the
+ * current series, so a selected chip's dot always matches its chart line.
  */
 data class ActiveMember(
     val id: UUID,
@@ -199,11 +201,23 @@ class InsightsViewModel(
         seriesState,
         combine(activeMembersState, selectedMemberIdsFlow) { a, s -> a to s },
     ) { single, compareMode, metric, series, (activeMembers, selectedIds) ->
+        // Chip colour MUST agree with the chart line / legend / stats dot, which use
+        // the collision-reassigned MemberSeries.color (see buildSeries). The raw
+        // ActiveMember.color is pre-reassignment, so resolve each selected chip's dot
+        // from the series by memberId; members not yet in series (unselected, or
+        // before the readings stream settles) keep their own palette colour — they
+        // have no line to disagree with. Only matters when comparing.
+        val chipMembers = if (compareMode && series.isNotEmpty()) {
+            val seriesColor = series.associate { it.memberId to it.color }
+            activeMembers.map { m -> seriesColor[m.id]?.let { m.copy(color = it) } ?: m }
+        } else {
+            activeMembers
+        }
         single.copy(
             compareMode = compareMode,
             compareMetric = metric,
             series = if (compareMode) series else emptyList(),
-            activeMembers = activeMembers,
+            activeMembers = chipMembers,
             selectedMemberIds = selectedIds,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InsightsUiState())
