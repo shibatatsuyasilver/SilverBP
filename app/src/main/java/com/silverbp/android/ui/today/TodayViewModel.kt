@@ -15,13 +15,18 @@ import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.ModelLoadStatus
 import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -74,25 +79,50 @@ class TodayViewModel(
         }
     }
 
-    // Today's window, recomputed per emission so it tracks the wall clock: a
-    // reading saved just after midnight (a fresh DB emission) re-derives the
-    // boundary, so "today" resets to the new calendar day. todayStart = system-tz
-    // 00:00; the upper bound is "now" (we never show future-dated rows).
-    private fun todayStart(): Instant = LocalDate.now(zone).atStartOfDay(zone).toInstant()
+    // Wall-clock day ticker (round-1 fix #1). Room's observeRange re-emits on
+    // table changes but with the *fixed* from/to args it was first called with —
+    // it does NOT re-evaluate the calendar boundary. So when the Today screen
+    // stays continuously subscribed across midnight, a window pinned to member
+    // emissions would freeze on yesterday (stale title; a 00:30 reading falls
+    // outside the frozen `to=now` and vanishes). Driving the window off this tick
+    // — which re-emits whenever the system-tz day rolls over (and, defensively,
+    // at least once a minute) — makes `today`, `todayStart`, and `to=now`
+    // re-derive on the day change while subscribed, without changing the
+    // member-scoped / today-scoped semantics. distinctUntilChanged collapses the
+    // sub-minute polls so we only restart the downstream queries on an actual
+    // date change.
+    private val dayTicker: Flow<LocalDate> = flow {
+        while (true) {
+            val today = LocalDate.now(zone)
+            emit(today)
+            // Sleep until the next system-tz midnight, capped at one minute so a
+            // device clock/time-zone jump is picked up promptly too.
+            val nextMidnight = today.plusDays(1).atStartOfDay(zone).toInstant()
+            val untilMidnightMs = Duration.between(Instant.now(), nextMidnight).toMillis()
+            delay(untilMidnightMs.coerceIn(1L, 60_000L))
+        }
+    }.distinctUntilChanged()
+
+    // System-tz start-of-day for the given calendar date (the BETWEEN lower bound).
+    private fun dayStart(date: LocalDate): Instant = date.atStartOfDay(zone).toInstant()
 
     // Selected member's BP readings for today (member-scoped via flatMapLatest,
-    // exactly like the old card). observeRange returns timestamp-ASC.
-    private val todayBpFlow = currentMember.flow.flatMapLatest { id ->
-        repo.observeRange(id, todayStart(), Instant.now())
-    }
+    // exactly like the old card). The day ticker re-keys the inner observeRange so
+    // the window follows the calendar day even while subscribed across midnight.
+    // observeRange returns timestamp-ASC.
+    private val todayBpFlow = combine(currentMember.flow, dayTicker) { id, date -> id to date }
+        .flatMapLatest { (id, date) ->
+            repo.observeRange(id, dayStart(date), Instant.now())
+        }
 
     // Selected member's glucose readings for today, paired with the user's unit
     // preference so the card renders mg/dL or mmol/L without a separate combine
-    // source. Follows the same member selection as the BP section.
+    // source. Follows the same member selection (and day ticker) as the BP section.
     private val todayGlucoseFlow = combine(
-        currentMember.flow.flatMapLatest { id ->
-            glucose.observeRange(id, todayStart(), Instant.now())
-        },
+        combine(currentMember.flow, dayTicker) { id, date -> id to date }
+            .flatMapLatest { (id, date) ->
+                glucose.observeRange(id, dayStart(date), Instant.now())
+            },
         settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) },
     ) { readings, unit -> readings to unit }
 
@@ -101,11 +131,12 @@ class TodayViewModel(
         modelStatus.phase,
         guidelineFlow,
         todayGlucoseFlow,
-    ) { bp, phase, guideline, (glucoseReadings, glucoseUnit) ->
+        dayTicker,
+    ) { bp, phase, guideline, (glucoseReadings, glucoseUnit), today ->
         TodayUiState(
             todayBp = bp,
             todayGlucose = glucoseReadings,
-            today = LocalDate.now(zone),
+            today = today,
             modelPhase = phase,
             guideline = guideline,
             glucoseUnit = glucoseUnit,
