@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
@@ -51,6 +52,10 @@ import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightCategory
+import com.silverbp.android.core.WeightGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.components.BpReadingValue
 import com.silverbp.android.ui.components.ModelLoadBanner
@@ -64,6 +69,10 @@ import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
 import com.silverbp.android.ui.components.measureContextLabel
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.CategoryElevated
+import com.silverbp.android.ui.theme.CategoryHypotension
+import com.silverbp.android.ui.theme.CategoryNormal
+import com.silverbp.android.ui.theme.CategoryStage2
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -108,6 +117,13 @@ fun TodayScreen(
     // track wires the unified-history routes (cross-track callback).
     onViewBpHistory: () -> Unit = {},
     onViewGlucoseHistory: () -> Unit = {},
+    // Weight section (Phase 2, manual entry only). onLogWeight opens manual
+    // logging (WEIGHT_CONFIRM_NEW); onEditWeight edits the shown reading via the
+    // Confirm flow; onViewWeightHistory opens the weight history list. Defaults
+    // are no-ops so AppNavHost compiles until the nav track wires these routes.
+    onLogWeight: () -> Unit = {},
+    onEditWeight: (String) -> Unit = {},
+    onViewWeightHistory: () -> Unit = {},
     vm: TodayViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -144,6 +160,7 @@ fun TodayScreen(
             onDismiss = { showAddSheet = false },
             onCaptureBp = onCaptureBp,
             onCaptureGlucose = onCaptureGlucose,
+            onAddWeight = onLogWeight,
         )
         Column(
             modifier = Modifier
@@ -187,6 +204,9 @@ fun TodayScreen(
                         onEditGlucose = onEditGlucose,
                         onViewBpHistory = onViewBpHistory,
                         onViewGlucoseHistory = onViewGlucoseHistory,
+                        onLogWeight = onLogWeight,
+                        onEditWeight = onEditWeight,
+                        onViewWeightHistory = onViewWeightHistory,
                         modifier = Modifier.padding(horizontal = AppSpacing.screenH),
                     )
 
@@ -230,6 +250,9 @@ private fun TodayRecordCard(
     onEditGlucose: (String) -> Unit,
     onViewBpHistory: () -> Unit,
     onViewGlucoseHistory: () -> Unit,
+    onLogWeight: () -> Unit,
+    onEditWeight: (String) -> Unit,
+    onViewWeightHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     StandardCard(
@@ -253,6 +276,16 @@ private fun TodayRecordCard(
             onRecord = onRecordGlucose,
             onEdit = onEditGlucose,
             onViewHistory = onViewGlucoseHistory,
+        )
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        WeightSection(
+            latest = state.latestWeight,
+            bmi = state.weightBmi,
+            onRecord = onLogWeight,
+            onEdit = onEditWeight,
+            onViewHistory = onViewWeightHistory,
         )
     }
 }
@@ -416,6 +449,113 @@ private fun GlucoseSection(
 }
 
 /**
+ * Body-weight section of the unified card. Unlike BP/glucose this shows the
+ * member's most-recent reading (latest-ever, not today-scoped — see
+ * [TodayUiState.latestWeight]) rendered in the unit it was captured in
+ * ([WeightReading.displayUnit]), with the BMI band ([TodayUiState.weightBmi])
+ * when the member's profile height is known. Manual entry only this phase: the
+ * inline prompt and the empty state both open manual logging via [onRecord]; the
+ * shown value taps through to edit via [onEdit]. The "歷史" affordance opens the
+ * weight history list via [onViewHistory] when there's a reading.
+ */
+@Composable
+private fun WeightSection(
+    latest: WeightReading?,
+    bmi: Double?,
+    onRecord: () -> Unit,
+    onEdit: (String) -> Unit,
+    onViewHistory: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.weight_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            if (latest != null) {
+                TextButton(onClick = onViewHistory) {
+                    Text(stringResource(R.string.weight_history_title))
+                }
+            }
+        }
+
+        if (latest == null) {
+            EmptySectionPrompt(
+                onRecord = onRecord,
+                recordCd = stringResource(R.string.weight_log_cta),
+            )
+        } else {
+            // The reading carries the unit it was entered in; read the canonical kg
+            // value back in that unit for display (the user sees the same number
+            // they saved). BMI is precomputed in the VM from the member's height.
+            val unit = latest.displayUnit
+            val category = bmi?.let { WeightGuideline.classify(it) }
+            val color = category?.let { weightColorFor(it) }
+            val editCd = stringResource(R.string.weight_confirm_title)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable { onEdit(latest.id.toString()) }
+                    .semantics { contentDescription = editCd },
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+            ) {
+                if (category != null && color != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
+                        Spacer(Modifier.size(8.dp))
+                        Text(
+                            weightCategoryLabel(category),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        formatWeightValue(latest.valueIn(unit)),
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        weightUnitLabel(unit),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    bmi?.let {
+                        Text(
+                            "${stringResource(R.string.weight_bmi_label)} ${formatBmi(it)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        timeFmt().format(latest.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
  * A section's heading row: the section label plus, when the section has more than
  * one reading today, a "今天 N 筆" text affordance that opens that type's history.
  */
@@ -498,3 +638,42 @@ private fun proTipRes(systolic: Int, diastolic: Int, guideline: HypertensionGuid
         BpCategory.HypertensiveCrisis -> R.string.today_protip_crisis
         BpCategory.Hypotension -> R.string.today_protip_hypotension
     }
+
+/**
+ * Category colour for a BMI band, the [colorFor]/[glucoseColorFor] sibling, kept
+ * local to this screen (this phase touches only the Today card). Reuses the shared
+ * category palette so the bands read consistently: 過輕 borrows the cool/blue
+ * "below normal" accent, 正常 is green, 過重 is yellow, 肥胖 is red.
+ */
+private fun weightColorFor(category: WeightCategory): Color = when (category) {
+    WeightCategory.Underweight -> CategoryHypotension // blue — below normal
+    WeightCategory.Normal -> CategoryNormal           // green
+    WeightCategory.Overweight -> CategoryElevated      // yellow
+    WeightCategory.Obese -> CategoryStage2             // red
+}
+
+/** Localized label for a [WeightCategory] (uses the weight string set). */
+@Composable
+private fun weightCategoryLabel(category: WeightCategory): String = stringResource(
+    when (category) {
+        WeightCategory.Underweight -> R.string.weight_category_underweight
+        WeightCategory.Normal -> R.string.weight_category_normal
+        WeightCategory.Overweight -> R.string.weight_category_overweight
+        WeightCategory.Obese -> R.string.weight_category_obese
+    },
+)
+
+/** Localized unit label (公斤 / 磅) for a [WeightUnit]. */
+@Composable
+private fun weightUnitLabel(unit: WeightUnit): String = stringResource(
+    when (unit) {
+        WeightUnit.Kg -> R.string.weight_unit_kg
+        WeightUnit.Lb -> R.string.weight_unit_lb
+    },
+)
+
+/** Weight value to one decimal place (e.g. "68.5") — both kg and lb read naturally. */
+private fun formatWeightValue(value: Double): String = "%.1f".format(value)
+
+/** BMI to one decimal place (e.g. "22.4"). */
+private fun formatBmi(bmi: Double): String = "%.1f".format(bmi)

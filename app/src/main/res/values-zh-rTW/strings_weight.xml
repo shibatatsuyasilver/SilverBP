@@ -1,0 +1,35 @@
+<resources>
+
+    <!-- 體重 (Phase 2). 本階段僅人工輸入 — 無拍照功能. 正準單位為 kg,lb 為顯示用.
+         顯示單位取自 UserSettings.weightUnit. 鍵集與 values/ 完全一致 (audit M27). -->
+
+    <!-- 功能 + 入口 -->
+    <string name="weight_title">體重</string>
+    <string name="weight_log_cta">記錄體重</string>
+    <string name="weight_save">儲存</string>
+
+    <!-- 數值 + 單位 -->
+    <string name="weight_value_label">體重</string>
+    <string name="weight_unit_kg">公斤</string>
+    <string name="weight_unit_lb">磅</string>
+
+    <!-- 確認 / 編輯 -->
+    <string name="weight_confirm_title">確認體重</string>
+    <string name="weight_note_label">備註</string>
+
+    <!-- Today 卡片 -->
+    <string name="weight_today_label">今天</string>
+    <string name="weight_bmi_label">BMI</string>
+    <string name="weight_target_label">目標</string>
+
+    <!-- 歷史 -->
+    <string name="weight_history_title">體重歷史</string>
+    <string name="weight_no_data">尚無體重紀錄</string>
+
+    <!-- BMI 分類 -->
+    <string name="weight_category_underweight">過輕</string>
+    <string name="weight_category_normal">正常</string>
+    <string name="weight_category_overweight">過重</string>
+    <string name="weight_category_obese">肥胖</string>
+
+</resources>

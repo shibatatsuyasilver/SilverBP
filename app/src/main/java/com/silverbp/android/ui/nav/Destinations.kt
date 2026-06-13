@@ -47,6 +47,17 @@ object Routes {
     fun glucoseConfirmEdit(id: String) = "glucose/confirm/$id"
     const val ARG_GLUCOSE_ID = "glucoseId"
 
+    // Weight management (體重, Phase 2) confirm flow. Root-level so the bottom
+    // bar hides while active, mirroring the glucose CONFIRM routes. This phase is
+    // manual entry only (no camera capture route yet — that lands in a later
+    // phase). CONFIRM_NEW is manual entry; CONFIRM_DRAFT consumes a staged draft;
+    // the {weightId} pattern edits an existing row.
+    const val WEIGHT_CONFIRM = "weight/confirm"             // weight/confirm/{weightId}
+    const val WEIGHT_CONFIRM_NEW = "weight/confirm/new"     // manual entry
+    const val WEIGHT_CONFIRM_DRAFT = "weight/confirm/draft" // consume staged draft
+    fun weightConfirmEdit(id: String) = "weight/confirm/$id"
+    const val ARG_WEIGHT_ID = "weightId"
+
     const val EXERCISE_SESSION = "exercise/session"
     const val EXERCISE_SUMMARY = "exercise/summary"
     fun exerciseDetail(id: String) = "exercise/detail/$id"
