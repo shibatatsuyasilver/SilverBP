@@ -10,6 +10,7 @@ import com.silverbp.android.chat.ChatSessionSummary
 import com.silverbp.android.chat.ChatTitleGenerator
 import com.silverbp.android.chat.ChatTranscriptBuilder
 import com.silverbp.android.R
+import com.silverbp.android.billing.EntitlementManager
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.ModelLoadStatus
@@ -65,6 +66,7 @@ class ChatViewModel(
     private val repo: ChatRepository = ServiceLocator.chatRepository,
     private val modelStatus: ModelLoadStatus = ServiceLocator.modelLoadStatus,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
+    private val entitlements: EntitlementManager = ServiceLocator.entitlementManager,
     private val recordsContextBuilder: RecordsContextBuilder = RecordsContextBuilder(),
 ) : ViewModel() {
 
@@ -86,6 +88,18 @@ class ChatViewModel(
      * 256 anyway, but we keep a generous reserve for Local/Cloud.
      */
     private val reservedOutputTokens: Int = 384
+
+    /**
+     * Free-tier context divisor (Phase 3). Premium gets the FULL history budget
+     * (today's behaviour); a free *production* user gets a narrower window — the
+     * post-reserve budget divided by this, then re-clamped to the 256 floor.
+     *
+     * This direction is deliberate so the "zero behaviour change while not
+     * enforced" rule holds: with PREMIUM_ENFORCED=false isPremium() is always true,
+     * so the divisor is NEVER applied and the budget is byte-for-byte what it is
+     * today. Only when enforced=true AND the user is Free does the window shrink.
+     */
+    private val freeContextDivisor: Int = 2
 
     init {
         // Resolve the active session lazily and feed currentSessionId.
@@ -219,7 +233,17 @@ class ChatViewModel(
             }.trim()
 
             val historyDb = repo.messagesFor(sessionId)
-            val budget = (settingsSnap.maxNumTokens - reservedOutputTokens).coerceAtLeast(256)
+            // Premium tiering (Phase 3): Premium keeps the full context window;
+            // a free production user gets a narrower one. isPremium() is read here
+            // (not cached) so a runtime entitlement change is picked up on the next
+            // send and can never crash if settings shift. While not enforced this
+            // is always premium → identical budget to today.
+            val fullBudget = (settingsSnap.maxNumTokens - reservedOutputTokens).coerceAtLeast(256)
+            val budget = if (entitlements.isPremium()) {
+                fullBudget
+            } else {
+                (fullBudget / freeContextDivisor).coerceAtLeast(256)
+            }
             val transcript = ChatTranscriptBuilder.build(systemBlock, historyDb, budget)
 
             // 3. Insert assistant placeholder we'll stream into.

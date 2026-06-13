@@ -183,4 +183,23 @@ data class UserSettings(
     /** Preferred exercise days/week; 0 = unset → engine falls back to its default cadence. */
     val weeklyAvailabilityDays: Int = 0,
     val trainingStyle: String = "",
+
+    /**
+     * Last-known subscription tier, cached so [com.silverbp.android.billing.EntitlementManager]
+     * can emit *immediately* on cold start (no flicker, no offline lock-out)
+     * before the live Play query lands. Stored as the [com.silverbp.android.billing.Entitlement]
+     * name string ("Free"/"Premium"); "Free" is the safe default. Device-local —
+     * deliberately NOT carried in settings sync (each device resolves its own
+     * Play account), mirroring [com.silverbp.android.core.member.CurrentMemberStore].
+     */
+    val lastKnownEntitlement: String = "Free",
+
+    /**
+     * DEBUG-only paywall override. "premium" / "free" force [EntitlementManager.isPremium]
+     * regardless of the real Play entitlement; null = follow real. Lets us demo
+     * the paywall locally without published Play products even while
+     * PREMIUM_ENFORCED is false. Device-local; never synced; ignored in release
+     * builds. See the DEBUG card in SettingsScreen.
+     */
+    val debugPremiumOverride: String? = null,
 )

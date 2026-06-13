@@ -1,0 +1,74 @@
+<resources>
+
+    <!-- Phase 3 — Play Billing subscription, paywall, premium badge, and the
+         DEBUG entitlement-override card. Mirrors values-zh-rTW/strings_billing.xml
+         key-for-key (audit M27). Icon-only / toggle controls carry a
+         contentDescription (audit M31). The Paywall + Gates agents code against
+         these keys; do not rename without updating both locales. -->
+
+    <!-- Premium badge (shared "進階" pill on gated rows) -->
+    <string name="premium_badge_label">Premium</string>
+    <string name="premium_badge_cd">Premium feature</string>
+
+    <!-- Paywall sheet -->
+    <string name="paywall_title">Unlock SilverBP Premium</string>
+    <string name="paywall_subtitle">Care for the whole family with full reports and advanced AI.</string>
+    <string name="paywall_benefit_members">Add unlimited family members</string>
+    <string name="paywall_benefit_pdf">Full multi-page PDF reports for the doctor</string>
+    <string name="paywall_benefit_ai">Advanced AI coaching and longer chat memory</string>
+    <string name="paywall_family_note">One subscription covers everyone you care for — buy it for a parent and manage it yourself.</string>
+
+    <!-- Price cards. %1$s = formatted price from Play (e.g. NT$90). -->
+    <string name="paywall_plan_monthly">Monthly</string>
+    <string name="paywall_plan_yearly">Yearly</string>
+    <string name="paywall_plan_price_monthly">%1$s / month</string>
+    <string name="paywall_plan_price_yearly">%1$s / year</string>
+    <string name="paywall_plan_best_value">Best value</string>
+    <string name="paywall_plan_free_trial">7-day free trial</string>
+    <string name="paywall_plan_card_cd">%1$s plan, %2$s</string>
+
+    <!-- Actions -->
+    <string name="paywall_subscribe">Subscribe</string>
+    <string name="paywall_restore">Restore purchases</string>
+    <string name="paywall_manage">Manage subscription</string>
+    <string name="paywall_close">Close</string>
+
+    <!-- States -->
+    <string name="paywall_unavailable">Subscriptions aren\'t available right now. Please try again later.</string>
+    <string name="paywall_pending">Your purchase is pending confirmation. Premium unlocks once it completes.</string>
+    <string name="paywall_restore_none">No active subscription was found on this account.</string>
+    <string name="paywall_restore_found">Welcome back — your Premium subscription is active.</string>
+    <string name="paywall_loading">Loading plans…</string>
+
+    <!-- Settings: Premium / subscription card -->
+    <string name="settings_premium_title">Premium subscription</string>
+    <string name="settings_premium_status_free">Free plan</string>
+    <string name="settings_premium_status_premium">Premium — active</string>
+    <string name="settings_premium_cta_upgrade">Upgrade to Premium</string>
+    <string name="settings_premium_cta_manage">Manage subscription</string>
+
+    <!-- DEBUG-only entitlement override card (mirrors the existing DEBUG sync
+         card). Lets us demo the paywall without published Play products. -->
+    <string name="debug_entitlement_title">Debug: simulate entitlement</string>
+    <string name="debug_entitlement_follow_real">Follow real Play status</string>
+    <string name="debug_entitlement_premium">Simulate Premium</string>
+    <string name="debug_entitlement_free">Simulate Free</string>
+    <string name="debug_entitlement_cd">Simulated entitlement selector</string>
+
+    <!-- Gate prompts shown when a free user taps a premium action -->
+    <string name="gate_member_title">Adding family members is a Premium feature</string>
+    <string name="gate_pdf_detail_title">Full PDF reports are a Premium feature</string>
+    <string name="gate_ai_coach_title">Advanced AI coaching is a Premium feature</string>
+    <string name="gate_ai_chat_title">Longer chat memory is a Premium feature</string>
+    <!-- Generic body rendered under the gate title at the top of the paywall sheet
+         when a free user is sent there from a gated action. -->
+    <string name="gate_body">Subscribe to SilverBP Premium to unlock this and every other Premium feature.</string>
+
+    <!-- Shared upsell CTA shown on inline gate cards (PDF note, coach narration). -->
+    <string name="gate_upgrade_cta">Upgrade to Premium</string>
+    <!-- Inline upsell bodies (the free experience still works; these explain what
+         Premium adds without blocking the basic action). -->
+    <string name="gate_pdf_detail_body">Your free report includes the summary and disclaimer. Premium adds the full reading-by-reading table for the doctor.</string>
+    <string name="gate_ai_coach_body">Your weekly numbers are ready below. Premium adds an AI-written narrative that explains the trends.</string>
+
+</resources>

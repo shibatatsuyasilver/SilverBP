@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.lock.LockScreen
 import com.silverbp.android.ui.nav.AppNavHost
+import com.silverbp.android.ui.paywall.PaywallHost
 
 @Composable
 fun SilverBpApp() {
@@ -56,7 +57,13 @@ fun SilverBpApp() {
         // of real content before we know whether the app should be locked.
         if (s != null) {
             Box(Modifier.fillMaxSize()) {
-                AppNavHost()
+                // PaywallHost wraps the whole nav graph so any gated screen can
+                // surface the subscription sheet via LocalPaywallController. The
+                // lock screen is a later sibling in this Box so it always draws
+                // OVER the nav host (and the paywall sheet) when the app is locked.
+                PaywallHost {
+                    AppNavHost()
+                }
                 if (s.appLockEnabled && locked) {
                     LockScreen(onUnlocked = { lockManager.onUnlocked() })
                 }
