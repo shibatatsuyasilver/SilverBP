@@ -323,7 +323,7 @@ private fun SodiumTrendCard(state: NutritionUiState) {
                             .background(barColor),
                     )
                     Text(
-                        d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.TAIWAN),
+                        d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
