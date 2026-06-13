@@ -134,6 +134,9 @@ class CombinedRoomSyncSource(
     // Family member (v18). Optional so older callers compile.
     private val memberDao: com.silverbp.android.core.db.MemberDao? = null,
     private val memberMapper: MemberSyncMapper? = null,
+    // Blood glucose (v19). Optional so older callers compile.
+    private val glucoseDao: com.silverbp.android.core.db.GlucoseDao? = null,
+    private val glucoseMapper: GlucoseReadingSyncMapper? = null,
 ) : SyncRecordSource {
 
     override suspend fun recordsSince(
@@ -281,6 +284,17 @@ class CombinedRoomSyncSource(
             }
         }
 
+        // 15. glucose_reading (v19) — references member, so after the member rows
+        // above (emitted first); a small per-row table like bp_reading.
+        var glucoseCount = 0
+        if (glucoseDao != null && glucoseMapper != null) {
+            for (row in glucoseDao.getAll()) {
+                if (out.size >= limit) return out
+                out += glucoseMapper.encode(row, hlcFor(row.hlcUpdatedAt))
+                glucoseCount++
+            }
+        }
+
         val countAfterScalar = out.size
 
         // 8. route_point — emitted LAST so a single GPS-heavy session can't
@@ -300,7 +314,7 @@ class CombinedRoomSyncSource(
                 "ach=${achievements.size} plan=${coachPlans.size} " +
                 "task=${coachTasks.size} sleep=${sleeps.size} diet=${diets.size} " +
                 "catalog=$catalogCount strSession=$strengthSessionCount set=$setLogCount " +
-                "assoc=$assocCount food=$foodLogCount " +
+                "assoc=$assocCount food=$foodLogCount glucose=$glucoseCount " +
                 "route=${out.size - countAfterScalar} " +
                 "(total=${out.size}/limit=$limit)",
         )
@@ -428,6 +442,14 @@ class CombinedRoomSyncSource(
             }
         }
 
+        // 10e. glucose_reading (v19) — after member (emitted first) for owning-member
+        // ordering; a fresh-device import re-mirrors HC so hcRecordId isn't carried.
+        if (glucoseDao != null && glucoseMapper != null) {
+            for (row in glucoseDao.getAll()) {
+                out += glucoseMapper.encode(row, hlcFor(row.hlcUpdatedAt))
+            }
+        }
+
         // 11. chat_session + chat_message (Backup-only — 不參與 LAN sync)
         if (includeChat && chatDao != null && chatSessionMapper != null && chatMessageMapper != null) {
             // Sessions first so child messages' FK resolves on import.
@@ -513,6 +535,8 @@ class CombinedRoomSyncSink(
     private val foodLogMapper: FoodLogSyncMapper? = null,
     // Family member (v18). Optional so older callers compile.
     private val memberMapper: MemberSyncMapper? = null,
+    // Blood glucose (v19). Optional so older callers compile.
+    private val glucoseMapper: GlucoseReadingSyncMapper? = null,
     // B6 LWW gate dependency. Required to read the local high-water HLC; when
     // null the gate is disabled (the record always applies) — kept optional so
     // legacy test callers that don't care about LWW still compile. Both
@@ -546,6 +570,7 @@ class CombinedRoomSyncSink(
             SyncEntityType.SETTINGS_KV -> settingsKvMapper?.apply(record)
             SyncEntityType.FOOD_LOG -> foodLogMapper?.apply(record)
             SyncEntityType.MEMBER -> memberMapper?.apply(record)
+            SyncEntityType.GLUCOSE_READING -> glucoseMapper?.apply(record)
             else -> {
                 // Forward-compat: silently drop record types this build
                 // doesn't yet understand (e.g. future BLOB_META).

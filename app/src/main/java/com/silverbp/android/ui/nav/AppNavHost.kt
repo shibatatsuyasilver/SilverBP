@@ -38,6 +38,7 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.ui.achievements.MedalsScreen
 import com.silverbp.android.ui.capture.CaptureScreen
+import com.silverbp.android.ui.capture.GlucoseCaptureScreen
 import com.silverbp.android.ui.chat.ChatScreen
 import com.silverbp.android.ui.coach.CoachLogDietScreen
 import com.silverbp.android.ui.coach.CoachLogMedicationScreen
@@ -47,6 +48,7 @@ import com.silverbp.android.ui.coach.CoachWeeklyPlanScreen
 import com.silverbp.android.ui.coach.CoachWeeklyReportScreen
 import com.silverbp.android.ui.coach.MedicationEditScreen
 import com.silverbp.android.ui.coach.MedicationManageScreen
+import com.silverbp.android.ui.confirm.ConfirmGlucoseScreen
 import com.silverbp.android.ui.confirm.ConfirmReadingScreen
 import com.silverbp.android.ui.data.DataHubScreen
 import com.silverbp.android.ui.exercise.ExerciseDetailScreen
@@ -197,6 +199,30 @@ fun AppNavHost() {
                     rootNav.popBackStack(Routes.HOME, inclusive = false)
                 },
                 onCancel = { rootNav.popBackStack() }
+            )
+        }
+        // Blood-glucose capture → confirm (v19). Mirrors the BP CAPTURE/CONFIRM
+        // pair: a single confirm pattern handles "new" (manual), "draft" (staged
+        // camera read), and an existing-id edit; the screen's initWith routes them.
+        composable(Routes.GLUCOSE_CAPTURE) {
+            GlucoseCaptureScreen(
+                onAnalyzed = {
+                    rootNav.navigate(Routes.GLUCOSE_CONFIRM_DRAFT) {
+                        popUpTo(Routes.GLUCOSE_CAPTURE) { inclusive = true }
+                    }
+                },
+                onBack = { rootNav.popBackStack() },
+            )
+        }
+        composable(
+            "${Routes.GLUCOSE_CONFIRM}/{${Routes.ARG_GLUCOSE_ID}}",
+            arguments = listOf(navArgument(Routes.ARG_GLUCOSE_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString(Routes.ARG_GLUCOSE_ID)
+            ConfirmGlucoseScreen(
+                readingIdArg = id,
+                onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onCancel = { rootNav.popBackStack() },
             )
         }
         composable(Routes.EXERCISE_SESSION) {
@@ -470,6 +496,10 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onAddManual = { rootNav.navigate(Routes.CONFIRM_NEW) },
             onOpenSettings = { rootNav.navigate(Routes.SETTINGS) },
             onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
+            // The GlucoseCard "記血糖" button opens the meter-capture flow, which
+            // itself offers manual entry as the primary always-available path
+            // (the emulator can't run LiteRT, so OCR degrades to manual).
+            onRecordGlucose = { rootNav.navigate(Routes.GLUCOSE_CAPTURE) },
         )
     }
     composable(TabDestination.Coach.route) {
@@ -498,6 +528,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController) {
             onEditReading = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
             onOpenReport = { rootNav.navigate(Routes.REPORT) },
             onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
+            onEditGlucose = { id -> rootNav.navigate(Routes.glucoseConfirmEdit(id)) },
         )
     }
     composable(TabDestination.Nutrition.route) {

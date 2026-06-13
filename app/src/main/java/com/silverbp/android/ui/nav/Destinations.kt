@@ -35,6 +35,18 @@ object Routes {
     fun confirmEdit(id: String) = "confirm/$id"
     const val ARG_READING_ID = "readingId"
 
+    // Blood-glucose (血糖, v19) capture → confirm flow. Root-level so the bottom
+    // bar hides while active, mirroring the BP CAPTURE/CONFIRM routes. CONFIRM
+    // reads the staged OCR/camera draft from GlucoseCaptureSessionHolder when the
+    // arg is "draft"; "new" is manual entry; the {glucoseId} pattern edits an
+    // existing row.
+    const val GLUCOSE_CAPTURE = "glucose/capture"
+    const val GLUCOSE_CONFIRM = "glucose/confirm"           // glucose/confirm/{glucoseId}
+    const val GLUCOSE_CONFIRM_NEW = "glucose/confirm/new"   // manual entry
+    const val GLUCOSE_CONFIRM_DRAFT = "glucose/confirm/draft" // consume staged camera draft
+    fun glucoseConfirmEdit(id: String) = "glucose/confirm/$id"
+    const val ARG_GLUCOSE_ID = "glucoseId"
+
     const val EXERCISE_SESSION = "exercise/session"
     const val EXERCISE_SUMMARY = "exercise/summary"
     fun exerciseDetail(id: String) = "exercise/detail/$id"

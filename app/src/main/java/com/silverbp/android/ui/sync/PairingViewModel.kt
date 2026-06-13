@@ -217,6 +217,8 @@ class PairingViewModel(
                     foodLogMapper = ServiceLocator.foodLogSyncMapper,
                     memberDao = db.memberDao(),
                     memberMapper = ServiceLocator.memberSyncMapper,
+                    glucoseDao = db.glucoseDao(),
+                    glucoseMapper = ServiceLocator.glucoseReadingSyncMapper,
                 )
                 val sink = CombinedRoomSyncSink(
                     bpMapper = ServiceLocator.bpReadingSyncMapper,
@@ -237,6 +239,7 @@ class PairingViewModel(
                     bpWorkoutAssociationMapper = ServiceLocator.bpWorkoutAssociationSyncMapper,
                     foodLogMapper = ServiceLocator.foodLogSyncMapper,
                     memberMapper = ServiceLocator.memberSyncMapper,
+                    glucoseMapper = ServiceLocator.glucoseReadingSyncMapper,
                     // B6 LWW gate over LAN sync (compares record.hlc vs local).
                     syncDao = db.syncDao(),
                 )

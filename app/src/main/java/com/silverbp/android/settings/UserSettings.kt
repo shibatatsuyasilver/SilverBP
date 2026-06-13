@@ -114,6 +114,14 @@ data class UserSettings(
     /** Daily sleep target in hours (NSF: 7–8 h). */
     val targetSleepHours: Float = 7.0f,
 
+    /**
+     * Preferred blood-glucose display/entry unit (v19). Raw value of
+     * [com.silverbp.android.core.GlucoseUnit] — "mgdl" (default, Taiwan glucose
+     * meters' mainstream) or "mmol". Storage is always canonical mg/dL; this
+     * drives how values are shown and the default unit when entering a reading.
+     */
+    val glucoseUnit: String = "mgdl",
+
     /** Opt-in: read sleep duration from Health Connect. Off by default — user must grant the perm. */
     val sleepTrackingEnabled: Boolean = false,
     /** Opt-in: read nutrition (sodium) from Health Connect. */

@@ -68,6 +68,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
         val WEEKLY_AEROBIC_MIN = intPreferencesKey("weekly_aerobic_min")
         val DAILY_SODIUM_MG = intPreferencesKey("daily_sodium_mg")
         val TARGET_SLEEP_HOURS = floatPreferencesKey("target_sleep_hours")
+        val GLUCOSE_UNIT = stringPreferencesKey("glucose_unit")
         val SLEEP_TRACKING = booleanPreferencesKey("sleep_tracking_enabled")
         val DIET_TRACKING = booleanPreferencesKey("diet_tracking_enabled")
         val USER_NICKNAME = stringPreferencesKey("user_nickname")
@@ -134,6 +135,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
             weeklyAerobicMinTarget = prefs[Keys.WEEKLY_AEROBIC_MIN] ?: 150,
             dailySodiumTargetMg = prefs[Keys.DAILY_SODIUM_MG] ?: 2000,
             targetSleepHours = prefs[Keys.TARGET_SLEEP_HOURS] ?: 7.0f,
+            glucoseUnit = prefs[Keys.GLUCOSE_UNIT] ?: "mgdl",
             sleepTrackingEnabled = prefs[Keys.SLEEP_TRACKING] ?: false,
             dietTrackingEnabled = prefs[Keys.DIET_TRACKING] ?: false,
             userNickname = reveal(prefs[Keys.USER_NICKNAME] ?: ""),
@@ -238,6 +240,9 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
     }
     suspend fun setTargetSleepHours(v: Float) {
         context.dataStore.edit { it[Keys.TARGET_SLEEP_HOURS] = v.coerceIn(4f, 12f) }
+    }
+    suspend fun setGlucoseUnit(raw: String) {
+        context.dataStore.edit { it[Keys.GLUCOSE_UNIT] = raw }
     }
     suspend fun setSleepTrackingEnabled(v: Boolean) {
         context.dataStore.edit { it[Keys.SLEEP_TRACKING] = v }
@@ -379,6 +384,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
         prefs[Keys.PRIMARY_GOAL]?.let { out[Keys.PRIMARY_GOAL.name] = KvValue.T(it) }
         prefs[Keys.EXPERIENCE_LEVEL]?.let { out[Keys.EXPERIENCE_LEVEL.name] = KvValue.T(it) }
         prefs[Keys.TRAINING_STYLE]?.let { out[Keys.TRAINING_STYLE.name] = KvValue.T(it) }
+        prefs[Keys.GLUCOSE_UNIT]?.let { out[Keys.GLUCOSE_UNIT.name] = KvValue.T(it) }
         // Auto-backup frequency is the only auto-backup key that's portable
         // across devices — restoring on a new phone should remember the user's
         // preferred cadence even though the Google account link must be redone.
@@ -455,6 +461,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
                 Keys.PRIMARY_GOAL.name -> if (value is KvValue.T) prefs[Keys.PRIMARY_GOAL] = value.value
                 Keys.EXPERIENCE_LEVEL.name -> if (value is KvValue.T) prefs[Keys.EXPERIENCE_LEVEL] = value.value
                 Keys.TRAINING_STYLE.name -> if (value is KvValue.T) prefs[Keys.TRAINING_STYLE] = value.value
+                Keys.GLUCOSE_UNIT.name -> if (value is KvValue.T) prefs[Keys.GLUCOSE_UNIT] = value.value
 
                 // sensitive strings — re-protect with this device's Keystore alias.
                 Keys.GEMINI_KEY.name -> if (value is KvValue.T) prefs[Keys.GEMINI_KEY] = protect(value.value)

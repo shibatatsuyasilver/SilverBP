@@ -25,6 +25,9 @@ enum class GateReason(@StringRes val titleRes: Int?) {
     PdfDetail(R.string.gate_pdf_detail_title),
     AiCoach(R.string.gate_ai_coach_title),
     AiChat(R.string.gate_ai_chat_title),
+
+    /** Free tier reached its per-member glucose cap; the 11th save opens the paywall (roadmap §4-6). */
+    GlucoseLimit(R.string.glucose_paywall_reason),
 }
 
 /**

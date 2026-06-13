@@ -45,6 +45,7 @@ internal object LwwTables {
         SyncEntityType.BP_WORKOUT_ASSOCIATION -> "bp_workout_association" to "id"
         SyncEntityType.FOOD_LOG -> "food_log" to "id"
         SyncEntityType.MEMBER -> "member" to "id"
+        SyncEntityType.GLUCOSE_READING -> "glucose_reading" to "id"
         // Not pk-gated (see object KDoc): pass through to the mapper's own
         // apply semantics.
         else -> null

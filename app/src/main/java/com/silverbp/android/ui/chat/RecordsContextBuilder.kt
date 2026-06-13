@@ -7,6 +7,10 @@ import com.silverbp.android.coach.CoachRepository
 import com.silverbp.android.coach.LifestyleModule
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.GlucoseClassifier
+import com.silverbp.android.core.GlucoseReading
+import com.silverbp.android.core.GlucoseRepository
+import com.silverbp.android.core.MeasureContext
 import com.silverbp.android.core.PartOfDay
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseRepository
@@ -40,6 +44,7 @@ class RecordsContextBuilder(
     private val achievements: AchievementStore = ServiceLocator.achievementStore,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
     private val coachRepo: CoachRepository = ServiceLocator.coachRepository,
+    private val glucose: GlucoseRepository = ServiceLocator.glucoseRepository,
 ) {
     suspend fun build(
         now: Instant = Instant.now(),
@@ -59,6 +64,7 @@ class RecordsContextBuilder(
         appendProfile(sb)
         appendLatestBp(sb, zone)
         appendBpStats(sb, now)
+        appendGlucose(sb, now)
         appendExercise(sb, now, zone)
         appendAchievements(sb)
         if (forCoach) {
@@ -152,6 +158,50 @@ class RecordsContextBuilder(
                 )
             }
             sb.appendLine(CoachPrompts.Records.thirtyDayCountLine(recent30.size))
+        }
+        sb.appendLine()
+    }
+
+    /**
+     * Blood-glucose 7-day summary (count, fasting mean, post-meal mean, low
+     * events) — kept to ~30 tokens per roadmap §4-5. Owner-scoped: the chat /
+     * coach context summarises the device owner's records only, like the BP
+     * sections above. The whole block is skipped when there are no readings so
+     * a BP-only user's prompt is unchanged.
+     */
+    private suspend fun appendGlucose(sb: StringBuilder, now: Instant) {
+        val sevenDaysAgo = now.minusSeconds(7 * 24 * 3600L)
+        val ownerId = runCatching { ServiceLocator.memberRepository.ownerId() }.getOrNull() ?: return
+        val recent: List<GlucoseReading> = runCatching {
+            glucose.observeRange(ownerId, sevenDaysAgo, now).first()
+        }.getOrNull().orEmpty()
+        // Don't emit an empty "no record" line — glucose is opt-in (free 10/member),
+        // so most users have none; an extra header would only waste prompt budget.
+        if (recent.isEmpty()) return
+
+        val zh = Locale.getDefault().language.equals("zh", ignoreCase = true)
+        sb.appendLine(if (zh) "## 血糖 (7 日)" else "## Glucose (7 days)")
+
+        val fasting = recent.filter {
+            it.measureContext == MeasureContext.Fasting || it.measureContext == MeasureContext.BeforeMeal
+        }.map { it.valueMgdl }
+        val postMeal = recent.filter { it.measureContext == MeasureContext.AfterMeal }
+            .map { it.valueMgdl }
+        val lowEvents = recent.count { GLUCOSE_CLASSIFIER.classify(it.valueMgdl, it.measureContext).isHypoglycemic }
+
+        val fastingMean = if (fasting.isNotEmpty()) StatsEngine.mean(fasting).toInt() else null
+        val postMealMean = if (postMeal.isNotEmpty()) StatsEngine.mean(postMeal).toInt() else null
+
+        if (zh) {
+            sb.appendLine("- 7 日筆數: ${recent.size}")
+            if (fastingMean != null) sb.appendLine("- 空腹均值: $fastingMean mg/dL (n=${fasting.size})")
+            if (postMealMean != null) sb.appendLine("- 餐後均值: $postMealMean mg/dL (n=${postMeal.size})")
+            if (lowEvents > 0) sb.appendLine("- 低血糖事件: $lowEvents 次")
+        } else {
+            sb.appendLine("- 7-day count: ${recent.size}")
+            if (fastingMean != null) sb.appendLine("- Fasting mean: $fastingMean mg/dL (n=${fasting.size})")
+            if (postMealMean != null) sb.appendLine("- After-meal mean: $postMealMean mg/dL (n=${postMeal.size})")
+            if (lowEvents > 0) sb.appendLine("- Low events: $lowEvents")
         }
         sb.appendLine()
     }
@@ -276,6 +326,9 @@ class RecordsContextBuilder(
         // keeps the formatter aligned with system + per-app language settings.
         private val TS_FMT: DateTimeFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
+
+        // Stateless context-aware glucose classifier (low-event detection).
+        private val GLUCOSE_CLASSIFIER = GlucoseClassifier()
     }
 }
 

@@ -9,6 +9,9 @@ import android.graphics.pdf.PdfDocument
 import com.silverbp.android.R
 import com.silverbp.android.analytics.StatsEngine
 import com.silverbp.android.core.BpReading
+import com.silverbp.android.core.GlucoseClassifier
+import com.silverbp.android.core.GlucoseReading
+import com.silverbp.android.core.MeasureContext
 import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
@@ -33,6 +36,7 @@ class PdfReportRenderer(private val context: Context) {
     private val zone = ZoneId.systemDefault()
     private val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.TAIWAN).withZone(zone)
     private val ymd = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(zone)
+    private val glucoseClassifier = GlucoseClassifier()
 
     fun render(
         readings: List<BpReading>,
@@ -45,11 +49,17 @@ class PdfReportRenderer(private val context: Context) {
         // table pages are skipped, leaving the cover summary + disclaimer only.
         // Defaults true so existing callers / tests keep the full report.
         includeDetail: Boolean = true,
+        // Blood-glucose readings for the same member/range (v19). Empty → the
+        // report is BP-only, unchanged. Defaults empty so existing callers /
+        // tests keep the original report. The cover gains a glucose summary and,
+        // when [includeDetail], a glucose detail table follows the BP table.
+        glucoseReadings: List<GlucoseReading> = emptyList(),
     ): File {
         val doc = PdfDocument()
         try {
-            drawCover(doc, readings, from, to, memberName)
+            drawCover(doc, readings, from, to, memberName, glucoseReadings)
             if (includeDetail && readings.isNotEmpty()) drawTable(doc, readings)
+            if (includeDetail && glucoseReadings.isNotEmpty()) drawGlucoseTable(doc, glucoseReadings)
             drawDisclaimer(doc)
         } finally {
             // doc closed below after writing
@@ -63,7 +73,14 @@ class PdfReportRenderer(private val context: Context) {
         return out
     }
 
-    private fun drawCover(doc: PdfDocument, readings: List<BpReading>, from: Instant, to: Instant, memberName: String) {
+    private fun drawCover(
+        doc: PdfDocument,
+        readings: List<BpReading>,
+        from: Instant,
+        to: Instant,
+        memberName: String,
+        glucoseReadings: List<GlucoseReading> = emptyList(),
+    ) {
         val page = doc.startPage(pageInfo(1))
         val canvas = page.canvas
         val title = Paint().apply {
@@ -101,6 +118,39 @@ class PdfReportRenderer(private val context: Context) {
             }
         }
 
+        // Glucose summary (v19) — only when the member has glucose readings, so a
+        // BP-only report is byte-for-byte unchanged.
+        if (glucoseReadings.isNotEmpty()) {
+            y += 18f
+            val section = Paint(body).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
+            canvas.drawText(context.getString(R.string.pdf_glucose_section_title), 60f, y, section); y += 22f
+            canvas.drawText(context.getString(R.string.pdf_glucose_count, glucoseReadings.size), 60f, y, mono); y += 18f
+
+            val fasting = glucoseReadings.filter {
+                it.measureContext == MeasureContext.Fasting || it.measureContext == MeasureContext.BeforeMeal
+            }.map { it.valueMgdl }
+            val postMeal = glucoseReadings.filter { it.measureContext == MeasureContext.AfterMeal }
+                .map { it.valueMgdl }
+            if (fasting.isNotEmpty()) {
+                canvas.drawText(
+                    context.getString(R.string.pdf_glucose_fasting_mean, StatsEngine.mean(fasting).toInt(), fasting.size),
+                    60f, y, mono,
+                ); y += 18f
+            }
+            if (postMeal.isNotEmpty()) {
+                canvas.drawText(
+                    context.getString(R.string.pdf_glucose_postmeal_mean, StatsEngine.mean(postMeal).toInt(), postMeal.size),
+                    60f, y, mono,
+                ); y += 18f
+            }
+            val lowEvents = glucoseReadings.count {
+                glucoseClassifier.classify(it.valueMgdl, it.measureContext).isHypoglycemic
+            }
+            if (lowEvents > 0) {
+                canvas.drawText(context.getString(R.string.pdf_glucose_low_events, lowEvents), 60f, y, mono); y += 18f
+            }
+        }
+
         y = (pageHeight - 60).toFloat()
         canvas.drawText(context.getString(R.string.pdf_report_generated_at, dateFmt.format(Instant.now())), 60f, y, muted)
 
@@ -131,6 +181,45 @@ class PdfReportRenderer(private val context: Context) {
             doc.finishPage(page)
         }
     }
+
+    private fun drawGlucoseTable(doc: PdfDocument, readings: List<GlucoseReading>) {
+        val sorted = readings.sortedBy { it.timestamp }
+        val pages = (sorted.size + rowsPerPage - 1) / rowsPerPage
+        for (i in 0 until pages) {
+            // Page number 50+ keeps glucose tables after the BP detail pages
+            // (2..) and before the disclaimer (99), without colliding with either.
+            val page = doc.startPage(pageInfo(50 + i))
+            val canvas = page.canvas
+            val header = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 13f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
+            val cell = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 10f; typeface = Typeface.MONOSPACE }
+            var y = 60f
+            canvas.drawText(context.getString(R.string.pdf_glucose_detail_header, i + 1, pages), 60f, y, header); y += 24f
+            canvas.drawText(context.getString(R.string.pdf_glucose_table_header), 60f, y, header); y += 18f
+            val from = i * rowsPerPage
+            val to = (from + rowsPerPage).coerceAtMost(sorted.size)
+            for (r in sorted.subList(from, to)) {
+                val ts = dateFmt.format(r.timestamp).padEnd(18)
+                // Canonical mg/dL on the doctor-facing report regardless of the
+                // user's display-unit preference.
+                val value = "${r.valueMgdl.toInt()}".padEnd(7)
+                val timing = contextLabel(r.measureContext).padEnd(13)
+                val note = r.note.take(34)
+                canvas.drawText("$ts$value$timing$note", 60f, y, cell)
+                y += 16f
+            }
+            doc.finishPage(page)
+        }
+    }
+
+    private fun contextLabel(context: MeasureContext): String = this.context.getString(
+        when (context) {
+            MeasureContext.Fasting -> R.string.context_fasting
+            MeasureContext.BeforeMeal -> R.string.context_before_meal
+            MeasureContext.AfterMeal -> R.string.context_after_meal
+            MeasureContext.Bedtime -> R.string.context_bedtime
+            MeasureContext.Random -> R.string.context_random
+        },
+    )
 
     private fun drawDisclaimer(doc: PdfDocument) {
         val page = doc.startPage(pageInfo(99))

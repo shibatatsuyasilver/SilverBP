@@ -39,8 +39,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         BpWorkoutAssociationEntity::class,
         FoodLogEntity::class,
         MemberEntity::class,
+        GlucoseReadingEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -62,6 +63,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun bpWorkoutAssociationDao(): BpWorkoutAssociationDao
     abstract fun foodLogDao(): FoodLogDao
     abstract fun memberDao(): MemberDao
+    abstract fun glucoseDao(): GlucoseDao
 
     companion object {
         const val DB_NAME = "silverbp.db"
@@ -106,6 +108,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_15_16,
                 MIGRATION_16_17,
                 MIGRATION_17_18,
+                MIGRATION_18_19,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -921,6 +924,56 @@ internal val MIGRATION_17_18: Migration = object : Migration(17, 18) {
         db.execSQL("UPDATE `medication` SET `memberId` = ?", arrayOf<Any?>(ownerId))
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS `index_medication_memberId` ON `medication` (`memberId`)",
+        )
+    }
+}
+
+/**
+ * v18 → v19: introduce `glucose_reading` for the blood-glucose (血糖) feature.
+ * Pure CREATE TABLE, no FK into other tables, so the feature is self-contained.
+ * Born member-native — `memberId` is NOT NULL with **no backfill** (the table is
+ * new, so there are no pre-v19 rows to stamp; new rows resolve the owner at
+ * insert time via [com.silverbp.android.core.GlucoseRepository]).
+ *
+ * `hlcUpdatedAt` is NOT NULL with no SQL DEFAULT to match Room's render of the
+ * Kotlin-level `= "0"` default (mirrors set_log / food_log / member in earlier
+ * migrations). The nullable columns (photoFilename, hcRecordId) need none. The
+ * two indices match Room's generated names (`index_glucose_reading_timestamp` /
+ * `index_glucose_reading_memberId_timestamp`).
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/19.json` after building.
+ */
+internal val MIGRATION_18_19: Migration = object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `glucose_reading` (
+              `id` TEXT NOT NULL,
+              `memberId` TEXT NOT NULL,
+              `valueMgdl` REAL NOT NULL,
+              `displayUnit` TEXT NOT NULL,
+              `measureContext` TEXT NOT NULL,
+              `timestamp` INTEGER NOT NULL,
+              `source` TEXT NOT NULL,
+              `confidence` REAL NOT NULL,
+              `note` TEXT NOT NULL,
+              `photoFilename` TEXT,
+              `createdAt` INTEGER NOT NULL,
+              `updatedAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              `hcRecordId` TEXT,
+              PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_glucose_reading_timestamp` " +
+                "ON `glucose_reading` (`timestamp`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_glucose_reading_memberId_timestamp` " +
+                "ON `glucose_reading` (`memberId`, `timestamp`)",
         )
     }
 }
