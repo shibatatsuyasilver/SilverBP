@@ -7,6 +7,8 @@
     <!-- Switcher + owner fallback -->
     <string name="member_me">Me</string>
     <string name="member_switcher_cd">Switch member</string>
+    <!-- %1$s = current member name; spoken label for the app-bar switcher chip -->
+    <string name="member_switcher_cd_current">Recording for %1$s, tap to switch member</string>
 
     <!-- Management screen -->
     <string name="member_manage_title">Family members</string>
@@ -19,6 +21,8 @@
     <string name="member_birth_year">Birth year</string>
     <string name="member_color">Colour</string>
     <string name="member_color_cd">Identity colour</string>
+    <!-- %1$d = swatch number (1-based); spoken label for each colour option -->
+    <string name="member_color_swatch">Colour %1$d</string>
     <string name="member_guideline">Blood pressure guideline</string>
     <string name="member_has_diabetes">Diabetes</string>
     <string name="member_has_ckd">Chronic kidney disease</string>
