@@ -95,6 +95,7 @@ fun SettingsScreen(
     //   • steps READ      — medals / step backfill
     //   • exercise WRITE  — finished workouts (+route) mirror to HC
     //   • blood-pressure WRITE — readings flow into Google Health / other apps
+    //   • weight WRITE+READ — owner weight mirrors out; smart-scale weight reads in
     // Sleep & diet reads stay behind their own Coach toggles further down.
     val hcCorePerms = remember {
         ServiceLocator.healthConnectExerciseBridge.readPermissions +
@@ -102,6 +103,10 @@ fun SettingsScreen(
             ServiceLocator.healthConnectBpBridge.permissions +
             // 飲食: mirror logged meals into Health Connect as NutritionRecord.
             ServiceLocator.healthConnectNutritionBridge.permissions +
+            // 體重: mirror the owner's weight out (WRITE) and import smart-scale /
+            // other-app weight back in (READ) — unlike BP/glucose this is two-way.
+            ServiceLocator.healthConnectWeightBridge.writePermissions +
+            ServiceLocator.healthConnectWeightBridge.readPermissions +
             // Android 15+: the background step-sync worker reads nothing without this.
             ServiceLocator.healthConnectBridge.backgroundReadPermissions
     }

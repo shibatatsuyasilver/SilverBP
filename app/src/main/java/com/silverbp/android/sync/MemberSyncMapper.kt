@@ -19,6 +19,11 @@ import com.silverbp.android.sync.mapping.SyncRecordMapper
  *   4: hasDiabetes  (bool)     5: hasCKD     (bool)   6: hasASCVD    (bool)
  *   7: guideline    (string)   8: colorIndex (int)    9: sortOrder   (int)
  *  10: archived     (bool)    11: createdAtMs (int)  12: updatedAtMs (int)
+ *  13: heightCm     (int?)    14: biologicalSex (string?) 15: targetWeightKg (double?)
+ *
+ * Tags 13–15 (profile fields backing the weight feature: heightCm, biologicalSex,
+ * targetWeightKg) are APPENDED — a pre-v20 peer omits them, so [apply] decodes
+ * them as null (backward-compatible). Never renumber existing tags.
  *
  * Phase 1 ships single-device only (no LAN member sync yet), so this mapper is
  * exercised by **backup export/import** today; the LAN wire support lands with
@@ -53,6 +58,9 @@ class MemberSyncMapper(
         const val ARCHIVED = 10
         const val CREATED_AT_MS = 11
         const val UPDATED_AT_MS = 12
+        const val HEIGHT_CM = 13
+        const val BIOLOGICAL_SEX = 14
+        const val TARGET_WEIGHT_KG = 15
     }
 
     override fun encode(entity: MemberEntity, hlc: Hlc): SyncRecord {
@@ -69,6 +77,11 @@ class MemberSyncMapper(
             Field.ARCHIVED to SyncValue.Bool(entity.archived),
             Field.CREATED_AT_MS to SyncValue.Int64(entity.createdAt),
             Field.UPDATED_AT_MS to SyncValue.Int64(entity.updatedAt),
+            // Tags 13–15: weight-feature profile fields. Nullable → Null sentinel,
+            // mirroring how birthYear (tag 3) is carried.
+            Field.HEIGHT_CM to (entity.heightCm?.let { SyncValue.Int64(it.toLong()) } ?: SyncValue.Null),
+            Field.BIOLOGICAL_SEX to (entity.biologicalSex?.let { SyncValue.Text(it) } ?: SyncValue.Null),
+            Field.TARGET_WEIGHT_KG to (entity.targetWeightKg?.let { SyncValue.Double(it) } ?: SyncValue.Null),
         )
         return SyncRecord(
             type = SyncEntityType.MEMBER,
@@ -117,6 +130,10 @@ class MemberSyncMapper(
             archived = extractBool(p, Field.ARCHIVED),
             createdAt = extractInt(p, Field.CREATED_AT_MS),
             updatedAt = extractInt(p, Field.UPDATED_AT_MS),
+            // Tags 13–15: absent on a pre-v20 peer → null (backward-compatible).
+            heightCm = optionalInt(p, Field.HEIGHT_CM)?.toInt(),
+            biologicalSex = optionalString(p, Field.BIOLOGICAL_SEX),
+            targetWeightKg = optionalDouble(p, Field.TARGET_WEIGHT_KG),
             hlcUpdatedAt = record.hlc.packed,
         )
         memberDao.upsert(entity)
@@ -130,6 +147,15 @@ class MemberSyncMapper(
 
     private fun extractString(p: Map<Int, SyncValue>, key: Int): String =
         (p[key] as? SyncValue.Text)?.value.orEmpty()
+
+    private fun optionalString(p: Map<Int, SyncValue>, key: Int): String? =
+        (p[key] as? SyncValue.Text)?.value
+
+    private fun optionalDouble(p: Map<Int, SyncValue>, key: Int): Double? = when (val v = p[key]) {
+        is SyncValue.Double -> v.value
+        is SyncValue.Int64 -> v.value.toDouble()
+        else -> null
+    }
 
     private fun extractBool(p: Map<Int, SyncValue>, key: Int): Boolean =
         (p[key] as? SyncValue.Bool)?.value ?: false
