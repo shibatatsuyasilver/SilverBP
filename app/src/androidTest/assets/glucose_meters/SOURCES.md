@@ -31,12 +31,29 @@ wins. Rotated displays were mentally rotated upright before reading.
 | `glucose_roundmeter_254mgdl_rotated.jpg` | https://www.flickr.com/photos/jeepersmedia/16201714831 | CC BY 2.0 | Mike Mozart (JeepersMedia) | round generic meter | **254 mg/dL** — display rotated ~90° on screen (rotation test case); "mg/dL" label |
 | `glucose_lo_warning_nonnumeric.jpg` | https://www.flickr.com/photos/189590028@N07/50191694906/ (via https://commons.wikimedia.org/wiki/File:Low_Blood_Sugar_-_Glucose_Monitor_-_50191694906.jpg) | CC BY 2.0 | formulatehealth | white round meter | **"Lo"** — out-of-range LOW warning word, NOT a number (edge case: parser must return value=null) |
 
+## User-provided Accu-Chek (Roche) fixtures — ⚠️ LICENSE UNVERIFIED
+
+⚠️ The four images below were supplied by the project owner (2026-06-14) to cover
+**Roche / Accu-Chek**, which no confirmed-open-licensed *active-reading* photo could
+fill. They appear to be **Accu-Chek product/marketing imagery** (transparent/white
+cut-out backgrounds), so their license is **NOT confirmed open**. They are kept
+**test-only** (never shipped in the production APK). **Before any redistribution,
+replace them with own-captured photos or images whose rights are confirmed.**
+
+| File | Source | License | Meter brand / model | Ground-truth reading (vision-verified) |
+|------|--------|---------|---------------------|----------------------------------------|
+| `glucose_accuchek_instant_106mgdl.png` | Owner-provided (2026-06-14) | ⚠️ unverified (Accu-Chek product image) | Roche Accu-Chek Instant | **106 mg/dL** — Bluetooth icon + in-range (green) target arrow |
+| `glucose_accuchek_guide_106mgdl.png` | Owner-provided (2026-06-14) | ⚠️ unverified (Accu-Chek product image) | Roche Accu-Chek Guide (zh UI) | **106 mg/dL** — current reading; a smaller prior reading **85 mg/dL** is also on screen (read the large current value) |
+| `glucose_accuchek_active_106mgdl.png` | Owner-provided (2026-06-14) | ⚠️ unverified (Accu-Chek product image) | Roche Accu-Chek Active | **106 mg/dL** — classic LCD, 10:38am |
+| `glucose_accuchek_performa_58mmol.png` | Owner-provided (2026-06-14) | ⚠️ unverified (Accu-Chek product image) | Roche Accu-Chek Performa | **5.8 mmol/L** (×18.016 = 104.5 mg/dL) |
+
 ## Coverage summary
 
 - **Brands:** GlucoCheck XL, OneTouch Ultra (LifeScan), Novatin GluNEO, Bayer Contour TS,
-  ReliOn Prime (Arkray ×4), one generic round meter, plus a "Lo" edge-case meter.
-- **Units:** 4× mmol/L (5.1, 5.3, 5.9, 8.4) and 5× mg/dL integers (254, 263, 395, 425, 544);
-  1× non-numeric "Lo".
+  ReliOn Prime (Arkray ×4), one generic round meter, a "Lo" edge-case meter, plus
+  **Roche Accu-Chek ×4 (Instant / Guide / Active / Performa — owner-provided, license unverified)**.
+- **Units:** 5× mmol/L (5.1, 5.3, 5.8, 5.9, 8.4) and 8× mg/dL integers (106×3, 254, 263, 395, 425, 544);
+  1× non-numeric "Lo". (14 images total: 10 confirmed-open-license + 4 owner-provided Accu-Chek.)
 - **Rotation cases:** 2 (`glucocheckxl_5p3mmol_rotated`, `roundmeter_254mgdl_rotated`).
 - **Edge case:** 1 (`lo_warning_nonnumeric` — verifies "Lo"/"HI" → value null handling).
 

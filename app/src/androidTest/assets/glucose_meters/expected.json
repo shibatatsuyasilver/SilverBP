@@ -88,5 +88,41 @@
     "measureContext": null,
     "toleranceMgdl": 0.0,
     "note": "EDGE CASE: out-of-range LOW warning word, not a number. Parser/model must return value=null (no fabricated number)."
+  },
+  {
+    "file": "glucose_accuchek_instant_106mgdl.png",
+    "valueMgdl": 106.0,
+    "displayValue": "106",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "Roche Accu-Chek Instant; in-range arrow + Bluetooth icon. User-provided product image."
+  },
+  {
+    "file": "glucose_accuchek_guide_106mgdl.png",
+    "valueMgdl": 106.0,
+    "displayValue": "106",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "Roche Accu-Chek Guide (zh UI); current reading 106 — a smaller prior reading 85 mg/dL is also on screen (read the large current value). User-provided product image."
+  },
+  {
+    "file": "glucose_accuchek_active_106mgdl.png",
+    "valueMgdl": 106.0,
+    "displayValue": "106",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "Roche Accu-Chek Active; classic LCD. User-provided product image."
+  },
+  {
+    "file": "glucose_accuchek_performa_58mmol.png",
+    "valueMgdl": 104.5,
+    "displayValue": "5.8",
+    "unit": "mmol",
+    "measureContext": null,
+    "toleranceMgdl": 10.0,
+    "note": "Roche Accu-Chek Performa; 5.8 mmol/L (x18.016=104.5). User-provided product image."
   }
 ]
