@@ -1,0 +1,10 @@
+<resources>
+
+    <!-- 設定 → 個人資料入口。免費、單一使用者捷徑,直接開啟 owner 成員編輯
+         (出生年/身高/病史),不經家人成員管理頁、不觸付費閘。 -->
+    <string name="settings_profile_title">個人資料</string>
+    <string name="settings_profile_entry">編輯個人資料</string>
+    <!-- 入口按鈕的語音標籤 (audit M31)。 -->
+    <string name="settings_profile_entry_cd">編輯個人資料:出生年、身高與健康狀況</string>
+
+</resources>

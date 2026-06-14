@@ -1,0 +1,16 @@
+<resources>
+
+    <!-- Onboarding "Your details" step (skippable): collects the owner's birth
+         year, height and current weight so age/BMI personalisation works out of
+         the box. Any field may be left blank — blank writes nothing. Identical
+         key set in values-zh-rTW (audit M27). -->
+
+    <string name="onboarding_profile_title">Your details</string>
+    <string name="onboarding_profile_subtitle">Add your birth year, height and weight so we can show your BMI and tailor coaching. You can skip this and fill it in later.</string>
+    <string name="onboarding_profile_skip">Fill in later</string>
+    <string name="onboarding_profile_weight">Weight (%1$s)</string>
+    <string name="onboarding_profile_weight_cd">Current weight in %1$s, optional</string>
+    <string name="onboarding_profile_birth_year_cd">Birth year, optional</string>
+    <string name="onboarding_profile_height_cd">Height in centimetres, optional</string>
+
+</resources>

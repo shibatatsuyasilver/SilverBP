@@ -84,6 +84,7 @@ fun SettingsScreen(
     onOpenBackup: () -> Unit = {},
     onOpenAdvanced: () -> Unit = {},
     onOpenManageMembers: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -221,6 +222,21 @@ fun SettingsScreen(
                     stringResource(R.string.settings_user_nickname_help),
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+
+            // My profile (個人資料) — a FREE single-user shortcut to the owner's own
+            // birth year / height / conditions. Opens the owner member editor
+            // directly (MyProfileScreen → MemberEditorSheet); NOT routed through the
+            // family-member management screen and NOT behind the AddMember paywall.
+            // The separate 家人成員 card below still hosts multi-member management.
+            StandardCard(title = stringResource(R.string.settings_profile_title)) {
+                val profileEntryCd = stringResource(R.string.settings_profile_entry_cd)
+                Button(
+                    onClick = onOpenProfile,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = profileEntryCd },
+                ) { Text(stringResource(R.string.settings_profile_entry)) }
             }
 
             // Hypertension guideline

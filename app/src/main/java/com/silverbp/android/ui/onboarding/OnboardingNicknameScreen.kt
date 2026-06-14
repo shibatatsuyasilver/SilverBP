@@ -43,13 +43,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightSource
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
@@ -61,16 +67,20 @@ import com.silverbp.android.settings.UserSettingsRepository
 import com.silverbp.android.settings.WeeklyAvailability
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 /**
  * First-launch flow:
  *   step 0  Welcome + medical disclaimer + privacy-policy consent (required).
  *   step 1  Notification permission request (Android 13+); skippable.
  *   step 2  Nickname capture.
- *   step 3  Primary goal (goal profile, Phase 4).
- *   step 4  Experience level.
- *   step 5  Weekly availability (days/week).
- *   step 6  Training style — final step; persists the goal profile AND flips
+ *   step 3  Your details — birth year / height / weight (all optional,
+ *           skippable). Non-blank values are written to the owner member +
+ *           a first weight reading when the step is left.
+ *   step 4  Primary goal (goal profile, Phase 4).
+ *   step 5  Experience level.
+ *   step 6  Weekly availability (days/week).
+ *   step 7  Training style — final step; persists the goal profile AND flips
  *           [didOnboard] + [acceptedPolicyVersion] so the AppNavHost gate
  *           releases the user to HOME.
  *
@@ -84,11 +94,19 @@ fun OnboardingNicknameScreen(
     onCompleted: () -> Unit,
 ) {
     val repo = remember { ServiceLocator.userSettings }
+    val memberRepo = remember { ServiceLocator.memberRepository }
+    val weightRepo = remember { ServiceLocator.weightRepository }
     val scope = rememberCoroutineScope()
     var step by rememberSaveable { mutableIntStateOf(0) }
     var nickname by rememberSaveable { mutableStateOf("") }
     var consentChecked by rememberSaveable { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+    // Health-profile inputs (step 3). All optional; blank → nothing written.
+    var birthYearText by rememberSaveable { mutableStateOf("") }
+    var heightText by rememberSaveable { mutableStateOf("") }
+    var weightText by rememberSaveable { mutableStateOf("") }
+    // Weight entry unit; seeded from UserSettings.weightUnit in LaunchedEffect.
+    var weightUnit by rememberSaveable { mutableStateOf(WeightUnit.Kg) }
     // Goal-profile selections (Phase 4).
     var primaryGoal by rememberSaveable { mutableStateOf<PrimaryGoal?>(null) }
     var experience by rememberSaveable { mutableStateOf<ExperienceLevel?>(null) }
@@ -101,12 +119,51 @@ fun OnboardingNicknameScreen(
     LaunchedEffect(Unit) {
         val s = runCatching { repo.flow.first() }.getOrNull() ?: return@LaunchedEffect
         if (s.userNickname.isNotEmpty() && nickname.isEmpty()) nickname = s.userNickname
+        weightUnit = WeightUnit.fromRaw(s.weightUnit)
         // If the user already accepted the current policy version (e.g. they
         // entered onboarding via "Review consent" but only need to update
         // their nickname) skip straight to the nickname step and finish there.
         if (s.acceptedPolicyVersion >= CURRENT_PRIVACY_POLICY_VERSION && step == 0) {
             reviewMode = true
             step = 2
+        }
+    }
+
+    // Persist non-blank health-profile inputs when the "Your details" step is
+    // left (via Next or Skip). Blank fields write nothing and never overwrite an
+    // existing owner value with null — preserving anything already on the owner.
+    // Fire-and-forget on the screen scope so navigation isn't blocked; invalid
+    // (out-of-range) entries are treated as blank by the step's gating.
+    fun persistProfile() {
+        val parsedBirthYear = birthYearText.trim().toIntOrNull()
+        val parsedHeight = heightText.trim().toIntOrNull()
+        val parsedWeight = weightText.trim().toDoubleOrNull()
+        if (parsedBirthYear == null && parsedHeight == null && parsedWeight == null) return
+        scope.launch {
+            runCatching {
+                if (parsedBirthYear != null || parsedHeight != null) {
+                    val owner = memberRepo.owner()
+                    memberRepo.upsert(
+                        owner.copy(
+                            // Keep the owner's current value when a field is blank.
+                            birthYear = parsedBirthYear ?: owner.birthYear,
+                            heightCm = parsedHeight ?: owner.heightCm,
+                            updatedAt = Instant.now(),
+                        ),
+                    )
+                }
+                if (parsedWeight != null && parsedWeight > 0.0) {
+                    weightRepo.upsert(
+                        WeightReading(
+                            memberId = "",
+                            weightKg = WeightReading.kgFrom(parsedWeight, weightUnit),
+                            displayUnit = weightUnit,
+                            timestamp = Instant.now(),
+                            source = WeightSource.Manual,
+                        ),
+                    )
+                }
+            }
         }
     }
 
@@ -147,36 +204,55 @@ fun OnboardingNicknameScreen(
                     nickname = nickname,
                     onNicknameChange = { nickname = it },
                     saving = saving,
-                    // In review mode the goal questions are skipped — finish here.
+                    // In review mode the goal/profile questions are skipped — finish here.
                     onDone = { if (reviewMode) finish() else step = 3 },
                     onSkip = {
                         nickname = ""
                         if (reviewMode) finish() else step = 3
                     },
                 )
-                3 -> PrimaryGoalStep(
+                3 -> ProfileStep(
+                    birthYearText = birthYearText,
+                    onBirthYearChange = { birthYearText = it.filter(Char::isDigit).take(4) },
+                    heightText = heightText,
+                    onHeightChange = { heightText = it.filter(Char::isDigit).take(3) },
+                    weightText = weightText,
+                    onWeightChange = { weightText = it.filter { c -> c.isDigit() || c == '.' } },
+                    weightUnit = weightUnit,
+                    onBack = { step = 2 },
+                    // Both Next and Skip persist whatever was filled, then advance.
+                    onNext = {
+                        persistProfile()
+                        step = 4
+                    },
+                    onSkip = {
+                        persistProfile()
+                        step = 4
+                    },
+                )
+                4 -> PrimaryGoalStep(
                     selected = primaryGoal,
                     onSelect = { primaryGoal = it },
-                    onBack = { step = 2 },
-                    onNext = { step = 4 },
-                )
-                4 -> ExperienceStep(
-                    selected = experience,
-                    onSelect = { experience = it },
                     onBack = { step = 3 },
                     onNext = { step = 5 },
                 )
-                5 -> AvailabilityStep(
-                    selected = availabilityDays,
-                    onSelect = { availabilityDays = it },
+                5 -> ExperienceStep(
+                    selected = experience,
+                    onSelect = { experience = it },
                     onBack = { step = 4 },
                     onNext = { step = 6 },
+                )
+                6 -> AvailabilityStep(
+                    selected = availabilityDays,
+                    onSelect = { availabilityDays = it },
+                    onBack = { step = 5 },
+                    onNext = { step = 7 },
                 )
                 else -> TrainingStyleStep(
                     selected = trainingStyle,
                     saving = saving,
                     onSelect = { trainingStyle = it },
-                    onBack = { step = 5 },
+                    onBack = { step = 6 },
                     onDone = { finish() },
                 )
             }
@@ -372,6 +448,134 @@ private fun NicknameStep(
             modifier = Modifier
                 .fillMaxWidth(),
         )
+    }
+}
+
+/**
+ * "Your details" step (skippable): birth year / height / weight, all optional.
+ * Mirrors the goal steps' scaffold (title + subtitle + card + Back) but renders
+ * input fields instead of chips. Validation matches [com.silverbp.android.ui.member.MemberEditorSheet]:
+ * birth year is a 4-digit year (blank ok), height is 50..300 cm (blank ok),
+ * weight is any positive number (blank ok). Next and Skip both advance; the
+ * caller persists the non-blank values. The primary button stays enabled even
+ * when everything is blank — leaving the step is always allowed.
+ */
+@Composable
+private fun ProfileStep(
+    birthYearText: String,
+    onBirthYearChange: (String) -> Unit,
+    heightText: String,
+    onHeightChange: (String) -> Unit,
+    weightText: String,
+    onWeightChange: (String) -> Unit,
+    weightUnit: WeightUnit,
+    onBack: () -> Unit,
+    onNext: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    // Same blank-ok validity rules as MemberEditorSheet; an invalid (out-of-range)
+    // entry shows an error and gates Next so we never persist a bad value.
+    val birthYear = birthYearText.trim().toIntOrNull()
+    val birthYearValid = birthYearText.isBlank() || (birthYear != null && birthYearText.trim().length == 4)
+    val heightCm = heightText.trim().toIntOrNull()
+    val heightValid = heightText.isBlank() || (heightCm != null && heightCm in 50..300)
+    val weight = weightText.trim().toDoubleOrNull()
+    val weightValid = weightText.isBlank() || (weight != null && weight > 0.0)
+    val canAdvance = birthYearValid && heightValid && weightValid
+
+    val unitLabel = stringResource(
+        if (weightUnit == WeightUnit.Lb) R.string.weight_unit_lb else R.string.weight_unit_kg,
+    )
+    val birthYearCd = stringResource(R.string.onboarding_profile_birth_year_cd)
+    val heightCd = stringResource(R.string.onboarding_profile_height_cd)
+    val weightCd = stringResource(R.string.onboarding_profile_weight_cd, unitLabel)
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+    ) {
+        Spacer(Modifier.size(AppSpacing.itemGap))
+        Text(
+            stringResource(R.string.onboarding_profile_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            stringResource(R.string.onboarding_profile_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        StandardCard {
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                OutlinedTextField(
+                    value = birthYearText,
+                    onValueChange = onBirthYearChange,
+                    label = { Text(stringResource(R.string.member_birth_year)) },
+                    placeholder = { Text(stringResource(R.string.member_birth_year_placeholder)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = birthYearCd },
+                    singleLine = true,
+                    isError = !birthYearValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    supportingText = if (!birthYearValid) {
+                        { Text(stringResource(R.string.member_birth_year_invalid)) }
+                    } else null,
+                )
+                OutlinedTextField(
+                    value = heightText,
+                    onValueChange = onHeightChange,
+                    label = { Text(stringResource(R.string.member_height_label)) },
+                    placeholder = { Text(stringResource(R.string.member_height_placeholder)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = heightCd },
+                    singleLine = true,
+                    isError = !heightValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    supportingText = if (!heightValid) {
+                        { Text(stringResource(R.string.member_height_invalid)) }
+                    } else null,
+                )
+                OutlinedTextField(
+                    value = weightText,
+                    onValueChange = onWeightChange,
+                    label = { Text(stringResource(R.string.onboarding_profile_weight, unitLabel)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = weightCd },
+                    singleLine = true,
+                    isError = !weightValid,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Done,
+                    ),
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        OnboardingHeroButton(
+            label = stringResource(R.string.onboarding_goal_next),
+            onClick = onNext,
+            enabled = canAdvance,
+        )
+        TextButton(
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_profile_skip),
+                textAlign = TextAlign.Center,
+            )
+        }
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.onboarding_goal_back))
+        }
     }
 }
 

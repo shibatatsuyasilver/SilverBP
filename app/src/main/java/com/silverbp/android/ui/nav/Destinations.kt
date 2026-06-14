@@ -118,6 +118,11 @@ object Routes {
     // in a later iteration; this is the route constant the editor/list will use.
     const val MEMBER_MANAGE = "member/manage"
 
+    // Owner profile (個人資料) — a FREE single-user shortcut from the Settings
+    // 個人資料 card that opens the owner member editor directly (no member list,
+    // no AddMember paywall), distinct from MEMBER_MANAGE.
+    const val PROFILE = "member/profile"
+
     // Cross-device sync pairing — opened from SettingsScreen's "跨裝置同步" row.
     const val SYNC_PAIRING = "sync/pairing"
 

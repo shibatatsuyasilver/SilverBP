@@ -1,0 +1,15 @@
+<resources>
+
+    <!-- Onboarding「個人資料」步驟（可略過）：收集 owner 的出生年、身高與目前體重，
+         讓年齡/BMI 個人化開箱即用。任一欄可留空——留空不寫入。
+         鍵集與 values 一致（稽核 M27）。 -->
+
+    <string name="onboarding_profile_title">個人資料</string>
+    <string name="onboarding_profile_subtitle">填寫出生年、身高與體重，我們就能顯示你的 BMI 並提供個人化教練建議。也可以先略過，稍後再填。</string>
+    <string name="onboarding_profile_skip">稍後再填</string>
+    <string name="onboarding_profile_weight">體重（%1$s）</string>
+    <string name="onboarding_profile_weight_cd">目前體重，單位 %1$s，可不填</string>
+    <string name="onboarding_profile_birth_year_cd">出生年，可不填</string>
+    <string name="onboarding_profile_height_cd">身高（公分），可不填</string>
+
+</resources>

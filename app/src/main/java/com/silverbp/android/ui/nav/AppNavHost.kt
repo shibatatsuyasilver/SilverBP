@@ -59,6 +59,7 @@ import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
 import com.silverbp.android.ui.exercise.machine.MachineCaptureScreen
 import com.silverbp.android.ui.exercise.machine.MachineConfirmScreen
 import com.silverbp.android.ui.member.MemberManagementScreen
+import com.silverbp.android.ui.member.MyProfileScreen
 import com.silverbp.android.ui.nutrition.BarcodeScanScreen
 import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
 import com.silverbp.android.ui.nutrition.NutritionScreen
@@ -316,10 +317,14 @@ fun AppNavHost() {
                 onOpenBackup = { rootNav.navigate(Routes.BACKUP) },
                 onOpenAdvanced = { rootNav.navigate(Routes.SETTINGS_ADVANCED) },
                 onOpenManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
+                onOpenProfile = { rootNav.navigate(Routes.PROFILE) },
             )
         }
         composable(Routes.MEMBER_MANAGE) {
             MemberManagementScreen(onClose = { rootNav.popBackStack() })
+        }
+        composable(Routes.PROFILE) {
+            MyProfileScreen(onClose = { rootNav.popBackStack() })
         }
         composable(Routes.SETTINGS_ADVANCED) {
             com.silverbp.android.ui.settings.AdvancedSettingsScreen(

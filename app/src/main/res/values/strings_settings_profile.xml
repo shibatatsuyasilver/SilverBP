@@ -1,0 +1,11 @@
+<resources>
+
+    <!-- Settings → 個人資料 / My profile entry. A free, single-user shortcut that
+         opens the OWNER member editor (birth year / height / conditions) without
+         going through family-member management or the AddMember paywall. -->
+    <string name="settings_profile_title">My profile</string>
+    <string name="settings_profile_entry">Edit my profile</string>
+    <!-- contentDescription for the entry button (audit M31). -->
+    <string name="settings_profile_entry_cd">Edit my profile: birth year, height and health conditions</string>
+
+</resources>
