@@ -356,7 +356,7 @@ private fun UnitToggleRow(unit: WeightUnit, onSelect: (WeightUnit) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            stringResource(R.string.weight_value_label),
+            stringResource(R.string.weight_unit_label),
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
         )

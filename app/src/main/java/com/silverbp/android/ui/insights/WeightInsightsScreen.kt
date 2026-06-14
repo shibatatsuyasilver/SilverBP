@@ -141,7 +141,9 @@ private fun WeightSummaryCards(state: WeightInsightsUiState) {
     ) {
         StatChip(
             label = stringResource(R.string.weight_summary_latest),
-            value = state.latestKg?.let { "${formatWeightValue(it, state.unit)} $unitLabel" } ?: "—",
+            // Unit on the sub-line so the value never truncates in the narrow 3-up card.
+            value = state.latestKg?.let { formatWeightValue(it, state.unit) } ?: "—",
+            sub = state.latestKg?.let { unitLabel },
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         StatChip(

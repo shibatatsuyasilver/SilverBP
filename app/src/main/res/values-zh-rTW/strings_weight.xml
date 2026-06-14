@@ -10,6 +10,7 @@
 
     <!-- 數值 + 單位 -->
     <string name="weight_value_label">體重</string>
+    <string name="weight_unit_label">單位</string>
     <string name="weight_unit_kg">公斤</string>
     <string name="weight_unit_lb">磅</string>
 
