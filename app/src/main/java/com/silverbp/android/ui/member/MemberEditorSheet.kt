@@ -31,6 +31,8 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,8 +51,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.silverbp.android.R
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.Member
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Add/edit a family member. Modal bottom sheet shown over
@@ -69,11 +74,19 @@ fun MemberEditorSheet(
     val repo = remember { ServiceLocator.memberRepository }
     val scope = rememberCoroutineScope()
 
+    // App-wide display unit for body weight (kg | lb). Target weight is entered
+    // and shown in this unit but stored canonically in kg on the Member.
+    val settings by ServiceLocator.userSettings.flow.collectAsState(initial = null)
+    val weightUnit = WeightUnit.fromRaw(settings?.weightUnit ?: WeightUnit.Kg.raw)
+
     // Editor-local state seeded once from the member argument. The sheet is
     // recreated per add/edit invocation (keyed by the caller), so a plain
     // remember is enough — no SavedStateHandle needed for a transient sheet.
     var displayName by remember { mutableStateOf(member?.displayName ?: "") }
     var birthYearText by remember { mutableStateOf(member?.birthYear?.toString() ?: "") }
+    var heightText by remember { mutableStateOf(member?.heightCm?.toString() ?: "") }
+    // Biological sex: "M" | "F" | "Other" | null (none selected).
+    var biologicalSex by remember { mutableStateOf(member?.biologicalSex) }
     var hasDiabetes by remember { mutableStateOf(member?.hasDiabetes ?: false) }
     var hasCKD by remember { mutableStateOf(member?.hasCKD ?: false) }
     var hasASCVD by remember { mutableStateOf(member?.hasASCVD ?: false) }
@@ -83,10 +96,37 @@ fun MemberEditorSheet(
     var colorIndex by remember { mutableStateOf(member?.colorIndex ?: 0) }
     var saving by remember { mutableStateOf(false) }
 
+    // Target weight is unit-dependent, so its text is seeded from the canonical
+    // kg value only once the display unit is known (settings load async). A flag
+    // keeps the one-shot seed from clobbering later user edits.
+    var targetWeightText by remember { mutableStateOf("") }
+    var targetSeeded by remember { mutableStateOf(false) }
+    LaunchedEffect(settings) {
+        if (settings != null && !targetSeeded) {
+            targetWeightText = member?.targetWeightKg
+                ?.let {
+                    val inUnit = when (weightUnit) {
+                        WeightUnit.Kg -> it
+                        WeightUnit.Lb -> WeightUnit.kgToLb(it)
+                    }
+                    String.format(Locale.US, "%.1f", inUnit)
+                }
+                ?: ""
+            targetSeeded = true
+        }
+    }
+
     // A blank year clears birthYear; a present value must be a 4-digit year.
     val birthYear = birthYearText.trim().toIntOrNull()
     val birthYearValid = birthYearText.isBlank() || (birthYear != null && birthYearText.trim().length == 4)
-    val canSave = !saving && birthYearValid
+    // Optional numeric fields: blank clears, present must parse.
+    val heightCm = heightText.trim().toIntOrNull()
+    val heightValid = heightText.isBlank() || heightCm != null
+    val targetWeightValue = targetWeightText.trim().toDoubleOrNull()
+    val targetWeightValid = targetWeightText.isBlank() || targetWeightValue != null
+    // Canonical kg for save: convert the entered value from the display unit.
+    val targetWeightKg = targetWeightValue?.let { WeightReading.kgFrom(it, weightUnit) }
+    val canSave = !saving && birthYearValid && heightValid && targetWeightValid
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -127,6 +167,93 @@ fun MemberEditorSheet(
                 supportingText = if (!birthYearValid) {
                     { Text(stringResource(R.string.member_birth_year_invalid)) }
                 } else null,
+            )
+
+            // Weight profile (per-member): height, biological sex, target weight.
+            // Drives BMI classification and the weight insights summary.
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(R.string.weight_profile_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    stringResource(R.string.weight_profile_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Height in cm (optional).
+            OutlinedTextField(
+                value = heightText,
+                onValueChange = { heightText = it.filter(Char::isDigit).take(3) },
+                label = { Text(stringResource(R.string.weight_height_label)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = !heightValid,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
+
+            // Biological sex (optional): M / F / Other. Tapping the selected
+            // option again clears it back to "none" so the field stays nullable.
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(R.string.weight_sex_label),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                val sexOptions = listOf(
+                    "M" to R.string.weight_sex_male,
+                    "F" to R.string.weight_sex_female,
+                    "Other" to R.string.weight_sex_other,
+                )
+                sexOptions.forEach { (raw, labelRes) ->
+                    val selected = biologicalSex == raw
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = selected,
+                                role = Role.RadioButton,
+                                onClick = { biologicalSex = if (selected) null else raw },
+                            )
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = selected,
+                            onClick = { biologicalSex = if (selected) null else raw },
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(labelRes))
+                    }
+                }
+            }
+
+            // Target weight (optional), entered in the app-wide display unit.
+            OutlinedTextField(
+                value = targetWeightText,
+                onValueChange = { input ->
+                    // Allow digits and a single decimal point.
+                    val cleaned = input.filter { it.isDigit() || it == '.' }
+                    targetWeightText = if (cleaned.count { it == '.' } > 1) targetWeightText else cleaned
+                },
+                label = { Text(stringResource(R.string.weight_target_weight_label)) },
+                suffix = {
+                    Text(
+                        stringResource(
+                            when (weightUnit) {
+                                WeightUnit.Kg -> R.string.weight_unit_kg
+                                WeightUnit.Lb -> R.string.weight_unit_lb
+                            }
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = !targetWeightValid,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             )
 
             // Identity colour (0..7 fixed palette swatches).
@@ -228,6 +355,9 @@ fun MemberEditorSheet(
                             existing.copy(
                                 displayName = displayName.trim(),
                                 birthYear = birthYear,
+                                heightCm = heightCm,
+                                biologicalSex = biologicalSex,
+                                targetWeightKg = targetWeightKg,
                                 hasDiabetes = hasDiabetes,
                                 hasCKD = hasCKD,
                                 hasASCVD = hasASCVD,
@@ -243,6 +373,9 @@ fun MemberEditorSheet(
                                 displayName = displayName.trim(),
                                 isOwner = false,
                                 birthYear = birthYear,
+                                heightCm = heightCm,
+                                biologicalSex = biologicalSex,
+                                targetWeightKg = targetWeightKg,
                                 hasDiabetes = hasDiabetes,
                                 hasCKD = hasCKD,
                                 hasASCVD = hasASCVD,

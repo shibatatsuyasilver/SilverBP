@@ -5,13 +5,19 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,6 +65,7 @@ import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
 import com.silverbp.android.ui.exercise.machine.MachineCaptureScreen
 import com.silverbp.android.ui.exercise.machine.MachineConfirmScreen
+import com.silverbp.android.ui.history.WeightHistoryScreen
 import com.silverbp.android.ui.member.MemberManagementScreen
 import com.silverbp.android.ui.nutrition.BarcodeScanScreen
 import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
@@ -255,6 +262,16 @@ fun AppNavHost() {
                 readingIdArg = id,
                 onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onCancel = { rootNav.popBackStack() },
+            )
+        }
+        // Member-scoped weight history (Phase 5), opened from the Today weight
+        // card's "查看全部". WeightHistoryScreen has no chrome of its own, so the
+        // route hosts the TopAppBar (back) + SnackbarHost (undo on delete) — see
+        // WeightHistoryRoute below. Tapping a row edits via WEIGHT_CONFIRM.
+        composable(Routes.WEIGHT_HISTORY) {
+            WeightHistoryRoute(
+                onEdit = { id -> rootNav.navigate(Routes.weightConfirmEdit(id)) },
+                onBack = { rootNav.popBackStack() },
             )
         }
         composable(Routes.EXERCISE_SESSION) {
@@ -556,6 +573,8 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             // Data hub later.)
             onLogWeight = { rootNav.navigate(Routes.WEIGHT_CAPTURE) },
             onEditWeight = { id -> rootNav.navigate(Routes.weightConfirmEdit(id)) },
+            // The weight card's "查看全部" opens the member-scoped weight history.
+            onViewWeightHistory = { rootNav.navigate(Routes.WEIGHT_HISTORY) },
             // Both "今天 N 筆" affordances open the unified Data-tab history.
             onViewBpHistory = openHistory,
             onViewGlucoseHistory = openHistory,
@@ -595,6 +614,40 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             onOpenConfirmNew = { rootNav.navigate(Routes.NUTRITION_CONFIRM_NEW) },
             onOpenConfirmEdit = { id -> rootNav.navigate(Routes.nutritionConfirmEdit(id)) },
             onOpenBarcode = { rootNav.navigate(Routes.NUTRITION_BARCODE) },
+        )
+    }
+}
+
+/**
+ * Chrome wrapper for the standalone [WeightHistoryScreen] route. The screen itself
+ * is content-only (no app bar, and its delete flow needs a Snackbar host), so —
+ * like [MedalsScreen]'s TopAppBar + [DataHubScreen]'s SnackbarHost — this hosts a
+ * back arrow and the SnackbarHostState the screen posts undo messages to.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WeightHistoryRoute(
+    onEdit: (String) -> Unit,
+    onBack: () -> Unit,
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.weight_history_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        WeightHistoryScreen(
+            onEdit = onEdit,
+            snackbarHostState = snackbarHostState,
+            modifier = Modifier.padding(padding),
         )
     }
 }
