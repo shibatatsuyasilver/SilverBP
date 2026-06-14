@@ -73,8 +73,7 @@ fun DataHubScreen(
     // Default no-op so AppNavHost compiles unchanged until the capture/confirm
     // track wires the glucose confirm-edit route.
     onEditGlucose: (String) -> Unit = {},
-    // Default no-op so AppNavHost compiles unchanged until the capture/confirm
-    // track wires the weight confirm-edit route.
+    // Routes to the weight confirm-edit form (mirrors onEditGlucose/onEditReading).
     onEditWeight: (String) -> Unit = {},
 ) {
     // Single UnifiedHistoryViewModel shared between the list and the TopAppBar

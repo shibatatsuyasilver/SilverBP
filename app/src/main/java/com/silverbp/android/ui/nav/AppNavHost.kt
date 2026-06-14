@@ -572,6 +572,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             onOpenReport = { rootNav.navigate(Routes.REPORT) },
             onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
             onEditGlucose = { id -> rootNav.navigate(Routes.glucoseConfirmEdit(id)) },
+            onEditWeight = { id -> rootNav.navigate(Routes.weightConfirmEdit(id)) },
         )
     }
     composable(TabDestination.Nutrition.route) {
