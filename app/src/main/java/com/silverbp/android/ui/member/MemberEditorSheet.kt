@@ -74,6 +74,7 @@ fun MemberEditorSheet(
     // remember is enough — no SavedStateHandle needed for a transient sheet.
     var displayName by remember { mutableStateOf(member?.displayName ?: "") }
     var birthYearText by remember { mutableStateOf(member?.birthYear?.toString() ?: "") }
+    var heightText by remember { mutableStateOf(member?.heightCm?.toString() ?: "") }
     var hasDiabetes by remember { mutableStateOf(member?.hasDiabetes ?: false) }
     var hasCKD by remember { mutableStateOf(member?.hasCKD ?: false) }
     var hasASCVD by remember { mutableStateOf(member?.hasASCVD ?: false) }
@@ -86,7 +87,10 @@ fun MemberEditorSheet(
     // A blank year clears birthYear; a present value must be a 4-digit year.
     val birthYear = birthYearText.trim().toIntOrNull()
     val birthYearValid = birthYearText.isBlank() || (birthYear != null && birthYearText.trim().length == 4)
-    val canSave = !saving && birthYearValid
+    // A blank height clears heightCm; a present value must be a plausible cm (50..300).
+    val heightCm = heightText.trim().toIntOrNull()
+    val heightValid = heightText.isBlank() || (heightCm != null && heightCm in 50..300)
+    val canSave = !saving && birthYearValid && heightValid
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -126,6 +130,21 @@ fun MemberEditorSheet(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 supportingText = if (!birthYearValid) {
                     { Text(stringResource(R.string.member_birth_year_invalid)) }
+                } else null,
+            )
+
+            // Height in cm (optional). Drives the per-member BMI on the weight card.
+            OutlinedTextField(
+                value = heightText,
+                onValueChange = { heightText = it.filter(Char::isDigit).take(3) },
+                label = { Text(stringResource(R.string.member_height_label)) },
+                placeholder = { Text(stringResource(R.string.member_height_placeholder)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = !heightValid,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                supportingText = if (!heightValid) {
+                    { Text(stringResource(R.string.member_height_invalid)) }
                 } else null,
             )
 
@@ -228,6 +247,7 @@ fun MemberEditorSheet(
                             existing.copy(
                                 displayName = displayName.trim(),
                                 birthYear = birthYear,
+                                heightCm = heightCm,
                                 hasDiabetes = hasDiabetes,
                                 hasCKD = hasCKD,
                                 hasASCVD = hasASCVD,
@@ -243,6 +263,7 @@ fun MemberEditorSheet(
                                 displayName = displayName.trim(),
                                 isOwner = false,
                                 birthYear = birthYear,
+                                heightCm = heightCm,
                                 hasDiabetes = hasDiabetes,
                                 hasCKD = hasCKD,
                                 hasASCVD = hasASCVD,

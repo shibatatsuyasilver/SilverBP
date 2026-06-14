@@ -49,6 +49,7 @@ import com.silverbp.android.ui.coach.CoachWeeklyReportScreen
 import com.silverbp.android.ui.coach.MedicationEditScreen
 import com.silverbp.android.ui.coach.MedicationManageScreen
 import com.silverbp.android.ui.confirm.ConfirmGlucoseScreen
+import com.silverbp.android.ui.confirm.ConfirmWeightScreen
 import com.silverbp.android.ui.confirm.ConfirmReadingScreen
 import com.silverbp.android.ui.data.DataHubScreen
 import com.silverbp.android.ui.exercise.ExerciseDetailScreen
@@ -220,6 +221,20 @@ fun AppNavHost() {
         ) { entry ->
             val id = entry.arguments?.getString(Routes.ARG_GLUCOSE_ID)
             ConfirmGlucoseScreen(
+                readingIdArg = id,
+                onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onCancel = { rootNav.popBackStack() },
+            )
+        }
+        // Body-weight (體重, v20) confirm. Manual entry only — no capture route. The
+        // single pattern handles "new" (manual) and an existing-id edit; the
+        // screen's initWith routes them, exactly like the glucose CONFIRM pattern.
+        composable(
+            "${Routes.WEIGHT_CONFIRM}/{${Routes.ARG_WEIGHT_ID}}",
+            arguments = listOf(navArgument(Routes.ARG_WEIGHT_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val id = entry.arguments?.getString(Routes.ARG_WEIGHT_ID)
+            ConfirmWeightScreen(
                 readingIdArg = id,
                 onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onCancel = { rootNav.popBackStack() },
@@ -511,16 +526,23 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             // (the emulator can't run LiteRT, so OCR degrades to manual).
             onCaptureBp = { rootNav.navigate(Routes.CAPTURE) },
             onCaptureGlucose = { rootNav.navigate(Routes.GLUCOSE_CAPTURE) },
+            // Weight is manual-only (no capture route) → open the confirm form
+            // straight away, both from the "+" chooser and the weight section's
+            // inline "記一筆".
+            onCaptureWeight = { rootNav.navigate(Routes.WEIGHT_CONFIRM_NEW) },
             onAddManual = { rootNav.navigate(Routes.CONFIRM_NEW) },
             onOpenSettings = { rootNav.navigate(Routes.SETTINGS) },
             onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
             // Tapping a reading in the unified Today card edits it via the
-            // existing Confirm flows (BP ConfirmReading / glucose ConfirmGlucose).
+            // existing Confirm flows (BP ConfirmReading / glucose ConfirmGlucose /
+            // weight ConfirmWeight).
             onEditBp = { id -> rootNav.navigate(Routes.confirmEdit(id)) },
             onEditGlucose = { id -> rootNav.navigate(Routes.glucoseConfirmEdit(id)) },
+            onEditWeight = { id -> rootNav.navigate(Routes.weightConfirmEdit(id)) },
             // Both "今天 N 筆" affordances open the unified Data-tab history.
             onViewBpHistory = openHistory,
             onViewGlucoseHistory = openHistory,
+            onViewWeightHistory = openHistory,
         )
     }
     composable(TabDestination.Coach.route) {

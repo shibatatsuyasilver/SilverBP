@@ -5,6 +5,7 @@ import com.silverbp.android.analytics.StatsEngine
 import com.silverbp.android.coach.CoachPrompts
 import com.silverbp.android.coach.CoachRepository
 import com.silverbp.android.coach.LifestyleModule
+import com.silverbp.android.core.BmiCalculator
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.GlucoseClassifier
@@ -12,6 +13,8 @@ import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.MeasureContext
 import com.silverbp.android.core.PartOfDay
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightRepository
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseRepository
 import com.silverbp.android.exercise.ExerciseSession
@@ -45,6 +48,7 @@ class RecordsContextBuilder(
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
     private val coachRepo: CoachRepository = ServiceLocator.coachRepository,
     private val glucose: GlucoseRepository = ServiceLocator.glucoseRepository,
+    private val weight: WeightRepository = ServiceLocator.weightRepository,
 ) {
     suspend fun build(
         now: Instant = Instant.now(),
@@ -65,6 +69,7 @@ class RecordsContextBuilder(
         appendLatestBp(sb, zone)
         appendBpStats(sb, now)
         appendGlucose(sb, now)
+        appendWeight(sb, now)
         appendExercise(sb, now, zone)
         appendAchievements(sb)
         if (forCoach) {
@@ -202,6 +207,52 @@ class RecordsContextBuilder(
             if (fastingMean != null) sb.appendLine("- Fasting mean: $fastingMean mg/dL (n=${fasting.size})")
             if (postMealMean != null) sb.appendLine("- After-meal mean: $postMealMean mg/dL (n=${postMeal.size})")
             if (lowEvents > 0) sb.appendLine("- Low events: $lowEvents")
+        }
+        sb.appendLine()
+    }
+
+    /**
+     * Body-weight summary (latest weight, BMI when a height is set, 7-day change)
+     * — kept to ~20 tokens. Owner-scoped: the chat / coach context summarises the
+     * device owner's records only, like the BP / glucose sections above. The whole
+     * block is skipped when there are no readings so a weight-free user's prompt is
+     * unchanged. BMI is derived on read from the owner's height + Taiwan thresholds
+     * ([BmiCalculator]); a missing height drops the BMI clause only.
+     */
+    private suspend fun appendWeight(sb: StringBuilder, now: Instant) {
+        val ownerId = runCatching { ServiceLocator.memberRepository.ownerId() }.getOrNull() ?: return
+        val latest: WeightReading = runCatching {
+            weight.observeLatest(ownerId).first()
+        }.getOrNull() ?: return
+
+        val zh = Locale.getDefault().language.equals("zh", ignoreCase = true)
+        sb.appendLine(if (zh) "## 體重" else "## Weight")
+
+        val kg = "%.1f".format(latest.weightKg)
+        if (zh) sb.appendLine("- 最新: $kg kg") else sb.appendLine("- Latest: $kg kg")
+
+        // BMI from the owner's height (Taiwan thresholds). Skip silently when unset.
+        val heightCm = runCatching {
+            ServiceLocator.memberRepository.findById(java.util.UUID.fromString(ownerId))?.heightCm
+        }.getOrNull()
+        if (heightCm != null && heightCm > 0) {
+            val bmi = "%.1f".format(BmiCalculator.bmi(latest.weightKg, heightCm))
+            // BMI label is identical across locales.
+            sb.appendLine("- BMI: $bmi")
+        }
+
+        // 7-day change = latest minus the earliest reading in the last 7 days.
+        val sevenDaysAgo = now.minusSeconds(7 * 24 * 3600L)
+        val recent = runCatching {
+            weight.observeRange(ownerId, sevenDaysAgo, now).first()
+        }.getOrNull().orEmpty()
+        // observeRange returns ascending by timestamp; first = earliest in window.
+        val earliest = recent.firstOrNull()
+        if (earliest != null && earliest.id != latest.id) {
+            val delta = latest.weightKg - earliest.weightKg
+            val sign = if (delta >= 0) "+" else ""
+            val deltaStr = "$sign%.1f".format(delta)
+            if (zh) sb.appendLine("- 7 日變化: $deltaStr kg") else sb.appendLine("- 7-day change: $deltaStr kg")
         }
         sb.appendLine()
     }

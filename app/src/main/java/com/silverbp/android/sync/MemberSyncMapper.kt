@@ -19,6 +19,7 @@ import com.silverbp.android.sync.mapping.SyncRecordMapper
  *   4: hasDiabetes  (bool)     5: hasCKD     (bool)   6: hasASCVD    (bool)
  *   7: guideline    (string)   8: colorIndex (int)    9: sortOrder   (int)
  *  10: archived     (bool)    11: createdAtMs (int)  12: updatedAtMs (int)
+ *  13: heightCm     (int?, v20 — absent on older peers → null)
  *
  * Phase 1 ships single-device only (no LAN member sync yet), so this mapper is
  * exercised by **backup export/import** today; the LAN wire support lands with
@@ -53,6 +54,7 @@ class MemberSyncMapper(
         const val ARCHIVED = 10
         const val CREATED_AT_MS = 11
         const val UPDATED_AT_MS = 12
+        const val HEIGHT_CM = 13
     }
 
     override fun encode(entity: MemberEntity, hlc: Hlc): SyncRecord {
@@ -69,6 +71,7 @@ class MemberSyncMapper(
             Field.ARCHIVED to SyncValue.Bool(entity.archived),
             Field.CREATED_AT_MS to SyncValue.Int64(entity.createdAt),
             Field.UPDATED_AT_MS to SyncValue.Int64(entity.updatedAt),
+            Field.HEIGHT_CM to (entity.heightCm?.let { SyncValue.Int64(it.toLong()) } ?: SyncValue.Null),
         )
         return SyncRecord(
             type = SyncEntityType.MEMBER,
@@ -108,6 +111,8 @@ class MemberSyncMapper(
             displayName = extractString(p, Field.DISPLAY_NAME),
             isOwner = extractBool(p, Field.IS_OWNER),
             birthYear = optionalInt(p, Field.BIRTH_YEAR)?.toInt(),
+            // v20: older peers omit field 13 → optionalInt returns null → no height.
+            heightCm = optionalInt(p, Field.HEIGHT_CM)?.toInt(),
             hasDiabetes = extractBool(p, Field.HAS_DIABETES),
             hasCKD = extractBool(p, Field.HAS_CKD),
             hasASCVD = extractBool(p, Field.HAS_ASCVD),

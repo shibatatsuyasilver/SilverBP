@@ -8,6 +8,9 @@ import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightRepository
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
@@ -55,6 +58,16 @@ data class TodayUiState(
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
     /** User's preferred glucose display unit (mg/dL default). */
     val glucoseUnit: GlucoseUnit = GlucoseUnit.Mgdl,
+    /** The selected member's weight readings taken today, timestamp-ASC. */
+    val todayWeight: List<WeightReading> = emptyList(),
+    /** User's preferred weight display unit (kg default). */
+    val weightUnit: WeightUnit = WeightUnit.Kg,
+    /**
+     * Selected member's height in cm, or null when unset. Required to derive BMI
+     * for the weight section; when null the section shows weight-only + a "set
+     * height" hint (BMI can't be computed).
+     */
+    val memberHeightCm: Int? = null,
     val isLoading: Boolean = true,
     val error: Boolean = false,
 )
@@ -67,6 +80,7 @@ class TodayViewModel(
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
     private val glucose: GlucoseRepository = ServiceLocator.glucoseRepository,
+    private val weight: WeightRepository = ServiceLocator.weightRepository,
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
 
@@ -76,6 +90,14 @@ class TodayViewModel(
         settings.flow.map { user ->
             runCatching { members.findById(UUID.fromString(id)) }.getOrNull()?.guideline
                 ?: user.guideline
+        }
+    }
+
+    // The selected member's height (cm) for the weight section's BMI; null when
+    // unset (the section then shows weight-only). Re-resolves on member switch.
+    private val heightFlow = currentMember.flow.flatMapLatest { id ->
+        flow {
+            emit(runCatching { members.findById(UUID.fromString(id)) }.getOrNull()?.heightCm)
         }
     }
 
@@ -126,13 +148,36 @@ class TodayViewModel(
         settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) },
     ) { readings, unit -> readings to unit }
 
+    // Selected member's weight readings for today, paired with the user's unit
+    // preference (kg/lb) and the member's height (cm) for BMI. Follows the same
+    // member selection (and day ticker) as the BP / glucose sections. The height
+    // travels alongside so the weight section can derive its BMI category without
+    // a sixth top-level combine source.
+    private val todayWeightFlow = combine(
+        combine(currentMember.flow, dayTicker) { id, date -> id to date }
+            .flatMapLatest { (id, date) ->
+                weight.observeRange(id, dayStart(date), Instant.now())
+            },
+        settings.flow.map { WeightUnit.fromRaw(it.weightUnit) },
+        heightFlow,
+    ) { readings, unit, height -> Triple(readings, unit, height) }
+
+    // Glucose + weight bundled so the final combine stays within the 5-source
+    // typed arity (BP, model phase, guideline, this bundle, day ticker).
+    private val glucoseAndWeightFlow = combine(
+        todayGlucoseFlow,
+        todayWeightFlow,
+    ) { glucosePair, weightTriple -> glucosePair to weightTriple }
+
     val state: StateFlow<TodayUiState> = combine(
         todayBpFlow,
         modelStatus.phase,
         guidelineFlow,
-        todayGlucoseFlow,
+        glucoseAndWeightFlow,
         dayTicker,
-    ) { bp, phase, guideline, (glucoseReadings, glucoseUnit), today ->
+    ) { bp, phase, guideline, (glucosePair, weightTriple), today ->
+        val (glucoseReadings, glucoseUnit) = glucosePair
+        val (weightReadings, weightUnit, heightCm) = weightTriple
         TodayUiState(
             todayBp = bp,
             todayGlucose = glucoseReadings,
@@ -140,6 +185,9 @@ class TodayViewModel(
             modelPhase = phase,
             guideline = guideline,
             glucoseUnit = glucoseUnit,
+            todayWeight = weightReadings,
+            weightUnit = weightUnit,
+            memberHeightCm = heightCm,
             isLoading = false,
         )
     }

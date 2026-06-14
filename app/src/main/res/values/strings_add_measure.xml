@@ -10,4 +10,5 @@
     <string name="add_measure_title">What would you like to record?</string>
     <string name="add_measure_bp_cd">Measure blood pressure</string>
     <string name="add_measure_glucose_cd">Measure blood glucose</string>
+    <string name="add_measure_weight_cd">Log body weight</string>
 </resources>

@@ -85,6 +85,8 @@ data class Member(
     val displayName: String = "",
     val isOwner: Boolean = false,
     val birthYear: Int? = null,
+    /** Height in cm (v20) for the per-member BMI; null → weight shows without BMI. */
+    val heightCm: Int? = null,
     val hasDiabetes: Boolean = false,
     val hasCKD: Boolean = false,
     val hasASCVD: Boolean = false,

@@ -31,6 +31,7 @@ class MemberSyncMapperTest {
         displayName = "外婆",
         isOwner = isOwner,
         birthYear = 1948,
+        heightCm = 158,
         hasDiabetes = true,
         hasCKD = false,
         hasASCVD = true,
@@ -67,6 +68,14 @@ class MemberSyncMapperTest {
         assertEquals(SyncValue.Bool(false), p[10])
         assertEquals(SyncValue.Int64(1_730_000_000_500L), p[11])
         assertEquals(SyncValue.Int64(1_730_000_001_000L), p[12])
+        assertEquals(SyncValue.Int64(158), p[13])
+    }
+
+    @Test
+    fun null_height_emits_null() {
+        val mapper = MemberSyncMapper(FakeMemberDao(), FakeSyncDao())
+        val rec = mapper.encode(fixture().copy(heightCm = null), Hlc.of(1L, 0, 1L))
+        assertEquals(SyncValue.Null, rec.payload[13])
     }
 
     @Test

@@ -23,6 +23,8 @@ data class MemberEntity(
     /** Exactly one row true; anchor for HC mirror + owner-only data (see class KDoc). */
     val isOwner: Boolean,
     val birthYear: Int?,
+    /** Height in cm (v20) for the per-member BMI; nullable → weight shows without BMI. */
+    val heightCm: Int? = null,
     val hasDiabetes: Boolean,
     val hasCKD: Boolean,
     val hasASCVD: Boolean,

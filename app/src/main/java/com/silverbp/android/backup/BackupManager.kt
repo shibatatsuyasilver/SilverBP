@@ -327,7 +327,7 @@ class BackupManager(
         entropy.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
 
     /**
-     * Replace 模式: 清空 24 個 sync 表 + tombstones.
+     * Replace 模式: 清空 25 個 sync 表 + tombstones.
      * 不碰 sync_device / sync_outbox(LAN 配對狀態) 與 user_settings DataStore.
      *
      * 呼叫端([import])已經在 Room withTransaction 內,這裡不再自己開
@@ -361,6 +361,9 @@ class BackupManager(
         // glucose_reading (v19) — cleared like any other sync table; restored from
         // the backup's GLUCOSE_READING records (a pre-v19 backup simply has none).
         db.execSQL("DELETE FROM glucose_reading")
+        // weight_reading (v20) — cleared like any other sync table; restored from
+        // the backup's WEIGHT_READING records (a pre-v20 backup simply has none).
+        db.execSQL("DELETE FROM weight_reading")
         db.execSQL("DELETE FROM user_profile")
         // member (v18) — cleared like any other sync table; the owner is then
         // restored from the backup's MEMBER records, or synthesised by

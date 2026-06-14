@@ -7,6 +7,7 @@ import com.silverbp.android.billing.EntitlementManager
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.GlucoseRepository
+import com.silverbp.android.core.WeightRepository
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
@@ -50,6 +51,7 @@ class ReportViewModel(
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val entitlements: EntitlementManager = ServiceLocator.entitlementManager,
     private val glucoseRepo: GlucoseRepository = ServiceLocator.glucoseRepository,
+    private val weightRepo: WeightRepository = ServiceLocator.weightRepository,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(ReportRange.Last30)
@@ -101,6 +103,16 @@ class ReportViewModel(
                 val glucoseReadings = runCatching {
                     glucoseRepo.observeRange(memberId, from, to).first()
                 }.getOrNull().orEmpty()
+                // Weight for the same member/range (v20). observeRange is already
+                // member-scoped + time-bounded; empty → the renderer omits the
+                // weight summary/table (unchanged report). BMI on the summary needs
+                // the member's height (null → BMI line dropped, weight still shown).
+                val weightReadings = runCatching {
+                    weightRepo.observeRange(memberId, from, to).first()
+                }.getOrNull().orEmpty()
+                val memberHeightCm = runCatching {
+                    members.findById(UUID.fromString(memberId))?.heightCm
+                }.getOrNull()
                 // Cover prints whose readings these are — doctors need the name in
                 // a multi-member family. But a solo install (chip hidden, never
                 // opted into family) must NOT get a redundant "Subject: Me" line on
@@ -131,6 +143,8 @@ class ReportViewModel(
                         memberName = name,
                         includeDetail = entitlements.isPremium(),
                         glucoseReadings = glucoseReadings,
+                        weightReadings = weightReadings,
+                        memberHeightCm = memberHeightCm,
                     )
                 generatedFlow.value = file
                 onReady(file)

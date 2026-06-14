@@ -127,6 +127,12 @@
 >
 > 與 B5 初次申報同流程,排在 Phase 2 第一週與開發並行送審(roadmap §4-4 critical path)。`docs/privacy.html` 的健康資料揭露也要同步增列血糖。
 
+> ⚠️ **v1.x 體重(schema v20)新增 `WRITE_WEIGHT` → 必須再次重送本聲明。**
+> AndroidManifest 已加入 `android.permission.health.WRITE_WEIGHT`(體重一律寫入式單向鏡像,僅 owner 成員,與血糖同流程)。新增任何 `health.*` 權限都會讓既有的健康應用程式聲明失效,需在本頁逐項清單再補一條使用理由並**重新提交**(審核同樣需數天到數週),且**必須在含體重的版本正式發布前通過**。理由文案沿用上面格式:
+> - `WRITE_WEIGHT`:「使用者手動記錄的體重值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
+>
+> `docs/privacy.html` 的健康資料揭露也要同步增列體重。
+
 ### C-9. 前景服務權限聲明 ⚠️ 需要影片
 
 路徑:政策 → 應用程式內容 →「**前景服務權限**」(或在「敏感應用程式權限」內)。

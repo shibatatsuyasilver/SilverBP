@@ -18,6 +18,14 @@
     <string name="pdf_glucose_low_events">Low events     %1$d</string>
     <string name="pdf_glucose_detail_header">Glucose details (page %1$d / %2$d)</string>
     <string name="pdf_glucose_table_header">Time              mg/dL  Timing       Note</string>
+    <!-- Body-weight section (v20). kg is the canonical unit on the report; BMI uses Taiwan thresholds. -->
+    <string name="pdf_weight_section_title">Body weight</string>
+    <string name="pdf_weight_count">Weight readings  %1$d</string>
+    <string name="pdf_weight_latest">Latest weight  %1$s kg</string>
+    <string name="pdf_weight_bmi">BMI            %1$s  (%2$s)</string>
+    <string name="pdf_weight_change">Change         %1$s kg</string>
+    <string name="pdf_weight_detail_header">Weight details (page %1$d / %2$d)</string>
+    <string name="pdf_weight_table_header">Time              kg      Note</string>
     <string name="pdf_disclaimer_title">Notes</string>
     <string name="pdf_disclaimer_1">This app is only a personal health-record aid, not a medical device. For any abnormal reading or health concern, please consult a healthcare professional.</string>
     <string name="pdf_disclaimer_2">Metric notes: Mean is the arithmetic mean; SD is the sample standard deviation, reflecting reading dispersion; ARV (Average Real Variability) is the mean of absolute differences between consecutive readings and better captures temporal variability (Mena et al., J Hypertens 2005; Wei et al., JAHA 2018).</string>

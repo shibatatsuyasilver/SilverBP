@@ -47,6 +47,17 @@ object Routes {
     fun glucoseConfirmEdit(id: String) = "glucose/confirm/$id"
     const val ARG_GLUCOSE_ID = "glucoseId"
 
+    // Body-weight (體重, v20) confirm flow. Manual entry only this round (no scale
+    // OCR), so there is NO capture route — the "+" chooser and the weight section's
+    // inline "記一筆" both open WEIGHT_CONFIRM_NEW directly. The single confirm
+    // pattern handles "new" (manual) and an existing-id edit; the screen's initWith
+    // routes them. Root-level so the bottom bar hides while active, like the BP /
+    // glucose CONFIRM routes.
+    const val WEIGHT_CONFIRM = "weight/confirm"            // weight/confirm/{weightId}
+    const val WEIGHT_CONFIRM_NEW = "weight/confirm/new"    // manual entry
+    fun weightConfirmEdit(id: String) = "weight/confirm/$id"
+    const val ARG_WEIGHT_ID = "weightId"
+
     const val EXERCISE_SESSION = "exercise/session"
     const val EXERCISE_SUMMARY = "exercise/summary"
     fun exerciseDetail(id: String) = "exercise/detail/$id"

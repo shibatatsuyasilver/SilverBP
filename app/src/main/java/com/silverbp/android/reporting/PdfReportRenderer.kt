@@ -8,10 +8,13 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.silverbp.android.R
 import com.silverbp.android.analytics.StatsEngine
+import com.silverbp.android.core.BmiCalculator
+import com.silverbp.android.core.BmiCategory
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.MeasureContext
+import com.silverbp.android.core.WeightReading
 import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
@@ -54,12 +57,23 @@ class PdfReportRenderer(private val context: Context) {
         // tests keep the original report. The cover gains a glucose summary and,
         // when [includeDetail], a glucose detail table follows the BP table.
         glucoseReadings: List<GlucoseReading> = emptyList(),
+        // Body-weight readings for the same member/range (v20). Empty → the report
+        // omits the weight summary/table, unchanged. Defaults empty so existing
+        // callers / tests keep the original report. The cover gains a weight
+        // summary (latest + BMI + change) and, when [includeDetail], a weight
+        // detail table follows the glucose table.
+        weightReadings: List<WeightReading> = emptyList(),
+        // Member height in cm for BMI on the weight summary (Taiwan thresholds).
+        // null → the BMI line is omitted; the rest of the weight summary still
+        // prints. Defaults null so existing callers are unaffected.
+        memberHeightCm: Int? = null,
     ): File {
         val doc = PdfDocument()
         try {
-            drawCover(doc, readings, from, to, memberName, glucoseReadings)
+            drawCover(doc, readings, from, to, memberName, glucoseReadings, weightReadings, memberHeightCm)
             if (includeDetail && readings.isNotEmpty()) drawTable(doc, readings)
             if (includeDetail && glucoseReadings.isNotEmpty()) drawGlucoseTable(doc, glucoseReadings)
+            if (includeDetail && weightReadings.isNotEmpty()) drawWeightTable(doc, weightReadings)
             drawDisclaimer(doc)
         } finally {
             // doc closed below after writing
@@ -80,6 +94,8 @@ class PdfReportRenderer(private val context: Context) {
         to: Instant,
         memberName: String,
         glucoseReadings: List<GlucoseReading> = emptyList(),
+        weightReadings: List<WeightReading> = emptyList(),
+        memberHeightCm: Int? = null,
     ) {
         val page = doc.startPage(pageInfo(1))
         val canvas = page.canvas
@@ -151,6 +167,42 @@ class PdfReportRenderer(private val context: Context) {
             }
         }
 
+        // Weight summary (v20) — only when the member has weight readings, so a
+        // BP/glucose-only report is byte-for-byte unchanged. kg is canonical on the
+        // doctor-facing report; BMI uses the member's height + Taiwan thresholds.
+        if (weightReadings.isNotEmpty()) {
+            y += 18f
+            val section = Paint(body).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
+            canvas.drawText(context.getString(R.string.pdf_weight_section_title), 60f, y, section); y += 22f
+            canvas.drawText(context.getString(R.string.pdf_weight_count, weightReadings.size), 60f, y, mono); y += 18f
+
+            // Ascending-by-time so first = earliest, last = latest in the range.
+            val sorted = weightReadings.sortedBy { it.timestamp }
+            val latest = sorted.last()
+            canvas.drawText(
+                context.getString(R.string.pdf_weight_latest, "%.1f".format(latest.weightKg)),
+                60f, y, mono,
+            ); y += 18f
+
+            if (memberHeightCm != null && memberHeightCm > 0) {
+                val bmi = BmiCalculator.bmi(latest.weightKg, memberHeightCm)
+                val cat = bmiCategoryLabel(BmiCalculator.category(latest.weightKg, memberHeightCm))
+                canvas.drawText(
+                    context.getString(R.string.pdf_weight_bmi, "%.1f".format(bmi), cat),
+                    60f, y, mono,
+                ); y += 18f
+            }
+
+            if (sorted.size > 1) {
+                val delta = latest.weightKg - sorted.first().weightKg
+                val sign = if (delta >= 0) "+" else ""
+                canvas.drawText(
+                    context.getString(R.string.pdf_weight_change, "$sign%.1f".format(delta)),
+                    60f, y, mono,
+                ); y += 18f
+            }
+        }
+
         y = (pageHeight - 60).toFloat()
         canvas.drawText(context.getString(R.string.pdf_report_generated_at, dateFmt.format(Instant.now())), 60f, y, muted)
 
@@ -218,6 +270,43 @@ class PdfReportRenderer(private val context: Context) {
             MeasureContext.AfterMeal -> R.string.context_after_meal
             MeasureContext.Bedtime -> R.string.context_bedtime
             MeasureContext.Random -> R.string.context_random
+        },
+    )
+
+    private fun drawWeightTable(doc: PdfDocument, readings: List<WeightReading>) {
+        val sorted = readings.sortedBy { it.timestamp }
+        val pages = (sorted.size + rowsPerPage - 1) / rowsPerPage
+        for (i in 0 until pages) {
+            // Page number 70+ keeps weight tables after the glucose tables (50..)
+            // and before the disclaimer (99), without colliding with either.
+            val page = doc.startPage(pageInfo(70 + i))
+            val canvas = page.canvas
+            val header = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 13f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
+            val cell = Paint().apply { isAntiAlias = true; color = Color.BLACK; textSize = 10f; typeface = Typeface.MONOSPACE }
+            var y = 60f
+            canvas.drawText(context.getString(R.string.pdf_weight_detail_header, i + 1, pages), 60f, y, header); y += 24f
+            canvas.drawText(context.getString(R.string.pdf_weight_table_header), 60f, y, header); y += 18f
+            val from = i * rowsPerPage
+            val to = (from + rowsPerPage).coerceAtMost(sorted.size)
+            for (r in sorted.subList(from, to)) {
+                val ts = dateFmt.format(r.timestamp).padEnd(18)
+                // Canonical kg on the doctor-facing report regardless of the user's
+                // display-unit preference.
+                val value = "%.1f".format(r.weightKg).padEnd(8)
+                val note = r.note.take(40)
+                canvas.drawText("$ts$value$note", 60f, y, cell)
+                y += 16f
+            }
+            doc.finishPage(page)
+        }
+    }
+
+    private fun bmiCategoryLabel(category: BmiCategory): String = context.getString(
+        when (category) {
+            BmiCategory.Underweight -> R.string.bmi_underweight
+            BmiCategory.Normal -> R.string.bmi_normal
+            BmiCategory.Overweight -> R.string.bmi_overweight
+            BmiCategory.Obese -> R.string.bmi_obese
         },
     )
 

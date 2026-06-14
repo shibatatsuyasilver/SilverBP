@@ -8,4 +8,5 @@
     <string name="add_measure_title">要記錄哪一項?</string>
     <string name="add_measure_bp_cd">量血壓</string>
     <string name="add_measure_glucose_cd">量血糖</string>
+    <string name="add_measure_weight_cd">記體重</string>
 </resources>

@@ -1,0 +1,63 @@
+<resources>
+
+    <!-- 體重 (v20). 本次僅人工輸入(體重計 OCR 列為 backlog). 正準單位為 kg,
+         lb 為顯示用 (1 kg = 2.20462 lb). BMI 用成員身高 + 台灣標準分類.
+         鍵集與 values/ 完全一致 (audit M27). -->
+
+    <!-- 功能 + 入口 -->
+    <string name="weight_title">體重</string>
+    <string name="weight_record">記體重</string>
+    <string name="weight_save">儲存</string>
+
+    <!-- Today 卡片 -->
+    <string name="weight_card_empty">尚無體重紀錄</string>
+    <string name="weight_card_cd">體重</string>
+
+    <!-- 數值 + 單位 -->
+    <string name="weight_value_label">體重</string>
+    <string name="weight_unit_kg">公斤</string>
+    <string name="weight_unit_lb">磅</string>
+    <string name="weight_unit_label">單位</string>
+    <string name="weight_value_unit">%1$s %2$s</string>
+
+    <!-- BMI -->
+    <string name="bmi_label">BMI</string>
+    <string name="bmi_underweight">過輕</string>
+    <string name="bmi_normal">正常</string>
+    <string name="bmi_overweight">過重</string>
+    <string name="bmi_obese">肥胖</string>
+    <string name="bmi_need_height">設定身高即可顯示 BMI</string>
+    <string name="bmi_value">BMI %1$s</string>
+
+    <!-- 成員身高 (MemberEditorSheet 使用) -->
+    <string name="member_height_label">身高(公分)</string>
+    <string name="member_height_placeholder">例如 170</string>
+    <string name="member_height_invalid">請輸入 50 至 300 公分之間的身高</string>
+
+    <!-- 歷史 + 分析 -->
+    <string name="weight_history_title">體重歷史</string>
+    <string name="weight_history_empty">尚無體重紀錄</string>
+    <string name="weight_insights_title">體重分析</string>
+    <string name="weight_insights_empty">資料還不夠</string>
+    <string name="weight_latest_label">最新</string>
+    <string name="weight_change_label">變化</string>
+    <string name="weight_trend_title">體重趨勢</string>
+    <string name="weight_readings_logged">已記錄 %1$d 筆體重</string>
+
+    <!-- 數據頁量測型別 chip -->
+    <string name="measure_weight">體重</string>
+
+    <!-- 確認 / 編輯 -->
+    <string name="weight_confirm_title">確認體重</string>
+    <string name="weight_confirm_title_edit">編輯體重</string>
+    <string name="weight_note">備註</string>
+    <string name="weight_note_hint">新增備註(選填)</string>
+    <string name="weight_delete">刪除</string>
+    <string name="weight_delete_confirm_title">刪除這筆紀錄?</string>
+    <string name="weight_delete_confirm_body">此體重紀錄將被永久移除。</string>
+    <string name="weight_record_a11y">記一筆體重</string>
+
+    <!-- 醫療免責(沿用血壓樣式) -->
+    <string name="weight_disclaimer">本 App 非醫療器材。讀數與分類僅供參考,診斷請諮詢醫師。</string>
+
+</resources>

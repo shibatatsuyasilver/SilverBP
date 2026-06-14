@@ -14,6 +14,7 @@ import com.silverbp.android.coach.TodayExerciseTaskGenerator
 import com.silverbp.android.recognition.chat.ChatRecognizerFactory
 import com.silverbp.android.core.BpRepository
 import com.silverbp.android.core.GlucoseRepository
+import com.silverbp.android.core.WeightRepository
 import com.silverbp.android.core.db.SilverBpDatabase
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
@@ -25,6 +26,7 @@ import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.StepCounterReader
 import com.silverbp.android.health.HealthConnectBpBridge
 import com.silverbp.android.health.HealthConnectGlucoseBridge
+import com.silverbp.android.health.HealthConnectWeightBridge
 import com.silverbp.android.health.HealthConnectBridge
 import com.silverbp.android.health.HealthConnectNutritionBridge
 import com.silverbp.android.nutrition.NutritionRepository
@@ -51,6 +53,7 @@ import okhttp3.OkHttpClient
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
 import com.silverbp.android.sync.GlucoseReadingSyncMapper
+import com.silverbp.android.sync.WeightReadingSyncMapper
 import com.silverbp.android.sync.BpWorkoutAssociationSyncMapper
 import com.silverbp.android.sync.ChatMessageSyncMapper
 import com.silverbp.android.sync.ChatSessionSyncMapper
@@ -151,6 +154,22 @@ object ServiceLocator {
         )
     }
 
+    /**
+     * Body-weight readings (v20), member-scoped with the same owner-only Health
+     * Connect mirror guard as [glucoseRepository]. The mirror writes a
+     * [androidx.health.connect.client.records.WeightRecord] via
+     * [healthConnectWeightBridge]; the bridge independently checks the weight
+     * write permission, and the owner-only guard lives in the repository.
+     */
+    val weightRepository: WeightRepository by lazy {
+        WeightRepository(
+            dao = database.weightDao(),
+            members = memberRepository,
+            healthConnect = healthConnectWeightBridge,
+            healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+        )
+    }
+
     val chatRepository: ChatRepository by lazy { ChatRepository(database.chatDao()) }
 
     val nutritionRepository: NutritionRepository by lazy {
@@ -205,6 +224,11 @@ object ServiceLocator {
     /** Owner-only one-way mirror of glucose readings to Health Connect (v19). */
     val healthConnectGlucoseBridge: HealthConnectGlucoseBridge by lazy {
         HealthConnectGlucoseBridge(context)
+    }
+
+    /** Owner-only one-way mirror of body-weight readings to Health Connect (v20). */
+    val healthConnectWeightBridge: HealthConnectWeightBridge by lazy {
+        HealthConnectWeightBridge(context)
     }
 
     val healthConnectNutritionBridge: HealthConnectNutritionBridge by lazy {
@@ -336,6 +360,14 @@ object ServiceLocator {
     val glucoseReadingSyncMapper: GlucoseReadingSyncMapper by lazy {
         GlucoseReadingSyncMapper(
             database.glucoseDao(),
+            database.syncDao(),
+            ownerIdProvider = { memberRepository.ownerId() },
+        )
+    }
+
+    val weightReadingSyncMapper: WeightReadingSyncMapper by lazy {
+        WeightReadingSyncMapper(
+            database.weightDao(),
             database.syncDao(),
             ownerIdProvider = { memberRepository.ownerId() },
         )
@@ -519,6 +551,8 @@ object ServiceLocator {
                     memberMapper = memberSyncMapper,
                     glucoseDao = database.glucoseDao(),
                     glucoseMapper = glucoseReadingSyncMapper,
+                    weightDao = database.weightDao(),
+                    weightMapper = weightReadingSyncMapper,
                 )
             },
             sinkFactory = {
@@ -545,6 +579,7 @@ object ServiceLocator {
                     foodLogMapper = foodLogSyncMapper,
                     memberMapper = memberSyncMapper,
                     glucoseMapper = glucoseReadingSyncMapper,
+                    weightMapper = weightReadingSyncMapper,
                     // B6 LWW gate: import compares record.hlc vs the local row's
                     // hlcUpdatedAt + tombstone hlc before applying.
                     syncDao = database.syncDao(),
@@ -557,7 +592,7 @@ object ServiceLocator {
             appVersionCode = BuildConfig.VERSION_CODE,
             // Room schema version — keep in lock-step with SilverBpDatabase.
             // 升 schema 時改這裡(備份檔頭會記下,匯入時做相容處理).
-            schemaVersion = 19,
+            schemaVersion = 20,
             // 向後相容:匯入 pre-v18 (無 member 表) 備份時合成 owner,
             // 讓無 memberId 的讀數歸 owner。
             ensureOwnerId = { memberRepository.ownerId() },

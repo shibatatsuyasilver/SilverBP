@@ -14,6 +14,7 @@
     <!-- Section headings inside the unified card. -->
     <string name="today_section_bp">Blood pressure</string>
     <string name="today_section_glucose">Blood glucose</string>
+    <string name="today_section_weight">Weight</string>
 
     <!-- Inline empty-section prompt + its log action. -->
     <string name="today_empty_today">No reading today</string>
@@ -25,9 +26,11 @@
     <!-- contentDescription for the inline log actions (audit M31). -->
     <string name="today_record_bp_a11y">Log a blood-pressure reading</string>
     <string name="today_record_glucose_a11y">Log a blood-glucose reading</string>
+    <string name="today_record_weight_a11y">Log a weight reading</string>
 
     <!-- contentDescription for tapping a shown reading row to edit it (audit M31). -->
     <string name="today_edit_bp_a11y">Edit this blood-pressure reading</string>
     <string name="today_edit_glucose_a11y">Edit this blood-glucose reading</string>
+    <string name="today_edit_weight_a11y">Edit this weight reading</string>
 
 </resources>

@@ -1,6 +1,5 @@
 package com.silverbp.android.ui.today
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
@@ -45,24 +43,35 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.core.BmiCalculator
 import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.components.BpReadingValue
+import com.silverbp.android.ui.components.HeroReadingValue
+import com.silverbp.android.ui.components.HeroValueText
+import com.silverbp.android.ui.components.MeasurementSectionHeader
 import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.bmiCategoryLabel
+import com.silverbp.android.ui.components.bmiColorFor
 import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
+import com.silverbp.android.ui.components.formatBmi
 import com.silverbp.android.ui.components.formatGlucoseValue
+import com.silverbp.android.ui.components.formatWeightValue
 import com.silverbp.android.ui.components.glucoseCategoryLabel
 import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
 import com.silverbp.android.ui.components.measureContextLabel
+import com.silverbp.android.ui.components.weightUnitLabel
 import com.silverbp.android.ui.theme.AppSpacing
 import java.time.LocalDate
 import java.time.LocalTime
@@ -95,6 +104,9 @@ fun TodayScreen(
     // "記一筆" prompts reuse these same two callbacks.
     onCaptureBp: () -> Unit,
     onCaptureGlucose: () -> Unit,
+    // Weight capture (manual entry only this round). Default no-op so AppNavHost
+    // compiles unchanged until the capture/confirm track wires the route.
+    onCaptureWeight: () -> Unit = {},
     onAddManual: () -> Unit,
     onOpenSettings: () -> Unit,
     // Default no-op so AppNavHost compiles unchanged until it wires the
@@ -104,10 +116,12 @@ fun TodayScreen(
     // Defaults are no-ops so previews / partial wiring still compile.
     onEditBp: (String) -> Unit = {},
     onEditGlucose: (String) -> Unit = {},
+    onEditWeight: (String) -> Unit = {},
     // "今天 N 筆" affordance → that type's history. Default no-op until the nav
     // track wires the unified-history routes (cross-track callback).
     onViewBpHistory: () -> Unit = {},
     onViewGlucoseHistory: () -> Unit = {},
+    onViewWeightHistory: () -> Unit = {},
     vm: TodayViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -144,6 +158,7 @@ fun TodayScreen(
             onDismiss = { showAddSheet = false },
             onCaptureBp = onCaptureBp,
             onCaptureGlucose = onCaptureGlucose,
+            onCaptureWeight = onCaptureWeight,
         )
         Column(
             modifier = Modifier
@@ -183,10 +198,13 @@ fun TodayScreen(
                         state = state,
                         onRecordBp = onCaptureBp,
                         onRecordGlucose = onCaptureGlucose,
+                        onRecordWeight = onCaptureWeight,
                         onEditBp = onEditBp,
                         onEditGlucose = onEditGlucose,
+                        onEditWeight = onEditWeight,
                         onViewBpHistory = onViewBpHistory,
                         onViewGlucoseHistory = onViewGlucoseHistory,
+                        onViewWeightHistory = onViewWeightHistory,
                         modifier = Modifier.padding(horizontal = AppSpacing.screenH),
                     )
 
@@ -226,10 +244,13 @@ private fun TodayRecordCard(
     state: TodayUiState,
     onRecordBp: () -> Unit,
     onRecordGlucose: () -> Unit,
+    onRecordWeight: () -> Unit,
     onEditBp: (String) -> Unit,
     onEditGlucose: (String) -> Unit,
+    onEditWeight: (String) -> Unit,
     onViewBpHistory: () -> Unit,
     onViewGlucoseHistory: () -> Unit,
+    onViewWeightHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     StandardCard(
@@ -253,6 +274,17 @@ private fun TodayRecordCard(
             onRecord = onRecordGlucose,
             onEdit = onEditGlucose,
             onViewHistory = onViewGlucoseHistory,
+        )
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        WeightSection(
+            readings = state.todayWeight,
+            unit = state.weightUnit,
+            heightCm = state.memberHeightCm,
+            onRecord = onRecordWeight,
+            onEdit = onEditWeight,
+            onViewHistory = onViewWeightHistory,
         )
     }
 }
@@ -283,63 +315,46 @@ private fun BpSection(
             val cat = classify(latest.systolic, latest.diastolic, guideline)
             val color = colorFor(cat)
             val editCd = stringResource(R.string.today_edit_bp_a11y)
-            Column(
+            HeroReadingValue(
+                categoryColor = color,
+                categoryLabel = categoryLabel(cat),
+                unit = stringResource(R.string.mmhg),
                 modifier = Modifier
-                    .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .clickable { onEdit(latest.id.toString()) }
                     .semantics { contentDescription = editCd },
-                verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        categoryLabel(cat),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                valueContent = {
                     BpReadingValue(systolic = latest.systolic, diastolic = latest.diastolic)
-                    Spacer(Modifier.size(4.dp))
-                    Text(
-                        stringResource(R.string.mmhg),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    latest.pulse?.let {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.MonitorHeart,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.size(6.dp))
-                            Text(
-                                "$it ${stringResource(R.string.bpm)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                },
+                subContent = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        latest.pulse?.let {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.MonitorHeart,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.size(6.dp))
+                                Text(
+                                    "$it ${stringResource(R.string.bpm)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
+                        Text(
+                            timeFmt().format(latest.timestamp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                    Text(
-                        timeFmt().format(latest.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+                },
+            )
         }
     }
 }
@@ -372,44 +387,112 @@ private fun GlucoseSection(
             }
             val color = glucoseColorFor(cat)
             val editCd = stringResource(R.string.today_edit_glucose_a11y)
-            Column(
+            HeroReadingValue(
+                categoryColor = color,
+                categoryLabel = glucoseCategoryLabel(cat),
+                unit = glucoseUnitLabel(unit),
                 modifier = Modifier
-                    .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .clickable { onEdit(latest.id.toString()) }
                     .semantics { contentDescription = editCd },
-                verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-                    Spacer(Modifier.size(8.dp))
+                valueContent = {
+                    HeroValueText(formatGlucoseValue(latest.valueMgdl, unit))
+                },
+                subContent = {
                     Text(
-                        glucoseCategoryLabel(cat),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        formatGlucoseValue(latest.valueMgdl, unit),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        glucoseUnitLabel(unit),
-                        style = MaterialTheme.typography.bodyMedium,
+                        "${measureContextLabel(latest.measureContext)} · ${timeFmt().format(latest.timestamp)}",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
                     )
-                }
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Body-weight section of the unified card (today's latest, or inline prompt). When
+ * the member has a height set we show the latest weight's BMI category (colour dot
+ * + label); when height is unset we show weight-only plus a small "set height" hint
+ * (BMI can't be computed — owner decision). Mirrors [BpSection]/[GlucoseSection].
+ */
+@Composable
+private fun WeightSection(
+    readings: List<WeightReading>,
+    unit: WeightUnit,
+    heightCm: Int?,
+    onRecord: () -> Unit,
+    onEdit: (String) -> Unit,
+    onViewHistory: () -> Unit,
+) {
+    val latest = readings.maxByOrNull { it.timestamp }
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+        SectionHeader(
+            title = stringResource(R.string.today_section_weight),
+            count = readings.size,
+            onViewHistory = onViewHistory,
+        )
+
+        if (latest == null) {
+            EmptySectionPrompt(
+                onRecord = onRecord,
+                recordCd = stringResource(R.string.today_record_weight_a11y),
+            )
+        } else {
+            // BMI is derived on read from the latest weight + the member's height;
+            // null height means we can't classify, so show weight-only + a hint.
+            val bmiCategory = heightCm?.takeIf { it > 0 }?.let {
+                BmiCalculator.category(latest.weightKg, it)
+            }
+            val bmiValue = heightCm?.takeIf { it > 0 }?.let {
+                BmiCalculator.bmi(latest.weightKg, it)
+            }
+            val editCd = stringResource(R.string.today_edit_weight_a11y)
+            val subRow: @Composable () -> Unit = {
                 Text(
-                    "${measureContextLabel(latest.measureContext)} · ${timeFmt().format(latest.timestamp)}",
+                    if (bmiValue != null) {
+                        "${stringResource(R.string.bmi_value, formatBmi(bmiValue))} · ${timeFmt().format(latest.timestamp)}"
+                    } else {
+                        "${stringResource(R.string.bmi_need_height)} · ${timeFmt().format(latest.timestamp)}"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            val rowModifier = Modifier
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onEdit(latest.id.toString()) }
+                .semantics { contentDescription = editCd }
+            if (bmiCategory != null) {
+                HeroReadingValue(
+                    categoryColor = bmiColorFor(bmiCategory),
+                    categoryLabel = bmiCategoryLabel(bmiCategory),
+                    unit = weightUnitLabel(unit),
+                    modifier = rowModifier,
+                    valueContent = { HeroValueText(formatWeightValue(latest.weightKg, unit)) },
+                    subContent = subRow,
+                )
+            } else {
+                // No member height → can't classify BMI; show weight-only (no category
+                // dot/label) plus the "set height" hint, preserving the owner decision.
+                Column(
+                    modifier = rowModifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                    ) {
+                        HeroValueText(formatWeightValue(latest.weightKg, unit))
+                        Text(
+                            weightUnitLabel(unit),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
+                    subRow()
+                }
             }
         }
     }
@@ -425,23 +508,18 @@ private fun SectionHeader(
     count: Int,
     onViewHistory: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-        )
-        if (count > 1) {
-            TextButton(onClick = onViewHistory) {
-                Text(stringResource(R.string.today_count_today, count))
-            }
-        }
-    }
+    // Adopts the Stitch-polished shared heading. The "今天 N 筆" affordance only
+    // appears when a section has more than one reading today (opens that type's
+    // history); otherwise it's a plain muted section caption.
+    MeasurementSectionHeader(
+        title = title,
+        trailingText = if (count > 1) {
+            stringResource(R.string.today_count_today, count)
+        } else {
+            null
+        },
+        onTrailingClick = if (count > 1) onViewHistory else null,
+    )
 }
 
 /** Inline "今天還沒記錄 · 記一筆" prompt for an empty section. */

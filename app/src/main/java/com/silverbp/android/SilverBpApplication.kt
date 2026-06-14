@@ -13,6 +13,7 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseNotification
 import com.silverbp.android.health.BpSyncWorker
 import com.silverbp.android.health.GlucoseSyncWorker
+import com.silverbp.android.health.WeightSyncWorker
 import com.silverbp.android.recognition.DeviceCapabilities
 import com.silverbp.android.recognition.ModelBootstrap
 import kotlinx.coroutines.CoroutineScope
@@ -93,11 +94,11 @@ class SilverBpApplication : Application() {
     }
 
     /**
-     * Kick the Health Connect blood-pressure + blood-glucose mirror retries on
-     * every cold start when the integration is on. Both workers self-no-op if
-     * their respective write permission is missing, so this unconditional enqueue
-     * is safe and catches any readings whose inline mirror failed while HC was
-     * unavailable.
+     * Kick the Health Connect blood-pressure + blood-glucose + body-weight mirror
+     * retries on every cold start when the integration is on. All workers
+     * self-no-op if their respective write permission is missing, so this
+     * unconditional enqueue is safe and catches any readings whose inline mirror
+     * failed while HC was unavailable.
      */
     private suspend fun reconcileBpSync() {
         val enabled = runCatching { ServiceLocator.userSettings.flow.first().enableHealthConnect }
@@ -105,6 +106,7 @@ class SilverBpApplication : Application() {
         if (enabled) {
             BpSyncWorker.enqueue(this)
             GlucoseSyncWorker.enqueue(this)
+            WeightSyncWorker.enqueue(this)
         }
     }
 

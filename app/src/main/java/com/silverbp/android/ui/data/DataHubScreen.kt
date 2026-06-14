@@ -31,6 +31,7 @@ import com.silverbp.android.ui.history.UnifiedHistoryScreen
 import com.silverbp.android.ui.history.UnifiedHistoryViewModel
 import com.silverbp.android.ui.insights.GlucoseInsightsScreen
 import com.silverbp.android.ui.insights.InsightsScreen
+import com.silverbp.android.ui.insights.WeightInsightsScreen
 import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.theme.AppSpacing
 
@@ -42,12 +43,14 @@ private enum class DataSection(val labelRes: Int) {
 
 /**
  * Measurement type for the 分析 (Insights) segment only. The 紀錄 list is unified
- * across both types (owner decision §4), so this switch lives inside 分析 — where
- * the BP and glucose charts genuinely can't merge — rather than at the top level.
+ * across all types (owner decision §4), so this switch lives inside 分析 — where
+ * the BP, glucose, and weight charts genuinely can't merge — rather than at the
+ * top level.
  */
 private enum class MeasureType(val labelRes: Int) {
     Bp(R.string.measure_bp),
     Glucose(R.string.measure_glucose),
+    Weight(R.string.measure_weight),
 }
 
 /**
@@ -70,6 +73,9 @@ fun DataHubScreen(
     // Default no-op so AppNavHost compiles unchanged until the capture/confirm
     // track wires the glucose confirm-edit route.
     onEditGlucose: (String) -> Unit = {},
+    // Default no-op so AppNavHost compiles unchanged until the capture/confirm
+    // track wires the weight confirm-edit route.
+    onEditWeight: (String) -> Unit = {},
 ) {
     // Single UnifiedHistoryViewModel shared between the list and the TopAppBar
     // filter action so changing range/sort in the app bar drives the same list.
@@ -141,6 +147,7 @@ fun DataHubScreen(
                 DataSection.Records -> UnifiedHistoryScreen(
                     onEditBp = onEditReading,
                     onEditGlucose = onEditGlucose,
+                    onEditWeight = onEditWeight,
                     snackbarHostState = snackbarHostState,
                     modifier = Modifier.weight(1f),
                     vm = unifiedHistoryVm,
@@ -151,6 +158,9 @@ fun DataHubScreen(
                         modifier = Modifier.weight(1f),
                     )
                     MeasureType.Glucose -> GlucoseInsightsScreen(
+                        modifier = Modifier.weight(1f),
+                    )
+                    MeasureType.Weight -> WeightInsightsScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }

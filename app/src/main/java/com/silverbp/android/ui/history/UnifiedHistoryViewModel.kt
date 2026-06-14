@@ -8,6 +8,9 @@ import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightRepository
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
@@ -39,10 +42,14 @@ data class CombinedDayGroup(
     val date: LocalDate,
     val bpReadings: List<BpReading>,
     val glucoseReadings: List<GlucoseReading>,
+    /** The day's weight readings (sorted like the other two types). */
+    val weightReadings: List<WeightReading>,
     /** Day mean systolic/diastolic (rounded), or null when no BP that day. */
     val bpMean: Pair<Int, Int>?,
     /** Day mean canonical mg/dL, or null when no glucose that day. */
     val glucoseMean: Double?,
+    /** Day mean canonical kg, or null when no weight that day. */
+    val weightMean: Double?,
 )
 
 data class UnifiedHistoryUiState(
@@ -53,6 +60,8 @@ data class UnifiedHistoryUiState(
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
     /** User's preferred glucose display unit (mg/dL default); glucose rows render in it. */
     val glucoseUnit: GlucoseUnit = GlucoseUnit.Mgdl,
+    /** User's preferred weight display unit (kg default); weight rows render in it. */
+    val weightUnit: WeightUnit = WeightUnit.Kg,
     val isLoading: Boolean = true,
     val error: Boolean = false,
 )
@@ -70,6 +79,7 @@ data class UnifiedHistoryUiState(
 class UnifiedHistoryViewModel(
     private val bpRepo: BpRepository = ServiceLocator.bpRepository,
     private val glucoseRepo: GlucoseRepository = ServiceLocator.glucoseRepository,
+    private val weightRepo: WeightRepository = ServiceLocator.weightRepository,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
@@ -88,18 +98,27 @@ class UnifiedHistoryViewModel(
         }
     }
 
-    private val glucoseUnitFlow = settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) }
+    // The two display-unit prefs travel together so the final combine keeps its
+    // typed arity (the three reading streams are bundled into one source).
+    private val unitsFlow = settings.flow.map {
+        GlucoseUnit.fromRaw(it.glucoseUnit) to WeightUnit.fromRaw(it.weightUnit)
+    }
+
+    // BP + glucose + weight streams, all member-scoped, bundled into one source.
+    private val readingsFlow = combine(
+        currentMember.flow.flatMapLatest { bpRepo.observeAll(it) },
+        currentMember.flow.flatMapLatest { glucoseRepo.observeAll(it) },
+        currentMember.flow.flatMapLatest { weightRepo.observeAll(it) },
+    ) { bp, glucose, weight -> Triple(bp, glucose, weight) }
 
     val state: StateFlow<UnifiedHistoryUiState> = combine(
-        combine(
-            currentMember.flow.flatMapLatest { bpRepo.observeAll(it) },
-            currentMember.flow.flatMapLatest { glucoseRepo.observeAll(it) },
-        ) { bp, glucose -> bp to glucose },
+        readingsFlow,
         rangeFlow,
         sortFlow,
         guidelineFlow,
-        glucoseUnitFlow,
-    ) { (allBp, allGlucose), range, sort, guideline, glucoseUnit ->
+        unitsFlow,
+    ) { (allBp, allGlucose, allWeight), range, sort, guideline, units ->
+        val (glucoseUnit, weightUnit) = units
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
 
@@ -109,22 +128,29 @@ class UnifiedHistoryViewModel(
         val glucoseByDate = allGlucose
             .filter { range.matchesGlucose(it, today, zone) }
             .groupBy { it.timestamp.atZone(zone).toLocalDate() }
+        val weightByDate = allWeight
+            .filter { range.matchesWeight(it, today, zone) }
+            .groupBy { it.timestamp.atZone(zone).toLocalDate() }
 
-        val groups = (bpByDate.keys + glucoseByDate.keys)
+        val groups = (bpByDate.keys + glucoseByDate.keys + weightByDate.keys)
             .map { date ->
-                // Newest-first within a day for both types when sorting newest.
+                // Newest-first within a day for all types when sorting newest.
                 val bp = (bpByDate[date] ?: emptyList())
                     .let { if (sort == SortOrder.Oldest) it.sortedBy { r -> r.timestamp } else it.sortedByDescending { r -> r.timestamp } }
                 val glucose = (glucoseByDate[date] ?: emptyList())
+                    .let { if (sort == SortOrder.Oldest) it.sortedBy { r -> r.timestamp } else it.sortedByDescending { r -> r.timestamp } }
+                val weight = (weightByDate[date] ?: emptyList())
                     .let { if (sort == SortOrder.Oldest) it.sortedBy { r -> r.timestamp } else it.sortedByDescending { r -> r.timestamp } }
                 CombinedDayGroup(
                     date = date,
                     bpReadings = bp,
                     glucoseReadings = glucose,
+                    weightReadings = weight,
                     bpMean = bp.takeIf { it.isNotEmpty() }?.let {
                         it.map { r -> r.systolic }.average().toInt() to it.map { r -> r.diastolic }.average().toInt()
                     },
                     glucoseMean = glucose.takeIf { it.isNotEmpty() }?.map { it.valueMgdl }?.average(),
+                    weightMean = weight.takeIf { it.isNotEmpty() }?.map { it.weightKg }?.average(),
                 )
             }
             .let { if (sort == SortOrder.Oldest) it.sortedBy { g -> g.date } else it.sortedByDescending { g -> g.date } }
@@ -135,6 +161,7 @@ class UnifiedHistoryViewModel(
             grouped = groups,
             guideline = guideline,
             glucoseUnit = glucoseUnit,
+            weightUnit = weightUnit,
             isLoading = false,
         )
     }
@@ -160,5 +187,35 @@ class UnifiedHistoryViewModel(
     /** Re-insert a just-deleted glucose reading (Snackbar undo). */
     fun restoreGlucose(reading: GlucoseReading) {
         viewModelScope.launch { glucoseRepo.upsert(reading) }
+    }
+
+    fun deleteWeight(id: UUID) {
+        viewModelScope.launch { weightRepo.delete(id) }
+    }
+
+    /** Re-insert a just-deleted weight reading (Snackbar undo). */
+    fun restoreWeight(reading: WeightReading) {
+        viewModelScope.launch { weightRepo.upsert(reading) }
+    }
+}
+
+/**
+ * [DateRange] applied to a weight reading's timestamp (the BP/glucose variants take
+ * their own reading types). Package-internal so [UnifiedHistoryViewModel] reuses the
+ * same range predicate; mirrors [matchesGlucose].
+ */
+internal fun DateRange.matchesWeight(reading: WeightReading, today: LocalDate, zone: ZoneId): Boolean {
+    if (this == DateRange.All) return true
+    val d = reading.timestamp.atZone(zone).toLocalDate()
+    return when (this) {
+        DateRange.All -> true
+        DateRange.Today -> d == today
+        DateRange.ThisWeek -> {
+            val start = today.minusDays((today.dayOfWeek.value - 1).toLong())
+            !d.isBefore(start) && !d.isAfter(today)
+        }
+        DateRange.ThisMonth -> d.year == today.year && d.month == today.month
+        DateRange.Last30 -> !d.isBefore(today.minusDays(30)) && !d.isAfter(today)
+        DateRange.Last90 -> !d.isBefore(today.minusDays(90)) && !d.isAfter(today)
     }
 }

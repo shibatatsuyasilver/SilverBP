@@ -9,8 +9,10 @@
     <!-- Section sub-header inside a day card, before that type's entries. -->
     <string name="combined_section_bp">Blood pressure</string>
     <string name="combined_section_glucose">Blood glucose</string>
+    <string name="combined_section_weight">Weight</string>
     <!-- Per-type one-line day summary (count · mean), shown under each section header. -->
     <string name="combined_day_bp_summary">%1$d · avg %2$d/%3$d</string>
     <string name="combined_day_glucose_summary">%1$d · avg %2$s %3$s</string>
+    <string name="combined_day_weight_summary">%1$d · avg %2$s %3$s</string>
 
 </resources>

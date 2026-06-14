@@ -55,13 +55,17 @@ import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
 import com.silverbp.android.ui.components.formatGlucoseValue
+import com.silverbp.android.ui.components.formatWeightValue
 import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
 import com.silverbp.android.ui.components.measureContextLabel
+import com.silverbp.android.ui.components.weightUnitLabel
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
@@ -84,11 +88,15 @@ fun UnifiedHistoryScreen(
     onEditGlucose: (String) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
+    // Default no-op so DataHub compiles unchanged until the confirm track wires the
+    // weight confirm-edit route.
+    onEditWeight: (String) -> Unit = {},
     vm: UnifiedHistoryViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     var deleteBpTarget by remember { mutableStateOf<BpReading?>(null) }
     var deleteGlucoseTarget by remember { mutableStateOf<GlucoseReading?>(null) }
+    var deleteWeightTarget by remember { mutableStateOf<WeightReading?>(null) }
     val scope = rememberCoroutineScope()
     val deletedMsg = stringResource(R.string.reading_deleted)
     val undoLabel = stringResource(R.string.delete_reading_undo)
@@ -124,10 +132,13 @@ fun UnifiedHistoryScreen(
                     group = group,
                     guideline = state.guideline,
                     glucoseUnit = state.glucoseUnit,
+                    weightUnit = state.weightUnit,
                     onEditBp = { reading -> onEditBp(reading.id.toString()) },
                     onLongPressBp = { reading -> deleteBpTarget = reading },
                     onEditGlucose = { reading -> onEditGlucose(reading.id.toString()) },
                     onLongPressGlucose = { reading -> deleteGlucoseTarget = reading },
+                    onEditWeight = { reading -> onEditWeight(reading.id.toString()) },
+                    onLongPressWeight = { reading -> deleteWeightTarget = reading },
                 )
             }
         }
@@ -208,6 +219,47 @@ fun UnifiedHistoryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { deleteGlucoseTarget = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    deleteWeightTarget?.let { target ->
+        val fmt = remember {
+            DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
+                .withZone(java.time.ZoneId.systemDefault())
+        }
+        val valueLabel = "${formatWeightValue(target.weightKg, state.weightUnit)} ${weightUnitLabel(state.weightUnit)}"
+        AlertDialog(
+            onDismissRequest = { deleteWeightTarget = null },
+            title = { Text(stringResource(R.string.weight_delete_confirm_title)) },
+            text = {
+                Text(
+                    "$valueLabel (${fmt.format(target.timestamp)})\n\n" +
+                        stringResource(R.string.weight_delete_confirm_body),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteWeight(target.id)
+                    deleteWeightTarget = null
+                    scope.launch {
+                        val res = snackbarHostState.showSnackbar(
+                            message = deletedMsg,
+                            actionLabel = undoLabel,
+                        )
+                        if (res == SnackbarResult.ActionPerformed) vm.restoreWeight(target)
+                    }
+                }) {
+                    Text(
+                        stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteWeightTarget = null }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -304,10 +356,13 @@ private fun CombinedDaySectionCard(
     group: CombinedDayGroup,
     guideline: HypertensionGuideline,
     glucoseUnit: GlucoseUnit,
+    weightUnit: WeightUnit,
     onEditBp: (BpReading) -> Unit,
     onLongPressBp: (BpReading) -> Unit,
     onEditGlucose: (GlucoseReading) -> Unit,
     onLongPressGlucose: (GlucoseReading) -> Unit,
+    onEditWeight: (WeightReading) -> Unit,
+    onLongPressWeight: (WeightReading) -> Unit,
 ) {
     val dateFmt = DateTimeFormatter.ofPattern(stringResource(R.string.history_date_format), Locale.getDefault())
     val dateLabel = group.date.format(dateFmt)
@@ -364,6 +419,41 @@ private fun CombinedDaySectionCard(
                     onLongClick = { onLongPressGlucose(reading) },
                 )
                 if (idx < group.glucoseReadings.size - 1) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+            }
+        }
+
+        // Divider before the weight section when an earlier section is present.
+        if ((group.bpReadings.isNotEmpty() || group.glucoseReadings.isNotEmpty()) &&
+            group.weightReadings.isNotEmpty()
+        ) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+
+        // Body-weight section (only when the day has weight readings).
+        if (group.weightReadings.isNotEmpty()) {
+            val weightUnitLabel = weightUnitLabel(weightUnit)
+            SectionHeader(
+                title = stringResource(R.string.combined_section_weight),
+                summary = group.weightMean?.let { mean ->
+                    stringResource(
+                        R.string.combined_day_weight_summary,
+                        group.weightReadings.size,
+                        formatWeightValue(mean, weightUnit),
+                        weightUnitLabel,
+                    )
+                },
+            )
+            group.weightReadings.forEachIndexed { idx, reading ->
+                WeightReadingRow(
+                    reading = reading,
+                    unit = weightUnit,
+                    unitLabel = weightUnitLabel,
+                    onClick = { onEditWeight(reading) },
+                    onLongClick = { onLongPressWeight(reading) },
+                )
+                if (idx < group.weightReadings.size - 1) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
@@ -496,6 +586,57 @@ private fun GlucoseReadingRow(
         }
         Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
         Spacer(Modifier.size(8.dp))
+        Icon(
+            Icons.AutoMirrored.Filled.NavigateNext,
+            contentDescription = stringResource(R.string.a11y_view_reading_details),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Weight row of a combined day card. No category colour dot — weight's BMI band
+ * needs the member's height (unavailable here per-row); the BMI surfaces on the
+ * Today card and weight insights where the height is resolved. Long-press deletes.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WeightReadingRow(
+    reading: WeightReading,
+    unit: WeightUnit,
+    unitLabel: String,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+) {
+    val fmt = remember {
+        DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
+            .withZone(java.time.ZoneId.systemDefault())
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .semantics(mergeDescendants = true) { role = Role.Button }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                stringResource(
+                    R.string.weight_value_unit,
+                    formatWeightValue(reading.weightKg, unit),
+                    unitLabel,
+                ),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                fmt.format(reading.timestamp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Icon(
             Icons.AutoMirrored.Filled.NavigateNext,
             contentDescription = stringResource(R.string.a11y_view_reading_details),
