@@ -28,6 +28,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,10 +99,17 @@ fun <T> WheelPicker(
     }
 
     // Report the settled index up. distinctUntilChanged so we only fire on change.
+    // selectedIndex is read through rememberUpdatedState: the collector is launched
+    // once (its key, items.size, stays constant while the wheel is open), so a plain
+    // capture would freeze selectedIndex at its first value. Then scrolling away and
+    // back to the opening value would compare equal-to-stale and be dropped — Done
+    // would commit the overshoot, not the value the user sees. The updated state
+    // keeps the guard comparing against the CURRENT selection.
+    val currentSelected = rememberUpdatedState(selectedIndex)
     LaunchedEffect(items.size) {
         snapshotFlow { centeredIndex }
             .distinctUntilChanged()
-            .collect { idx -> if (idx != selectedIndex) onSelectedIndexChange(idx) }
+            .collect { idx -> if (idx != currentSelected.value) onSelectedIndexChange(idx) }
     }
 
     // Keep the wheel aligned when the caller changes selection (e.g. unit switch,
@@ -117,12 +125,7 @@ fun <T> WheelPicker(
 
     val selectedLabel = label(items[safeSelected])
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clearAndSetSemantics {
-                this.contentDescription = contentDescription
-                this.stateDescription = selectedLabel
-            },
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -141,7 +144,16 @@ fun <T> WheelPicker(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(rowHeight * rows),
+                .height(rowHeight * rows)
+                // Merge ONLY the scrollable wheel into a single read-only node that
+                // announces the control name + current value. The stepper IconButtons
+                // sit outside this cleared subtree, so their labels + click actions
+                // survive for TalkBack — clearing on the parent Row would wipe them
+                // and leave the wheel unchangeable for assistive tech.
+                .clearAndSetSemantics {
+                    this.contentDescription = contentDescription
+                    this.stateDescription = selectedLabel
+                },
             contentAlignment = Alignment.Center,
         ) {
             // Centre highlight band behind the selected row.
