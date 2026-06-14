@@ -39,6 +39,15 @@
          ⚠️ Adding this permission requires re-filing the Play Console health-apps
          declaration before release — see RELEASE.md C-8. -->
     <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
+    <!-- Body weight (體重, v20) is TWO-WAY: written one-way for the owner member,
+         and READ back so smart-scale / other-app WeightRecords import in (the
+         only health type we both read and write). The import is owner-attributed
+         (foreign rows resolve to the owner member) and de-duped against our own
+         mirror + already-held HC ids.
+         ⚠️ Adding these permissions requires re-filing the Play Console health-apps
+         declaration before release — see RELEASE.md C-8. -->
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE_ROUTE" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />

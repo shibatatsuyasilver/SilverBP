@@ -26,6 +26,7 @@ import com.silverbp.android.exercise.HealthConnectExerciseBridge
 import com.silverbp.android.exercise.StepCounterReader
 import com.silverbp.android.health.HealthConnectBpBridge
 import com.silverbp.android.health.HealthConnectGlucoseBridge
+import com.silverbp.android.health.HealthConnectWeightBridge
 import com.silverbp.android.health.HealthConnectBridge
 import com.silverbp.android.health.HealthConnectNutritionBridge
 import com.silverbp.android.nutrition.NutritionRepository
@@ -52,6 +53,7 @@ import okhttp3.OkHttpClient
 import com.silverbp.android.sync.AchievementSyncMapper
 import com.silverbp.android.sync.BpReadingSyncMapper
 import com.silverbp.android.sync.GlucoseReadingSyncMapper
+import com.silverbp.android.sync.WeightReadingSyncMapper
 import com.silverbp.android.sync.BpWorkoutAssociationSyncMapper
 import com.silverbp.android.sync.ChatMessageSyncMapper
 import com.silverbp.android.sync.ChatSessionSyncMapper
@@ -154,16 +156,16 @@ object ServiceLocator {
 
     /**
      * Body-weight readings (kg canonical), member-scoped with the same owner-only
-     * Health Connect mirror guard as [glucoseRepository]. The HC mirror is wired
-     * in a later phase via the HealthConnectWeightBridge; for now [healthConnect]
-     * is null so the mirror is inert, with the same coarse on/off lambda kept in
-     * place for when the bridge lands.
+     * Health Connect mirror guard as [glucoseRepository]. The mirror writes a
+     * [androidx.health.connect.client.records.WeightRecord] via
+     * [healthConnectWeightBridge]; the bridge independently checks the weight
+     * write permission, and the owner-only guard lives in the repository.
      */
     val weightRepository: WeightRepository by lazy {
         WeightRepository(
             dao = database.weightDao(),
             members = memberRepository,
-            healthConnect = null,
+            healthConnect = healthConnectWeightBridge,
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
         )
     }
@@ -222,6 +224,21 @@ object ServiceLocator {
     /** Owner-only one-way mirror of glucose readings to Health Connect (v19). */
     val healthConnectGlucoseBridge: HealthConnectGlucoseBridge by lazy {
         HealthConnectGlucoseBridge(context)
+    }
+
+    /**
+     * Owner-only mirror of body-weight readings to Health Connect (v20), plus the
+     * read-back import path for smart-scale / foreign WeightRecords. The import
+     * de-dup uses the weight DAO's existing hcRecordIds so a re-sync never
+     * duplicates rows we already hold.
+     */
+    val healthConnectWeightBridge: HealthConnectWeightBridge by lazy {
+        HealthConnectWeightBridge(
+            context,
+            knownHcRecordIds = {
+                database.weightDao().getAll().mapNotNull { it.hcRecordId }.toSet()
+            },
+        )
     }
 
     val healthConnectNutritionBridge: HealthConnectNutritionBridge by lazy {
@@ -353,6 +370,14 @@ object ServiceLocator {
     val glucoseReadingSyncMapper: GlucoseReadingSyncMapper by lazy {
         GlucoseReadingSyncMapper(
             database.glucoseDao(),
+            database.syncDao(),
+            ownerIdProvider = { memberRepository.ownerId() },
+        )
+    }
+
+    val weightReadingSyncMapper: WeightReadingSyncMapper by lazy {
+        WeightReadingSyncMapper(
+            database.weightDao(),
             database.syncDao(),
             ownerIdProvider = { memberRepository.ownerId() },
         )
@@ -536,6 +561,8 @@ object ServiceLocator {
                     memberMapper = memberSyncMapper,
                     glucoseDao = database.glucoseDao(),
                     glucoseMapper = glucoseReadingSyncMapper,
+                    weightDao = database.weightDao(),
+                    weightMapper = weightReadingSyncMapper,
                 )
             },
             sinkFactory = {
@@ -562,6 +589,7 @@ object ServiceLocator {
                     foodLogMapper = foodLogSyncMapper,
                     memberMapper = memberSyncMapper,
                     glucoseMapper = glucoseReadingSyncMapper,
+                    weightMapper = weightReadingSyncMapper,
                     // B6 LWW gate: import compares record.hlc vs the local row's
                     // hlcUpdatedAt + tombstone hlc before applying.
                     syncDao = database.syncDao(),

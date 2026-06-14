@@ -31,6 +31,9 @@ class MemberSyncMapperTest {
         displayName = "外婆",
         isOwner = isOwner,
         birthYear = 1948,
+        heightCm = 158,
+        biologicalSex = "female",
+        targetWeightKg = 55.5,
         hasDiabetes = true,
         hasCKD = false,
         hasASCVD = true,
@@ -67,6 +70,10 @@ class MemberSyncMapperTest {
         assertEquals(SyncValue.Bool(false), p[10])
         assertEquals(SyncValue.Int64(1_730_000_000_500L), p[11])
         assertEquals(SyncValue.Int64(1_730_000_001_000L), p[12])
+        // Tags 13–15: weight-feature profile fields.
+        assertEquals(SyncValue.Int64(158), p[13])
+        assertEquals(SyncValue.Text("female"), p[14])
+        assertEquals(SyncValue.Double(55.5), p[15])
     }
 
     @Test
@@ -74,6 +81,18 @@ class MemberSyncMapperTest {
         val mapper = MemberSyncMapper(FakeMemberDao(), FakeSyncDao())
         val rec = mapper.encode(fixture().copy(birthYear = null), Hlc.of(1L, 0, 1L))
         assertEquals(SyncValue.Null, rec.payload[3])
+    }
+
+    @Test
+    fun null_profile_fields_emit_null() {
+        val mapper = MemberSyncMapper(FakeMemberDao(), FakeSyncDao())
+        val rec = mapper.encode(
+            fixture().copy(heightCm = null, biologicalSex = null, targetWeightKg = null),
+            Hlc.of(1L, 0, 1L),
+        )
+        assertEquals(SyncValue.Null, rec.payload[13])
+        assertEquals(SyncValue.Null, rec.payload[14])
+        assertEquals(SyncValue.Null, rec.payload[15])
     }
 
     @Test
