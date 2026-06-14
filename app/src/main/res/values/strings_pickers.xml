@@ -1,0 +1,27 @@
+<resources>
+
+    <!-- Shared wheel-picker (scroll selector) strings used by WheelPicker.kt and
+         ValuePickers.kt for the birth-year / height / weight pickers. Identical
+         key set in values-zh-rTW (audit M27). a11y: the wheel is merged into one
+         node; picker_previous/next label the stepper buttons, picker_row_a11y
+         announces the tappable value row. -->
+
+    <!-- Stepper buttons that nudge the wheel one value at a time (TalkBack). -->
+    <string name="picker_previous">Previous value</string>
+    <string name="picker_next">Next value</string>
+
+    <!-- Spoken description of a value row: "<label>, <value>". -->
+    <string name="picker_row_a11y">%1$s, %2$s</string>
+
+    <!-- Dialog actions. -->
+    <string name="picker_clear">Clear</string>
+    <string name="picker_cancel">Cancel</string>
+    <string name="picker_done">Done</string>
+
+    <!-- Placeholder shown when an optional field has no value yet. -->
+    <string name="picker_not_set">Not set</string>
+
+    <!-- Height value with unit, e.g. "170 cm". -->
+    <string name="picker_height_value">%1$d cm</string>
+
+</resources>

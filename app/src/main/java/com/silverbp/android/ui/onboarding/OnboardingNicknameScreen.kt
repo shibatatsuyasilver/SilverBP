@@ -45,7 +45,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -55,7 +54,10 @@ import com.silverbp.android.core.WeightReading
 import com.silverbp.android.core.WeightSource
 import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.HeightPickerField
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.WeightPickerField
+import com.silverbp.android.ui.components.YearPickerField
 import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.settings.ExperienceLevel
@@ -99,10 +101,12 @@ fun OnboardingNicknameScreen(
     var nickname by rememberSaveable { mutableStateOf("") }
     var consentChecked by rememberSaveable { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
-    // Health-profile inputs (step 3). All optional; blank → nothing written.
-    var birthYearText by rememberSaveable { mutableStateOf("") }
-    var heightText by rememberSaveable { mutableStateOf("") }
-    var weightText by rememberSaveable { mutableStateOf("") }
+    // Health-profile inputs (step 3). All optional; null → nothing written. Picked
+    // from range-constrained wheels, so out-of-range values can't be entered.
+    var birthYear by rememberSaveable { mutableStateOf<Int?>(null) }
+    var heightCm by rememberSaveable { mutableStateOf<Int?>(null) }
+    // Canonical kg (unit-independent); the wheel handles kg/lb display itself.
+    var weightKg by rememberSaveable { mutableStateOf<Double?>(null) }
     // Weight entry unit; seeded from UserSettings.weightUnit in LaunchedEffect.
     var weightUnit by rememberSaveable { mutableStateOf(WeightUnit.Kg) }
     // Id of the starting weight reading written from this step, so re-entering the
@@ -136,9 +140,9 @@ fun OnboardingNicknameScreen(
     // Fire-and-forget on the screen scope so navigation isn't blocked; invalid
     // (out-of-range) entries are treated as blank by the step's gating.
     fun persistProfile() {
-        val parsedBirthYear = birthYearText.trim().toIntOrNull()
-        val parsedHeight = heightText.trim().toIntOrNull()
-        val parsedWeight = weightText.trim().toDoubleOrNull()
+        val parsedBirthYear = birthYear
+        val parsedHeight = heightCm
+        val parsedWeight = weightKg
         if (parsedBirthYear == null && parsedHeight == null && parsedWeight == null) return
         scope.launch {
             runCatching {
@@ -162,7 +166,8 @@ fun OnboardingNicknameScreen(
                         WeightReading(
                             id = id,
                             memberId = "",
-                            weightKg = WeightReading.kgFrom(parsedWeight, weightUnit),
+                            // Already canonical kg — the wheel stored it unit-free.
+                            weightKg = parsedWeight,
                             displayUnit = weightUnit,
                             timestamp = Instant.now(),
                             source = WeightSource.Manual,
@@ -218,12 +223,12 @@ fun OnboardingNicknameScreen(
                     },
                 )
                 3 -> ProfileStep(
-                    birthYearText = birthYearText,
-                    onBirthYearChange = { birthYearText = it.filter(Char::isDigit).take(4) },
-                    heightText = heightText,
-                    onHeightChange = { heightText = it.filter(Char::isDigit).take(3) },
-                    weightText = weightText,
-                    onWeightChange = { weightText = it.filter { c -> c.isDigit() || c == '.' } },
+                    birthYear = birthYear,
+                    onBirthYearChange = { birthYear = it },
+                    heightCm = heightCm,
+                    onHeightChange = { heightCm = it },
+                    weightKg = weightKg,
+                    onWeightChange = { weightKg = it },
                     weightUnit = weightUnit,
                     onBack = { step = 2 },
                     // Both Next and Skip persist whatever was filled, then advance.
@@ -468,27 +473,17 @@ private fun NicknameStep(
  */
 @Composable
 private fun ProfileStep(
-    birthYearText: String,
-    onBirthYearChange: (String) -> Unit,
-    heightText: String,
-    onHeightChange: (String) -> Unit,
-    weightText: String,
-    onWeightChange: (String) -> Unit,
+    birthYear: Int?,
+    onBirthYearChange: (Int?) -> Unit,
+    heightCm: Int?,
+    onHeightChange: (Int?) -> Unit,
+    weightKg: Double?,
+    onWeightChange: (Double?) -> Unit,
     weightUnit: WeightUnit,
     onBack: () -> Unit,
     onNext: () -> Unit,
     onSkip: () -> Unit,
 ) {
-    // Same blank-ok validity rules as MemberEditorSheet; an invalid (out-of-range)
-    // entry shows an error and gates Next so we never persist a bad value.
-    val birthYear = birthYearText.trim().toIntOrNull()
-    val birthYearValid = birthYearText.isBlank() || (birthYear != null && birthYearText.trim().length == 4)
-    val heightCm = heightText.trim().toIntOrNull()
-    val heightValid = heightText.isBlank() || (heightCm != null && heightCm in 50..300)
-    val weight = weightText.trim().toDoubleOrNull()
-    val weightValid = weightText.isBlank() || (weight != null && weight > 0.0)
-    val canAdvance = birthYearValid && heightValid && weightValid
-
     val unitLabel = stringResource(
         if (weightUnit == WeightUnit.Lb) R.string.weight_unit_lb else R.string.weight_unit_kg,
     )
@@ -511,44 +506,27 @@ private fun ProfileStep(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         StandardCard {
+            // All three are wheel pickers (tap the value to open). Each is optional —
+            // the dialog's Clear restores "not set" so a skippable step stays skippable.
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
-                OutlinedTextField(
-                    value = birthYearText,
-                    onValueChange = onBirthYearChange,
-                    label = { Text(stringResource(R.string.member_birth_year)) },
-                    placeholder = { Text(stringResource(R.string.member_birth_year_placeholder)) },
+                YearPickerField(
+                    value = birthYear,
+                    onChange = onBirthYearChange,
+                    label = stringResource(R.string.member_birth_year),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = !birthYearValid,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    supportingText = if (!birthYearValid) {
-                        { Text(stringResource(R.string.member_birth_year_invalid)) }
-                    } else null,
                 )
-                OutlinedTextField(
-                    value = heightText,
-                    onValueChange = onHeightChange,
-                    label = { Text(stringResource(R.string.member_height_label)) },
-                    placeholder = { Text(stringResource(R.string.member_height_placeholder)) },
+                HeightPickerField(
+                    value = heightCm,
+                    onChange = onHeightChange,
+                    label = stringResource(R.string.member_height_label),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = !heightValid,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    supportingText = if (!heightValid) {
-                        { Text(stringResource(R.string.member_height_invalid)) }
-                    } else null,
                 )
-                OutlinedTextField(
-                    value = weightText,
-                    onValueChange = onWeightChange,
-                    label = { Text(stringResource(R.string.onboarding_profile_weight, unitLabel)) },
+                WeightPickerField(
+                    valueKg = weightKg,
+                    unit = weightUnit,
+                    onChange = onWeightChange,
+                    label = stringResource(R.string.onboarding_profile_weight, unitLabel),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = !weightValid,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Done,
-                    ),
                 )
             }
         }
@@ -556,7 +534,8 @@ private fun ProfileStep(
         OnboardingHeroButton(
             label = stringResource(R.string.onboarding_goal_next),
             onClick = onNext,
-            enabled = canAdvance,
+            // Leaving the step is always allowed — every field is optional.
+            enabled = true,
         )
         TextButton(
             onClick = onSkip,

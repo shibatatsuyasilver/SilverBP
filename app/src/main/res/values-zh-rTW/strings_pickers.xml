@@ -1,0 +1,26 @@
+<resources>
+
+    <!-- 捲動選擇器（wheel picker）共用字串，供 WheelPicker.kt 與 ValuePickers.kt
+         的出生年／身高／體重選擇器使用。鍵集與 values 一致（稽核 M27）。
+         a11y：捲輪合併為單一節點；picker_previous/next 標示上下微調按鈕，
+         picker_row_a11y 朗讀可點的值列。 -->
+
+    <!-- 一次微調一格的上下按鈕（TalkBack）。 -->
+    <string name="picker_previous">上一個數值</string>
+    <string name="picker_next">下一個數值</string>
+
+    <!-- 值列朗讀內容：「<標籤>，<數值>」。 -->
+    <string name="picker_row_a11y">%1$s，%2$s</string>
+
+    <!-- 對話框動作。 -->
+    <string name="picker_clear">清除</string>
+    <string name="picker_cancel">取消</string>
+    <string name="picker_done">完成</string>
+
+    <!-- 選填欄位尚未填值時的佔位字。 -->
+    <string name="picker_not_set">未設定</string>
+
+    <!-- 身高數值含單位，例如「170 公分」。 -->
+    <string name="picker_height_value">%1$d 公分</string>
+
+</resources>

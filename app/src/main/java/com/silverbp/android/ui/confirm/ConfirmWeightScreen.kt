@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -52,15 +51,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.BmiCategory
 import com.silverbp.android.core.Member
+import com.silverbp.android.core.WeightReading
 import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.WeightPickerField
 import com.silverbp.android.ui.member.MemberPalette
 import java.time.Instant
 import java.time.LocalDate
@@ -149,9 +149,25 @@ fun ConfirmWeightScreen(
 
             SectionCard(stringResource(R.string.weight_value_label)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ValueRow(
-                        valueText = draft.valueText,
-                        onChange = { v -> vm.update { it.copy(valueText = v) } },
+                    // Weight wheel (required — no Clear). Stores canonical kg; the
+                    // draft holds the value as display-unit text, so we convert on
+                    // each side. The unit comes from the toggle below.
+                    WeightPickerField(
+                        valueKg = draft.parsedValue
+                            ?.let { WeightReading.kgFrom(it, draft.displayUnit) },
+                        unit = draft.displayUnit,
+                        onChange = { kg ->
+                            if (kg != null) {
+                                val display = if (draft.displayUnit == WeightUnit.Lb) {
+                                    WeightUnit.kgToLb(kg)
+                                } else {
+                                    kg
+                                }
+                                vm.update { it.copy(valueText = WeightDraft.formatValue(display)) }
+                            }
+                        },
+                        label = stringResource(R.string.weight_value_label),
+                        required = true,
                     )
                     HorizontalDivider()
                     UnitToggleRow(
@@ -235,37 +251,6 @@ fun ConfirmWeightScreen(
                     Text(stringResource(R.string.confirm))
                 }
             },
-        )
-    }
-}
-
-@Composable
-private fun ValueRow(
-    valueText: String,
-    onChange: (String) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(R.string.weight_value_label),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        OutlinedTextField(
-            value = valueText,
-            onValueChange = { v ->
-                // Scales read to one decimal — keep digits + a single dot.
-                val cleaned = v.filter { it.isDigit() || it == '.' }.take(6)
-                onChange(cleaned)
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            textStyle = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-            ),
-            modifier = Modifier.size(width = 110.dp, height = 56.dp),
         )
     }
 }

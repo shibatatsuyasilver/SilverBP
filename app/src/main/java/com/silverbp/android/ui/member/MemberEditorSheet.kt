@@ -43,13 +43,13 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.silverbp.android.R
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.Member
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.HeightPickerField
+import com.silverbp.android.ui.components.YearPickerField
 import kotlinx.coroutines.launch
 
 /**
@@ -73,8 +73,9 @@ fun MemberEditorSheet(
     // recreated per add/edit invocation (keyed by the caller), so a plain
     // remember is enough — no SavedStateHandle needed for a transient sheet.
     var displayName by remember { mutableStateOf(member?.displayName ?: "") }
-    var birthYearText by remember { mutableStateOf(member?.birthYear?.toString() ?: "") }
-    var heightText by remember { mutableStateOf(member?.heightCm?.toString() ?: "") }
+    // Birth year / height are picked from range-constrained wheels; null = not set.
+    var birthYear by remember { mutableStateOf(member?.birthYear) }
+    var heightCm by remember { mutableStateOf(member?.heightCm) }
     var hasDiabetes by remember { mutableStateOf(member?.hasDiabetes ?: false) }
     var hasCKD by remember { mutableStateOf(member?.hasCKD ?: false) }
     var hasASCVD by remember { mutableStateOf(member?.hasASCVD ?: false) }
@@ -84,13 +85,9 @@ fun MemberEditorSheet(
     var colorIndex by remember { mutableStateOf(member?.colorIndex ?: 0) }
     var saving by remember { mutableStateOf(false) }
 
-    // A blank year clears birthYear; a present value must be a 4-digit year.
-    val birthYear = birthYearText.trim().toIntOrNull()
-    val birthYearValid = birthYearText.isBlank() || (birthYear != null && birthYearText.trim().length == 4)
-    // A blank height clears heightCm; a present value must be a plausible cm (50..300).
-    val heightCm = heightText.trim().toIntOrNull()
-    val heightValid = heightText.isBlank() || (heightCm != null && heightCm in 50..300)
-    val canSave = !saving && birthYearValid && heightValid
+    // The wheel pickers can only yield in-range values (or null when cleared), so
+    // there is nothing to validate; save is gated only on the in-flight save.
+    val canSave = !saving
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -118,34 +115,21 @@ fun MemberEditorSheet(
                 singleLine = true,
             )
 
-            // Birth year (optional).
-            OutlinedTextField(
-                value = birthYearText,
-                onValueChange = { birthYearText = it.filter(Char::isDigit).take(4) },
-                label = { Text(stringResource(R.string.member_birth_year)) },
-                placeholder = { Text(stringResource(R.string.member_birth_year_placeholder)) },
+            // Birth year (optional). Wheel picker 1900..now; Clear restores "not set".
+            YearPickerField(
+                value = birthYear,
+                onChange = { birthYear = it },
+                label = stringResource(R.string.member_birth_year),
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = !birthYearValid,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                supportingText = if (!birthYearValid) {
-                    { Text(stringResource(R.string.member_birth_year_invalid)) }
-                } else null,
             )
 
             // Height in cm (optional). Drives the per-member BMI on the weight card.
-            OutlinedTextField(
-                value = heightText,
-                onValueChange = { heightText = it.filter(Char::isDigit).take(3) },
-                label = { Text(stringResource(R.string.member_height_label)) },
-                placeholder = { Text(stringResource(R.string.member_height_placeholder)) },
+            // Wheel picker 50..250 cm; Clear restores "not set".
+            HeightPickerField(
+                value = heightCm,
+                onChange = { heightCm = it },
+                label = stringResource(R.string.member_height_label),
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = !heightValid,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                supportingText = if (!heightValid) {
-                    { Text(stringResource(R.string.member_height_invalid)) }
-                } else null,
             )
 
             // Identity colour (0..7 fixed palette swatches).
