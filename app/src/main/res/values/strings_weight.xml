@@ -11,6 +11,7 @@
 
     <!-- Value + units -->
     <string name="weight_value_label">Weight</string>
+    <string name="weight_unit_label">Unit</string>
     <string name="weight_unit_kg">kg</string>
     <string name="weight_unit_lb">lb</string>
 
