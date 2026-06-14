@@ -1,0 +1,92 @@
+[
+  {
+    "file": "glucose_glucocheckxl_5p3mmol_rotated.jpg",
+    "valueMgdl": 95.5,
+    "displayValue": "5.3",
+    "unit": "mmol",
+    "measureContext": null,
+    "toleranceMgdl": 10.0,
+    "note": "GlucoCheck XL; digits rotated ~90 degrees on screen (rotation test)."
+  },
+  {
+    "file": "glucose_onetouch_ultra_5p9mmol.jpg",
+    "valueMgdl": 106.3,
+    "displayValue": "5.9",
+    "unit": "mmol",
+    "measureContext": null,
+    "toleranceMgdl": 10.0,
+    "note": "OneTouch Ultra (LifeScan); memory-recall view."
+  },
+  {
+    "file": "glucose_gluneo_5p1mmol.jpg",
+    "valueMgdl": 91.9,
+    "displayValue": "5.1",
+    "unit": "mmol",
+    "measureContext": null,
+    "toleranceMgdl": 10.0,
+    "note": "Novatin GluNEO; mmol/L label visible."
+  },
+  {
+    "file": "glucose_contour_ts_8p4mmol.jpg",
+    "valueMgdl": 151.3,
+    "displayValue": "8.4",
+    "unit": "mmol",
+    "measureContext": null,
+    "toleranceMgdl": 10.0,
+    "note": "Bayer Contour TS; mmol/L label and meal/drop icons shown."
+  },
+  {
+    "file": "glucose_relion_prime_544mgdl.jpg",
+    "valueMgdl": 544.0,
+    "displayValue": "544",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "ReliOn Prime (Arkray); mg/dL integer, very high."
+  },
+  {
+    "file": "glucose_relion_prime_425mgdl.jpg",
+    "valueMgdl": 425.0,
+    "displayValue": "425",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "ReliOn Prime (Arkray); mg/dL integer."
+  },
+  {
+    "file": "glucose_relion_prime_263mgdl.jpg",
+    "valueMgdl": 263.0,
+    "displayValue": "263",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "ReliOn Prime (Arkray); mg/dL integer."
+  },
+  {
+    "file": "glucose_relion_prime_395mgdl.jpg",
+    "valueMgdl": 395.0,
+    "displayValue": "395",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "ReliOn Prime (Arkray); mg/dL integer."
+  },
+  {
+    "file": "glucose_roundmeter_254mgdl_rotated.jpg",
+    "valueMgdl": 254.0,
+    "displayValue": "254",
+    "unit": "mgdl",
+    "measureContext": null,
+    "toleranceMgdl": 5.0,
+    "note": "Generic round meter; display rotated ~90 degrees on screen (rotation test); mg/dL."
+  },
+  {
+    "file": "glucose_lo_warning_nonnumeric.jpg",
+    "valueMgdl": null,
+    "displayValue": "Lo",
+    "unit": null,
+    "measureContext": null,
+    "toleranceMgdl": 0.0,
+    "note": "EDGE CASE: out-of-range LOW warning word, not a number. Parser/model must return value=null (no fabricated number)."
+  }
+]
