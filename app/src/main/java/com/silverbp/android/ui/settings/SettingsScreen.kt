@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -44,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +63,7 @@ import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
 import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.Member
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.AppLanguage
 import com.silverbp.android.settings.AppThemeMode
@@ -68,12 +71,14 @@ import com.silverbp.android.settings.LocaleHelper
 import com.silverbp.android.billing.Entitlement
 import com.silverbp.android.ui.coach.formatTime
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.member.MemberEditorSheet
 import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
 import com.silverbp.android.ui.paywall.openManageSubscription
 import com.silverbp.android.ui.theme.AppSpacing
 import java.time.DayOfWeek
 import java.time.format.TextStyle
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +96,16 @@ fun SettingsScreen(
     val appLockStatus by vm.appLockStatus.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Profile editor (per-member profile: age/height/sex/target). Opens the same
+    // MemberEditorSheet used by member management, but always for the OWNER so the
+    // everyday user has a findable path to their own height/sex/target — the data
+    // BMI & targets depend on. The owner row is loaded lazily on tap; the editor
+    // only mounts once it's resolved so we never pass a stale/null member.
+    val profileSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var profileOwner by remember { mutableStateOf<Member?>(null) }
+    var showProfileEditor by remember { mutableStateOf(false) }
     // Core Health Connect permissions the master toggle requests in one sheet:
     //   • steps READ      — medals / step backfill
     //   • exercise WRITE  — finished workouts (+route) mirror to HC
@@ -225,6 +240,59 @@ fun SettingsScreen(
                 Text(
                     stringResource(R.string.settings_user_nickname_help),
                     style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            // Profile (個人檔案) — per-member age/height/sex/target weight. Lives on
+            // the OWNER Member; surfaced here near the top so BMI/target inputs are
+            // findable without digging into family-member management. (1) a row that
+            // opens MemberEditorSheet for the owner; (2) the app-wide weight unit.
+            StandardCard(title = stringResource(R.string.weight_profile_title)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.weight_profile_title),
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            stringResource(R.string.weight_profile_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Button(onClick = {
+                        // Resolve the owner first, then mount the editor so the
+                        // sheet opens already in edit mode for the right member.
+                        scope.launch {
+                            profileOwner = ServiceLocator.memberRepository.owner()
+                            showProfileEditor = true
+                        }
+                    }) { Text(stringResource(R.string.member_edit)) }
+                }
+
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+                // App-wide weight display unit (kg/lb). Canonical storage is kg;
+                // this only changes rendering. Mirrors the App-language radio idiom.
+                Text(
+                    stringResource(R.string.weight_unit_setting),
+                    fontWeight = FontWeight.Medium,
+                )
+                WeightUnitRow(
+                    selected = state.weightUnit,
+                    label = stringResource(R.string.weight_unit_kg),
+                    raw = "kg",
+                    onSelect = { vm.setWeightUnit(it) },
+                )
+                WeightUnitRow(
+                    selected = state.weightUnit,
+                    label = stringResource(R.string.weight_unit_lb),
+                    raw = "lb",
+                    onSelect = { vm.setWeightUnit(it) },
                 )
             }
 
@@ -513,6 +581,42 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    // Per-member profile editor for the owner. Mounted only once the owner row is
+    // resolved (profileOwner != null) so it always opens in edit mode.
+    if (showProfileEditor) {
+        profileOwner?.let { owner ->
+            MemberEditorSheet(
+                member = owner,
+                sheetState = profileSheetState,
+                onDismiss = { showProfileEditor = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeightUnitRow(
+    selected: String,
+    label: String,
+    raw: String,
+    onSelect: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected == raw,
+                role = androidx.compose.ui.semantics.Role.RadioButton,
+                onClick = { onSelect(raw) },
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected == raw, onClick = { onSelect(raw) })
+        Spacer(Modifier.size(8.dp))
+        Text(label)
     }
 }
 

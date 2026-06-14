@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
@@ -52,7 +51,6 @@ import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
-import com.silverbp.android.core.WeightCategory
 import com.silverbp.android.core.WeightGuideline
 import com.silverbp.android.core.WeightReading
 import com.silverbp.android.core.WeightUnit
@@ -68,11 +66,9 @@ import com.silverbp.android.ui.components.glucoseCategoryLabel
 import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
 import com.silverbp.android.ui.components.measureContextLabel
+import com.silverbp.android.ui.components.weightCategoryLabel
+import com.silverbp.android.ui.components.weightColorFor
 import com.silverbp.android.ui.theme.AppSpacing
-import com.silverbp.android.ui.theme.CategoryElevated
-import com.silverbp.android.ui.theme.CategoryHypotension
-import com.silverbp.android.ui.theme.CategoryNormal
-import com.silverbp.android.ui.theme.CategoryStage2
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -638,30 +634,6 @@ private fun proTipRes(systolic: Int, diastolic: Int, guideline: HypertensionGuid
         BpCategory.HypertensiveCrisis -> R.string.today_protip_crisis
         BpCategory.Hypotension -> R.string.today_protip_hypotension
     }
-
-/**
- * Category colour for a BMI band, the [colorFor]/[glucoseColorFor] sibling, kept
- * local to this screen (this phase touches only the Today card). Reuses the shared
- * category palette so the bands read consistently: 過輕 borrows the cool/blue
- * "below normal" accent, 正常 is green, 過重 is yellow, 肥胖 is red.
- */
-private fun weightColorFor(category: WeightCategory): Color = when (category) {
-    WeightCategory.Underweight -> CategoryHypotension // blue — below normal
-    WeightCategory.Normal -> CategoryNormal           // green
-    WeightCategory.Overweight -> CategoryElevated      // yellow
-    WeightCategory.Obese -> CategoryStage2             // red
-}
-
-/** Localized label for a [WeightCategory] (uses the weight string set). */
-@Composable
-private fun weightCategoryLabel(category: WeightCategory): String = stringResource(
-    when (category) {
-        WeightCategory.Underweight -> R.string.weight_category_underweight
-        WeightCategory.Normal -> R.string.weight_category_normal
-        WeightCategory.Overweight -> R.string.weight_category_overweight
-        WeightCategory.Obese -> R.string.weight_category_obese
-    },
-)
 
 /** Localized unit label (公斤 / 磅) for a [WeightUnit]. */
 @Composable

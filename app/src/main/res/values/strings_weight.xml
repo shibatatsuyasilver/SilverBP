@@ -41,4 +41,28 @@
     <string name="weight_analyzing">Analyzing…</string>
     <string name="weight_analyze_failed">Couldn\'t read the scale — enter manually</string>
 
+    <!-- Insights + profile (Phase 5). Identical key set in values-zh-rTW (audit M27). -->
+
+    <!-- Measure-type picker (Data hub) -->
+    <string name="measure_weight">Weight</string>
+
+    <!-- Per-member profile (height/sex/target) -->
+    <string name="weight_profile_title">Profile</string>
+    <string name="weight_profile_hint">Age, height, sex &amp; target weight</string>
+    <string name="weight_height_label">Height (cm)</string>
+    <string name="weight_sex_label">Sex</string>
+    <string name="weight_sex_male">Male</string>
+    <string name="weight_sex_female">Female</string>
+    <string name="weight_sex_other">Other</string>
+    <string name="weight_target_weight_label">Target weight</string>
+
+    <!-- App-wide display unit -->
+    <string name="weight_unit_setting">Weight unit</string>
+
+    <!-- Insights -->
+    <string name="weight_insights_title">Weight</string>
+    <string name="weight_trend_title">Weight trend</string>
+    <string name="weight_summary_latest">Latest</string>
+    <string name="weight_summary_change">Change</string>
+
 </resources>

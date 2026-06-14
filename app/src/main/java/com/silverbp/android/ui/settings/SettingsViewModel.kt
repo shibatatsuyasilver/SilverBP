@@ -67,6 +67,13 @@ class SettingsViewModel(
 
     fun setGuideline(g: HypertensionGuideline) { viewModelScope.launch { repo.setGuideline(g) } }
 
+    /**
+     * App-wide weight display unit ("kg"/"lb"). Canonical storage stays kg; this
+     * only changes how values render. Reflected back into [state] via the
+     * DataStore flow ([UserSettings.weightUnit]) for the radio selection.
+     */
+    fun setWeightUnit(raw: String) { viewModelScope.launch { repo.setWeightUnit(raw) } }
+
     fun setAppThemeMode(v: AppThemeMode) { viewModelScope.launch { repo.setAppThemeMode(v) } }
 
     /**

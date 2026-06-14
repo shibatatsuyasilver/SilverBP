@@ -31,6 +31,7 @@ import com.silverbp.android.ui.history.UnifiedHistoryScreen
 import com.silverbp.android.ui.history.UnifiedHistoryViewModel
 import com.silverbp.android.ui.insights.GlucoseInsightsScreen
 import com.silverbp.android.ui.insights.InsightsScreen
+import com.silverbp.android.ui.insights.WeightInsightsScreen
 import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.theme.AppSpacing
 
@@ -48,6 +49,7 @@ private enum class DataSection(val labelRes: Int) {
 private enum class MeasureType(val labelRes: Int) {
     Bp(R.string.measure_bp),
     Glucose(R.string.measure_glucose),
+    Weight(R.string.measure_weight),
 }
 
 /**
@@ -151,6 +153,9 @@ fun DataHubScreen(
                         modifier = Modifier.weight(1f),
                     )
                     MeasureType.Glucose -> GlucoseInsightsScreen(
+                        modifier = Modifier.weight(1f),
+                    )
+                    MeasureType.Weight -> WeightInsightsScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }

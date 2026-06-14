@@ -40,4 +40,28 @@
     <string name="weight_analyzing">分析中…</string>
     <string name="weight_analyze_failed">無法辨識體重計,請手動輸入</string>
 
+    <!-- 洞察 + 個人檔案 (Phase 5). 鍵集與 values/ 完全一致 (audit M27). -->
+
+    <!-- 量測類型選擇 (資料中心) -->
+    <string name="measure_weight">體重</string>
+
+    <!-- 各成員個人檔案 (身高/性別/目標) -->
+    <string name="weight_profile_title">個人檔案</string>
+    <string name="weight_profile_hint">年齡、身高、性別與目標體重</string>
+    <string name="weight_height_label">身高 (公分)</string>
+    <string name="weight_sex_label">生理性別</string>
+    <string name="weight_sex_male">男</string>
+    <string name="weight_sex_female">女</string>
+    <string name="weight_sex_other">其他</string>
+    <string name="weight_target_weight_label">目標體重</string>
+
+    <!-- 全應用顯示單位 -->
+    <string name="weight_unit_setting">體重單位</string>
+
+    <!-- 洞察 -->
+    <string name="weight_insights_title">體重</string>
+    <string name="weight_trend_title">體重趨勢</string>
+    <string name="weight_summary_latest">最新</string>
+    <string name="weight_summary_change">變化</string>
+
 </resources>
