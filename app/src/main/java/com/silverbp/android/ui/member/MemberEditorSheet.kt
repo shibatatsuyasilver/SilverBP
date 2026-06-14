@@ -31,7 +31,6 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,17 +44,17 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.silverbp.android.R
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.Member
+import com.silverbp.android.ui.components.HeightPickerField
+import com.silverbp.android.ui.components.WeightPickerField
+import com.silverbp.android.ui.components.YearPickerField
 import com.silverbp.android.core.WeightReading
 import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 /**
  * Add/edit a family member. Modal bottom sheet shown over
@@ -83,8 +82,11 @@ fun MemberEditorSheet(
     // recreated per add/edit invocation (keyed by the caller), so a plain
     // remember is enough — no SavedStateHandle needed for a transient sheet.
     var displayName by remember { mutableStateOf(member?.displayName ?: "") }
-    var birthYearText by remember { mutableStateOf(member?.birthYear?.toString() ?: "") }
-    var heightText by remember { mutableStateOf(member?.heightCm?.toString() ?: "") }
+    // Birth year / height / target weight are picked from range-constrained wheels;
+    // null = not set. Target weight stores canonical kg (unit handled by the wheel).
+    var birthYear by remember { mutableStateOf(member?.birthYear) }
+    var heightCm by remember { mutableStateOf(member?.heightCm) }
+    var targetWeightKg by remember { mutableStateOf(member?.targetWeightKg) }
     // Biological sex: "M" | "F" | "Other" | null (none selected).
     var biologicalSex by remember { mutableStateOf(member?.biologicalSex) }
     var hasDiabetes by remember { mutableStateOf(member?.hasDiabetes ?: false) }
@@ -96,37 +98,9 @@ fun MemberEditorSheet(
     var colorIndex by remember { mutableStateOf(member?.colorIndex ?: 0) }
     var saving by remember { mutableStateOf(false) }
 
-    // Target weight is unit-dependent, so its text is seeded from the canonical
-    // kg value only once the display unit is known (settings load async). A flag
-    // keeps the one-shot seed from clobbering later user edits.
-    var targetWeightText by remember { mutableStateOf("") }
-    var targetSeeded by remember { mutableStateOf(false) }
-    LaunchedEffect(settings) {
-        if (settings != null && !targetSeeded) {
-            targetWeightText = member?.targetWeightKg
-                ?.let {
-                    val inUnit = when (weightUnit) {
-                        WeightUnit.Kg -> it
-                        WeightUnit.Lb -> WeightUnit.kgToLb(it)
-                    }
-                    String.format(Locale.US, "%.1f", inUnit)
-                }
-                ?: ""
-            targetSeeded = true
-        }
-    }
-
-    // A blank year clears birthYear; a present value must be a 4-digit year.
-    val birthYear = birthYearText.trim().toIntOrNull()
-    val birthYearValid = birthYearText.isBlank() || (birthYear != null && birthYearText.trim().length == 4)
-    // Optional numeric fields: blank clears, present must parse.
-    val heightCm = heightText.trim().toIntOrNull()
-    val heightValid = heightText.isBlank() || heightCm != null
-    val targetWeightValue = targetWeightText.trim().toDoubleOrNull()
-    val targetWeightValid = targetWeightText.isBlank() || targetWeightValue != null
-    // Canonical kg for save: convert the entered value from the display unit.
-    val targetWeightKg = targetWeightValue?.let { WeightReading.kgFrom(it, weightUnit) }
-    val canSave = !saving && birthYearValid && heightValid && targetWeightValid
+    // The wheel pickers can only yield in-range values (or null when cleared), so
+    // there is nothing to validate; save is gated only on the in-flight save.
+    val canSave = !saving
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -154,19 +128,12 @@ fun MemberEditorSheet(
                 singleLine = true,
             )
 
-            // Birth year (optional).
-            OutlinedTextField(
-                value = birthYearText,
-                onValueChange = { birthYearText = it.filter(Char::isDigit).take(4) },
-                label = { Text(stringResource(R.string.member_birth_year)) },
-                placeholder = { Text(stringResource(R.string.member_birth_year_placeholder)) },
+            // Birth year (optional). Wheel picker 1900..now; Clear restores "not set".
+            YearPickerField(
+                value = birthYear,
+                onChange = { birthYear = it },
+                label = stringResource(R.string.member_birth_year),
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = !birthYearValid,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                supportingText = if (!birthYearValid) {
-                    { Text(stringResource(R.string.member_birth_year_invalid)) }
-                } else null,
             )
 
             // Weight profile (per-member): height, biological sex, target weight.
@@ -184,15 +151,12 @@ fun MemberEditorSheet(
                 )
             }
 
-            // Height in cm (optional).
-            OutlinedTextField(
-                value = heightText,
-                onValueChange = { heightText = it.filter(Char::isDigit).take(3) },
-                label = { Text(stringResource(R.string.weight_height_label)) },
+            // Height in cm (optional). Wheel picker 50..250 cm; Clear restores "not set".
+            HeightPickerField(
+                value = heightCm,
+                onChange = { heightCm = it },
+                label = stringResource(R.string.weight_height_label),
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = !heightValid,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
             // Biological sex (optional): M / F / Other. Tapping the selected
@@ -231,29 +195,14 @@ fun MemberEditorSheet(
                 }
             }
 
-            // Target weight (optional), entered in the app-wide display unit.
-            OutlinedTextField(
-                value = targetWeightText,
-                onValueChange = { input ->
-                    // Allow digits and a single decimal point.
-                    val cleaned = input.filter { it.isDigit() || it == '.' }
-                    targetWeightText = if (cleaned.count { it == '.' } > 1) targetWeightText else cleaned
-                },
-                label = { Text(stringResource(R.string.weight_target_weight_label)) },
-                suffix = {
-                    Text(
-                        stringResource(
-                            when (weightUnit) {
-                                WeightUnit.Kg -> R.string.weight_unit_kg
-                                WeightUnit.Lb -> R.string.weight_unit_lb
-                            }
-                        )
-                    )
-                },
+            // Target weight (optional), wheel in the app-wide display unit; stores
+            // canonical kg. Clear restores "not set".
+            WeightPickerField(
+                valueKg = targetWeightKg,
+                unit = weightUnit,
+                onChange = { targetWeightKg = it },
+                label = stringResource(R.string.weight_target_weight_label),
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = !targetWeightValid,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             )
 
             // Identity colour (0..7 fixed palette swatches).
