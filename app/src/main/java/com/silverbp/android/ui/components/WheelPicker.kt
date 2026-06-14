@@ -27,7 +27,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -41,7 +40,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.silverbp.android.R
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 
 /**
  * A generic vertical scroll ("wheel") picker. The centred row is the selection;
@@ -82,7 +80,6 @@ fun <T> WheelPicker(
 
     val safeSelected = selectedIndex.coerceIn(0, items.lastIndex)
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = safeSelected)
-    val scope = rememberCoroutineScope()
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
     // The centred item = first visible item (we pad the top by [half] blanks so
@@ -113,13 +110,17 @@ fun <T> WheelPicker(
     }
 
     // Keep the wheel aligned when the caller changes selection (e.g. unit switch,
-    // stepper, or initial value) without an in-flight user scroll. Animated so a
-    // stepper tap visibly slides; falls through silently when already aligned.
+    // stepper, or initial value) without fighting an in-flight user scroll. Snaps
+    // INSTANTLY rather than animating: an animated scroll emits intermediate centred
+    // indices that the report-back above would commit as the selection, and a second
+    // stepper tap arriving mid-animation compounds them into a large overshoot
+    // (e.g. one down-tap jumping 27 years). An instant jump has no intermediate
+    // frames, so each stepper tap moves exactly one row and never overshoots.
     LaunchedEffect(safeSelected) {
         if (!listState.isScrollInProgress &&
             listState.firstVisibleItemIndex != safeSelected
         ) {
-            scope.launch { listState.animateScrollToItem(safeSelected) }
+            listState.scrollToItem(safeSelected)
         }
     }
 
