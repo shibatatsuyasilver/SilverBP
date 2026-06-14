@@ -43,8 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -107,6 +105,9 @@ fun OnboardingNicknameScreen(
     var weightText by rememberSaveable { mutableStateOf("") }
     // Weight entry unit; seeded from UserSettings.weightUnit in LaunchedEffect.
     var weightUnit by rememberSaveable { mutableStateOf(WeightUnit.Kg) }
+    // Id of the starting weight reading written from this step, so re-entering the
+    // step (Back→Next) updates the same row instead of inserting a duplicate.
+    var profileWeightId by rememberSaveable { mutableStateOf<String?>(null) }
     // Goal-profile selections (Phase 4).
     var primaryGoal by rememberSaveable { mutableStateOf<PrimaryGoal?>(null) }
     var experience by rememberSaveable { mutableStateOf<ExperienceLevel?>(null) }
@@ -153,8 +154,13 @@ fun OnboardingNicknameScreen(
                     )
                 }
                 if (parsedWeight != null && parsedWeight > 0.0) {
+                    // Reuse the prior reading's id on re-entry so Back→Next updates
+                    // the same starting weight rather than inserting a duplicate.
+                    val id = profileWeightId?.let(java.util.UUID::fromString) ?: java.util.UUID.randomUUID()
+                    profileWeightId = id.toString()
                     weightRepo.upsert(
                         WeightReading(
+                            id = id,
                             memberId = "",
                             weightKg = WeightReading.kgFrom(parsedWeight, weightUnit),
                             displayUnit = weightUnit,
@@ -486,9 +492,6 @@ private fun ProfileStep(
     val unitLabel = stringResource(
         if (weightUnit == WeightUnit.Lb) R.string.weight_unit_lb else R.string.weight_unit_kg,
     )
-    val birthYearCd = stringResource(R.string.onboarding_profile_birth_year_cd)
-    val heightCd = stringResource(R.string.onboarding_profile_height_cd)
-    val weightCd = stringResource(R.string.onboarding_profile_weight_cd, unitLabel)
 
     Column(
         Modifier
@@ -514,9 +517,7 @@ private fun ProfileStep(
                     onValueChange = onBirthYearChange,
                     label = { Text(stringResource(R.string.member_birth_year)) },
                     placeholder = { Text(stringResource(R.string.member_birth_year_placeholder)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = birthYearCd },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = !birthYearValid,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -529,9 +530,7 @@ private fun ProfileStep(
                     onValueChange = onHeightChange,
                     label = { Text(stringResource(R.string.member_height_label)) },
                     placeholder = { Text(stringResource(R.string.member_height_placeholder)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = heightCd },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = !heightValid,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -543,9 +542,7 @@ private fun ProfileStep(
                     value = weightText,
                     onValueChange = onWeightChange,
                     label = { Text(stringResource(R.string.onboarding_profile_weight, unitLabel)) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = weightCd },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = !weightValid,
                     keyboardOptions = KeyboardOptions(
