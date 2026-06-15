@@ -18,6 +18,15 @@
     <string name="paywall_benefit_ai">Advanced AI coaching and longer chat memory</string>
     <string name="paywall_family_note">One subscription covers everyone you care for — buy it for a parent and manage it yourself.</string>
 
+    <!-- Premium page (full-screen, opened from the Today crown). 5-benefit list +
+         subscribed-state copy + the Today entry-icon a11y label. -->
+    <string name="paywall_benefit_glucose">Unlimited glucose readings</string>
+    <string name="paywall_benefit_ai_coach">Advanced AI coaching narratives</string>
+    <string name="paywall_benefit_ai_chat">Longer AI chat memory</string>
+    <string name="premium_active_thanks">Thanks for your support — every Premium feature is unlocked.</string>
+    <string name="premium_unlocked_title">Unlocked</string>
+    <string name="premium_entry_a11y">Premium</string>
+
     <!-- Price cards. %1$s = formatted price from Play (e.g. NT$90). -->
     <string name="paywall_plan_monthly">Monthly</string>
     <string name="paywall_plan_yearly">Yearly</string>

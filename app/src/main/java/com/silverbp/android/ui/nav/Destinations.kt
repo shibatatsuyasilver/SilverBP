@@ -91,6 +91,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val SETTINGS_ADVANCED = "settings/advanced"
     const val REPORT = "report"
+    const val PREMIUM = "premium"
 
     // AI assistant chat — opened from the floating pill on HomeWithTabs (not a tab).
     const val CHAT = "chat"

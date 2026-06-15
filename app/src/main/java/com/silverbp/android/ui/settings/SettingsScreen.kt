@@ -85,13 +85,9 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.AppLanguage
 import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.settings.LocaleHelper
-import com.silverbp.android.billing.Entitlement
 import com.silverbp.android.ui.coach.formatTime
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.member.MemberEditorSheet
-import com.silverbp.android.ui.paywall.GateReason
-import com.silverbp.android.ui.paywall.LocalPaywallController
-import com.silverbp.android.ui.paywall.openManageSubscription
 import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.ForgePrimary
 import java.time.DayOfWeek
@@ -462,10 +458,9 @@ fun SettingsScreen(
                 )
             }
 
-            // Premium / subscription — an explicit entry point the paying adult
-            // child can find (not only hidden behind a gate). Shows the real Play
-            // sub status; "Upgrade" opens the paywall, "Manage" deep-links to Play.
-            PremiumCard(entitlement = vm.entitlement)
+            // Premium now lives on the prominent Today top-bar crown → full
+            // PremiumScreen (replaces the old plain Settings card per owner UX
+            // feedback "直接放設定不太好").
 
             // DEBUG-only simulate-entitlement card (mirrors the DEBUG sync card
             // above). Lets us demo the paywall/gates without published Play
@@ -851,67 +846,6 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     ) {
         Text(label, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
-    }
-}
-
-/**
- * Premium / subscription card. Reads the RESOLVED real entitlement (not the
- * isPremium() gate value) so the status row reflects the user's actual Play
- * subscription. When Free → "Upgrade" opens the paywall via the app-wide
- * [LocalPaywallController]; when Premium → "Manage subscription" opens the same
- * paywall (whose Manage button deep-links to Play).
- */
-@Composable
-private fun PremiumCard(entitlement: kotlinx.coroutines.flow.StateFlow<Entitlement>) {
-    val context = LocalContext.current
-    val tier by entitlement.collectAsStateWithLifecycle()
-    val paywall = LocalPaywallController.current
-    val isPremium = tier == Entitlement.Premium
-    StandardCard(title = stringResource(R.string.settings_premium_title)) {
-        // Status row: tinted crown tile + current tier (mirrors the entry-row look).
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SettingsIconTile(icon = Icons.Filled.WorkspacePremium, tint = ForgePrimary)
-            Spacer(Modifier.size(AppSpacing.itemGap))
-            Text(
-                stringResource(
-                    if (isPremium) R.string.settings_premium_status_premium
-                    else R.string.settings_premium_status_free
-                ),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-        Spacer(Modifier.size(4.dp))
-        Button(
-            // Free → open the paywall to subscribe; Premium → deep-link straight
-            // to Play subscription management (no need for the upsell sheet).
-            onClick = {
-                if (isPremium) openManageSubscription(context)
-                else paywall.show(GateReason.Generic)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp),
-            // The upgrade upsell is the screen's primary action → lime/green CTA
-            // (theme maps secondary to lime on dark, deep green on light). Manage
-            // is a secondary action so it keeps the default filled (purple) look.
-            colors = if (isPremium) {
-                ButtonDefaults.buttonColors()
-            } else {
-                ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = MaterialTheme.colorScheme.onSecondary,
-                )
-            },
-        ) {
-            Text(
-                stringResource(
-                    if (isPremium) R.string.settings_premium_cta_manage
-                    else R.string.settings_premium_cta_upgrade
-                ),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            )
-        }
     }
 }
 

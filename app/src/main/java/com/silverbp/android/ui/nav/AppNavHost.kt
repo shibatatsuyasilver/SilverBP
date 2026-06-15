@@ -368,6 +368,9 @@ fun AppNavHost() {
         composable(Routes.REPORT) {
             ReportScreen(onClose = { rootNav.popBackStack() })
         }
+        composable(Routes.PREMIUM) {
+            com.silverbp.android.ui.premium.PremiumScreen(onClose = { rootNav.popBackStack() })
+        }
         composable(Routes.CHAT) {
             ChatScreen(onBack = { rootNav.popBackStack() })
         }
@@ -562,6 +565,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             onCaptureGlucose = { rootNav.navigate(Routes.GLUCOSE_CAPTURE) },
             onAddManual = { rootNav.navigate(Routes.CONFIRM_NEW) },
             onOpenSettings = { rootNav.navigate(Routes.SETTINGS) },
+            onOpenPremium = { rootNav.navigate(Routes.PREMIUM) },
             onManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
             // Tapping a reading in the unified Today card edits it via the
             // existing Confirm flows (BP ConfirmReading / glucose ConfirmGlucose).

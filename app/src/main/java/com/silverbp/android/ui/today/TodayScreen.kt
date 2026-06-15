@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -109,6 +110,9 @@ fun TodayScreen(
     onCaptureGlucose: () -> Unit,
     onAddManual: () -> Unit,
     onOpenSettings: () -> Unit,
+    // Premium entry: the lime crown in the top bar opens the full Premium page.
+    // Default no-op so previews / partial wiring still compile.
+    onOpenPremium: () -> Unit = {},
     // Default no-op so AppNavHost compiles unchanged until it wires the
     // MEMBER_MANAGE navigation (the chip self-hides for single-member installs).
     onManageMembers: () -> Unit = {},
@@ -148,6 +152,14 @@ fun TodayScreen(
                 },
                 actions = {
                     MemberSwitcherChip(onManageMembers = onManageMembers)
+                    // Premium entry — lime crown, stands out against the dark bar.
+                    IconButton(onClick = onOpenPremium) {
+                        Icon(
+                            Icons.Filled.WorkspacePremium,
+                            contentDescription = stringResource(R.string.premium_entry_a11y),
+                            tint = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
                     IconButton(onClick = { showAddSheet = true }) {
                         Icon(
                             Icons.Filled.AddCircle,
