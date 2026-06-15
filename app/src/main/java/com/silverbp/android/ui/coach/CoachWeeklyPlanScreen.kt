@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -43,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -85,8 +86,8 @@ fun CoachWeeklyPlanScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             p.days.forEach { day ->
                 DayCard(
@@ -107,44 +108,53 @@ private fun DayCard(
     onMove: (taskId: String, newDayOffset: Int?) -> Unit,
     onSkip: (taskId: String, skipped: Boolean) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    dayLabel(day.dayOffset),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+    // Today's card sits on the (opaque, theme-defined) surfaceVariant so it reads
+    // as the active day without changing any layout or behaviour.
+    val containerColor = if (isToday) {
+        MaterialTheme.colorScheme.surfaceVariant
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    StandardCard(
+        containerColor = containerColor,
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                dayLabel(day.dayOffset),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (isToday) {
+                Spacer(Modifier.size(AppSpacing.itemGap))
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            stringResource(R.string.coach_weekly_plan_today),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors(),
                 )
-                if (isToday) {
-                    Spacer(Modifier.size(8.dp))
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                stringResource(R.string.coach_weekly_plan_today),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(),
-                    )
-                }
             }
-            if (day.tasks.isEmpty()) {
-                Text(
-                    stringResource(R.string.coach_weekly_plan_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        }
+        if (day.tasks.isEmpty()) {
+            Text(
+                stringResource(R.string.coach_weekly_plan_empty),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            day.tasks.forEachIndexed { index, task ->
+                if (index > 0) HorizontalDivider()
+                TaskRow(
+                    task = task,
+                    currentDayOffset = day.dayOffset,
+                    onMove = onMove,
+                    onSkip = onSkip,
                 )
-            } else {
-                day.tasks.forEachIndexed { index, task ->
-                    if (index > 0) HorizontalDivider()
-                    TaskRow(
-                        task = task,
-                        currentDayOffset = day.dayOffset,
-                        onMove = onMove,
-                        onSkip = onSkip,
-                    )
-                }
             }
         }
     }
@@ -160,7 +170,7 @@ private fun TaskRow(
     var menuExpanded by remember { mutableStateOf(false) }
     var moveExpanded by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (task.completed && !task.skipped) {
@@ -168,9 +178,9 @@ private fun TaskRow(
                 Icons.Filled.CheckCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(22.dp),
             )
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(AppSpacing.itemGap))
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -185,13 +195,13 @@ private fun TaskRow(
             )
             Text(
                 stringResource(moduleLabelRes(task.moduleKey)),
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (task.skipped) {
                 Text(
                     stringResource(R.string.coach_weekly_plan_skipped),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
             }

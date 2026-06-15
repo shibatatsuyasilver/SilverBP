@@ -161,11 +161,16 @@ private fun StatChip(label: String, value: String, modifier: Modifier = Modifier
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
         Text(
             value,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
         )
     }

@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -44,9 +45,11 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -73,6 +76,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -83,7 +87,9 @@ import com.silverbp.android.chat.ChatMessage
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.ForgePrimary
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -381,15 +387,19 @@ private fun MessageBubble(
 ) {
     if (role == ChatMessage.Role.System) return
     val isUser = role == ChatMessage.Role.User
+    // User bubble keeps the filled brand-primary fill (clear "this is me");
+    // the assistant bubble adopts the card-family look — a plain `surface`
+    // card with a soft tonal/shadow lift (mirroring TimelineRecordRow), so the
+    // conversation reads as a stack of rounded cards rather than flat chips.
     val bubbleColor = if (isUser) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme.surface
     }
     val textColor = if (isUser) {
         MaterialTheme.colorScheme.onPrimary
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MaterialTheme.colorScheme.onSurface
     }
     Row(
         Modifier.fillMaxWidth(),
@@ -397,17 +407,21 @@ private fun MessageBubble(
     ) {
         Surface(
             shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp,
+                topStart = AppSpacing.cardCorner,
+                topEnd = AppSpacing.cardCorner,
+                bottomStart = if (isUser) AppSpacing.cardCorner else AppSpacing.itemGap,
+                bottomEnd = if (isUser) AppSpacing.itemGap else AppSpacing.cardCorner,
             ),
             color = bubbleColor,
+            // Lift only the assistant card off the page; the filled user bubble
+            // already separates itself with colour.
+            tonalElevation = if (isUser) 0.dp else 1.dp,
+            shadowElevation = if (isUser) 0.dp else 1.dp,
             modifier = Modifier.widthIn(max = 320.dp),
         ) {
             Column(
                 Modifier.padding(
-                    horizontal = AppSpacing.itemGap + AppSpacing.itemGap,
+                    horizontal = AppSpacing.cardPadding - AppSpacing.tight,
                     vertical = AppSpacing.itemGap + AppSpacing.tight,
                 )
             ) {
@@ -421,9 +435,9 @@ private fun MessageBubble(
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .padding(bottom = 6.dp)
+                                .padding(bottom = AppSpacing.itemGap)
                                 .size(180.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(AppSpacing.itemGap + AppSpacing.tight)),
                         )
                     }
                 }
@@ -432,11 +446,12 @@ private fun MessageBubble(
                         Text(
                             text = text + (if (isStreaming) "…" else ""),
                             color = textColor,
-                            style = MaterialTheme.typography.bodyMedium,
+                            // Larger body text for older-adult legibility.
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     }
                 } else if (isStreaming) {
-                    Text("…", color = textColor, style = MaterialTheme.typography.bodyMedium)
+                    Text("…", color = textColor, style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
@@ -451,32 +466,56 @@ private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
         stringResource(R.string.chat_suggestion_last_exercise),
         stringResource(R.string.chat_suggestion_badges),
     )
-    Column(
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    // The empty state now reads as one rounded content card (card-family look),
+    // led by a tinted chat-icon tile — the same idiom Today/UnifiedHistory use
+    // for their hero/metric tiles — with the suggestion chips grouped inside.
+    StandardCard(
+        cornerRadius = AppSpacing.heroCorner,
     ) {
-        Text(
-            stringResource(R.string.chat_empty_title),
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            stringResource(R.string.chat_empty_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppSpacing.itemGap))
         Column(
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            suggestions.forEach { s ->
-                AssistChip(
-                    onClick = { onSuggestion(s) },
-                    label = { Text(s) },
-                    shape = RoundedCornerShape(AppSpacing.cardCorner),
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(ForgePrimary.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Chat,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = ForgePrimary,
                 )
+            }
+            Text(
+                stringResource(R.string.chat_empty_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                stringResource(R.string.chat_empty_subtitle),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(AppSpacing.tight))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                suggestions.forEach { s ->
+                    AssistChip(
+                        onClick = { onSuggestion(s) },
+                        label = { Text(s, style = MaterialTheme.typography.bodyLarge) },
+                        shape = RoundedCornerShape(AppSpacing.cardCorner),
+                    )
+                }
             }
         }
     }
@@ -532,15 +571,33 @@ private fun ChatInputBar(
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 4.dp),
+                    // Pill-rounded field so the composer reads as part of the
+                    // rounded card family (matching the bubble/card corners).
+                    shape = RoundedCornerShape(AppSpacing.cardCorner),
                     minLines = 1,
                     maxLines = 5,
                 )
                 if (isGenerating) {
-                    IconButton(onClick = onCancel) {
+                    // While streaming, the primary action is "stop" — a clear
+                    // filled error-tinted target, generously sized.
+                    FilledIconButton(
+                        onClick = onCancel,
+                        modifier = Modifier.size(48.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
+                    ) {
                         Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.a11y_cancel))
                     }
                 } else {
-                    IconButton(onClick = onSend, enabled = canSend) {
+                    // Send is the screen's primary action: a filled brand-primary
+                    // button so it stands out from the neutral attach/mic icons.
+                    FilledIconButton(
+                        onClick = onSend,
+                        enabled = canSend,
+                        modifier = Modifier.size(48.dp),
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
                             contentDescription = stringResource(R.string.a11y_send),
@@ -570,7 +627,8 @@ private fun StagedImageStrip(path: String, onClear: () -> Unit) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    // Same rounded-tile idiom the message-bubble thumbnail uses.
+                    .clip(RoundedCornerShape(AppSpacing.itemGap + AppSpacing.tight))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
         }

@@ -1,16 +1,24 @@
 package com.silverbp.android.ui.coach
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -31,6 +39,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,7 +48,9 @@ import androidx.health.connect.client.PermissionController
 import com.silverbp.android.R
 import com.silverbp.android.core.db.SleepLogEntity
 import com.silverbp.android.di.ServiceLocator
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.ForgePrimary
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -127,19 +139,23 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
-            SectionCard(stringResource(R.string.coach_log_sleep_duration)) {
+            StandardCard {
+                SectionHeader(
+                    icon = Icons.Filled.Bedtime,
+                    title = stringResource(R.string.coach_log_sleep_duration),
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "%.1f h".format(hours),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f),
                     )
                 }
-                Spacer(Modifier.size(8.dp))
                 Slider(
                     value = hours,
                     onValueChange = { hours = it },
@@ -148,15 +164,18 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
                 )
             }
 
-            SectionCard(stringResource(R.string.coach_sleep_sync_section)) {
+            StandardCard {
+                SectionHeader(
+                    icon = Icons.Filled.Sync,
+                    title = stringResource(R.string.coach_sleep_sync_section),
+                )
                 when (val status = syncStatus) {
                     SleepSyncResult.NeedsPermission -> {
                         Text(
                             stringResource(R.string.coach_sleep_sync_needs_permission),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
-                        Spacer(Modifier.size(8.dp))
                         Button(
                             onClick = {
                                 val bridge = ServiceLocator.healthConnectBridge
@@ -164,29 +183,34 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
                                     bridge.sleepReadPermissions + bridge.backgroundReadPermissions,
                                 )
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(AppSpacing.cardCorner),
                         ) { Text(stringResource(R.string.coach_sleep_sync_grant)) }
                     }
                     is SleepSyncResult.Synced -> Text(
                         stringResource(R.string.coach_sleep_sync_synced, status.nights),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     SleepSyncResult.NoData -> Text(
                         stringResource(R.string.coach_sleep_sync_nodata),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     SleepSyncResult.Failed -> Text(
                         stringResource(R.string.coach_sleep_sync_failed),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
                     null -> Unit
                 }
-                Spacer(Modifier.size(8.dp))
                 OutlinedButton(
                     onClick = doSync,
                     enabled = !syncing,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(AppSpacing.cardCorner),
                 ) {
                     Text(
                         stringResource(
@@ -211,11 +235,48 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
                         onClose()
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
             ) {
-                Text(stringResource(R.string.coach_log_save))
+                Text(
+                    stringResource(R.string.coach_log_save),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
+    }
+}
+
+/**
+ * Section heading shared by the sleep cards: a small tinted icon tile next to a
+ * semibold title, mirroring the Today/UnifiedHistory card idiom. UI-only.
+ */
+@Composable
+private fun SectionHeader(icon: ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(ForgePrimary.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = ForgePrimary,
+            )
+        }
+        Spacer(Modifier.size(AppSpacing.itemGap))
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

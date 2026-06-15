@@ -1,14 +1,22 @@
 package com.silverbp.android.ui.coach
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -21,7 +29,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,9 +40,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.coach.WeeklyReport
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.ForgePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,8 +82,8 @@ fun CoachWeeklyReportScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             state.report?.let { report ->
                 ReportSummaryCard(report)
@@ -80,15 +93,19 @@ fun CoachWeeklyReportScreen(
             // place of the prose; Premium streams the narration exactly as before.
             // With PREMIUM_ENFORCED=false narrationPremium is always true → no change.
             if (!state.narrationPremium) {
-                SectionCard(stringResource(R.string.coach_narration_title)) {
+                StandardCard {
+                    SectionHeader(
+                        icon = Icons.Filled.AutoAwesome,
+                        title = stringResource(R.string.coach_narration_title),
+                    )
                     Text(
                         stringResource(R.string.gate_ai_coach_title),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         stringResource(R.string.gate_ai_coach_body),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     TextButton(onClick = { paywall.show(GateReason.AiCoach) }) {
@@ -96,7 +113,11 @@ fun CoachWeeklyReportScreen(
                     }
                 }
             } else {
-                SectionCard(stringResource(R.string.coach_narration_title)) {
+                StandardCard {
+                    SectionHeader(
+                        icon = Icons.Filled.AutoAwesome,
+                        title = stringResource(R.string.coach_narration_title),
+                    )
                     if (state.streaming && state.narration.isEmpty()) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     } else {
@@ -113,7 +134,7 @@ fun CoachWeeklyReportScreen(
                     state.error?.let { err ->
                         Text(
                             err,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -125,8 +146,12 @@ fun CoachWeeklyReportScreen(
 
 @Composable
 private fun ReportSummaryCard(r: WeeklyReport) {
-    SectionCard(stringResource(R.string.coach_weekly_progress_title)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    StandardCard {
+        SectionHeader(
+            icon = Icons.Filled.Insights,
+            title = stringResource(R.string.coach_weekly_progress_title),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
             ReportLine("SBP", "${"%.1f".format(r.sbpMean)} mmHg (${"%+.1f".format(r.sbpDelta)})")
             ReportLine(stringResource(R.string.coach_module_exercise), "${r.aerobicMin} / ${r.aerobicTarget} min")
             ReportLine(stringResource(R.string.coach_module_sleep), "${"%.1f".format(r.sleepMeanH)} h")
@@ -138,9 +163,50 @@ private fun ReportSummaryCard(r: WeeklyReport) {
 
 @Composable
 private fun ReportLine(label: String, value: String) {
-    Text(
-        "$label: $value",
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Medium,
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/**
+ * Section heading shared by the report cards: a small tinted icon tile next to a
+ * semibold title, mirroring the Today/UnifiedHistory card idiom. UI-only.
+ */
+@Composable
+private fun SectionHeader(icon: ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(ForgePrimary.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = ForgePrimary,
+            )
+        }
+        Spacer(Modifier.size(AppSpacing.itemGap))
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
 }

@@ -174,18 +174,23 @@ private fun StatChip(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
         Text(
             value,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
             color = valueColor ?: MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
         )
         if (sub != null) {
             Text(
                 sub,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = valueColor ?: MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
