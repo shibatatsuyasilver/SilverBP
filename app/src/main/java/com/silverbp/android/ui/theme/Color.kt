@@ -19,6 +19,11 @@ val ForgeOnSurface = Color(0xFFECEEF3)
 val ForgeOnSurfaceVariant = Color(0xFFB6BAC6)
 val ForgeOutline = Color(0xFF3A3E4A)
 
+// Premium accent — a warm gold for the subscription crown (Today entry + the
+// PremiumScreen hero). Distinct from the lime CTA and the yellow "elevated" BP dot
+// so the crown reads as "premium", not a warning. Legible on the dark canvas.
+val PremiumGold = Color(0xFFF5C84B)
+
 // FORGE light palette (light mode; brand purple accent preserved). Neutrals are
 // faintly purple-tinted — derived from a Google Stitch Material-3 tonal_spot
 // system seeded with ForgePrimary — so the light theme keeps a warm brand feel

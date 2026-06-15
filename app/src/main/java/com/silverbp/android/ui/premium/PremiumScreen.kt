@@ -64,6 +64,7 @@ import com.silverbp.android.billing.Entitlement
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.paywall.PaywallViewModel
 import com.silverbp.android.ui.paywall.openManageSubscription
+import com.silverbp.android.ui.theme.PremiumGold
 
 /** Design-system "Normal" green (#34C759) for the unlocked-state check marks. */
 private val UnlockedGreen = Color(0xFF34C759)
@@ -142,16 +143,13 @@ private fun PremiumHero(isPremium: Boolean) {
         Box(
             modifier = Modifier
                 .size(96.dp)
-                .background(
-                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f),
-                    CircleShape,
-                ),
+                .background(PremiumGold.copy(alpha = 0.18f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Filled.WorkspacePremium,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
+                tint = PremiumGold,
                 modifier = Modifier.size(52.dp),
             )
         }

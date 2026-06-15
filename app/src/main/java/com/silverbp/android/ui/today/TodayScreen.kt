@@ -152,12 +152,12 @@ fun TodayScreen(
                 },
                 actions = {
                     MemberSwitcherChip(onManageMembers = onManageMembers)
-                    // Premium entry — lime crown, stands out against the dark bar.
+                    // Premium entry — gold crown, stands out against the dark bar.
                     IconButton(onClick = onOpenPremium) {
                         Icon(
                             Icons.Filled.WorkspacePremium,
                             contentDescription = stringResource(R.string.premium_entry_a11y),
-                            tint = MaterialTheme.colorScheme.secondary,
+                            tint = com.silverbp.android.ui.theme.PremiumGold,
                         )
                     }
                     IconButton(onClick = { showAddSheet = true }) {
