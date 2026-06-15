@@ -3,16 +3,23 @@ package com.silverbp.android.ui.onboarding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -26,7 +33,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.backup.BackupViewModel
+import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 
 /**
@@ -103,13 +114,15 @@ fun LinkAccountScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            OnboardingHeroIcon(icon = Icons.Filled.Backup)
             Text(
                 stringResource(R.string.login_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 stringResource(R.string.login_body),
@@ -138,16 +151,13 @@ fun LinkAccountScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
-                Button(
+                OnboardingHeroButton(
+                    label = stringResource(
+                        if (error) R.string.login_retry else R.string.login_button
+                    ),
                     onClick = { signIn() },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(
-                            if (error) R.string.login_retry else R.string.login_button
-                        )
-                    )
-                }
+                    enabled = true,
+                )
                 // Soft-gate escape hatch: a user without Play Services / network /
                 // a Google account would otherwise be permanently stuck here. Skip
                 // persists the flag (so the AppNavHost gate never re-fires) and
@@ -162,7 +172,7 @@ fun LinkAccountScreen(
                     Text(stringResource(R.string.login_skip))
                 }
             }
-            Spacer(Modifier.size(4.dp))
+            Spacer(Modifier.size(AppSpacing.tight))
             Text(
                 stringResource(R.string.login_footnote),
                 style = MaterialTheme.typography.bodySmall,
@@ -171,5 +181,61 @@ fun LinkAccountScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+/**
+ * Tinted brand "hero" icon tile heading the link-account step — a rounded
+ * primary-tinted square with a centred icon, mirroring the empty-state tiles in
+ * the Today card family. Pure styling; no state.
+ */
+@Composable
+private fun OnboardingHeroIcon(
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(30.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+/**
+ * Full-width lime "hero" primary action, matching the onboarding flow's primary
+ * button (see [OnboardingNicknameScreen]). Pure styling wrapper around [Button];
+ * preserves the caller's onClick/enabled wiring exactly.
+ */
+@Composable
+private fun OnboardingHeroButton(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.secondary,
+            contentColor = MaterialTheme.colorScheme.onSecondary,
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        )
     }
 }

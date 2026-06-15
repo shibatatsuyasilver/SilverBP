@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -20,11 +21,17 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -41,6 +48,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -280,11 +289,11 @@ private fun ConsentStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(AppSpacing.itemGap))
+        OnboardingHeroIcon(icon = Icons.Filled.Favorite)
         Text(
             stringResource(R.string.onboarding_welcome_title),
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             stringResource(R.string.onboarding_welcome_body),
@@ -358,11 +367,11 @@ private fun NotificationsStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(AppSpacing.itemGap))
+        OnboardingHeroIcon(icon = Icons.Filled.Notifications)
         Text(
             stringResource(R.string.onboarding_notifications_title),
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             stringResource(R.string.onboarding_notifications_body),
@@ -404,11 +413,11 @@ private fun NicknameStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(AppSpacing.itemGap))
+        OnboardingHeroIcon(icon = Icons.Filled.PersonOutline)
         Text(
             stringResource(R.string.onboarding_nickname_title),
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             stringResource(R.string.onboarding_nickname_subtitle),
@@ -492,7 +501,7 @@ private fun ProfileStep(
         Text(
             stringResource(R.string.onboarding_profile_title),
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             stringResource(R.string.onboarding_profile_subtitle),
@@ -576,7 +585,7 @@ private fun GoalSelectionStep(
         Text(
             title,
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             subtitle,
@@ -703,6 +712,32 @@ private fun TrainingStyleStep(
                 label = { Text(stringResource(style.labelRes)) },
             )
         }
+    }
+}
+
+/**
+ * Tinted brand "hero" icon tile heading an onboarding step — a rounded
+ * primary-tinted square with a centred icon, mirroring the empty-state tiles in
+ * the Today card family. Pure styling; no state.
+ */
+@Composable
+private fun OnboardingHeroIcon(
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(30.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 

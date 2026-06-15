@@ -1,5 +1,7 @@
 package com.silverbp.android.ui.chat
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,10 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
@@ -29,9 +33,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
@@ -42,13 +45,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.silverbp.android.R
 import com.silverbp.android.chat.ChatRepository
 import com.silverbp.android.chat.ChatSessionSummary
+import com.silverbp.android.ui.theme.AppSpacing
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -84,7 +90,11 @@ fun ChatSessionsDrawer(
                     EmptySessionsHint()
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(vertical = 8.dp),
+                        contentPadding = PaddingValues(
+                            horizontal = AppSpacing.screenH,
+                            vertical = AppSpacing.screenV,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
                     ) {
                         items(sessions, key = { it.id }) { s ->
                             SessionRow(
@@ -126,18 +136,46 @@ fun ChatSessionsDrawer(
 
 @Composable
 private fun DrawerHeader(onNewSession: () -> Unit) {
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Column(
+        Modifier.padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+    ) {
         Text(
             stringResource(R.string.chat_drawer_title),
             style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
         )
-        Spacer(Modifier.padding(top = 8.dp))
-        NavigationDrawerItem(
-            label = { Text(stringResource(R.string.chat_new_session)) },
-            icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-            selected = false,
-            onClick = onNewSession,
-        )
+        // Clear primary "new chat" action — a filled primary-tinted row mirroring
+        // the refined card family's leading-icon-tile idiom.
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(AppSpacing.cardCorner))
+                .clickable(onClick = onNewSession),
+            shape = RoundedCornerShape(AppSpacing.cardCorner),
+            color = MaterialTheme.colorScheme.primary,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = AppSpacing.cardPadding, vertical = AppSpacing.itemGap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(Modifier.size(AppSpacing.itemGap))
+                Text(
+                    stringResource(R.string.chat_new_session),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+        }
     }
 }
 
@@ -177,59 +215,106 @@ private fun SessionRow(
             append(snippet)
         }
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        NavigationDrawerItem(
-            modifier = Modifier.weight(1f),
-            label = {
-                Column {
-                    Text(
-                        displayTitle,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+    // Clean surface list-row card matching the refined card family
+    // (Today / UnifiedHistory TimelineRecordRow): a leading tinted chat-icon tile,
+    // the title + subtitle, and a trailing options menu. The active session is
+    // lifted onto a primary-tinted container so it reads as selected.
+    val tileTint = MaterialTheme.colorScheme.primary
+    val containerColor =
+        if (isActive) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surface
+    val onContainer =
+        if (isActive) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurface
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppSpacing.cardCorner),
+        color = containerColor,
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 74.dp)
+                .clickable(onClick = onSelect)
+                .padding(
+                    start = AppSpacing.cardPadding,
+                    end = AppSpacing.itemGap,
+                    top = AppSpacing.itemGap,
+                    bottom = AppSpacing.itemGap,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // LEADING: tinted chat-icon tile.
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tileTint.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Chat,
+                    contentDescription = null,
+                    tint = tileTint,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+
+            Spacer(Modifier.size(AppSpacing.screenH))
+
+            // MIDDLE: title over the relative-time + snippet subtitle.
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.tight / 2),
+            ) {
+                Text(
+                    displayTitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = onContainer,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            // TRAILING: options menu (rename / delete).
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.chat_options_a11y),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            },
-            icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null) },
-            selected = isActive,
-            onClick = onSelect,
-            colors = NavigationDrawerItemDefaults.colors(),
-        )
-        Box {
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(
-                    Icons.Filled.MoreVert,
-                    contentDescription = stringResource(R.string.chat_options_a11y),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_rename)) },
-                    leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                    onClick = {
-                        menuOpen = false
-                        onRequestRename()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_delete)) },
-                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
-                    onClick = {
-                        menuOpen = false
-                        onRequestDelete()
-                    },
-                )
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_rename)) },
+                        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            onRequestRename()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_delete)) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            onRequestDelete()
+                        },
+                    )
+                }
             }
         }
-        Spacer(Modifier.width(8.dp))
     }
 }
 

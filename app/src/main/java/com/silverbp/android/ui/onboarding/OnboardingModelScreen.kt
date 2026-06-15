@@ -1,20 +1,29 @@
 package com.silverbp.android.ui.onboarding
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -31,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -46,6 +56,7 @@ import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 
 private const val AI_STUDIO_KEY_URL = "https://aistudio.google.com/app/apikey"
@@ -153,12 +164,14 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
+            OnboardingHeroIcon(icon = Icons.Filled.AutoAwesome)
             Text(
                 stringResource(R.string.onboarding_model_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 stringResource(R.string.onboarding_model_subtitle),
@@ -167,7 +180,7 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
             )
 
             if (selected == null) {
-                Spacer(Modifier.size(24.dp))
+                Spacer(Modifier.size(AppSpacing.screenV))
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -234,10 +247,12 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.size(8.dp))
-            Button(onClick = { onContinue() }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.onboarding_model_confirm))
-            }
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            OnboardingHeroButton(
+                label = stringResource(R.string.onboarding_model_confirm),
+                onClick = { onContinue() },
+                enabled = true,
+            )
             TextButton(
                 onClick = { applyAndFinish(RecognitionBackend.Local, download = false) },
                 modifier = Modifier.fillMaxWidth(),
@@ -260,32 +275,106 @@ private fun OptionCard(
     onSelect: () -> Unit,
     extra: @Composable () -> Unit = {},
 ) {
+    // Selected card: brand-tinted fill + a primary outline so the chosen backend
+    // reads at a glance for older eyes (mirrors the card family's selection idiom).
+    val cardModifier = if (selected) {
+        Modifier
+            .clip(RoundedCornerShape(AppSpacing.cardCorner))
+            .border(
+                width = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
+            )
+            .clickable { onSelect() }
+    } else {
+        Modifier.clickable { onSelect() }
+    }
     StandardCard(
-        modifier = Modifier.clickable { onSelect() },
-        containerColor = if (selected) MaterialTheme.colorScheme.surfaceVariant
+        modifier = cardModifier,
+        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
         else MaterialTheme.colorScheme.surface,
     ) {
-        androidx.compose.foundation.layout.Row(
+        Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top,
         ) {
             RadioButton(selected = selected, onClick = onSelect)
-            Spacer(Modifier.size(8.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.tight)) {
                 if (recommended) {
                     AssistChip(
                         onClick = onSelect,
                         label = { Text(stringResource(R.string.onboarding_model_recommended)) },
                     )
                 }
-                Text(title, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    title,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Text(
                     desc,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 extra()
             }
         }
+    }
+}
+
+/**
+ * Tinted brand "hero" icon tile heading an onboarding step — a rounded
+ * primary-tinted square with a centred icon, mirroring the empty-state tiles in
+ * the Today card family. Pure styling; no state.
+ */
+@Composable
+private fun OnboardingHeroIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(30.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+/**
+ * Full-width lime "hero" primary action, matching the onboarding flow's primary
+ * button (see [OnboardingNicknameScreen]). Pure styling wrapper around [Button];
+ * preserves the caller's onClick/enabled wiring exactly.
+ */
+@Composable
+private fun OnboardingHeroButton(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.secondary,
+            contentColor = MaterialTheme.colorScheme.onSecondary,
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        )
     }
 }

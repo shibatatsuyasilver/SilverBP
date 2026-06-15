@@ -102,42 +102,42 @@ fun AdvancedSettingsScreen(
             // ===== Recognition backend (Local / Cloud / AICore) =====
             StandardCard(title = stringResource(R.string.settings_recognition_section)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(
                         selected = state.recognitionBackend == RecognitionBackend.Local,
                         onClick = { vm.setRecognitionBackend(RecognitionBackend.Local) },
                     )
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Column {
                         Text(stringResource(R.string.settings_backend_local_title), fontWeight = FontWeight.Medium)
                         Text(stringResource(R.string.settings_backend_local_desc), style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(
                         selected = state.recognitionBackend == RecognitionBackend.Cloud,
                         onClick = { vm.setRecognitionBackend(RecognitionBackend.Cloud) },
                     )
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Column {
                         Text(stringResource(R.string.settings_backend_cloud_title), fontWeight = FontWeight.Medium)
                         Text(stringResource(R.string.settings_backend_cloud_desc), style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(
                         selected = state.recognitionBackend == RecognitionBackend.AICore,
                         onClick = { vm.setRecognitionBackend(RecognitionBackend.AICore) },
                     )
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Column {
                         Text(
                             stringResource(R.string.settings_backend_aicore_title),
@@ -180,7 +180,7 @@ fun AdvancedSettingsScreen(
                     }
 
                     (modelPhase as? ModelLoadPhase.Failed)?.let { failed ->
-                        Spacer(Modifier.size(6.dp))
+                        Spacer(Modifier.size(AppSpacing.tight))
                         Text(
                             stringResource(R.string.model_failed, failed.message),
                             style = MaterialTheme.typography.bodySmall,
@@ -198,7 +198,7 @@ fun AdvancedSettingsScreen(
                     Text(
                         stringResource(R.string.settings_hf_token_help),
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = AppSpacing.tight),
                     )
                 }
 
@@ -208,25 +208,25 @@ fun AdvancedSettingsScreen(
                         stringResource(R.string.settings_max_tokens_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Spacer(Modifier.size(4.dp))
+                    Spacer(Modifier.size(AppSpacing.tight))
                     MaxTokensDropdown(
                         selected = state.maxNumTokens,
                         onSelect = { vm.setMaxNumTokens(it) },
                     )
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Button(
                         onClick = { ModelBootstrap.reloadCurrentVariant(context) },
                         enabled = !ServiceLocator.modelLoadStatus.isBusy,
                     ) { Text(stringResource(R.string.settings_apply_reload)) }
 
-                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(Modifier.padding(vertical = AppSpacing.itemGap))
 
                     Text(stringResource(R.string.settings_vision_backend_label), fontWeight = FontWeight.Medium)
                     Text(
                         stringResource(R.string.settings_vision_backend_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Spacer(Modifier.size(4.dp))
+                    Spacer(Modifier.size(AppSpacing.tight))
                     val socHint = remember { DeviceCapabilities.currentSocModel() }
                     VisionBackendDropdown(
                         selected = state.visionBackendOverride,
@@ -234,7 +234,7 @@ fun AdvancedSettingsScreen(
                         onSelect = { vm.setVisionBackendOverride(it) },
                     )
 
-                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(Modifier.padding(vertical = AppSpacing.itemGap))
 
                     val selectedVariant = remember(state.selectedModelId) {
                         ModelCatalog.byId(state.selectedModelId)
@@ -261,7 +261,7 @@ fun AdvancedSettingsScreen(
                         )
                     }
 
-                    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(Modifier.padding(vertical = AppSpacing.itemGap))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -277,7 +277,7 @@ fun AdvancedSettingsScreen(
                         stringResource(R.string.settings_ocr_prompt_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Spacer(Modifier.size(4.dp))
+                    Spacer(Modifier.size(AppSpacing.tight))
                     OutlinedTextField(
                         value = state.systemPrompt,
                         onValueChange = { vm.setSystemPrompt(it) },
@@ -299,12 +299,12 @@ fun AdvancedSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     GeminiModelDropdown(
                         selected = state.geminiModel,
                         onSelect = { vm.setGeminiModel(it) },
                     )
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Text(
                         stringResource(R.string.settings_gemini_help),
                         style = MaterialTheme.typography.bodySmall,
@@ -319,7 +319,7 @@ fun AdvancedSettingsScreen(
                         stringResource(R.string.settings_aicore_help),
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     val socHint = remember { DeviceCapabilities.currentSocModel() }
                     if (socHint.isNotEmpty()) {
                         Text(
@@ -327,7 +327,7 @@ fun AdvancedSettingsScreen(
                             style = MaterialTheme.typography.labelSmall,
                         )
                     }
-                    Spacer(Modifier.size(6.dp))
+                    Spacer(Modifier.size(AppSpacing.tight))
                     when (val phase = modelPhase) {
                         is ModelLoadPhase.Downloading -> {
                             val pct = (phase.fraction * 100f).toInt().coerceIn(0, 100)
@@ -338,7 +338,7 @@ fun AdvancedSettingsScreen(
                             Text(
                                 stringResource(R.string.settings_aicore_downloading, pct),
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(top = 4.dp),
+                                modifier = Modifier.padding(top = AppSpacing.tight),
                             )
                         }
                         is ModelLoadPhase.Loading -> {
@@ -346,7 +346,7 @@ fun AdvancedSettingsScreen(
                             Text(
                                 stringResource(R.string.settings_aicore_warming),
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(top = 4.dp),
+                                modifier = Modifier.padding(top = AppSpacing.tight),
                             )
                         }
                         is ModelLoadPhase.Ready -> {
@@ -369,12 +369,12 @@ fun AdvancedSettingsScreen(
                             )
                         }
                     }
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Button(
                         onClick = { ModelBootstrap.preloadAICore(context) },
                         enabled = !ServiceLocator.modelLoadStatus.isBusy,
                     ) { Text(stringResource(R.string.settings_aicore_check_button)) }
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Text(
                         stringResource(R.string.settings_aicore_unavailable_help),
                         style = MaterialTheme.typography.bodySmall,
@@ -398,7 +398,7 @@ fun AdvancedSettingsScreen(
                     stringResource(R.string.settings_chat_persona_help),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Spacer(Modifier.size(4.dp))
+                Spacer(Modifier.size(AppSpacing.tight))
                 OutlinedTextField(
                     value = state.chatPersona,
                     onValueChange = { vm.setChatPersona(it) },
@@ -422,10 +422,10 @@ private fun ModelVariantRow(
     inProgress: Boolean,
     downloadFraction: Float? = null,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(selected = isSelected, onClick = onSelect, enabled = isDownloaded)
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(AppSpacing.itemGap))
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(variant.displayNameRes), fontWeight = FontWeight.Medium)
                 Text(
@@ -458,7 +458,7 @@ private fun ModelVariantRow(
         }
         if (downloadFraction != null) {
             val pct = (downloadFraction * 100f).toInt().coerceIn(0, 100)
-            Spacer(Modifier.size(4.dp))
+            Spacer(Modifier.size(AppSpacing.tight))
             LinearProgressIndicator(
                 progress = { downloadFraction },
                 modifier = Modifier.fillMaxWidth(),
@@ -469,7 +469,7 @@ private fun ModelVariantRow(
                 modifier = Modifier.padding(top = 2.dp),
             )
         } else if (inProgress) {
-            Spacer(Modifier.size(4.dp))
+            Spacer(Modifier.size(AppSpacing.tight))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
