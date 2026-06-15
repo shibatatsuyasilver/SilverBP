@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,11 +19,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -56,9 +62,10 @@ import com.silverbp.android.core.WeightReading
 import com.silverbp.android.core.WeightSource
 import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.WeightPickerField
 import com.silverbp.android.ui.member.MemberPalette
+import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -196,8 +203,8 @@ fun ConfirmWeightScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             saveError?.let { msg ->
                 Text(
@@ -207,45 +214,50 @@ fun ConfirmWeightScreen(
                 )
             }
 
-            SectionCard(stringResource(R.string.weight_value_label)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Weight wheel (required — no Clear). Stores canonical kg; the
-                    // draft holds the value as display-unit text, so we convert on
-                    // each side. The unit comes from the toggle below.
-                    WeightPickerField(
-                        valueKg = draft.parsedValue
-                            ?.let { WeightReading.kgFrom(it, draft.displayUnit) },
-                        unit = draft.displayUnit,
-                        onChange = { kg ->
-                            if (kg != null) {
-                                val display = if (draft.displayUnit == WeightUnit.Lb) {
-                                    WeightUnit.kgToLb(kg)
-                                } else {
-                                    kg
-                                }
-                                draft = draft.copy(valueText = WeightDraftUi.formatValue(display))
+            // HERO — the captured weight value + unit, surfaced as a tinted-tile
+            // StandardCard mirroring the Today screen's weight mini card.
+            WeightValueHero(
+                valueText = draft.valueText,
+                unit = draft.displayUnit,
+            )
+
+            StandardCard(title = stringResource(R.string.weight_value_label)) {
+                // Weight wheel (required — no Clear). Stores canonical kg; the
+                // draft holds the value as display-unit text, so we convert on
+                // each side. The unit comes from the toggle below.
+                WeightPickerField(
+                    valueKg = draft.parsedValue
+                        ?.let { WeightReading.kgFrom(it, draft.displayUnit) },
+                    unit = draft.displayUnit,
+                    onChange = { kg ->
+                        if (kg != null) {
+                            val display = if (draft.displayUnit == WeightUnit.Lb) {
+                                WeightUnit.kgToLb(kg)
+                            } else {
+                                kg
                             }
-                        },
-                        label = stringResource(R.string.weight_value_label),
-                        required = true,
-                    )
-                    HorizontalDivider()
-                    UnitToggleRow(
-                        unit = draft.displayUnit,
-                        onSelect = { draft = draft.convertedTo(it) },
-                    )
-                    HorizontalDivider()
-                    TimestampRow(
-                        timestamp = draft.timestamp,
-                        onSetTimestamp = { newTs -> draft = draft.copy(timestamp = newTs) },
-                    )
-                }
+                            draft = draft.copy(valueText = WeightDraftUi.formatValue(display))
+                        }
+                    },
+                    label = stringResource(R.string.weight_value_label),
+                    required = true,
+                )
+                HorizontalDivider()
+                UnitToggleRow(
+                    unit = draft.displayUnit,
+                    onSelect = { draft = draft.convertedTo(it) },
+                )
+                HorizontalDivider()
+                TimestampRow(
+                    timestamp = draft.timestamp,
+                    onSetTimestamp = { newTs -> draft = draft.copy(timestamp = newTs) },
+                )
             }
 
             // Attribution row — reassign THIS reading before saving (does not change
             // the global member selection). Hidden for single-member installs.
             if (activeMembers.size > 1) {
-                SectionCard(stringResource(R.string.member_reading_owner_label)) {
+                StandardCard(title = stringResource(R.string.member_reading_owner_label)) {
                     MemberAttributionRow(
                         members = activeMembers,
                         selectedId = draft.memberId,
@@ -254,7 +266,7 @@ fun ConfirmWeightScreen(
                 }
             }
 
-            SectionCard(stringResource(R.string.weight_note_label)) {
+            StandardCard(title = stringResource(R.string.weight_note_label)) {
                 OutlinedTextField(
                     value = draft.note,
                     onValueChange = { v -> draft = draft.copy(note = v) },
@@ -264,7 +276,83 @@ fun ConfirmWeightScreen(
                 )
             }
 
-            Spacer(Modifier.size(8.dp))
+            // Prominent primary save — large filled button mirroring the TopAppBar
+            // save action (same save() call) for an obvious senior-friendly target.
+            Button(
+                onClick = { save() },
+                enabled = draft.isValid && !saving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(
+                    stringResource(R.string.weight_save),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
+        }
+    }
+}
+
+/**
+ * HERO — the captured body-weight value + unit, shown as a StandardCard with a
+ * tinted scale-icon tile mirroring the Today screen's weight mini card. Pure
+ * display of the draft; editing happens in the WeightPickerField below.
+ */
+@Composable
+private fun WeightValueHero(
+    valueText: String,
+    unit: WeightUnit,
+) {
+    val tint = MaterialTheme.colorScheme.primary
+    val unitLabel = stringResource(
+        when (unit) {
+            WeightUnit.Kg -> R.string.weight_unit_kg
+            WeightUnit.Lb -> R.string.weight_unit_lb
+        },
+    )
+    StandardCard(cornerRadius = AppSpacing.heroCorner) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tint.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.MonitorWeight,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = tint,
+                )
+            }
+            Spacer(Modifier.size(AppSpacing.sectionGap))
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = valueText.ifBlank { "—" },
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    unitLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
         }
     }
 }

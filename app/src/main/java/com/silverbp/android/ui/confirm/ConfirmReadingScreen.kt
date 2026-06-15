@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +23,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -52,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -67,9 +71,12 @@ import com.silverbp.android.core.Member
 import com.silverbp.android.core.PartOfDay
 import com.silverbp.android.core.Posture
 import com.silverbp.android.core.Source
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.member.MemberPalette
+import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.BpRedSbp
+import com.silverbp.android.ui.theme.ForgePrimary
+import com.silverbp.android.ui.theme.PrimaryDark
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -140,8 +147,8 @@ fun ConfirmReadingScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             saveError?.let { msg ->
                 Text(
@@ -151,58 +158,67 @@ fun ConfirmReadingScreen(
                 )
             }
 
+            // HERO — the captured S/D values as a vivid indigo-gradient card,
+            // mirroring the Today screen's BpHeroCard so the verify step feels
+            // continuous with the rest of the app.
+            BpValueHero(
+                systolic = draft.systolic,
+                diastolic = draft.diastolic,
+                pulse = draft.pulse,
+            )
+
             draft.photo?.let { bmp ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                StandardCard(
+                    contentPadding = AppSpacing.itemGap,
+                    cornerRadius = AppSpacing.cardCorner,
                 ) {
                     androidx.compose.foundation.Image(
                         bitmap = bmp.asImageBitmap(),
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(AppSpacing.itemGap)),
                     )
                 }
             }
 
-            SectionCard(stringResource(R.string.confirm_reading_section_reading)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NumberField(
-                        label = stringResource(R.string.systolic_full),
-                        value = draft.systolic,
-                        emphasizedColor = BpRedSbp,
-                        onChange = { v -> vm.update { it.copy(systolic = v) } },
-                    )
+            StandardCard(title = stringResource(R.string.confirm_reading_section_reading)) {
+                NumberField(
+                    label = stringResource(R.string.systolic_full),
+                    value = draft.systolic,
+                    emphasizedColor = BpRedSbp,
+                    onChange = { v -> vm.update { it.copy(systolic = v) } },
+                )
+                HorizontalDivider()
+                NumberField(
+                    label = stringResource(R.string.diastolic_full),
+                    value = draft.diastolic,
+                    emphasizedColor = MaterialTheme.colorScheme.onSurface,
+                    onChange = { v -> vm.update { it.copy(diastolic = v) } },
+                )
+                HorizontalDivider()
+                NumberField(
+                    label = stringResource(R.string.pulse) + " (bpm)",
+                    value = draft.pulse ?: 0,
+                    emphasizedColor = MaterialTheme.colorScheme.onSurface,
+                    onChange = { v -> vm.update { it.copy(pulse = v.takeIf { x -> x > 0 }) } },
+                )
+                HorizontalDivider()
+                TimestampRow(
+                    timestamp = draft.timestamp,
+                    onSetTimestamp = { newTs -> vm.update { it.copy(timestamp = newTs) } },
+                )
+                if (draft.source == Source.CameraGemma) {
                     HorizontalDivider()
-                    NumberField(
-                        label = stringResource(R.string.diastolic_full),
-                        value = draft.diastolic,
-                        emphasizedColor = MaterialTheme.colorScheme.onSurface,
-                        onChange = { v -> vm.update { it.copy(diastolic = v) } },
-                    )
-                    HorizontalDivider()
-                    NumberField(
-                        label = stringResource(R.string.pulse) + " (bpm)",
-                        value = draft.pulse ?: 0,
-                        emphasizedColor = MaterialTheme.colorScheme.onSurface,
-                        onChange = { v -> vm.update { it.copy(pulse = v.takeIf { x -> x > 0 }) } },
-                    )
-                    HorizontalDivider()
-                    TimestampRow(
-                        timestamp = draft.timestamp,
-                        onSetTimestamp = { newTs -> vm.update { it.copy(timestamp = newTs) } },
-                    )
-                    if (draft.source == Source.CameraGemma) {
-                        HorizontalDivider()
-                        ConfidenceRow(draft.confidence)
-                    }
+                    ConfidenceRow(draft.confidence)
                 }
             }
 
             // Attribution row — reassign THIS reading before saving (does not
             // change the global member selection). Hidden for single-member installs.
             if (activeMembers.size > 1) {
-                SectionCard(stringResource(R.string.member_reading_owner_label)) {
+                StandardCard(title = stringResource(R.string.member_reading_owner_label)) {
                     MemberAttributionRow(
                         members = activeMembers,
                         selectedId = draft.memberId,
@@ -211,50 +227,51 @@ fun ConfirmReadingScreen(
                 }
             }
 
-            SectionCard(stringResource(R.string.confirm_reading_section_tags)) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SegmentedRow(
-                        title = stringResource(R.string.confirm_reading_tag_time_of_day),
-                        options = listOf(
-                            PartOfDay.Morning to stringResource(R.string.part_morning),
-                            PartOfDay.Evening to stringResource(R.string.part_evening),
-                        ),
-                        selected = draft.partOfDay,
-                        onSelect = { v -> vm.update { it.copy(partOfDay = v) } },
-                    )
-                    SegmentedRow(
-                        title = stringResource(R.string.confirm_reading_tag_arm),
-                        options = listOf(
-                            Arm.Left to stringResource(R.string.arm_left),
-                            Arm.Right to stringResource(R.string.arm_right),
-                        ),
-                        selected = draft.arm,
-                        onSelect = { v -> vm.update { it.copy(arm = v) } },
-                    )
-                    SegmentedRow(
-                        title = stringResource(R.string.confirm_reading_tag_posture),
-                        options = listOf(
-                            Posture.Sitting to stringResource(R.string.posture_sitting),
-                            Posture.Supine to stringResource(R.string.posture_supine),
-                            Posture.Standing to stringResource(R.string.posture_standing),
-                        ),
-                        selected = draft.posture,
-                        onSelect = { v -> vm.update { it.copy(posture = v) } },
-                    )
-                    SwitchRow(
-                        label = stringResource(R.string.before_medication),
-                        checked = draft.beforeMedication,
-                        onChange = { v -> vm.update { it.copy(beforeMedication = v) } },
-                    )
-                    SwitchRow(
-                        label = stringResource(R.string.irregular_heartbeat),
-                        checked = draft.irregularHeartbeat,
-                        onChange = { v -> vm.update { it.copy(irregularHeartbeat = v) } },
-                    )
-                }
+            StandardCard(
+                title = stringResource(R.string.confirm_reading_section_tags),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+            ) {
+                SegmentedRow(
+                    title = stringResource(R.string.confirm_reading_tag_time_of_day),
+                    options = listOf(
+                        PartOfDay.Morning to stringResource(R.string.part_morning),
+                        PartOfDay.Evening to stringResource(R.string.part_evening),
+                    ),
+                    selected = draft.partOfDay,
+                    onSelect = { v -> vm.update { it.copy(partOfDay = v) } },
+                )
+                SegmentedRow(
+                    title = stringResource(R.string.confirm_reading_tag_arm),
+                    options = listOf(
+                        Arm.Left to stringResource(R.string.arm_left),
+                        Arm.Right to stringResource(R.string.arm_right),
+                    ),
+                    selected = draft.arm,
+                    onSelect = { v -> vm.update { it.copy(arm = v) } },
+                )
+                SegmentedRow(
+                    title = stringResource(R.string.confirm_reading_tag_posture),
+                    options = listOf(
+                        Posture.Sitting to stringResource(R.string.posture_sitting),
+                        Posture.Supine to stringResource(R.string.posture_supine),
+                        Posture.Standing to stringResource(R.string.posture_standing),
+                    ),
+                    selected = draft.posture,
+                    onSelect = { v -> vm.update { it.copy(posture = v) } },
+                )
+                SwitchRow(
+                    label = stringResource(R.string.before_medication),
+                    checked = draft.beforeMedication,
+                    onChange = { v -> vm.update { it.copy(beforeMedication = v) } },
+                )
+                SwitchRow(
+                    label = stringResource(R.string.irregular_heartbeat),
+                    checked = draft.irregularHeartbeat,
+                    onChange = { v -> vm.update { it.copy(irregularHeartbeat = v) } },
+                )
             }
 
-            SectionCard(stringResource(R.string.confirm_reading_section_notes)) {
+            StandardCard(title = stringResource(R.string.confirm_reading_section_notes)) {
                 OutlinedTextField(
                     value = draft.note,
                     onValueChange = { v -> vm.update { it.copy(note = v) } },
@@ -273,7 +290,29 @@ fun ConfirmReadingScreen(
                 )
             }
 
-            Spacer(Modifier.size(8.dp))
+            // Prominent primary save — a large filled button that mirrors the
+            // TopAppBar save action (same vm.save call), giving the senior user a
+            // big, obvious confirmation target at the end of the form.
+            Button(
+                onClick = { vm.save(onSaved) },
+                enabled = draft.isValid && !saving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(
+                    stringResource(R.string.save),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
         }
     }
 
@@ -299,6 +338,70 @@ fun ConfirmReadingScreen(
                 }
             },
         )
+    }
+}
+
+/**
+ * HERO — the current S/D (and pulse) draft values shown as a vivid indigo-gradient
+ * card (ForgePrimary → PrimaryDark), mirroring the Today screen's BpHeroCard so the
+ * verify/edit step reads as the same reading the user just captured. Pure display
+ * of the draft; all editing happens in the NumberFields below.
+ */
+@Composable
+private fun BpValueHero(
+    systolic: Int,
+    diastolic: Int,
+    pulse: Int?,
+) {
+    val onHero = Color.White
+    val onHeroDim = Color.White.copy(alpha = 0.85f)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(AppSpacing.heroCorner))
+            .background(Brush.linearGradient(colors = listOf(ForgePrimary, PrimaryDark)))
+            .padding(AppSpacing.cardPadding),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+            Text(
+                text = stringResource(R.string.confirm_reading_section_reading),
+                style = MaterialTheme.typography.labelLarge,
+                color = onHeroDim,
+            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "${if (systolic == 0) "—" else systolic} / ${if (diastolic == 0) "—" else diastolic}",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = onHero,
+                )
+                Text(
+                    stringResource(R.string.mmhg),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = onHeroDim,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+            }
+            pulse?.takeIf { it > 0 }?.let {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                ) {
+                    Text(
+                        "${stringResource(R.string.pulse)} $it",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onHero,
+                    )
+                }
+            }
+        }
     }
 }
 

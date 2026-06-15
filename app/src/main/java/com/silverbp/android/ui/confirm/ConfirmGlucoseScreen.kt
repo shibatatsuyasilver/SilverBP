@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,8 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -62,10 +66,11 @@ import com.silverbp.android.core.GlucoseCategory
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.MeasureContext
 import com.silverbp.android.core.Member
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.member.MemberPalette
 import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
+import com.silverbp.android.ui.theme.AppSpacing
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -148,8 +153,8 @@ fun ConfirmGlucoseScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             saveError?.let { msg ->
                 Text(
@@ -159,27 +164,34 @@ fun ConfirmGlucoseScreen(
                 )
             }
 
-            SectionCard(stringResource(R.string.glucose_value_label)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ValueRow(
-                        valueText = draft.valueText,
-                        category = liveCategory,
-                        onChange = { v -> vm.update { it.copy(valueText = v) } },
-                    )
-                    HorizontalDivider()
-                    UnitToggleRow(
-                        unit = draft.displayUnit,
-                        onSelect = { vm.setUnit(it) },
-                    )
-                    HorizontalDivider()
-                    TimestampRow(
-                        timestamp = draft.timestamp,
-                        onSetTimestamp = { newTs -> vm.update { it.copy(timestamp = newTs) } },
-                    )
-                }
+            // HERO — the captured glucose value + live category, surfaced as a
+            // tinted-tile StandardCard mirroring the Today screen's glucose mini
+            // card so the verify step stays visually continuous.
+            GlucoseValueHero(
+                valueText = draft.valueText,
+                unit = draft.displayUnit,
+                category = liveCategory,
+            )
+
+            StandardCard(title = stringResource(R.string.glucose_value_label)) {
+                ValueRow(
+                    valueText = draft.valueText,
+                    category = liveCategory,
+                    onChange = { v -> vm.update { it.copy(valueText = v) } },
+                )
+                HorizontalDivider()
+                UnitToggleRow(
+                    unit = draft.displayUnit,
+                    onSelect = { vm.setUnit(it) },
+                )
+                HorizontalDivider()
+                TimestampRow(
+                    timestamp = draft.timestamp,
+                    onSetTimestamp = { newTs -> vm.update { it.copy(timestamp = newTs) } },
+                )
             }
 
-            SectionCard(stringResource(R.string.context_label)) {
+            StandardCard(title = stringResource(R.string.context_label)) {
                 ContextPicker(
                     selected = draft.measureContext,
                     onSelect = { v -> vm.update { it.copy(measureContext = v) } },
@@ -189,7 +201,7 @@ fun ConfirmGlucoseScreen(
             // Attribution row — reassign THIS reading before saving (does not change
             // the global member selection). Hidden for single-member installs.
             if (activeMembers.size > 1) {
-                SectionCard(stringResource(R.string.member_reading_owner_label)) {
+                StandardCard(title = stringResource(R.string.member_reading_owner_label)) {
                     MemberAttributionRow(
                         members = activeMembers,
                         selectedId = draft.memberId,
@@ -198,7 +210,7 @@ fun ConfirmGlucoseScreen(
                 }
             }
 
-            SectionCard(stringResource(R.string.glucose_note)) {
+            StandardCard(title = stringResource(R.string.glucose_note)) {
                 OutlinedTextField(
                     value = draft.note,
                     onValueChange = { v -> vm.update { it.copy(note = v) } },
@@ -216,7 +228,28 @@ fun ConfirmGlucoseScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(Modifier.size(8.dp))
+            // Prominent primary save — large filled button mirroring the TopAppBar
+            // save action (same vm.save call) for an obvious senior-friendly target.
+            Button(
+                onClick = { vm.save(onSaved) },
+                enabled = draft.isValid && !saving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(
+                    stringResource(R.string.glucose_save),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
         }
     }
 
@@ -254,6 +287,80 @@ fun ConfirmGlucoseScreen(
                 }
             },
         )
+    }
+}
+
+/**
+ * HERO — the captured glucose value, its unit, and the live category, shown as a
+ * StandardCard with a tinted drop-icon tile mirroring the Today screen's glucose
+ * mini card. Pure display of the draft; editing happens in the ValueRow below.
+ */
+@Composable
+private fun GlucoseValueHero(
+    valueText: String,
+    unit: GlucoseUnit,
+    category: GlucoseCategory?,
+) {
+    val tint = category?.let { categoryColor(it) } ?: MaterialTheme.colorScheme.primary
+    val unitLabel = stringResource(
+        when (unit) {
+            GlucoseUnit.Mgdl -> R.string.glucose_unit_mgdl
+            GlucoseUnit.Mmol -> R.string.glucose_unit_mmol
+        },
+    )
+    StandardCard(cornerRadius = AppSpacing.heroCorner) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tint.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.Bloodtype,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = tint,
+                )
+            }
+            Spacer(Modifier.size(AppSpacing.sectionGap))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = valueText.ifBlank { "—" },
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        unitLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                category?.let {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(categoryColor(it)),
+                        )
+                        Spacer(Modifier.size(6.dp))
+                        Text(
+                            stringResource(categoryLabelRes(it)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = categoryColor(it),
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

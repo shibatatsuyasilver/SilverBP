@@ -1,7 +1,10 @@
 package com.silverbp.android.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -9,14 +12,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -49,6 +63,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -76,6 +93,7 @@ import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
 import com.silverbp.android.ui.paywall.openManageSubscription
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.ForgePrimary
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import kotlinx.coroutines.launch
@@ -248,31 +266,21 @@ fun SettingsScreen(
             // findable without digging into family-member management. (1) a row that
             // opens MemberEditorSheet for the owner; (2) the app-wide weight unit.
             StandardCard(title = stringResource(R.string.weight_profile_title)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.weight_profile_title),
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            stringResource(R.string.weight_profile_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Button(onClick = {
+                // Tappable nav row → owner profile editor (icon tile + title +
+                // subtitle + chevron), mirroring the Today/History entry rows.
+                SettingsNavRow(
+                    icon = Icons.Filled.Person,
+                    title = stringResource(R.string.member_edit_self),
+                    subtitle = stringResource(R.string.weight_profile_hint),
+                    onClick = {
                         // Resolve the owner first, then mount the editor so the
                         // sheet opens already in edit mode for the right member.
                         scope.launch {
                             profileOwner = ServiceLocator.memberRepository.owner()
                             showProfileEditor = true
                         }
-                    }) { Text(stringResource(R.string.member_edit_self)) }
-                }
+                    },
+                )
 
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
@@ -358,14 +366,11 @@ fun SettingsScreen(
                     // medication module card only appears once at least one
                     // medication has an active schedule, so without this row
                     // a first-time user has no UI path to add medication #1.
-                    Button(
+                    SettingsNavRow(
+                        icon = Icons.Filled.Medication,
+                        title = stringResource(R.string.settings_manage_medications_button),
+                        subtitle = stringResource(R.string.settings_manage_medications_hint),
                         onClick = onOpenManageMedications,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.settings_manage_medications_button)) }
-                    Spacer(Modifier.size(4.dp))
-                    Text(
-                        stringResource(R.string.settings_manage_medications_hint),
-                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
@@ -437,14 +442,11 @@ fun SettingsScreen(
             // 僅在開發版 (BuildConfig.DEBUG) 顯示以便繼續開發。
             if (BuildConfig.DEBUG) {
                 StandardCard(title = stringResource(R.string.settings_sync_section)) {
-                    Button(
+                    SettingsNavRow(
+                        icon = Icons.Filled.Sync,
+                        title = stringResource(R.string.settings_sync_pair_button),
+                        subtitle = stringResource(R.string.settings_sync_pair_help),
                         onClick = onOpenSyncPairing,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.settings_sync_pair_button)) }
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        stringResource(R.string.settings_sync_pair_help),
-                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
@@ -453,10 +455,11 @@ fun SettingsScreen(
             // keeps their own BP history / charts / reports; the switcher chip on
             // Today/Data appears only once a second member exists.
             StandardCard(title = stringResource(R.string.member_manage_title)) {
-                Button(
+                SettingsNavRow(
+                    icon = Icons.Filled.Group,
+                    title = stringResource(R.string.member_manage_entry),
                     onClick = onOpenManageMembers,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.member_manage_entry)) }
+                )
             }
 
             // Premium / subscription — an explicit entry point the paying adult
@@ -478,14 +481,11 @@ fun SettingsScreen(
             // user's chosen storage (Google Drive, iCloud, local file).
             // Survives uninstall; cross-device + cross-platform with iOS BPCoach.
             StandardCard(title = stringResource(R.string.backup_screen_title)) {
-                Button(
+                SettingsNavRow(
+                    icon = Icons.Filled.Backup,
+                    title = stringResource(R.string.settings_backup_button_label),
+                    subtitle = stringResource(R.string.settings_backup_description),
                     onClick = onOpenBackup,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.settings_backup_button_label)) }
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    stringResource(R.string.settings_backup_description),
-                    style = MaterialTheme.typography.bodySmall,
                 )
             }
 
@@ -547,10 +547,11 @@ fun SettingsScreen(
             // Advanced — recognition engine / AI models / prompts live in a
             // sub-screen to keep this everyday screen uncluttered.
             StandardCard(title = stringResource(R.string.settings_advanced_screen_title)) {
-                Button(
+                SettingsNavRow(
+                    icon = Icons.Filled.Tune,
+                    title = stringResource(R.string.settings_advanced_entry_button),
                     onClick = onOpenAdvanced,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.settings_advanced_entry_button)) }
+                )
             }
 
             // About
@@ -593,6 +594,82 @@ fun SettingsScreen(
                 onDismiss = { showProfileEditor = false },
             )
         }
+    }
+}
+
+/**
+ * A tappable navigation row used to group preference entries inside a
+ * [StandardCard]: a leading tinted type-icon tile (mirroring the Today/History
+ * card idiom), a semibold title with an optional muted subtitle, and a trailing
+ * chevron. Senior-friendly — a generous 56.dp min height keeps the whole row a
+ * comfortable touch target. Pure UI: the row owns no state and simply forwards
+ * [onClick]. The tile tint defaults to the brand purple so every entry reads as
+ * the same family unless a caller overrides it.
+ */
+@Composable
+private fun SettingsNavRow(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    tint: Color = ForgePrimary,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(AppSpacing.cardCorner))
+            .clickable(onClick = onClick)
+            .heightIn(min = 56.dp)
+            .padding(vertical = AppSpacing.itemGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsIconTile(icon = icon, tint = tint)
+        Spacer(Modifier.size(AppSpacing.itemGap))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.size(AppSpacing.tight))
+        Icon(
+            Icons.AutoMirrored.Filled.NavigateNext,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * The small tinted, rounded icon tile shared by [SettingsNavRow] and the Premium
+ * status row — a 46.dp rounded square filled with [tint] at low alpha holding a
+ * [tint]-coloured icon. Matches the Today/History tinted type-icon tiles so the
+ * whole app's card chrome stays one visual family. Pure UI.
+ */
+@Composable
+private fun SettingsIconTile(icon: ImageVector, tint: Color) {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(tint.copy(alpha = 0.14f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = tint,
+        )
     }
 }
 
@@ -791,14 +868,19 @@ private fun PremiumCard(entitlement: kotlinx.coroutines.flow.StateFlow<Entitleme
     val paywall = LocalPaywallController.current
     val isPremium = tier == Entitlement.Premium
     StandardCard(title = stringResource(R.string.settings_premium_title)) {
-        Text(
-            stringResource(
-                if (isPremium) R.string.settings_premium_status_premium
-                else R.string.settings_premium_status_free
-            ),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-        )
+        // Status row: tinted crown tile + current tier (mirrors the entry-row look).
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SettingsIconTile(icon = Icons.Filled.WorkspacePremium, tint = ForgePrimary)
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            Text(
+                stringResource(
+                    if (isPremium) R.string.settings_premium_status_premium
+                    else R.string.settings_premium_status_free
+                ),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+            )
+        }
         Spacer(Modifier.size(4.dp))
         Button(
             // Free → open the paywall to subscribe; Premium → deep-link straight
@@ -807,13 +889,27 @@ private fun PremiumCard(entitlement: kotlinx.coroutines.flow.StateFlow<Entitleme
                 if (isPremium) openManageSubscription(context)
                 else paywall.show(GateReason.Generic)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp),
+            // The upgrade upsell is the screen's primary action → lime/green CTA
+            // (theme maps secondary to lime on dark, deep green on light). Manage
+            // is a secondary action so it keeps the default filled (purple) look.
+            colors = if (isPremium) {
+                ButtonDefaults.buttonColors()
+            } else {
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                )
+            },
         ) {
             Text(
                 stringResource(
                     if (isPremium) R.string.settings_premium_cta_manage
                     else R.string.settings_premium_cta_upgrade
-                )
+                ),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             )
         }
     }

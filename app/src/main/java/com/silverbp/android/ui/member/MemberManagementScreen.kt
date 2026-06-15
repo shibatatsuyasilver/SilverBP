@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -22,13 +24,13 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -41,6 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +54,7 @@ import com.silverbp.android.core.Member
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
+import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 
 /**
@@ -83,6 +87,10 @@ object MemberPalette {
  *
  * No premium gating yet — Phase 3 adds it at the single point marked below
  * ([onAddMember]). Opened from the Settings 家人成員 card.
+ *
+ * Visually mirrors the refreshed Today / UnifiedHistory card idiom: each member
+ * is a rounded surface "timeline" tile with a leading colour avatar, the name +
+ * owner tag, and trailing reorder / edit / archive controls.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,15 +152,22 @@ fun MemberManagementScreen(onClose: () -> Unit) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                horizontal = AppSpacing.screenH,
+                vertical = AppSpacing.screenV,
+            ),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         ) {
             item(key = "manage-hint") {
                 Text(
                     stringResource(R.string.member_manage_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(
+                        start = AppSpacing.tight,
+                        bottom = AppSpacing.tight,
+                    ),
                 )
             }
 
@@ -177,8 +192,12 @@ fun MemberManagementScreen(onClose: () -> Unit) {
                     Text(
                         stringResource(R.string.member_archived_section),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 8.dp),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(
+                            start = AppSpacing.tight,
+                            top = AppSpacing.sectionGap,
+                            bottom = AppSpacing.tight,
+                        ),
                     )
                 }
                 items(archived, key = { "archived-${it.id}" }) { member ->
@@ -237,6 +256,12 @@ private suspend fun swap(
     repo.updateSortOrder(second.id, first.sortOrder)
 }
 
+/**
+ * One active-member tile — a rounded surface card matching the refreshed
+ * Today / UnifiedHistory "timeline row" look: a leading colour avatar, the
+ * member name + owner tag, and the reorder / edit / archive controls trailing.
+ * Generous min-height + 48dp icon buttons keep every target senior-friendly.
+ */
 @Composable
 private fun MemberRow(
     member: Member,
@@ -247,25 +272,38 @@ private fun MemberRow(
     onEdit: () -> Unit,
     onArchive: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppSpacing.cardCorner),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
+    ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 80.dp)
+                .padding(
+                    start = AppSpacing.cardPadding,
+                    end = AppSpacing.itemGap,
+                    top = AppSpacing.itemGap,
+                    bottom = AppSpacing.itemGap,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MemberAvatar(member)
-            Spacer(Modifier.size(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Spacer(Modifier.size(AppSpacing.screenH))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 Text(
                     displayNameOrFallback(member),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 if (member.isOwner) {
-                    Text(
-                        stringResource(R.string.member_owner_badge),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    OwnerBadge()
                 }
             }
             // Reorder controls — disabled at the ends. contentDescription on each
@@ -286,6 +324,7 @@ private fun MemberRow(
                 Icon(
                     Icons.Filled.Edit,
                     contentDescription = stringResource(R.string.member_edit),
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
             // Owner can never be archived (single-owner invariant).
@@ -301,15 +340,51 @@ private fun MemberRow(
     }
 }
 
+/** Owner pill — a tinted "本人" badge beneath the name, primary-coloured. */
+@Composable
+private fun OwnerBadge() {
+    Box(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+            .padding(horizontal = 10.dp, vertical = 3.dp),
+    ) {
+        Text(
+            stringResource(R.string.member_owner_badge),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+/**
+ * Archived-member tile — the same surface-card idiom as [MemberRow] but visually
+ * recessed (muted avatar + name) with a single restore action.
+ */
 @Composable
 private fun ArchivedMemberRow(member: Member, onUnarchive: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppSpacing.cardCorner),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
+    ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .padding(
+                    start = AppSpacing.cardPadding,
+                    end = AppSpacing.itemGap,
+                    top = AppSpacing.itemGap,
+                    bottom = AppSpacing.itemGap,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MemberAvatar(member)
-            Spacer(Modifier.size(12.dp))
+            MemberAvatar(member, dimmed = true)
+            Spacer(Modifier.size(AppSpacing.screenH))
             Text(
                 displayNameOrFallback(member),
                 style = MaterialTheme.typography.titleMedium,
@@ -320,26 +395,37 @@ private fun ArchivedMemberRow(member: Member, onUnarchive: () -> Unit) {
                 Icon(
                     Icons.Filled.Unarchive,
                     contentDescription = stringResource(R.string.member_unarchive),
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
     }
 }
 
+/**
+ * Round colour avatar with the member's initial. Mirrors the leading tinted
+ * type-icon tile in the Today / UnifiedHistory rows (same 48dp footprint),
+ * using the persisted [Member.colorIndex] swatch. [dimmed] softens the swatch
+ * for the archived section so restored vs active members read differently.
+ */
 @Composable
-private fun MemberAvatar(member: Member) {
+private fun MemberAvatar(member: Member, dimmed: Boolean = false) {
     val name = displayNameOrFallback(member)
+    val swatch = MemberPalette.colorFor(member.colorIndex)
     Box(
         modifier = Modifier
-            .size(44.dp)
-            .background(MemberPalette.colorFor(member.colorIndex), CircleShape),
+            .size(48.dp)
+            .background(
+                if (dimmed) swatch.copy(alpha = 0.40f) else swatch,
+                CircleShape,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             name.take(1).uppercase(),
             color = MemberPalette.onColor,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
