@@ -50,9 +50,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightSource
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.HeightPickerField
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.WeightPickerField
+import com.silverbp.android.ui.components.YearPickerField
 import com.silverbp.android.ui.theme.AppSpacing
+import java.time.Instant
 import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.settings.ExperienceLevel
 import com.silverbp.android.settings.PrimaryGoal
@@ -84,11 +91,24 @@ fun OnboardingNicknameScreen(
     onCompleted: () -> Unit,
 ) {
     val repo = remember { ServiceLocator.userSettings }
+    val memberRepo = remember { ServiceLocator.memberRepository }
+    val weightRepo = remember { ServiceLocator.weightRepository }
     val scope = rememberCoroutineScope()
     var step by rememberSaveable { mutableIntStateOf(0) }
     var nickname by rememberSaveable { mutableStateOf("") }
     var consentChecked by rememberSaveable { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+    // Health-profile inputs (step 3). All optional; null → nothing written. Picked
+    // from range-constrained wheels, so out-of-range values can't be entered.
+    var birthYear by rememberSaveable { mutableStateOf<Int?>(null) }
+    var heightCm by rememberSaveable { mutableStateOf<Int?>(null) }
+    // Canonical kg (unit-independent); the wheel handles kg/lb display itself.
+    var weightKg by rememberSaveable { mutableStateOf<Double?>(null) }
+    // Weight entry unit; seeded from UserSettings.weightUnit in LaunchedEffect.
+    var weightUnit by rememberSaveable { mutableStateOf(WeightUnit.Kg) }
+    // Id of the starting weight reading written from this step, so re-entering the
+    // step (Back→Next) updates the same row instead of inserting a duplicate.
+    var profileWeightId by rememberSaveable { mutableStateOf<String?>(null) }
     // Goal-profile selections (Phase 4).
     var primaryGoal by rememberSaveable { mutableStateOf<PrimaryGoal?>(null) }
     var experience by rememberSaveable { mutableStateOf<ExperienceLevel?>(null) }
@@ -101,12 +121,56 @@ fun OnboardingNicknameScreen(
     LaunchedEffect(Unit) {
         val s = runCatching { repo.flow.first() }.getOrNull() ?: return@LaunchedEffect
         if (s.userNickname.isNotEmpty() && nickname.isEmpty()) nickname = s.userNickname
+        weightUnit = WeightUnit.fromRaw(s.weightUnit)
         // If the user already accepted the current policy version (e.g. they
         // entered onboarding via "Review consent" but only need to update
         // their nickname) skip straight to the nickname step and finish there.
         if (s.acceptedPolicyVersion >= CURRENT_PRIVACY_POLICY_VERSION && step == 0) {
             reviewMode = true
             step = 2
+        }
+    }
+
+    // Persist non-blank health-profile inputs when the "Your details" step is left
+    // (via Next or Skip). Blank fields write nothing and never overwrite an existing
+    // owner value with null. Fire-and-forget on the screen scope so navigation isn't
+    // blocked.
+    fun persistProfile() {
+        val parsedBirthYear = birthYear
+        val parsedHeight = heightCm
+        val parsedWeight = weightKg
+        if (parsedBirthYear == null && parsedHeight == null && parsedWeight == null) return
+        scope.launch {
+            runCatching {
+                if (parsedBirthYear != null || parsedHeight != null) {
+                    val owner = memberRepo.owner()
+                    memberRepo.upsert(
+                        owner.copy(
+                            // Keep the owner's current value when a field is blank.
+                            birthYear = parsedBirthYear ?: owner.birthYear,
+                            heightCm = parsedHeight ?: owner.heightCm,
+                            updatedAt = Instant.now(),
+                        ),
+                    )
+                }
+                if (parsedWeight != null && parsedWeight > 0.0) {
+                    // Reuse the prior reading's id on re-entry so Back→Next updates
+                    // the same starting weight rather than inserting a duplicate.
+                    val id = profileWeightId?.let(java.util.UUID::fromString) ?: java.util.UUID.randomUUID()
+                    profileWeightId = id.toString()
+                    weightRepo.upsert(
+                        WeightReading(
+                            id = id,
+                            memberId = "",
+                            // Already canonical kg — the wheel stored it unit-free.
+                            valueKg = parsedWeight,
+                            displayUnit = weightUnit,
+                            timestamp = Instant.now(),
+                            source = WeightSource.Manual,
+                        ),
+                    )
+                }
+            }
         }
     }
 
@@ -154,29 +218,48 @@ fun OnboardingNicknameScreen(
                         if (reviewMode) finish() else step = 3
                     },
                 )
-                3 -> PrimaryGoalStep(
+                3 -> ProfileStep(
+                    birthYear = birthYear,
+                    onBirthYearChange = { birthYear = it },
+                    heightCm = heightCm,
+                    onHeightChange = { heightCm = it },
+                    weightKg = weightKg,
+                    onWeightChange = { weightKg = it },
+                    weightUnit = weightUnit,
+                    onBack = { step = 2 },
+                    // Both Next and Skip persist whatever was filled, then advance.
+                    onNext = {
+                        persistProfile()
+                        step = 4
+                    },
+                    onSkip = {
+                        persistProfile()
+                        step = 4
+                    },
+                )
+                4 -> PrimaryGoalStep(
                     selected = primaryGoal,
                     onSelect = { primaryGoal = it },
-                    onBack = { step = 2 },
-                    onNext = { step = 4 },
-                )
-                4 -> ExperienceStep(
-                    selected = experience,
-                    onSelect = { experience = it },
                     onBack = { step = 3 },
                     onNext = { step = 5 },
                 )
-                5 -> AvailabilityStep(
-                    selected = availabilityDays,
-                    onSelect = { availabilityDays = it },
+                5 -> ExperienceStep(
+                    selected = experience,
+                    onSelect = { experience = it },
                     onBack = { step = 4 },
                     onNext = { step = 6 },
+                )
+                6 -> AvailabilityStep(
+                    selected = availabilityDays,
+                    onSelect = { availabilityDays = it },
+                    onBack = { step = 5 },
+                    onNext = { step = 7 },
                 )
                 else -> TrainingStyleStep(
                     selected = trainingStyle,
                     saving = saving,
                     onSelect = { trainingStyle = it },
-                    onBack = { step = 5 },
+                    onBack = { step = 6 },
                     onDone = { finish() },
                 )
             }
@@ -372,6 +455,97 @@ private fun NicknameStep(
             modifier = Modifier
                 .fillMaxWidth(),
         )
+    }
+}
+
+/**
+ * "Your details" step (skippable): birth year / height / weight, all optional and
+ * picked from range-constrained wheels (so out-of-range values can't be entered).
+ * Next and Skip both advance; the caller persists the non-blank values. The primary
+ * button stays enabled even when everything is blank — leaving the step is always
+ * allowed.
+ */
+@Composable
+private fun ProfileStep(
+    birthYear: Int?,
+    onBirthYearChange: (Int?) -> Unit,
+    heightCm: Int?,
+    onHeightChange: (Int?) -> Unit,
+    weightKg: Double?,
+    onWeightChange: (Double?) -> Unit,
+    weightUnit: WeightUnit,
+    onBack: () -> Unit,
+    onNext: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    val unitLabel = stringResource(
+        if (weightUnit == WeightUnit.Lb) R.string.weight_unit_lb else R.string.weight_unit_kg,
+    )
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+    ) {
+        Spacer(Modifier.size(AppSpacing.itemGap))
+        Text(
+            stringResource(R.string.onboarding_profile_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            stringResource(R.string.onboarding_profile_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        StandardCard {
+            // All three are wheel pickers (tap the value to open). Each is optional —
+            // the dialog's Clear restores "not set" so a skippable step stays skippable.
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                YearPickerField(
+                    value = birthYear,
+                    onChange = onBirthYearChange,
+                    label = stringResource(R.string.member_birth_year),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                HeightPickerField(
+                    value = heightCm,
+                    onChange = onHeightChange,
+                    label = stringResource(R.string.weight_height_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                WeightPickerField(
+                    valueKg = weightKg,
+                    unit = weightUnit,
+                    onChange = onWeightChange,
+                    label = stringResource(R.string.onboarding_profile_weight, unitLabel),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        OnboardingHeroButton(
+            label = stringResource(R.string.onboarding_goal_next),
+            onClick = onNext,
+            // Leaving the step is always allowed — every field is optional.
+            enabled = true,
+        )
+        TextButton(
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_profile_skip),
+                textAlign = TextAlign.Center,
+            )
+        }
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.onboarding_goal_back))
+        }
     }
 }
 
