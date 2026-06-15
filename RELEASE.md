@@ -398,6 +398,25 @@
    卻又買不到 Premium,使用者會卡死。
 4. 出 enforced 版本前,在實機用 N-4 測試帳號實際走一次「看到付費牆 → 購買 → 解鎖」確認無誤。
 
+### N-5.1. 付費閘清單(`PREMIUM_ENFORCED=true` 後逐項驗證)⚠️ 翻 enforced 必看
+
+> 所有付費閘都已接好,但 beta 期被 `isPremium()` 永遠回 `true` 蓋掉(見 N-5)。翻成 enforced 後,
+> 用**未購買**的 N-4 測試帳號逐項確認「免費版確實被擋、購買後確實解鎖」。
+> `isPremium()` 疊了 `BuildConfig.PREMIUM_ENFORCED` + DEBUG 覆寫 + 實際 entitlement(見 `billing/EntitlementManager`);
+> 付費閘一律呼叫 `isPremium()`,不可直接讀原始 entitlement。
+
+| 功能 | 免費版 | Premium | 程式位置 |
+|---|---|---|---|
+| **血糖紀錄筆數** | 每位成員 **10 筆**(`FREE_GLUCOSE_LIMIT=10`),第 11 筆觸發付費牆;**編輯既有不算** | 無限 | `ui/confirm/ConfirmGlucoseViewModel` |
+| **家人多成員** | **不能新增**家人成員(本人自己不擋) | 可新增/管理 | `ui/member/MemberManagementScreen` |
+| **AI 聊天 context 額度** | context 視窗**砍半**(`freeContextDivisor=2`,非全擋) | 完整 context | `ui/chat/ChatViewModel` |
+| **教練週報 AI 敘述** | 看得到數字/週報,**無 AI 文字敘述** | 有 AI 生成敘述 | `ui/coach/CoachWeeklyReportViewModel` |
+| **PDF 報告** | 封面 + 摘要 | **完整明細**(`includeDetail = isPremium()`) | `ui/report/ReportViewModel` |
+
+**永遠免費(無 gate,翻 enforced 後不可被連帶鎖到)**:血壓記錄、**體重(明確 never gated)**、BMI、統一今日紀錄、Insights 基本圖表、血糖前 10 筆、週報數字、摘要 PDF。
+
+驗證重點:翻 enforced 後務必確認(1)上述「免費」項目**沒有被誤鎖**(尤其血壓/體重);(2)五個付費閘在**未購買時擋、購買後解鎖**。
+
 ### N-6. 發放 6 個月促銷代碼給封測 Google Group(老用戶 grandfathering)
 
 > 目的:beta 期間免費試用過的封測成員,在轉收費後仍能免費續用一段時間,作為回饋。
