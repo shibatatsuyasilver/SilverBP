@@ -5,6 +5,8 @@
 
     <!-- 該成員血壓與血糖皆無任何紀錄時的空狀態. -->
     <string name="combined_history_empty">還沒有任何紀錄</string>
+    <!-- 時間軸日分組標題的「昨天」相對日期 (「今天」沿用 range_today). -->
+    <string name="combined_history_yesterday">昨天</string>
     <!-- 日卡內各型別條目前的區段小標題. -->
     <string name="combined_section_bp">血壓</string>
     <string name="combined_section_glucose">血糖</string>

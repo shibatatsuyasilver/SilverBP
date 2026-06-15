@@ -16,9 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -30,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -55,17 +61,23 @@ import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
-import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
 import com.silverbp.android.ui.components.formatGlucoseValue
+import com.silverbp.android.ui.components.glucoseCategoryLabel
 import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
 import com.silverbp.android.ui.components.measureContextLabel
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.BpRedSbp
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+/** Teal type-hue for the 血糖 (glucose) icon tile, mirroring the iOS timeline. */
+private val GlucoseTileTint = Color(0xFF15B5B0)
 
 /**
  * Unified, member-scoped history (紀錄 segment of the Data hub). One card per
@@ -309,88 +321,190 @@ private fun CombinedDaySectionCard(
     onEditGlucose: (GlucoseReading) -> Unit,
     onLongPressGlucose: (GlucoseReading) -> Unit,
 ) {
+    // Day header: 今天 / 昨天 / formatted date · N 筆, mirroring the iOS timeline's
+    // RecordDaySectionHeader. Relative-day resolution is presentation-only (compares
+    // the group's date to today); the grouping/merge itself is untouched.
     val dateFmt = DateTimeFormatter.ofPattern(stringResource(R.string.history_date_format), Locale.getDefault())
-    val dateLabel = group.date.format(dateFmt)
-    StandardCard(
-        title = dateLabel,
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
-    ) {
-        // Blood-pressure section (only when the day has BP readings).
-        if (group.bpReadings.isNotEmpty()) {
-            SectionHeader(
-                title = stringResource(R.string.combined_section_bp),
-                summary = group.bpMean?.let { (sys, dia) ->
-                    stringResource(R.string.combined_day_bp_summary, group.bpReadings.size, sys, dia)
-                },
+    val today = remember { LocalDate.now() }
+    val dateLabel = when (group.date) {
+        today -> stringResource(R.string.range_today)
+        today.minusDays(1) -> stringResource(R.string.combined_history_yesterday)
+        else -> group.date.format(dateFmt)
+    }
+    val totalCount = group.bpReadings.size + group.glucoseReadings.size
+    val unitLabel = glucoseUnitLabel(glucoseUnit)
+
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+        DaySectionHeader(title = dateLabel, count = totalCount)
+
+        // Blood-pressure rows (each its own surface card, matching iOS).
+        group.bpReadings.forEach { reading ->
+            BpReadingRow(
+                reading = reading,
+                guideline = guideline,
+                onClick = { onEditBp(reading) },
+                onLongClick = { onLongPressBp(reading) },
             )
-            group.bpReadings.forEachIndexed { idx, reading ->
-                BpReadingRow(
-                    reading = reading,
-                    guideline = guideline,
-                    onClick = { onEditBp(reading) },
-                    onLongClick = { onLongPressBp(reading) },
-                )
-                if (idx < group.bpReadings.size - 1) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
         }
 
-        // Divider between the two type sections when both are present.
-        if (group.bpReadings.isNotEmpty() && group.glucoseReadings.isNotEmpty()) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        }
-
-        // Blood-glucose section (only when the day has glucose readings).
-        if (group.glucoseReadings.isNotEmpty()) {
-            val unitLabel = glucoseUnitLabel(glucoseUnit)
-            SectionHeader(
-                title = stringResource(R.string.combined_section_glucose),
-                summary = group.glucoseMean?.let { mean ->
-                    stringResource(
-                        R.string.combined_day_glucose_summary,
-                        group.glucoseReadings.size,
-                        formatGlucoseValue(mean, glucoseUnit),
-                        unitLabel,
-                    )
-                },
+        // Blood-glucose rows.
+        group.glucoseReadings.forEach { reading ->
+            GlucoseReadingRow(
+                reading = reading,
+                unit = glucoseUnit,
+                unitLabel = unitLabel,
+                onClick = { onEditGlucose(reading) },
+                onLongClick = { onLongPressGlucose(reading) },
             )
-            group.glucoseReadings.forEachIndexed { idx, reading ->
-                GlucoseReadingRow(
-                    reading = reading,
-                    unit = glucoseUnit,
-                    unitLabel = unitLabel,
-                    onClick = { onEditGlucose(reading) },
-                    onLongClick = { onLongPressGlucose(reading) },
-                )
-                if (idx < group.glucoseReadings.size - 1) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
         }
     }
 }
 
-/** Per-type sub-header inside a combined day card: type name + one-line day summary. */
+/** Day-group header: relative/absolute day title on the left, "N 筆" count on the right. */
 @Composable
-private fun SectionHeader(title: String, summary: String?) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun DaySectionHeader(title: String, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = AppSpacing.tight, top = AppSpacing.tight, bottom = AppSpacing.tight),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
             title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
         )
-        if (summary != null) {
-            Text(
-                summary,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Text(
+            stringResource(R.string.history_readings_count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * The shared visual chrome for one timeline record, styled as a surface card to
+ * match the iOS MergedTimelineRow: a leading tinted type-icon tile, a small type
+ * label, the big value + unit, a category dot + label, and a trailing time +
+ * chevron. Callers supply the pre-classified colour/label and pre-formatted text;
+ * this composable owns no data or behaviour beyond the click wiring it is handed.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TimelineRecordRow(
+    icon: ImageVector,
+    tint: Color,
+    typeLabel: String,
+    valueText: String,
+    unitText: String,
+    categoryText: String,
+    categoryColor: Color,
+    contextText: String?,
+    timeText: String,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppSpacing.cardCorner),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 74.dp)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .semantics(mergeDescendants = true) { role = Role.Button }
+                .padding(horizontal = AppSpacing.cardPadding, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // LEADING: tinted type-icon tile.
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tint.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+
+            Spacer(Modifier.size(AppSpacing.screenH))
+
+            // MIDDLE: type label, value + unit, category dot + label.
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    typeLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        valueText,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (unitText.isNotEmpty()) {
+                        Spacer(Modifier.size(AppSpacing.tight))
+                        Text(
+                            unitText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 2.dp),
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(categoryColor),
+                    )
+                    Spacer(Modifier.size(AppSpacing.itemGap))
+                    Text(
+                        categoryText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (contextText != null) {
+                        Spacer(Modifier.size(AppSpacing.itemGap))
+                        Text(
+                            contextText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
+
+            // TRAILING: time over a chevron.
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(AppSpacing.tight)) {
+                Text(
+                    timeText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.NavigateNext,
+                    contentDescription = stringResource(R.string.a11y_view_reading_details),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BpReadingRow(
     reading: BpReading,
@@ -404,48 +518,22 @@ private fun BpReadingRow(
         DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
             .withZone(java.time.ZoneId.systemDefault())
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "${reading.systolic} / ${reading.diastolic}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                reading.pulse?.let {
-                    Text(
-                        stringResource(R.string.history_reading_pulse, it),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                }
-                Text(
-                    fmt.format(reading.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-        Spacer(Modifier.size(8.dp))
-        Icon(
-            Icons.AutoMirrored.Filled.NavigateNext,
-            contentDescription = stringResource(R.string.a11y_view_reading_details),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    val pulseText = reading.pulse?.let { stringResource(R.string.history_reading_pulse, it) }
+    TimelineRecordRow(
+        icon = Icons.Filled.Favorite,
+        tint = BpRedSbp,
+        typeLabel = stringResource(R.string.combined_section_bp),
+        valueText = "${reading.systolic} / ${reading.diastolic}",
+        unitText = "",
+        categoryText = categoryLabel(cat),
+        categoryColor = color,
+        contextText = pulseText,
+        timeText = fmt.format(reading.timestamp),
+        onClick = onClick,
+        onLongClick = onLongClick,
+    )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GlucoseReadingRow(
     reading: GlucoseReading,
@@ -461,45 +549,17 @@ private fun GlucoseReadingRow(
         DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
             .withZone(java.time.ZoneId.systemDefault())
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                stringResource(
-                    R.string.glucose_value_unit,
-                    formatGlucoseValue(reading.valueMgdl, unit),
-                    unitLabel,
-                ),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    measureContextLabel(reading.measureContext),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    fmt.format(reading.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-        Spacer(Modifier.size(8.dp))
-        Icon(
-            Icons.AutoMirrored.Filled.NavigateNext,
-            contentDescription = stringResource(R.string.a11y_view_reading_details),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    TimelineRecordRow(
+        icon = Icons.Filled.WaterDrop,
+        tint = GlucoseTileTint,
+        typeLabel = stringResource(R.string.combined_section_glucose),
+        valueText = formatGlucoseValue(reading.valueMgdl, unit),
+        unitText = unitLabel,
+        categoryText = glucoseCategoryLabel(cat),
+        categoryColor = color,
+        contextText = measureContextLabel(reading.measureContext),
+        timeText = fmt.format(reading.timestamp),
+        onClick = onClick,
+        onLongClick = onLongClick,
+    )
 }

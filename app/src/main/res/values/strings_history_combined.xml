@@ -6,6 +6,8 @@
 
     <!-- Empty state when neither BP nor glucose has any readings for the member. -->
     <string name="combined_history_empty">No readings yet</string>
+    <!-- "Yesterday" relative-day title for a timeline day group ("Today" reuses range_today). -->
+    <string name="combined_history_yesterday">Yesterday</string>
     <!-- Section sub-header inside a day card, before that type's entries. -->
     <string name="combined_section_bp">Blood pressure</string>
     <string name="combined_section_glucose">Blood glucose</string>

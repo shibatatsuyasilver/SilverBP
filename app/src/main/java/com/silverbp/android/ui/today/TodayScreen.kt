@@ -10,18 +10,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Bloodtype
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -58,18 +65,18 @@ import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.components.BpReadingValue
 import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.components.StandardCard
-import com.silverbp.android.ui.components.categoryLabel
+import com.silverbp.android.ui.components.categoryShortLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
 import com.silverbp.android.ui.components.formatGlucoseValue
 import com.silverbp.android.ui.components.glucoseCategoryLabel
 import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
-import com.silverbp.android.ui.components.measureContextLabel
 import com.silverbp.android.ui.components.weightCategoryLabel
 import com.silverbp.android.ui.components.weightColorFor
 import com.silverbp.android.ui.theme.AppSpacing
-import java.time.LocalDate
+import com.silverbp.android.ui.theme.ForgePrimary
+import com.silverbp.android.ui.theme.PrimaryDark
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -190,21 +197,42 @@ fun TodayScreen(
                     )
                 }
                 else -> {
-                    // Inline "記一筆" prompts reuse the capture callbacks (the same
-                    // entry points the "+" chooser offers).
-                    TodayRecordCard(
-                        state = state,
-                        onRecordBp = onCaptureBp,
-                        onRecordGlucose = onCaptureGlucose,
-                        onEditBp = onEditBp,
-                        onEditGlucose = onEditGlucose,
-                        onViewBpHistory = onViewBpHistory,
-                        onViewGlucoseHistory = onViewGlucoseHistory,
-                        onLogWeight = onLogWeight,
-                        onEditWeight = onEditWeight,
-                        onViewWeightHistory = onViewWeightHistory,
+                    // BP HERO — today's latest reading as a vivid indigo-gradient
+                    // card (or a friendly inline "記一筆" prompt when none today).
+                    // Inline prompts reuse the capture callbacks (the same entry
+                    // points the "+" chooser offers).
+                    BpHeroCard(
+                        readings = state.todayBp,
+                        guideline = state.guideline,
+                        onRecord = onCaptureBp,
+                        onEdit = onEditBp,
                         modifier = Modifier.padding(horizontal = AppSpacing.screenH),
                     )
+
+                    // 血糖 + 體重 as two compact, equal-weight cards side by side.
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppSpacing.screenH),
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                    ) {
+                        GlucoseMiniCard(
+                            readings = state.todayGlucose,
+                            unit = state.glucoseUnit,
+                            onRecord = onCaptureGlucose,
+                            onEdit = onEditGlucose,
+                            onViewHistory = onViewGlucoseHistory,
+                            modifier = Modifier.weight(1f),
+                        )
+                        WeightMiniCard(
+                            latest = state.latestWeight,
+                            bmi = state.weightBmi,
+                            onRecord = onLogWeight,
+                            onEdit = onEditWeight,
+                            onViewHistory = onViewWeightHistory,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
 
                     // Pro-tip is keyed off today's latest BP reading's classification,
                     // placed below the unified card. Hidden when there's no BP today
@@ -232,140 +260,115 @@ fun TodayScreen(
 }
 
 /**
- * The unified daily-record card: title = today's date, then the BP section, a
- * divider, then the glucose section. Each section is either today's latest
- * reading (+ a "今天 N 筆" affordance when there's more than one) or an inline
- * "今天還沒記錄 · 記一筆" prompt.
+ * BP HERO — today's latest blood-pressure reading as a vivid indigo-gradient
+ * card (ForgePrimary → PrimaryDark), mirroring the iOS `LatestReadingCard`:
+ * a "血壓 · {time}" label top-left, a filled category chip (white pill with a
+ * category dot + short label) top-right, the big "S / D mmHg" number in white,
+ * and a "脈搏 N" pill. Tapping the card edits the reading via [onEdit].
+ *
+ * When there's no BP today the card becomes a friendly inline prompt that keeps
+ * the existing "記一筆" affordance ([onRecord]).
  */
 @Composable
-private fun TodayRecordCard(
-    state: TodayUiState,
-    onRecordBp: () -> Unit,
-    onRecordGlucose: () -> Unit,
-    onEditBp: (String) -> Unit,
-    onEditGlucose: (String) -> Unit,
-    onViewBpHistory: () -> Unit,
-    onViewGlucoseHistory: () -> Unit,
-    onLogWeight: () -> Unit,
-    onEditWeight: (String) -> Unit,
-    onViewWeightHistory: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    StandardCard(
-        modifier = modifier,
-        cornerRadius = AppSpacing.heroCorner,
-        title = stringResource(R.string.today_card_title, formatToday(state.today)),
-    ) {
-        BpSection(
-            readings = state.todayBp,
-            guideline = state.guideline,
-            onRecord = onRecordBp,
-            onEdit = onEditBp,
-            onViewHistory = onViewBpHistory,
-        )
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-        GlucoseSection(
-            readings = state.todayGlucose,
-            unit = state.glucoseUnit,
-            onRecord = onRecordGlucose,
-            onEdit = onEditGlucose,
-            onViewHistory = onViewGlucoseHistory,
-        )
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-        WeightSection(
-            latest = state.latestWeight,
-            bmi = state.weightBmi,
-            onRecord = onLogWeight,
-            onEdit = onEditWeight,
-            onViewHistory = onViewWeightHistory,
-        )
-    }
-}
-
-/** Blood-pressure section of the unified card (today's latest, or inline prompt). */
-@Composable
-private fun BpSection(
+private fun BpHeroCard(
     readings: List<BpReading>,
     guideline: HypertensionGuideline,
     onRecord: () -> Unit,
     onEdit: (String) -> Unit,
-    onViewHistory: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val latest = readings.maxByOrNull { it.timestamp }
-    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
-        SectionHeader(
-            title = stringResource(R.string.today_section_bp),
-            count = readings.size,
-            onViewHistory = onViewHistory,
-        )
+    if (latest == null) {
+        BpHeroEmptyCard(onRecord = onRecord, modifier = modifier)
+        return
+    }
 
-        if (latest == null) {
-            EmptySectionPrompt(
-                onRecord = onRecord,
-                recordCd = stringResource(R.string.today_record_bp_a11y),
+    val cat = classify(latest.systolic, latest.diastolic, guideline)
+    val dotColor = colorFor(cat)
+    val editCd = stringResource(R.string.today_edit_bp_a11y)
+    val onHero = Color.White
+    val onHeroDim = Color.White.copy(alpha = 0.85f)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(AppSpacing.heroCorner))
+            .background(
+                Brush.linearGradient(colors = listOf(ForgePrimary, PrimaryDark)),
             )
-        } else {
-            val cat = classify(latest.systolic, latest.diastolic, guideline)
-            val color = colorFor(cat)
-            val editCd = stringResource(R.string.today_edit_bp_a11y)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .clickable { onEdit(latest.id.toString()) }
-                    .semantics { contentDescription = editCd },
-                verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+            .clickable { onEdit(latest.id.toString()) }
+            .semantics { contentDescription = editCd }
+            .padding(AppSpacing.cardPadding),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+            // Label + category chip.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        categoryLabel(cat),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    BpReadingValue(systolic = latest.systolic, diastolic = latest.diastolic)
-                    Spacer(Modifier.size(4.dp))
-                    Text(
-                        stringResource(R.string.mmhg),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                }
+                Text(
+                    text = "${stringResource(R.string.today_section_bp)} · ${timeFmt().format(latest.timestamp)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = onHeroDim,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.size(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.20f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    latest.pulse?.let {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.MonitorHeart,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.size(6.dp))
-                            Text(
-                                "$it ${stringResource(R.string.bpm)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(dotColor))
+                    Spacer(Modifier.size(6.dp))
                     Text(
-                        timeFmt().format(latest.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        categoryShortLabel(cat),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onHero,
+                    )
+                }
+            }
+            // Big numbers (white, via the value component's colour overrides).
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                BpReadingValue(
+                    systolic = latest.systolic,
+                    diastolic = latest.diastolic,
+                    sbpColor = onHero,
+                    dbpColor = onHero,
+                    separatorColor = onHeroDim,
+                )
+                Text(
+                    stringResource(R.string.mmhg),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = onHeroDim,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
+            // Pulse pill.
+            latest.pulse?.let {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = onHero,
+                    )
+                    Spacer(Modifier.size(7.dp))
+                    Text(
+                        "$it ${stringResource(R.string.bpm)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onHero,
                     )
                 }
             }
@@ -373,70 +376,247 @@ private fun BpSection(
     }
 }
 
-/** Blood-glucose section of the unified card (today's latest, or inline prompt). */
+/** Friendly "今天還沒記錄 · 記一筆" placeholder occupying the BP hero's slot. */
 @Composable
-private fun GlucoseSection(
+private fun BpHeroEmptyCard(
+    onRecord: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val recordCd = stringResource(R.string.today_record_bp_a11y)
+    StandardCard(
+        modifier = modifier,
+        cornerRadius = AppSpacing.heroCorner,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ForgePrimary.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.MonitorHeart,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = ForgePrimary,
+                )
+            }
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.today_section_bp),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.today_empty_today),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = onRecord,
+                modifier = Modifier.semantics { contentDescription = recordCd },
+            ) {
+                Text(stringResource(R.string.today_record_one))
+            }
+        }
+    }
+}
+
+/**
+ * 血糖 compact card — today's latest glucose reading (or an inline "記一筆"
+ * prompt) styled as a [MetricMiniCard]: a tinted drop-icon tile, the value +
+ * unit, and the glucose category dot + label. The "今天 N 筆" affordance (a card
+ * with more than one reading today) opens glucose history via [onViewHistory].
+ */
+@Composable
+private fun GlucoseMiniCard(
     readings: List<GlucoseReading>,
     unit: GlucoseUnit,
     onRecord: () -> Unit,
     onEdit: (String) -> Unit,
     onViewHistory: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val latest = readings.maxByOrNull { it.timestamp }
-    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
-        SectionHeader(
+    if (latest == null) {
+        MetricMiniEmptyCard(
+            icon = Icons.Filled.Bloodtype,
+            tint = CategoryStage2Tint(),
             title = stringResource(R.string.today_section_glucose),
-            count = readings.size,
-            onViewHistory = onViewHistory,
+            onRecord = onRecord,
+            recordCd = stringResource(R.string.today_record_glucose_a11y),
+            modifier = modifier,
         )
+        return
+    }
+    val cat = remember(latest) {
+        GlucoseClassifier().classify(latest.valueMgdl, latest.measureContext)
+    }
+    MetricMiniCard(
+        icon = Icons.Filled.Bloodtype,
+        tint = glucoseColorFor(cat),
+        title = stringResource(R.string.today_section_glucose),
+        count = readings.size,
+        value = formatGlucoseValue(latest.valueMgdl, unit),
+        unit = glucoseUnitLabel(unit),
+        categoryLabel = glucoseCategoryLabel(cat),
+        categoryColor = glucoseColorFor(cat),
+        editCd = stringResource(R.string.today_edit_glucose_a11y),
+        onEdit = { onEdit(latest.id.toString()) },
+        onViewHistory = onViewHistory,
+        modifier = modifier,
+    )
+}
 
-        if (latest == null) {
-            EmptySectionPrompt(
-                onRecord = onRecord,
-                recordCd = stringResource(R.string.today_record_glucose_a11y),
+/**
+ * 體重 compact card — the member's most-recent weight reading (latest-ever, not
+ * today-scoped; see [TodayUiState.latestWeight]) styled as a [MetricMiniCard]:
+ * a tinted scale-icon tile, the value + unit in the unit it was captured in
+ * ([WeightReading.displayUnit]), and the BMI band dot + label when the member's
+ * profile height is known. Manual entry only this phase: the empty state opens
+ * manual logging via [onRecord]; the value taps through to edit via [onEdit].
+ */
+@Composable
+private fun WeightMiniCard(
+    latest: WeightReading?,
+    bmi: Double?,
+    onRecord: () -> Unit,
+    onEdit: (String) -> Unit,
+    onViewHistory: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (latest == null) {
+        MetricMiniEmptyCard(
+            icon = Icons.Filled.MonitorWeight,
+            tint = CategoryNormalTint(),
+            title = stringResource(R.string.weight_title),
+            onRecord = onRecord,
+            recordCd = stringResource(R.string.weight_log_cta),
+            modifier = modifier,
+        )
+        return
+    }
+    // The reading carries the unit it was entered in; read the canonical kg value
+    // back in that unit for display (the user sees the same number they saved).
+    // BMI is precomputed in the VM from the member's height.
+    val unit = latest.displayUnit
+    val category = bmi?.let { WeightGuideline.classify(it) }
+    val color = category?.let { weightColorFor(it) }
+    MetricMiniCard(
+        icon = Icons.Filled.MonitorWeight,
+        tint = color ?: MaterialTheme.colorScheme.primary,
+        title = stringResource(R.string.weight_title),
+        count = 0,
+        value = formatWeightValue(latest.valueIn(unit)),
+        unit = weightUnitLabel(unit),
+        categoryLabel = category?.let { weightCategoryLabel(it) }
+            ?: bmi?.let { "${stringResource(R.string.weight_bmi_label)} ${formatBmi(it)}" },
+        categoryColor = color,
+        editCd = stringResource(R.string.weight_confirm_title),
+        onEdit = { onEdit(latest.id.toString()) },
+        onViewHistory = onViewHistory,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Shared compact metric card used for 血糖 / 體重 — a [StandardCard] with a
+ * leading tinted type-icon tile, the section title (+ a "今天 N 筆" affordance
+ * when [count] > 1), the big value + unit, and a category dot + label. Mirrors
+ * the iOS `MergedTimelineRow` / side-by-side latest cards. File-private.
+ */
+@Composable
+private fun MetricMiniCard(
+    icon: ImageVector,
+    tint: Color,
+    title: String,
+    count: Int,
+    value: String,
+    unit: String,
+    categoryLabel: String?,
+    categoryColor: Color?,
+    editCd: String,
+    onEdit: () -> Unit,
+    onViewHistory: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    StandardCard(
+        modifier = modifier
+            .heightIn(min = 150.dp)
+            .clip(RoundedCornerShape(AppSpacing.cardCorner))
+            .clickable { onEdit() }
+            .semantics { contentDescription = editCd },
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+    ) {
+        // Tinted type-icon tile.
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(tint.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = tint,
             )
-        } else {
-            val cat = remember(latest) {
-                GlucoseClassifier().classify(latest.valueMgdl, latest.measureContext)
+        }
+        // Title (+ "今天 N 筆" affordance when there's more than one today).
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            if (count > 1) {
+                TextButton(onClick = onViewHistory) {
+                    Text(stringResource(R.string.today_count_today, count))
+                }
             }
-            val color = glucoseColorFor(cat)
-            val editCd = stringResource(R.string.today_edit_glucose_a11y)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .clickable { onEdit(latest.id.toString()) }
-                    .semantics { contentDescription = editCd },
-                verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        glucoseCategoryLabel(cat),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        formatGlucoseValue(latest.valueMgdl, unit),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        glucoseUnitLabel(unit),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
+        }
+        // Big value + unit.
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                value,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                unit,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
+        // Category dot + label.
+        if (categoryLabel != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(categoryColor ?: MaterialTheme.colorScheme.onSurfaceVariant),
+                )
+                Spacer(Modifier.size(6.dp))
                 Text(
-                    "${measureContextLabel(latest.measureContext)} · ${timeFmt().format(latest.timestamp)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    categoryLabel,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -444,152 +624,40 @@ private fun GlucoseSection(
     }
 }
 
-/**
- * Body-weight section of the unified card. Unlike BP/glucose this shows the
- * member's most-recent reading (latest-ever, not today-scoped — see
- * [TodayUiState.latestWeight]) rendered in the unit it was captured in
- * ([WeightReading.displayUnit]), with the BMI band ([TodayUiState.weightBmi])
- * when the member's profile height is known. Manual entry only this phase: the
- * inline prompt and the empty state both open manual logging via [onRecord]; the
- * shown value taps through to edit via [onEdit]. The "歷史" affordance opens the
- * weight history list via [onViewHistory] when there's a reading.
- */
+/** Inline "記一筆" placeholder for an empty 血糖 / 體重 compact card. */
 @Composable
-private fun WeightSection(
-    latest: WeightReading?,
-    bmi: Double?,
-    onRecord: () -> Unit,
-    onEdit: (String) -> Unit,
-    onViewHistory: () -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.weight_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            if (latest != null) {
-                TextButton(onClick = onViewHistory) {
-                    Text(stringResource(R.string.weight_history_title))
-                }
-            }
-        }
-
-        if (latest == null) {
-            EmptySectionPrompt(
-                onRecord = onRecord,
-                recordCd = stringResource(R.string.weight_log_cta),
-            )
-        } else {
-            // The reading carries the unit it was entered in; read the canonical kg
-            // value back in that unit for display (the user sees the same number
-            // they saved). BMI is precomputed in the VM from the member's height.
-            val unit = latest.displayUnit
-            val category = bmi?.let { WeightGuideline.classify(it) }
-            val color = category?.let { weightColorFor(it) }
-            val editCd = stringResource(R.string.weight_confirm_title)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .clickable { onEdit(latest.id.toString()) }
-                    .semantics { contentDescription = editCd },
-                verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
-            ) {
-                if (category != null && color != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-                        Spacer(Modifier.size(8.dp))
-                        Text(
-                            weightCategoryLabel(category),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        formatWeightValue(latest.valueIn(unit)),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        weightUnitLabel(unit),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    bmi?.let {
-                        Text(
-                            "${stringResource(R.string.weight_bmi_label)} ${formatBmi(it)}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text(
-                        timeFmt().format(latest.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * A section's heading row: the section label plus, when the section has more than
- * one reading today, a "今天 N 筆" text affordance that opens that type's history.
- */
-@Composable
-private fun SectionHeader(
+private fun MetricMiniEmptyCard(
+    icon: ImageVector,
+    tint: Color,
     title: String,
-    count: Int,
-    onViewHistory: () -> Unit,
+    onRecord: () -> Unit,
+    recordCd: String,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+    StandardCard(
+        modifier = modifier.heightIn(min = 150.dp),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(tint.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = tint,
+            )
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
         )
-        if (count > 1) {
-            TextButton(onClick = onViewHistory) {
-                Text(stringResource(R.string.today_count_today, count))
-            }
-        }
-    }
-}
-
-/** Inline "今天還沒記錄 · 記一筆" prompt for an empty section. */
-@Composable
-private fun EmptySectionPrompt(
-    onRecord: () -> Unit,
-    recordCd: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
         Text(
             stringResource(R.string.today_empty_today),
             style = MaterialTheme.typography.bodyMedium,
@@ -605,20 +673,20 @@ private fun EmptySectionPrompt(
     }
 }
 
+/** Default glucose-tile tint when there's no reading to classify (diabetes red). */
+@Composable
+private fun CategoryStage2Tint(): Color = glucoseColorFor(com.silverbp.android.core.GlucoseCategory.High)
+
+/** Default weight-tile tint when there's no reading / BMI (normal-band green). */
+@Composable
+private fun CategoryNormalTint(): Color = weightColorFor(com.silverbp.android.core.WeightCategory.Normal)
+
 /** Time-of-day greeting chosen from the local hour. */
 private fun greetingRes(): Int = when (LocalTime.now().hour) {
     in 0 until 12 -> R.string.today_greeting_morning
     in 12..17 -> R.string.today_greeting_afternoon
     else -> R.string.today_greeting_evening
 }
-
-/**
- * Formats the card's date as "M/d (E)" in the default locale, so the weekday
- * localizes automatically (e.g. "6/13 (週五)" / "6/13 (Fri)"). The literal date
- * pattern is layout, not user-facing copy.
- */
-private fun formatToday(date: LocalDate): String =
-    date.format(DateTimeFormatter.ofPattern("M/d (E)", Locale.getDefault()))
 
 /** Reading-time formatter (HH:mm, system zone). */
 private fun timeFmt(): DateTimeFormatter =
