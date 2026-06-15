@@ -14,6 +14,8 @@
     <string name="member_manage_entry">管理家人成員</string>
     <string name="member_add">新增成員</string>
     <string name="member_edit">編輯成員</string>
+    <!-- 編輯本人(owner)個人資料時的標題／按鈕(非家人成員)。 -->
+    <string name="member_edit_self">編輯個人資料</string>
 
     <!-- 編輯欄位 -->
     <string name="member_name_label">姓名</string>

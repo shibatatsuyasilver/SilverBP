@@ -271,7 +271,7 @@ fun SettingsScreen(
                             profileOwner = ServiceLocator.memberRepository.owner()
                             showProfileEditor = true
                         }
-                    }) { Text(stringResource(R.string.member_edit)) }
+                    }) { Text(stringResource(R.string.member_edit_self)) }
                 }
 
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))

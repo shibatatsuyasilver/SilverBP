@@ -113,7 +113,13 @@ fun MemberEditorSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                stringResource(if (member == null) R.string.member_add else R.string.member_edit),
+                stringResource(
+                    when {
+                        member == null -> R.string.member_add        // add a family member
+                        member.isOwner -> R.string.member_edit_self  // owner editing themselves
+                        else -> R.string.member_edit                 // edit a family member
+                    },
+                ),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
