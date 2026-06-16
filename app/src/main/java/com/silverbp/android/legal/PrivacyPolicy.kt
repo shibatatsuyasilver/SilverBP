@@ -8,4 +8,4 @@ package com.silverbp.android.legal
  * cold start. Settings exposes a "Review consent" button that resets the
  * stored value to 0 to manually re-show the consent flow.
  */
-const val CURRENT_PRIVACY_POLICY_VERSION: Int = 1
+const val CURRENT_PRIVACY_POLICY_VERSION: Int = 2

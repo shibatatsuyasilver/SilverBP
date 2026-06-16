@@ -37,7 +37,7 @@ android {
         applicationId = "com.silverbp.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 6
+        versionCode = 7
         versionName = "2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
