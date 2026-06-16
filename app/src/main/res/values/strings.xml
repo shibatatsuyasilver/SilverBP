@@ -776,7 +776,7 @@
     <string name="nutrition_overall_confidence">Overall confidence %1$d%%</string>
     <string name="nutrition_meal_totals">Meal total</string>
     <string name="nutrition_sodium_approx_range">Sodium ~%1$d–%2$d mg</string>
-    <string name="nutrition_recognized_disclaimer">Photo identifies foods → nutrition comes from a database. Sodium is shown as a range (a photo cannot judge it precisely). Sources: Taiwan TFDA food-composition database + a curated set.</string>
+    <string name="nutrition_recognized_disclaimer">Photo identifies foods → nutrition comes from a database. Sodium is shown as a range (a photo cannot judge it precisely). Sources: Taiwan TFDA + USDA FoodData Central + a curated set.</string>
     <string name="nutrition_portion_small">S %1$d g</string>
     <string name="nutrition_portion_mid">M %1$d g</string>
     <string name="nutrition_portion_large">L %1$d g</string>
@@ -791,7 +791,7 @@
     <string name="action_close">Close</string>
     <string name="settings_open_data_licenses">Open data &amp; licenses</string>
     <string name="licenses_title">Open data &amp; licenses</string>
-    <string name="licenses_body">Food nutrition data:\n• Taiwan TFDA Food Nutrition Composition Database (data.gov.tw #8543) — Open Government Data License v1\n• Open Food Facts (barcode products) — ODbL\n\nValues are estimates for reference only, not medical advice.</string>
+    <string name="licenses_body">Food nutrition data:\n• Taiwan TFDA Food Nutrition Composition Database (data.gov.tw #8543) — Open Government Data License v1\n• USDA FoodData Central (SR Legacy, FNDDS) — Public Domain (CC0 1.0)\n• Open Food Facts (barcode products) — ODbL\n\nValues are estimates for reference only, not medical advice.</string>
 
     <!-- Health Connect permissions rationale screen -->
     <string name="hc_rationale_title">Data usage</string>

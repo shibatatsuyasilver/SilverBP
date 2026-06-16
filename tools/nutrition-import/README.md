@@ -13,18 +13,22 @@ redistributed, and rarely has consistent per-100g sodium. We use open datasets:
 | Source | Coverage | License |
 |--------|----------|---------|
 | **TFDA #8543** 台灣食品營養成分資料庫 | ~2,180 Taiwanese foods/ingredients | 政府資料開放授權條款 v1 (reuse + redistribution, attribution required) |
-| USDA FoodData Central (FNDDS/SR) | generic/international (optional, not yet imported) | CC0 public domain |
+| **USDA FoodData Central** (SR Legacy + FNDDS) | ~13,000 generic/international foods | CC0 public domain (crediting requested) |
 
-TFDA is mostly **ingredients / whole foods**; composite restaurant dishes
-(雞肉飯, 牛肉麵, 滷肉飯…) are covered by the curated layer. The two complement.
+We skip USDA **Branded Foods** (1M+ rows) — that is the Open Food Facts barcode
+path. TFDA is mostly **ingredients / whole foods**; composite restaurant dishes
+(雞肉飯, 牛肉麵, 滷肉飯…) stay in the curated layer. The layers complement.
 
 ## Pipeline (deterministic, reproducible)
 ```
-fetch_tfda.py            # download #8543 ZIP -> pivot long->wide -> data/tfda_wide.csv (committed)
-build_nutrition_asset.py # tfda_wide.csv (+overrides, +curated exclusions) -> foods.v1.json.gz
+fetch_tfda.py            # TFDA #8543 ZIP -> pivot long->wide -> data/tfda_wide.csv (committed)
+fetch_usda.py            # USDA SR Legacy + FNDDS -> join nutrients -> data/usda_wide.csv (committed)
+build_nutrition_asset.py # tfda_wide.csv + usda_wide.csv (+curated exclusions) -> foods.v1.json.gz
 build_nutrition_asset.py --check   # rebuild to a buffer, diff vs committed asset, exit 1 if drift
 ```
-- `data/tfda_wide.csv` is committed (≈240 KB) so a rebuild needs no network.
+- `data/tfda_wide.csv` (≈240 KB) and `data/usda_wide.csv` (≈1.3 MB) are committed
+  so a rebuild needs no network. USDA `food_nutrient.nutrient_id` uses the
+  `nutrient.id` (SR) or `nutrient_nbr` (FNDDS); fetch_usda accepts both.
 - The build drops: rows with no numeric **sodium**; rows whose normalised name
   collides with a curated canonical/alias; bare-noun English aliases
   (`vegetable`, `egg`, `rice`, …) that caused substring false-matches.
@@ -38,8 +42,8 @@ build_nutrition_asset.py --check   # rebuild to a buffer, diff vs committed asse
              "na":<sodium mg/100g>,"kc":<kcal>,"p":<protein g>,
              "f":<fat g>,"cb":<carb g>,"g":<default serving g>,"u":<highSodiumUncertainty>}]}
 ```
-Short keys keep the asset small (~80 KB gz). Mapped to `NutritionRecord` by
-`NutritionAssetRecord.toRecord()`.
+Short keys keep the asset small (~350 KB gz for ~15k foods). Mapped to
+`NutritionRecord` by `NutritionAssetRecord.toRecord()`.
 
 ## Heuristics (sources give per-100g, not servings)
 - `g` (defaultPortionGrams): per TFDA 食品分類, seeded from curated values.

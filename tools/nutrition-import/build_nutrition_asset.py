@@ -34,8 +34,11 @@ KT = os.path.join(REPO, "app/src/main/java/com/silverbp/android/nutrition/Nutrit
 ASSET = os.path.join(REPO, "app/src/main/assets/nutrition/foods.v1.json.gz")
 SCHEMA_VERSION = 1
 # Fixed provenance string (keeps output deterministic — no wall-clock).
-GENERATED_AT = "TFDA-2025-07 + curated-exclusions"
-SOURCES = ["TFDA-8543 (政府資料開放授權條款 v1)"]
+GENERATED_AT = "TFDA-2025-07 + USDA-FDC-2024 + curated-exclusions"
+SOURCES = [
+    "TFDA-8543 (政府資料開放授權條款 v1)",
+    "USDA FoodData Central — SR Legacy + FNDDS (Public Domain CC0)",
+]
 
 # Bare category words that must NOT become standalone English aliases — they are
 # substrings of countless dish names and caused the 滷味->boiled-greens bug.

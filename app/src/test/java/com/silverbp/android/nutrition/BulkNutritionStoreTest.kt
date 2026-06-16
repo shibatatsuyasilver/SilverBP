@@ -17,9 +17,10 @@ class BulkNutritionStoreTest {
     private val store = BulkNutritionStore.fromGzip(FileInputStream(assetFile()))
 
     @Test fun `loads the expected order of magnitude of foods`() {
-        // ~2,118 TFDA foods today; guard a sane band, not an exact count.
+        // ~15k today (2,102 TFDA + ~13k USDA SR/FNDDS). Lower bound also guards
+        // against the USDA layer silently dropping out of the build.
         assertTrue("unexpected record count ${store.recordCount()}",
-            store.recordCount() in 1500..4000)
+            store.recordCount() in 10000..30000)
     }
 
     @Test fun `every record has a finite non-negative sodium and kcal`() {
