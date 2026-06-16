@@ -235,8 +235,33 @@ fun SettingsScreen(
                 }
             }
 
-            // Personalization — coach nickname (mirrors onboarding capture).
-            StandardCard(title = stringResource(R.string.settings_personalization_section)) {
+            // Profile (個人檔案) — per-member age/height/sex/target weight. Lives on
+            // the OWNER Member; surfaced here near the top so BMI/target inputs are
+            // findable without digging into family-member management. (1) a row that
+            // opens MemberEditorSheet for the owner; (2) the coach nickname; (3) the
+            // app-wide weight unit.
+            StandardCard(title = stringResource(R.string.weight_profile_title)) {
+                // Tappable nav row → owner profile editor (icon tile + title +
+                // subtitle + chevron), mirroring the Today/History entry rows.
+                SettingsNavRow(
+                    icon = Icons.Filled.Person,
+                    title = stringResource(R.string.member_edit_self),
+                    subtitle = stringResource(R.string.weight_profile_hint),
+                    onClick = {
+                        // Resolve the owner first, then mount the editor so the
+                        // sheet opens already in edit mode for the right member.
+                        scope.launch {
+                            profileOwner = ServiceLocator.memberRepository.owner()
+                            showProfileEditor = true
+                        }
+                    },
+                )
+
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+                // Coach nickname — how the coach addresses the user (mirrors
+                // onboarding capture). Stored in UserSettings (DataStore), so it
+                // stays an inline field rather than the member-editor sheet.
                 Text(
                     stringResource(R.string.settings_user_nickname_label),
                     fontWeight = FontWeight.Medium,
@@ -254,28 +279,6 @@ fun SettingsScreen(
                 Text(
                     stringResource(R.string.settings_user_nickname_help),
                     style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            // Profile (個人檔案) — per-member age/height/sex/target weight. Lives on
-            // the OWNER Member; surfaced here near the top so BMI/target inputs are
-            // findable without digging into family-member management. (1) a row that
-            // opens MemberEditorSheet for the owner; (2) the app-wide weight unit.
-            StandardCard(title = stringResource(R.string.weight_profile_title)) {
-                // Tappable nav row → owner profile editor (icon tile + title +
-                // subtitle + chevron), mirroring the Today/History entry rows.
-                SettingsNavRow(
-                    icon = Icons.Filled.Person,
-                    title = stringResource(R.string.member_edit_self),
-                    subtitle = stringResource(R.string.weight_profile_hint),
-                    onClick = {
-                        // Resolve the owner first, then mount the editor so the
-                        // sheet opens already in edit mode for the right member.
-                        scope.launch {
-                            profileOwner = ServiceLocator.memberRepository.owner()
-                            showProfileEditor = true
-                        }
-                    },
                 )
 
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))

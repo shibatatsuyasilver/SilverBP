@@ -109,15 +109,20 @@
 
 1. 「您的應用程式是否屬於健康應用程式?」→ **是**。
 2. 功能類別:勾「**健康與健身**」(不要勾「醫療」— 會要求醫療器材認證)。
-3. 出現 Health Connect 權限清單,**逐項填使用理由**(可直接用下面文字):
-   - `WRITE_BLOOD_PRESSURE`:「使用者手動或拍照記錄的血壓值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
-   - `WRITE_EXERCISE` / `WRITE_EXERCISE_ROUTE`:「使用者主動開始的運動(走路/跑步)及其 GPS 路線,經同意寫入 Health Connect。」
-   - `WRITE_NUTRITION`:「使用者記錄的飲食(熱量、鈉等),經同意寫入 Health Connect。」
-   - `READ_STEPS`:「讀取每日步數,用於步數目標獎章與連續達標統計。」
-   - `READ_SLEEP`:「讀取睡眠時數,用於生活教練的睡眠目標追蹤。」
-   - `READ_NUTRITION`:「讀取營養(鈉)資料,用於高血壓飲食教練的鈉攝取追蹤。」
-   - `READ_HEALTH_DATA_IN_BACKGROUND`:「以排程工作在背景回補缺漏日的步數/睡眠/營養,
-     讓趨勢保持最新;資料僅在裝置端處理與儲存,絕不上傳開發者伺服器。」
+3. 出現權限清單,表單依**活動 / 營養 / 睡眠 / 其他**分組,**逐欄填使用理由**
+   (可直接用下面文字)。實測會要求填的是 `ACTIVITY_RECOGNITION` 與所有
+   **READ** 類權限;`WRITE_*` 類通常不需另填說明(只有讀取敏感資料才要),
+   但保留於此備查:
+   - `ACTIVITY_RECOGNITION`(分組:活動):「存取裝置計步器,辨識使用者在 App 內
+     進行走路/跑步運動時的活動量,用於運動追蹤與每日/每週運動目標進度。」
+   - `READ_STEPS`(分組:活動):「讀取每日步數,用於步數目標獎章與連續達標統計。」
+   - `READ_NUTRITION`(分組:營養):「讀取營養(鈉)資料,用於高血壓飲食教練的鈉攝取追蹤。」
+   - `READ_SLEEP`(分組:睡眠):「讀取睡眠時數,用於生活教練的睡眠目標追蹤。」
+   - `READ_HEALTH_DATA_IN_BACKGROUND`(分組:其他):「以排程工作在背景回補缺漏日的
+     步數/睡眠/營養,讓趨勢保持最新;資料僅在裝置端處理與儲存,絕不上傳開發者伺服器。」
+   - `WRITE_BLOOD_PRESSURE`(若被要求):「使用者手動或拍照記錄的血壓值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
+   - `WRITE_EXERCISE` / `WRITE_EXERCISE_ROUTE`(若被要求):「使用者主動開始的運動(走路/跑步)及其 GPS 路線,經同意寫入 Health Connect。」
+   - `WRITE_NUTRITION`(若被要求):「使用者記錄的飲食(熱量、鈉等),經同意寫入 Health Connect。」
 4. 隱私政策 URL 會被比對 — 我們的 `docs/privacy.html` 已含對應揭露,直接過。
 5. 提交。狀態會顯示「審核中」;**通過前不能正式發布**(測試軌道通常可以)。
 

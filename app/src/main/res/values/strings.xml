@@ -413,8 +413,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_zh_tw">繁體中文</string>
 
-    <!-- Settings personalization section -->
-    <string name="settings_personalization_section">Personalization</string>
+    <!-- Settings nickname (merged into the Profile section) -->
     <string name="settings_user_nickname_label">How the coach addresses you</string>
     <string name="settings_user_nickname_placeholder">Leave blank to disable</string>
     <string name="settings_user_nickname_help">Used in daily, weekly, and anomaly coach feedback as well as today\'s task headline.</string>
@@ -702,6 +701,7 @@
     <string name="today_greeting_morning">Good morning</string>
     <string name="today_greeting_afternoon">Good afternoon</string>
     <string name="today_greeting_evening">Good evening</string>
+    <string name="today_greeting_named">%1$s, %2$s</string>
     <string name="today_readings_logged">%1$d readings logged</string>
     <string name="today_protip_title">Pro tip</string>
     <string name="today_protip_normal">Your readings look healthy. Keep up the habit of measuring at the same time each day.</string>

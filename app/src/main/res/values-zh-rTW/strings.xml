@@ -413,8 +413,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_zh_tw">繁體中文</string>
 
-    <!-- 設定頁:個人化區塊 -->
-    <string name="settings_personalization_section">個人化</string>
+    <!-- 設定頁:暱稱(已併入個人檔案區塊) -->
     <string name="settings_user_nickname_label">教練如何稱呼您</string>
     <string name="settings_user_nickname_placeholder">留空則不稱呼</string>
     <string name="settings_user_nickname_help">套用於每日教練回饋、週報、異常提醒以及今日任務標題。</string>
@@ -702,6 +701,7 @@
     <string name="today_greeting_morning">早安</string>
     <string name="today_greeting_afternoon">午安</string>
     <string name="today_greeting_evening">晚安</string>
+    <string name="today_greeting_named">%1$s, %2$s</string>
     <string name="today_readings_logged">已記錄 %1$d 筆量測</string>
     <string name="today_protip_title">小提醒</string>
     <string name="today_protip_normal">你的血壓看起來很健康,維持每天同一時間量測的習慣。</string>

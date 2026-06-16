@@ -78,6 +78,8 @@ import com.silverbp.android.ui.components.weightColorFor
 import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.ForgePrimary
 import com.silverbp.android.ui.theme.PrimaryDark
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -187,8 +189,14 @@ fun TodayScreen(
             ModelLoadBanner(phase = state.modelPhase)
             Spacer(Modifier.height(AppSpacing.tight))
 
+            val greeting = stringResource(greetingRes())
+            val headerText = if (state.userName.isNotBlank()) {
+                stringResource(R.string.today_greeting_named, greeting, state.userName)
+            } else {
+                greeting
+            }
             Text(
-                text = stringResource(greetingRes()),
+                text = headerText,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = AppSpacing.screenH),
@@ -479,6 +487,7 @@ private fun GlucoseMiniCard(
         unit = glucoseUnitLabel(unit),
         categoryLabel = glucoseCategoryLabel(cat),
         categoryColor = glucoseColorFor(cat),
+        recency = timeFmt().format(latest.timestamp),
         editCd = stringResource(R.string.today_edit_glucose_a11y),
         onEdit = { onEdit(latest.id.toString()) },
         onViewHistory = onViewHistory,
@@ -530,6 +539,7 @@ private fun WeightMiniCard(
         categoryLabel = category?.let { weightCategoryLabel(it) }
             ?: bmi?.let { "${stringResource(R.string.weight_bmi_label)} ${formatBmi(it)}" },
         categoryColor = color,
+        recency = weightRecency(latest.timestamp),
         editCd = stringResource(R.string.weight_confirm_title),
         onEdit = { onEdit(latest.id.toString()) },
         onViewHistory = onViewHistory,
@@ -553,6 +563,7 @@ private fun MetricMiniCard(
     unit: String,
     categoryLabel: String?,
     categoryColor: Color?,
+    recency: String?,
     editCd: String,
     onEdit: () -> Unit,
     onViewHistory: () -> Unit,
@@ -566,37 +577,37 @@ private fun MetricMiniCard(
             .semantics { contentDescription = editCd },
         verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
-        // Tinted type-icon tile.
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(tint.copy(alpha = 0.14f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = tint,
-            )
-        }
-        // Title (+ "今天 N 筆" affordance when there's more than one today).
+        // Header: small tinted type-icon + title on one row, with the latest
+        // reading's time on the right (or the "今天 N 筆" history affordance when
+        // there's more than one today).
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = tint,
+            )
+            Spacer(Modifier.size(6.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
             )
+            Spacer(Modifier.weight(1f))
             if (count > 1) {
                 TextButton(onClick = onViewHistory) {
                     Text(stringResource(R.string.today_count_today, count))
                 }
+            } else if (recency != null) {
+                Text(
+                    recency,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         // Big value + unit.
@@ -650,26 +661,25 @@ private fun MetricMiniEmptyCard(
         modifier = modifier.heightIn(min = 150.dp),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(tint.copy(alpha = 0.14f)),
-            contentAlignment = Alignment.Center,
+        // Header: small tinted type-icon + title on one row (matches the filled card).
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 icon,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
                 tint = tint,
             )
+            Spacer(Modifier.size(6.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         Text(
             stringResource(R.string.today_empty_today),
             style = MaterialTheme.typography.bodyMedium,
@@ -703,6 +713,21 @@ private fun greetingRes(): Int = when (LocalTime.now().hour) {
 /** Reading-time formatter (HH:mm, system zone). */
 private fun timeFmt(): DateTimeFormatter =
     DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()).withZone(ZoneId.systemDefault())
+
+/**
+ * Recency label for the latest weigh-in (latest-ever, not today-scoped): the
+ * reading's time (HH:mm) when it's today, otherwise a short M/d date so an older
+ * weigh-in doesn't masquerade as a fresh reading.
+ */
+private fun weightRecency(timestamp: Instant): String {
+    val zone = ZoneId.systemDefault()
+    val date = timestamp.atZone(zone).toLocalDate()
+    return if (date == LocalDate.now(zone)) {
+        timeFmt().format(timestamp)
+    } else {
+        DateTimeFormatter.ofPattern("M/d", Locale.getDefault()).withZone(zone).format(timestamp)
+    }
+}
 
 /** Pro-tip body selected by the reading's BP classification (member's guideline). */
 private fun proTipRes(systolic: Int, diastolic: Int, guideline: HypertensionGuideline): Int =

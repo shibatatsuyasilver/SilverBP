@@ -72,6 +72,8 @@ data class TodayUiState(
     val guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
     /** User's preferred glucose display unit (mg/dL default). */
     val glucoseUnit: GlucoseUnit = GlucoseUnit.Mgdl,
+    /** How to address the user in the greeting (UserSettings.userNickname); blank = no name. */
+    val userName: String = "",
     val isLoading: Boolean = true,
     val error: Boolean = false,
 )
@@ -160,22 +162,28 @@ class TodayViewModel(
         }
     }
 
-    // Both the guideline and the latest weight are member-derived; folding them
-    // into one source keeps the outer state combine at five typed args (Kotlin's
-    // combine only has typed overloads up to arity five — a sixth flow would force
-    // the type-erased vararg form).
-    private val guidelineWeightFlow = combine(
+    // The user's preferred form of address for the greeting ("早安, <暱稱>"); blank
+    // = no name (greeting stays "早安"). distinctUntilChanged so unrelated settings
+    // edits don't restart the downstream combine.
+    private val nicknameFlow = settings.flow.map { it.userNickname }.distinctUntilChanged()
+
+    // The guideline, latest weight, and greeting nickname are all profile-derived;
+    // folding them into one source keeps the outer state combine at five typed args
+    // (Kotlin's combine only has typed overloads up to arity five — a sixth flow
+    // would force the type-erased vararg form).
+    private val profileFlow = combine(
         guidelineFlow,
         latestWeightFlow,
-    ) { guideline, weight -> guideline to weight }
+        nicknameFlow,
+    ) { guideline, weight, nickname -> Triple(guideline, weight, nickname) }
 
     val state: StateFlow<TodayUiState> = combine(
         todayBpFlow,
         modelStatus.phase,
-        guidelineWeightFlow,
+        profileFlow,
         todayGlucoseFlow,
         dayTicker,
-    ) { bp, phase, (guideline, weight), (glucoseReadings, glucoseUnit), today ->
+    ) { bp, phase, (guideline, weight, userName), (glucoseReadings, glucoseUnit), today ->
         val (latestWeight, weightBmi) = weight
         TodayUiState(
             todayBp = bp,
@@ -186,6 +194,7 @@ class TodayViewModel(
             modelPhase = phase,
             guideline = guideline,
             glucoseUnit = glucoseUnit,
+            userName = userName,
             isLoading = false,
         )
     }
