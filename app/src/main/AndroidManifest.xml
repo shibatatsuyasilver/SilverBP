@@ -25,6 +25,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
@@ -91,6 +92,14 @@
             android:name=".exercise.LocationTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- WorkManager's foreground service hosts the model-download worker.
+             Android 14+ requires the foregroundServiceType to be declared;
+             merge it onto the library's service. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <!-- Handles the "Mark as taken" action button on the medication
              reminder notification — fires synchronously, writes a dose row,

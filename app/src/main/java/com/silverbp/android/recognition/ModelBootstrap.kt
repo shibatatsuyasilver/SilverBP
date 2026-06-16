@@ -51,6 +51,10 @@ object ModelBootstrap {
                         // so a power-cut mid-rename can't strand the user.
                         cleanupLegacyModelFiles(context.applicationContext)
                         preload(context.applicationContext, variant)
+                    } else if (downloader.hasPartialDownload(variant)) {
+                        // An interrupted download left a `.part` file — resume it
+                        // in the foreground worker (continues via the Range header).
+                        ModelDownloadWorker.enqueue(context.applicationContext, variant.id)
                     }
                 }
             }
@@ -103,29 +107,30 @@ object ModelBootstrap {
         }
     }
 
+    /**
+     * Kick off (or keep) the model download as a **foreground** WorkManager job
+     * so it survives app-backgrounding / the screen leaving / the process being
+     * reclaimed — and auto-resumes via the `.part` Range header after a kill.
+     * Progress + final state still flow through [ServiceLocator.modelLoadStatus],
+     * so callers and the UI are unchanged. See [ModelDownloadWorker].
+     */
     fun downloadAndPreload(
         context: Context,
         variant: ModelVariant,
         hfToken: String? = null,
         sha256: String? = null,
     ) {
-        val downloader = ModelDownloader(context.applicationContext)
-        val status = ServiceLocator.modelLoadStatus
-        scope.launch {
-            try {
-                status.set(ModelLoadPhase.Downloading(0f, variant.id))
-                // Prefer an explicit override, else the catalog's pinned hash.
-                // When both are null the downloader skips verification.
-                downloader.download(variant, sha256 ?: variant.sha256, hfToken).collect { p ->
-                    status.set(ModelLoadPhase.Downloading(p.fraction, variant.id))
-                }
-                preload(context.applicationContext, variant)
-                ServiceLocator.userSettings.setModelDownloaded(true)
-            } catch (e: Throwable) {
-                status.set(ModelLoadPhase.Failed(e.message ?: "download failed"))
-            }
-        }
+        ServiceLocator.modelLoadStatus.set(ModelLoadPhase.Downloading(0f, variant.id))
+        ModelDownloadWorker.enqueue(context.applicationContext, variant.id, hfToken, sha256)
     }
+
+    /**
+     * Load the just-downloaded [variant] into the engine (Loading → Ready).
+     * Public entry for [ModelDownloadWorker] to call on download completion;
+     * thin wrapper over the shared [preload].
+     */
+    suspend fun preloadVariant(context: Context, variant: ModelVariant) =
+        preload(context.applicationContext, variant)
 
     fun switchTo(context: Context, variant: ModelVariant) {
         val downloader = ModelDownloader(context.applicationContext)

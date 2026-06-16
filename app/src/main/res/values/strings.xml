@@ -89,6 +89,11 @@
     <string name="model_loading">Loading model…</string>
     <string name="model_ready">Model ready</string>
     <string name="model_failed">Model failed: %1$s</string>
+    <string name="model_download_channel">Model download</string>
+    <string name="model_download_channel_desc">Progress of the on-device recognition model download</string>
+    <string name="model_download_notif_title">Downloading recognition model</string>
+    <string name="model_download_notif_text">You can leave this in the background — we\'ll keep downloading.</string>
+    <string name="model_download_notif_text_pct">Downloading… %1$d%% — you can leave this in the background.</string>
 
     <!-- Insights -->
     <string name="trend_title">Trend</string>

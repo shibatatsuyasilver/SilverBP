@@ -18,6 +18,7 @@ import com.silverbp.android.nutrition.BulkNutritionStore
 import com.silverbp.android.nutrition.NutritionDatabase
 import com.silverbp.android.recognition.DeviceCapabilities
 import com.silverbp.android.recognition.ModelBootstrap
+import com.silverbp.android.recognition.ModelDownloadNotification
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,6 +39,7 @@ class SilverBpApplication : Application() {
         ExerciseNotification.createChannel(this)
         MedalNotifier.createChannel(this)
         CoachNotifier.createChannels(this)
+        ModelDownloadNotification.createChannel(this)
         DeviceCapabilities.logFingerprint()
         // If the Gemma 3n .task file already exists in filesDir/models/,
         // kick a background preload so capture isn't blocked. No-op

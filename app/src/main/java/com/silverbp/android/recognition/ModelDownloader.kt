@@ -30,6 +30,11 @@ class ModelDownloader(
     fun isDownloaded(variant: ModelVariant): Boolean =
         targetFile(variant).let { it.exists() && it.length() > 0 }
 
+    /** True when an interrupted download left a resumable `.part` file on disk. */
+    fun hasPartialDownload(variant: ModelVariant): Boolean =
+        targetFile(variant).let { File(it.parentFile, "${it.name}.part") }
+            .let { it.exists() && it.length() > 0 }
+
     fun download(
         variant: ModelVariant,
         sha256: String? = null,
