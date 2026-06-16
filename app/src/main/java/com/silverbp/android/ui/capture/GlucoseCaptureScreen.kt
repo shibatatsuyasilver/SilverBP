@@ -226,6 +226,7 @@ fun GlucoseCaptureScreen(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 },
+                onManualEntry = { vm.discardPendingDraft(); onAnalyzed() },
                 modifier = Modifier.align(Alignment.TopCenter),
             )
 
@@ -255,6 +256,7 @@ fun GlucoseCaptureScreen(
 private fun CameraTopBar(
     onClose: () -> Unit,
     onPickPhoto: () -> Unit,
+    onManualEntry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -274,6 +276,9 @@ private fun CameraTopBar(
                 contentDescription = stringResource(R.string.pick_from_library),
                 tint = Color.White,
             )
+        }
+        TextButton(onClick = onManualEntry) {
+            Text(stringResource(R.string.manual_entry), color = Color.White)
         }
     }
 }

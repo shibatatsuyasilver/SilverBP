@@ -227,6 +227,7 @@ fun WeightCaptureScreen(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 },
+                onManualEntry = { vm.discardPendingDraft(); onManual() },
                 modifier = Modifier.align(Alignment.TopCenter),
             )
 
@@ -256,6 +257,7 @@ fun WeightCaptureScreen(
 private fun CameraTopBar(
     onClose: () -> Unit,
     onPickPhoto: () -> Unit,
+    onManualEntry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -275,6 +277,9 @@ private fun CameraTopBar(
                 contentDescription = stringResource(R.string.weight_capture_gallery),
                 tint = Color.White,
             )
+        }
+        TextButton(onClick = onManualEntry) {
+            Text(stringResource(R.string.manual_entry), color = Color.White)
         }
     }
 }
