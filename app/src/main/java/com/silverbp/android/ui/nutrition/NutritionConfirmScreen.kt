@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -99,12 +102,19 @@ private fun RecognizedMealContent(
 ) {
     val context = LocalContext.current
     val portions = remember { mutableStateMapOf<Int, Portion>() }
+    // idx -> excluded? Lets the user drop a wrong/duplicate recognition (e.g. a
+    // phantom second rice or a misidentified side) so it stops inflating the meal
+    // total. All items start included; the trash icon on a card toggles it.
+    val excluded = remember(meal) { mutableStateMapOf<Int, Boolean>() }
+    fun isExcluded(idx: Int): Boolean = excluded[idx] == true
     fun portionFor(idx: Int, item: ExtractedFoodItem): Portion =
         portions[idx] ?: Portion.fromHint(item.portionHint)
 
-    // Live totals (recomposes as portions change). Skips unmatched items.
+    // Live totals (recomposes as portions/exclusions change). Skips excluded and
+    // unmatched items.
     var kcal = 0.0; var sodLo = 0.0; var sodHi = 0.0; var matched = 0
     meal.items.forEachIndexed { idx, ex ->
+        if (isExcluded(idx)) return@forEachIndexed
         val rec = NutritionDatabase.match(ex.name, ex.nameEn) ?: return@forEachIndexed
         val c = rec.compute(portionFor(idx, ex))
         kcal += c.kcal; sodLo += c.sodiumLowMg; sodHi += c.sodiumHighMg; matched++
@@ -122,7 +132,14 @@ private fun RecognizedMealContent(
                 actions = {
                     TextButton(
                         enabled = matched > 0,
-                        onClick = { vm.saveRecognizedMeal(meal, portions.toMap(), onSaved) },
+                        onClick = {
+                            vm.saveRecognizedMeal(
+                                meal,
+                                portions.toMap(),
+                                excluded.filterValues { it }.keys,
+                                onSaved,
+                            )
+                        },
                     ) {
                         Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)
                     }
@@ -163,6 +180,8 @@ private fun RecognizedMealContent(
                     item = item,
                     portion = portionFor(idx, item),
                     onPortion = { portions[idx] = it },
+                    excluded = isExcluded(idx),
+                    onToggleExcluded = { excluded[idx] = !isExcluded(idx) },
                 )
             }
 
@@ -200,11 +219,18 @@ private fun RecognizedItemCard(
     item: ExtractedFoodItem,
     portion: Portion,
     onPortion: (Portion) -> Unit,
+    excluded: Boolean,
+    onToggleExcluded: () -> Unit,
 ) {
     val rec = remember(item) { NutritionDatabase.match(item.name, item.nameEn) }
     StandardCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(item.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                item.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                textDecoration = if (excluded) TextDecoration.LineThrough else null,
+            )
             item.nameEn?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     "  $it",
@@ -217,10 +243,25 @@ private fun RecognizedItemCard(
                     "  ${(it * 100).roundToInt()}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = onToggleExcluded) {
+                Icon(
+                    if (excluded) Icons.Filled.Add else Icons.Filled.Delete,
+                    contentDescription = stringResource(
+                        if (excluded) R.string.nutrition_item_include
+                        else R.string.nutrition_item_exclude
+                    ),
+                    tint = if (excluded) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.error,
                 )
             }
         }
+
+        // Excluded items collapse to just the struck-through name + restore icon
+        // and contribute nothing to the meal totals.
+        if (excluded) return@StandardCard
 
         if (rec != null) {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {

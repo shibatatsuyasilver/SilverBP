@@ -88,11 +88,13 @@ class NutritionConfirmViewModel(
     /**
      * Build a [FoodLog] from the recognised foods + chosen portions — each item
      * matched to [NutritionDatabase] and computed at its portion — then save.
-     * Items with no DB match are skipped (mirrors iOS).
+     * Items the user excluded (a wrong/duplicate recognition) or with no DB match
+     * are skipped (mirrors iOS).
      */
     fun saveRecognizedMeal(
         meal: RecognizedMeal,
         portions: Map<Int, Portion>,
+        excluded: Set<Int>,
         onSaved: () -> Unit,
     ) {
         viewModelScope.launch {
@@ -100,6 +102,7 @@ class NutritionConfirmViewModel(
             var kcal = 0.0; var protein = 0.0; var carb = 0.0; var fat = 0.0
             var sodEst = 0.0; var sodLo = 0.0; var sodHi = 0.0
             meal.items.forEachIndexed { idx, ex ->
+                if (idx in excluded) return@forEachIndexed
                 val rec = NutritionDatabase.match(ex.name, ex.nameEn) ?: return@forEachIndexed
                 val c = rec.compute(portions[idx] ?: Portion.fromHint(ex.portionHint))
                 kcal += c.kcal; protein += c.proteinG; carb += c.carbG; fat += c.fatG

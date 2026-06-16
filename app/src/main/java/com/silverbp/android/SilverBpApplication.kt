@@ -14,6 +14,8 @@ import com.silverbp.android.exercise.ExerciseNotification
 import com.silverbp.android.health.BpSyncWorker
 import com.silverbp.android.health.GlucoseSyncWorker
 import com.silverbp.android.health.WeightSyncWorker
+import com.silverbp.android.nutrition.BulkNutritionStore
+import com.silverbp.android.nutrition.NutritionDatabase
 import com.silverbp.android.recognition.DeviceCapabilities
 import com.silverbp.android.recognition.ModelBootstrap
 import kotlinx.coroutines.CoroutineScope
@@ -42,6 +44,7 @@ class SilverBpApplication : Application() {
         // otherwise — the user triggers a download from Settings.
         ModelBootstrap.start(this)
 
+        appScope.launch { loadBulkNutrition() }
         appScope.launch { sweepOldChatImages() }
         appScope.launch { reconcileStepSync() }
         appScope.launch { reconcileCoach() }
@@ -51,6 +54,19 @@ class SilverBpApplication : Application() {
         // Watcher fires anomaly notifications in real time as the user logs
         // new readings; lives for the app process's lifetime.
         ServiceLocator.bpAnomalyWatcher.start(appScope)
+    }
+
+    /**
+     * Background-load the bundled long-tail nutrition dataset (TFDA/USDA) and
+     * wire it into [NutritionDatabase] as the fallback layer behind the 66
+     * curated records. Best-effort: on any failure (missing/corrupt asset)
+     * match() simply stays curated-only, so food logging still works.
+     */
+    private fun loadBulkNutrition() {
+        runCatching { NutritionDatabase.bulk = BulkNutritionStore.fromAsset(this) }
+            .onFailure {
+                android.util.Log.w("SilverBpApplication", "[Nutrition] bulk load failed: ${it.message}")
+            }
     }
 
     /**

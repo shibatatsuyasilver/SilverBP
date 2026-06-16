@@ -776,7 +776,7 @@
     <string name="nutrition_overall_confidence">整體信心 %1$d%%</string>
     <string name="nutrition_meal_totals">本餐合計</string>
     <string name="nutrition_sodium_approx_range">鈉 約 %1$d–%2$d mg</string>
-    <string name="nutrition_recognized_disclaimer">拍照辨識食物 → 查營養資料庫估算。鈉以區間呈現(照片無法準確判斷)。資料庫為精選台灣常見食物集,USDA/TFDA 陸續匯入。</string>
+    <string name="nutrition_recognized_disclaimer">拍照辨識食物 → 查營養資料庫估算。鈉以區間呈現(照片無法準確判斷)。資料來源：台灣 TFDA 食品營養成分資料庫＋精選食物集。</string>
     <string name="nutrition_portion_small">小 %1$d g</string>
     <string name="nutrition_portion_mid">中 %1$d g</string>
     <string name="nutrition_portion_large">大 %1$d g</string>
@@ -785,7 +785,13 @@
     <string name="nutrition_macro_fat">脂肪</string>
     <string name="nutrition_macro_carb">碳水</string>
     <string name="nutrition_sodium_uncertain_note">· 湯/調味鈉難估</string>
-    <string name="nutrition_food_not_in_db">資料庫尚無此食物(精選資料集,USDA/TFDA 待匯入)</string>
+    <string name="nutrition_food_not_in_db">資料庫尚無此食物</string>
+    <string name="nutrition_item_exclude">移除此項目</string>
+    <string name="nutrition_item_include">加回此項目</string>
+    <string name="action_close">關閉</string>
+    <string name="settings_open_data_licenses">開放資料與授權</string>
+    <string name="licenses_title">開放資料與授權</string>
+    <string name="licenses_body">食品營養資料來源：\n• 台灣 TFDA 食品營養成分資料庫（data.gov.tw #8543）— 政府資料開放授權條款第1版\n• Open Food Facts（條碼商品）— ODbL\n\n數值為估算僅供參考，非醫療建議。</string>
 
     <!-- Health Connect 權限說明畫面 -->
     <string name="hc_rationale_title">資料使用說明</string>

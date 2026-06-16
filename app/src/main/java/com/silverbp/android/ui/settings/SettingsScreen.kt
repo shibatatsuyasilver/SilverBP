@@ -37,6 +37,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -120,6 +121,7 @@ fun SettingsScreen(
     val profileSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var profileOwner by remember { mutableStateOf<Member?>(null) }
     var showProfileEditor by remember { mutableStateOf(false) }
+    var showLicenses by remember { mutableStateOf(false) }
     // Core Health Connect permissions the master toggle requests in one sheet:
     //   • steps READ      — medals / step backfill
     //   • exercise WRITE  — finished workouts (+route) mirror to HC
@@ -578,8 +580,28 @@ fun SettingsScreen(
                 ) {
                     Text(stringResource(R.string.settings_review_consent))
                 }
+                TextButton(
+                    onClick = { showLicenses = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_open_data_licenses))
+                }
             }
         }
+    }
+
+    // Open-data attribution (TFDA requires it; ODbL for Open Food Facts).
+    if (showLicenses) {
+        AlertDialog(
+            onDismissRequest = { showLicenses = false },
+            title = { Text(stringResource(R.string.licenses_title)) },
+            text = { Text(stringResource(R.string.licenses_body), style = MaterialTheme.typography.bodySmall) },
+            confirmButton = {
+                TextButton(onClick = { showLicenses = false }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
+        )
     }
 
     // Per-member profile editor for the owner. Mounted only once the owner row is
