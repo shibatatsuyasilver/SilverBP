@@ -64,6 +64,7 @@ import com.silverbp.android.nutrition.FoodLog
 import com.silverbp.android.nutrition.MealType
 import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.recognition.ModelLoadPhase
+import com.silverbp.android.settings.BarcodeRegion
 import com.silverbp.android.ui.coach.components.GoalRing
 import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.components.StandardCard
@@ -84,9 +85,13 @@ fun NutritionScreen(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val capture by vm.capturePhase.collectAsStateWithLifecycle()
+    val readiness by vm.readiness.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    // Barcode lookup (Open Food Facts) only pays off in well-covered regions; hide
+    // it elsewhere so Taiwan users aren't misled into scanning 超商 hot food.
+    val barcodeSupported = remember { BarcodeRegion.isBarcodeSupported(context) }
 
     val gallery = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -128,6 +133,22 @@ fun NutritionScreen(
                 DailySummaryCard(state)
                 SodiumTrendCard(state)
 
+                // On-device model not yet ready: show download/loading progress and
+                // disable recognition until the model is fully downloaded and loaded.
+                if (readiness.showModelBanner) {
+                    ModelLoadBanner(phase = readiness.phase)
+                    if (readiness.phase is ModelLoadPhase.Idle ||
+                        readiness.phase is ModelLoadPhase.Failed
+                    ) {
+                        Button(
+                            onClick = { vm.downloadModel() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.nutrition_download_model_cta))
+                        }
+                    }
+                }
+
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
                     Button(
                         onClick = {
@@ -140,6 +161,7 @@ fun NutritionScreen(
                                 cameraPermission.launch(Manifest.permission.CAMERA)
                             }
                         },
+                        enabled = readiness.ready,
                         modifier = Modifier.weight(1f).height(56.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary,
@@ -153,16 +175,18 @@ fun NutritionScreen(
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
-                    Button(
-                        onClick = onOpenBarcode,
-                        modifier = Modifier.weight(1f).height(56.dp),
-                    ) {
-                        Icon(Icons.Filled.QrCodeScanner, null)
-                        Spacer(Modifier.size(AppSpacing.tight))
-                        Text(
-                            stringResource(R.string.nutrition_scan_barcode),
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                    if (barcodeSupported) {
+                        Button(
+                            onClick = onOpenBarcode,
+                            modifier = Modifier.weight(1f).height(56.dp),
+                        ) {
+                            Icon(Icons.Filled.QrCodeScanner, null)
+                            Spacer(Modifier.size(AppSpacing.tight))
+                            Text(
+                                stringResource(R.string.nutrition_scan_barcode),
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
@@ -174,6 +198,7 @@ fun NutritionScreen(
                                 )
                             )
                         },
+                        enabled = readiness.ready,
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Filled.PhotoLibrary, null)
@@ -271,6 +296,44 @@ fun NutritionScreen(
                             Button(onClick = { vm.downloadModel() }) {
                                 Text(stringResource(R.string.nutrition_download_model_cta))
                             }
+                        }
+                    }
+                    Spacer(Modifier.height(AppSpacing.itemGap))
+                    OutlinedButton(onClick = { vm.resetCapture(); onOpenConfirmNew() }) {
+                        Text(stringResource(R.string.nutrition_manual_entry))
+                    }
+                    Spacer(Modifier.height(AppSpacing.tight))
+                    OutlinedButton(onClick = { vm.resetCapture() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+                NutritionCapturePhase.ModelLoading -> CaptureOverlay {
+                    val modelPhase by ServiceLocator.modelLoadStatus.phase
+                        .collectAsStateWithLifecycle()
+                    Text(
+                        stringResource(R.string.nutrition_model_loading_title),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(AppSpacing.tight))
+                    Text(
+                        stringResource(R.string.nutrition_model_loading_body),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(AppSpacing.sectionGap))
+                    ModelLoadBanner(phase = modelPhase)
+                    if (modelPhase is ModelLoadPhase.Ready) {
+                        Text(
+                            stringResource(R.string.nutrition_model_ready_reselect),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(Modifier.height(AppSpacing.itemGap))
+                        Button(onClick = { vm.resetCapture() }) {
+                            Text(stringResource(R.string.nutrition_done))
                         }
                     }
                     Spacer(Modifier.height(AppSpacing.itemGap))

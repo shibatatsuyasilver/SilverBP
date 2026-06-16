@@ -734,6 +734,8 @@
     <string name="nutrition_needs_model_body">飲食辨識需要裝置端模型或雲端金鑰。可下載模型(可離線使用),或到設定填入 Gemini API 金鑰。</string>
     <string name="nutrition_download_model_cta">下載模型</string>
     <string name="nutrition_model_ready_reselect">模型已就緒,請再選一次照片。</string>
+    <string name="nutrition_model_loading_title">模型載入中</string>
+    <string name="nutrition_model_loading_body">裝置端模型仍在載入,完成後即可開始辨識。</string>
     <string name="nutrition_done">完成</string>
     <string name="nutrition_kcal_short">%1$d kcal</string>
     <string name="nutrition_meal_breakfast">早餐</string>

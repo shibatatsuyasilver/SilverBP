@@ -14,8 +14,10 @@ import com.silverbp.android.nutrition.SodiumSource
 import com.silverbp.android.nutrition.currentMealType
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelCatalog
+import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.NotConfiguredNutritionRecognizer
 import com.silverbp.android.recognition.NutritionRecognizerFactory
+import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.decodeUriWithExif
 import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +68,27 @@ sealed interface NutritionCapturePhase {
      * up cloud, rather than silently dropping to manual entry.
      */
     data object NeedsModel : NutritionCapturePhase
+
+    /**
+     * The on-device model is downloaded but the engine is still loading into
+     * memory (startup warm-up). Recognition must wait until it is fully loaded,
+     * so the UI shows progress rather than silently logging the photo as manual.
+     */
+    data object ModelLoading : NutritionCapturePhase
+}
+
+/**
+ * Whether food recognition can run right now. For the on-device (Local) backend
+ * this requires the model to be fully downloaded AND loaded ([ModelLoadPhase.Ready]);
+ * Cloud / AICore manage their own readiness, so they are never gated here.
+ */
+data class RecognitionReadiness(
+    val backendIsLocal: Boolean,
+    val phase: ModelLoadPhase,
+) {
+    val ready: Boolean get() = !backendIsLocal || phase is ModelLoadPhase.Ready
+    /** Show the download/loading banner only for a not-yet-ready local model. */
+    val showModelBanner: Boolean get() = backendIsLocal && phase !is ModelLoadPhase.Ready
 }
 
 class NutritionViewModel(
@@ -101,6 +124,22 @@ class NutritionViewModel(
 
     private val _capturePhase = MutableStateFlow<NutritionCapturePhase>(NutritionCapturePhase.Idle)
     val capturePhase: StateFlow<NutritionCapturePhase> = _capturePhase.asStateFlow()
+
+    /**
+     * Live recognition readiness, combining the chosen backend with the on-device
+     * model phase. The screen observes this to gate the photo/gallery buttons and
+     * show the download/loading banner for a not-yet-ready local model.
+     */
+    val readiness: StateFlow<RecognitionReadiness> = combine(
+        settings.flow,
+        ServiceLocator.modelLoadStatus.phase,
+    ) { user, phase ->
+        RecognitionReadiness(user.recognitionBackend == RecognitionBackend.Local, phase)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        RecognitionReadiness(backendIsLocal = false, phase = ModelLoadPhase.Idle),
+    )
 
     fun resetCapture() { _capturePhase.value = NutritionCapturePhase.Idle }
 
@@ -141,11 +180,12 @@ class NutritionViewModel(
                     // user to set one up instead of silently dropping to manual.
                     _capturePhase.value = NutritionCapturePhase.NeedsModel
                 } else {
-                    // Backend is configured but the engine is still warming up
-                    // (startup window) — fall back to manual entry, keep the photo.
+                    // Backend is configured but the on-device engine is still
+                    // loading into memory (startup warm-up). Don't silently log
+                    // the photo as manual — surface progress and let the user
+                    // retry once the model is fully loaded.
                     NutritionDraftHolder.put(manualDraft(photoName))
-                    _capturePhase.value = NutritionCapturePhase.Idle
-                    onReady()
+                    _capturePhase.value = NutritionCapturePhase.ModelLoading
                 }
             } catch (t: Throwable) {
                 // Analysis failed — still let the user log it manually with the photo.
