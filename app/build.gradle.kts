@@ -38,7 +38,7 @@ android {
         minSdk = 33
         targetSdk = 36
         versionCode = 7
-        versionName = "2.1"
+        versionName = "2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         androidResources.localeFilters += listOf("en", "zh-rTW")
