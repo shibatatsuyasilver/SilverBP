@@ -15,6 +15,7 @@ import com.silverbp.android.recognition.BpExtractionError
 import com.silverbp.android.recognition.GemmaBpService
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.RecognizerFactory
+import com.silverbp.android.recognition.recognitionReadinessFlow
 import com.silverbp.android.ui.confirm.BpReadingDraft
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +40,9 @@ class CaptureFlowViewModel(
 
     private val _phase = MutableStateFlow<CapturePhase>(CapturePhase.Idle)
     val phase: StateFlow<CapturePhase> = _phase.asStateFlow()
+
+    /** Gate for the shutter / photo-pick: false when the Local backend has no model loaded. */
+    val readiness = recognitionReadinessFlow(viewModelScope)
 
     fun setCapturing() { _phase.value = CapturePhase.Capturing }
 

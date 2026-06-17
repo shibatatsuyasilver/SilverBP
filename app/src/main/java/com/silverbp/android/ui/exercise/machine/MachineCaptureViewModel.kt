@@ -9,6 +9,7 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.ExtractedMachineWorkout
 import com.silverbp.android.recognition.MachineDisplayRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
+import com.silverbp.android.recognition.recognitionReadinessFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +40,9 @@ class MachineCaptureViewModel(
 
     private val _capturePhase = MutableStateFlow<MachineCapturePhase>(MachineCapturePhase.Idle)
     val capturePhase: StateFlow<MachineCapturePhase> = _capturePhase.asStateFlow()
+
+    /** Gate for the shutter / photo-pick: false when the Local backend has no model loaded. */
+    val readiness = recognitionReadinessFlow(viewModelScope)
 
     fun resetCapture() { _capturePhase.value = MachineCapturePhase.Idle }
 

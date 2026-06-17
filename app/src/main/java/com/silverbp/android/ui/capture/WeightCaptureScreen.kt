@@ -65,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.recognition.decodeFileWithExif
+import com.silverbp.android.ui.components.ModelLoadBanner
 import java.io.File
 import java.util.UUID
 
@@ -90,6 +91,7 @@ fun WeightCaptureScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val capture by vm.capturePhase.collectAsStateWithLifecycle()
+    val readiness by vm.readiness.collectAsStateWithLifecycle()
 
     var hasPermission by remember {
         mutableStateOf(
@@ -228,8 +230,28 @@ fun WeightCaptureScreen(
                     )
                 },
                 onManualEntry = { vm.discardPendingDraft(); onManual() },
+                pickEnabled = readiness.ready,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
+
+            // No local model loaded → block recognition (shutter + gallery
+            // disabled above); point the user to Settings / manual entry.
+            if (readiness.showModelBanner) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 112.dp),
+                ) {
+                    ModelLoadBanner(phase = readiness.phase)
+                    Text(
+                        stringResource(R.string.capture_model_needed_hint),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            }
 
             if (hasPermission) {
                 ShutterButton(
@@ -246,6 +268,7 @@ fun WeightCaptureScreen(
                             }
                         }
                     },
+                    enabled = readiness.ready,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
                 )
             }
@@ -258,6 +281,7 @@ private fun CameraTopBar(
     onClose: () -> Unit,
     onPickPhoto: () -> Unit,
     onManualEntry: () -> Unit,
+    pickEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -271,7 +295,7 @@ private fun CameraTopBar(
             Text(stringResource(R.string.cancel), color = Color.White)
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onPickPhoto) {
+        IconButton(onClick = onPickPhoto, enabled = pickEnabled) {
             Icon(
                 Icons.Filled.Image,
                 contentDescription = stringResource(R.string.weight_capture_gallery),
@@ -285,16 +309,17 @@ private fun CameraTopBar(
 }
 
 @Composable
-private fun ShutterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ShutterButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     // 72-dp white circle with a thin inner ring — matches the BP/glucose shutter.
     val shutterCd = stringResource(R.string.weight_capture_photo)
     Box(
         modifier = modifier
             .size(72.dp)
+            .alpha(if (enabled) 1f else 0.4f)
             .clip(CircleShape)
             .background(Color.White)
             .border(BorderStroke(2.dp, Color.Black.copy(alpha = 0.25f)), CircleShape)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .semantics { contentDescription = shutterCd; role = Role.Button }
             .padding(6.dp),
         contentAlignment = Alignment.Center,

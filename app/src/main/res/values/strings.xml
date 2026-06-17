@@ -82,6 +82,7 @@
     <string name="camera_permission_body">Open Settings to allow SilverBP to access the camera.</string>
     <string name="camera_permission_denied">Camera permission denied — open Settings to take a photo.</string>
     <string name="open_settings">Open Settings</string>
+    <string name="capture_model_needed_hint">Download the recognition model in Settings to use the camera, or tap Manual entry.</string>
 
     <!-- Model load -->
     <string name="model_idle">Model not loaded</string>
@@ -94,6 +95,8 @@
     <string name="model_download_notif_title">Downloading recognition model</string>
     <string name="model_download_notif_text">You can leave this in the background — we\'ll keep downloading.</string>
     <string name="model_download_notif_text_pct">Downloading… %1$d%% — you can leave this in the background.</string>
+    <string name="model_delete_dialog_title">Delete this model?</string>
+    <string name="model_delete_dialog_message">%1$s (about %2$.1f GB) will be permanently removed to free up space. You can download it again later.</string>
 
     <!-- Insights -->
     <string name="trend_title">Trend</string>

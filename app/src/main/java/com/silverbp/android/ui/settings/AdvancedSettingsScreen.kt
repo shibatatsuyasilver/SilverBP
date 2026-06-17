@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +60,7 @@ import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
+import kotlinx.coroutines.launch
 
 /**
  * Technical AI / model configuration split out of the main Settings screen so
@@ -72,9 +75,14 @@ fun AdvancedSettingsScreen(
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val state by vm.state.collectAsStateWithLifecycle()
     val modelPhase by ServiceLocator.modelLoadStatus.phase.collectAsStateWithLifecycle()
     var hfToken by remember { mutableStateOf("") }
+    // Bumped after a model delete so each ModelVariantRow re-reads the disk and
+    // drops its "Downloaded" chip (file existence isn't a reactive State).
+    var modelsRefresh by remember { mutableStateOf(0) }
+    var pendingDelete by remember { mutableStateOf<ModelVariant?>(null) }
 
     Scaffold(
         topBar = {
@@ -157,7 +165,9 @@ fun AdvancedSettingsScreen(
                     val downloader = remember { ModelDownloader(context) }
                     ModelCatalog.variants.forEach { variant ->
                         val isSelected = state.selectedModelId == variant.id
-                        val isDownloaded = downloader.isDownloaded(variant)
+                        val isDownloaded = remember(variant.id, modelPhase, modelsRefresh) {
+                            downloader.isDownloaded(variant)
+                        }
                         val rowDownloadFraction = (modelPhase as? ModelLoadPhase.Downloading)
                             ?.takeIf { it.variantId == variant.id || (it.variantId == null && isSelected) }
                             ?.fraction
@@ -173,6 +183,8 @@ fun AdvancedSettingsScreen(
                             onDownload = {
                                 ModelBootstrap.downloadAndPreload(context, variant, hfToken.takeIf { it.isNotBlank() })
                             },
+                            onDelete = { pendingDelete = variant },
+                            canDelete = !ServiceLocator.modelLoadStatus.isBusy,
                             inProgress = rowDownloadFraction != null || rowLoading,
                             downloadFraction = rowDownloadFraction,
                         )
@@ -409,6 +421,41 @@ fun AdvancedSettingsScreen(
                 )
             }
         }
+
+        pendingDelete?.let { variant ->
+            AlertDialog(
+                onDismissRequest = { pendingDelete = null },
+                title = { Text(stringResource(R.string.model_delete_dialog_title)) },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.model_delete_dialog_message,
+                            stringResource(variant.displayNameRes),
+                            variant.approxSizeGB,
+                        ),
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        pendingDelete = null
+                        scope.launch {
+                            ModelBootstrap.deleteVariant(context, variant)
+                            modelsRefresh++
+                        }
+                    }) {
+                        Text(
+                            stringResource(R.string.action_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDelete = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -419,6 +466,8 @@ private fun ModelVariantRow(
     isDownloaded: Boolean,
     onSelect: () -> Unit,
     onDownload: () -> Unit,
+    onDelete: () -> Unit,
+    canDelete: Boolean,
     inProgress: Boolean,
     downloadFraction: Float? = null,
 ) {
@@ -452,6 +501,13 @@ private fun ModelVariantRow(
                             if (inProgress) R.string.model_button_downloading
                             else R.string.model_button_download,
                         ),
+                    )
+                }
+            } else {
+                TextButton(onClick = onDelete, enabled = canDelete) {
+                    Text(
+                        stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }

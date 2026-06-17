@@ -35,6 +35,15 @@ class ModelDownloader(
         targetFile(variant).let { File(it.parentFile, "${it.name}.part") }
             .let { it.exists() && it.length() > 0 }
 
+    /** Delete the model file and any leftover `.part`. Returns true if nothing remains on disk. */
+    fun deleteVariant(variant: ModelVariant): Boolean {
+        val target = targetFile(variant)
+        val partial = File(target.parentFile, "${target.name}.part")
+        runCatching { if (target.exists()) target.delete() }
+        runCatching { if (partial.exists()) partial.delete() }
+        return !target.exists() && !partial.exists()
+    }
+
     fun download(
         variant: ModelVariant,
         sha256: String? = null,

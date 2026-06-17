@@ -82,6 +82,7 @@
     <string name="camera_permission_body">請至設定開啟相機權限以使用此功能。</string>
     <string name="camera_permission_denied">相機權限被拒,請至設定開啟以拍照。</string>
     <string name="open_settings">開啟設定</string>
+    <string name="capture_model_needed_hint">請至設定下載辨識模型後再用相機，或點選手動輸入。</string>
 
     <!-- Model load -->
     <string name="model_idle">尚未載入模型</string>
@@ -94,6 +95,8 @@
     <string name="model_download_notif_title">正在下載辨識模型</string>
     <string name="model_download_notif_text">可放著切到背景,我們會繼續下載。</string>
     <string name="model_download_notif_text_pct">下載中… %1$d%% — 可放著切到背景。</string>
+    <string name="model_delete_dialog_title">刪除此模型?</string>
+    <string name="model_delete_dialog_message">%1$s（約 %2$.1f GB）將被永久刪除以釋放空間，你之後可以再次下載。</string>
 
     <!-- Insights -->
     <string name="trend_title">血壓趨勢</string>

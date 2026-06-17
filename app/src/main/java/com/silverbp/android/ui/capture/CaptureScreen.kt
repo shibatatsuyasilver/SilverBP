@@ -60,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.capture.CaptureSessionHolder
 import com.silverbp.android.core.Source
+import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.confirm.BpReadingDraft
 import java.io.File
 import java.time.Instant
@@ -76,6 +77,7 @@ fun CaptureScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val phase by vm.phase.collectAsStateWithLifecycle()
+    val readiness by vm.readiness.collectAsStateWithLifecycle()
 
     var hasPermission by remember {
         mutableStateOf(
@@ -192,8 +194,28 @@ fun CaptureScreen(
                     )
                 },
                 onManualEntry = onManualEntry,
+                pickEnabled = readiness.ready,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
+
+            // No local model loaded → block recognition (shutter + gallery
+            // disabled above); point the user to Settings / manual entry.
+            if (readiness.showModelBanner) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 56.dp),
+                ) {
+                    ModelLoadBanner(phase = readiness.phase)
+                    Text(
+                        stringResource(R.string.capture_model_needed_hint),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            }
 
             // Shutter only when the camera permission is actually granted —
             // without this gate the button sits on top of the permission-denied
@@ -214,6 +236,7 @@ fun CaptureScreen(
                             }
                         }
                     },
+                    enabled = readiness.ready,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
                 )
             }
@@ -226,6 +249,7 @@ private fun CameraTopBar(
     onClose: () -> Unit,
     onPickPhoto: () -> Unit,
     onManualEntry: () -> Unit,
+    pickEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -239,7 +263,7 @@ private fun CameraTopBar(
             Text(stringResource(R.string.cancel), color = Color.White)
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onPickPhoto) {
+        IconButton(onClick = onPickPhoto, enabled = pickEnabled) {
             Icon(Icons.Filled.Image, contentDescription = stringResource(R.string.pick_from_library), tint = Color.White)
         }
         TextButton(onClick = onManualEntry) {
@@ -249,15 +273,16 @@ private fun CameraTopBar(
 }
 
 @Composable
-private fun ShutterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ShutterButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     // Mirrors the iOS CaptureView 72-pt white circle with a thin black inner ring.
     Box(
         modifier = modifier
             .size(72.dp)
+            .alpha(if (enabled) 1f else 0.4f)
             .clip(CircleShape)
             .background(Color.White)
             .border(BorderStroke(2.dp, Color.Black.copy(alpha = 0.25f)), CircleShape)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {

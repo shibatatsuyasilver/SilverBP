@@ -13,6 +13,7 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.ExtractedWeight
 import com.silverbp.android.recognition.WeightRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
+import com.silverbp.android.recognition.recognitionReadinessFlow
 import com.silverbp.android.ui.confirm.WeightDraft
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +48,9 @@ class WeightCaptureViewModel(
 
     private val _capturePhase = MutableStateFlow<WeightCapturePhase>(WeightCapturePhase.Idle)
     val capturePhase: StateFlow<WeightCapturePhase> = _capturePhase.asStateFlow()
+
+    /** Gate for the shutter / photo-pick: false when the Local backend has no model loaded. */
+    val readiness = recognitionReadinessFlow(viewModelScope)
 
     fun resetCapture() { _capturePhase.value = WeightCapturePhase.Idle }
 

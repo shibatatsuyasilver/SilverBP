@@ -14,10 +14,9 @@ import com.silverbp.android.nutrition.SodiumSource
 import com.silverbp.android.nutrition.currentMealType
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelCatalog
-import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.NotConfiguredNutritionRecognizer
 import com.silverbp.android.recognition.NutritionRecognizerFactory
-import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.recognition.recognitionReadinessFlow
 import com.silverbp.android.recognition.decodeUriWithExif
 import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -77,20 +76,6 @@ sealed interface NutritionCapturePhase {
     data object ModelLoading : NutritionCapturePhase
 }
 
-/**
- * Whether food recognition can run right now. For the on-device (Local) backend
- * this requires the model to be fully downloaded AND loaded ([ModelLoadPhase.Ready]);
- * Cloud / AICore manage their own readiness, so they are never gated here.
- */
-data class RecognitionReadiness(
-    val backendIsLocal: Boolean,
-    val phase: ModelLoadPhase,
-) {
-    val ready: Boolean get() = !backendIsLocal || phase is ModelLoadPhase.Ready
-    /** Show the download/loading banner only for a not-yet-ready local model. */
-    val showModelBanner: Boolean get() = backendIsLocal && phase !is ModelLoadPhase.Ready
-}
-
 class NutritionViewModel(
     private val repo: NutritionRepository = ServiceLocator.nutritionRepository,
     settings: UserSettingsRepository = ServiceLocator.userSettings,
@@ -130,16 +115,7 @@ class NutritionViewModel(
      * model phase. The screen observes this to gate the photo/gallery buttons and
      * show the download/loading banner for a not-yet-ready local model.
      */
-    val readiness: StateFlow<RecognitionReadiness> = combine(
-        settings.flow,
-        ServiceLocator.modelLoadStatus.phase,
-    ) { user, phase ->
-        RecognitionReadiness(user.recognitionBackend == RecognitionBackend.Local, phase)
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5_000),
-        RecognitionReadiness(backendIsLocal = false, phase = ModelLoadPhase.Idle),
-    )
+    val readiness = recognitionReadinessFlow(viewModelScope)
 
     fun resetCapture() { _capturePhase.value = NutritionCapturePhase.Idle }
 

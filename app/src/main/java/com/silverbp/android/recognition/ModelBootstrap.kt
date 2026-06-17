@@ -132,6 +132,32 @@ object ModelBootstrap {
     suspend fun preloadVariant(context: Context, variant: ModelVariant) =
         preload(context.applicationContext, variant)
 
+    /**
+     * Delete a downloaded variant to free space. If it's the currently-selected
+     * (possibly loaded) variant, tear the engine down and reset to Idle so every
+     * capture gate falls back to "not ready". selectedModelId is left pointing at
+     * it — matches the existing "selected but not downloaded" state, so re-download
+     * just works.
+     */
+    suspend fun deleteVariant(context: Context, variant: ModelVariant) {
+        val ctx = context.applicationContext
+        val downloader = ModelDownloader(ctx)
+        val isCurrent = ServiceLocator.userSettings.flow.first().selectedModelId == variant.id
+        if (isCurrent) {
+            GemmaBpService.tearDown()
+            ServiceLocator.modelLoadStatus.set(ModelLoadPhase.Idle)
+        }
+        val deleted = downloader.deleteVariant(variant)
+        // Keep the persisted flag honest (used only for backup, not gating).
+        ServiceLocator.userSettings.setModelDownloaded(
+            ModelCatalog.variants.any { downloader.isDownloaded(it) },
+        )
+        android.util.Log.i(
+            "ModelBootstrap",
+            "[ModelLoad] delete id=${variant.id} deleted=$deleted current=$isCurrent",
+        )
+    }
+
     fun switchTo(context: Context, variant: ModelVariant) {
         val downloader = ModelDownloader(context.applicationContext)
         scope.launch {

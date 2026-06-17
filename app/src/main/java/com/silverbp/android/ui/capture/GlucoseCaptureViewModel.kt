@@ -14,6 +14,7 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.recognition.ExtractedGlucose
 import com.silverbp.android.recognition.GlucoseRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
+import com.silverbp.android.recognition.recognitionReadinessFlow
 import com.silverbp.android.ui.confirm.GlucoseDraft
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +51,9 @@ class GlucoseCaptureViewModel(
 
     private val _capturePhase = MutableStateFlow<GlucoseCapturePhase>(GlucoseCapturePhase.Idle)
     val capturePhase: StateFlow<GlucoseCapturePhase> = _capturePhase.asStateFlow()
+
+    /** Gate for the shutter / photo-pick: false when the Local backend has no model loaded. */
+    val readiness = recognitionReadinessFlow(viewModelScope)
 
     fun resetCapture() { _capturePhase.value = GlucoseCapturePhase.Idle }
 
