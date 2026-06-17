@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.silverbp.android.MainActivity
@@ -23,6 +24,9 @@ object ModelDownloadNotification {
 
     const val CHANNEL_ID = "model_download"
     const val NOTIF_ID = 5252
+
+    // Tints the island's left-slot small icon and the ProgressStyle bar.
+    private val ACCENT = 0xFF0288D1.toInt()  // light-blue-700
 
     fun createChannel(ctx: Context) {
         val mgr = ctx.getSystemService<NotificationManager>() ?: return
@@ -51,8 +55,9 @@ object ModelDownloadNotification {
         } else {
             ctx.getString(R.string.model_download_notif_text_pct, pct)
         }
-        return NotificationCompat.Builder(ctx, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setColor(ACCENT)
             .setContentTitle(ctx.getString(R.string.model_download_notif_title))
             .setContentText(text)
             .setProgress(100, pct.coerceIn(0, 100), indeterminate)
@@ -63,7 +68,25 @@ object ModelDownloadNotification {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openAppPendingIntent(ctx))
-            .build()
+
+        // API 36+: ProgressStyle is the gate-keeper API that pulls the download
+        // into the OEM Live-Update island (OriginOS Atomic Island, Pixel status
+        // pill, Samsung Now Brief) — same mechanism the exercise notification
+        // uses. No route map here, so unlike ExerciseNotification we keep
+        // VISIBILITY_PUBLIC and need no setPublicVersion lock-screen variant.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            builder.setShortCriticalText(if (indeterminate) "⬇" else "$pct%")
+            builder.setStyle(
+                NotificationCompat.ProgressStyle()
+                    .setProgressSegments(
+                        listOf(NotificationCompat.ProgressStyle.Segment(100).setColor(ACCENT)),
+                    )
+                    .setProgress(pct.coerceIn(0, 100))
+                    .setProgressIndeterminate(indeterminate),
+            )
+        }
+
+        return builder.build()
     }
 
     private fun openAppPendingIntent(ctx: Context): PendingIntent {
