@@ -59,6 +59,36 @@ class ActivityKindSyncRoundTripTest {
         }
     }
 
+    @Test
+    fun mapper_preserves_active_duration_and_machine_ocr_fields() = runTest {
+        val dao = FakeExerciseDao()
+        val mapper = ExerciseSessionSyncMapper(dao, FakeSyncDao())
+        val entity = fixture(activityKind = ActivityKind.Treadmill.raw).copy(
+            activeDurationMillis = 420_000L,
+            caloriesKcal = 123.4,
+            heartRateBpm = 142,
+            caloriesIsEstimate = false,
+            heartRateIsEstimate = false,
+            distanceUnitRaw = "mi",
+            floors = 12,
+            rawMetricsJson = """{"speed":"6.0"}""",
+        )
+        val hlc = Hlc.of(1_730_000_001_000L, 0, 0xABCDL)
+
+        val decoded = SyncRecordCodec.decode(SyncRecordCodec.encode(mapper.encode(entity, hlc)))
+        mapper.apply(decoded)
+
+        val stored = dao.findById(entity.id)!!
+        assertEquals(420_000L, stored.activeDurationMillis)
+        assertEquals(123.4, stored.caloriesKcal!!, 0.0001)
+        assertEquals(142, stored.heartRateBpm)
+        assertEquals(false, stored.caloriesIsEstimate)
+        assertEquals(false, stored.heartRateIsEstimate)
+        assertEquals("mi", stored.distanceUnitRaw)
+        assertEquals(12, stored.floors)
+        assertEquals("""{"speed":"6.0"}""", stored.rawMetricsJson)
+    }
+
     private fun fixture(activityKind: String) = ExerciseSessionEntity(
         id = "362c65d9-d66f-48bf-bafd-1c98e1d9bd81",
         activityKind = activityKind,
@@ -87,6 +117,8 @@ class ActivityKindSyncRoundTripTest {
             flowOf(rows.values.filter { it.startedAt in from..to })
         override fun observeById(id: String): Flow<ExerciseSessionEntity?> = flowOf(rows[id])
         override suspend fun findById(id: String): ExerciseSessionEntity? = rows[id]
+        override suspend fun findUnmirrored(): List<ExerciseSessionEntity> =
+            rows.values.filter { it.hcRecordId == null }
         override fun observePoints(sessionId: String): Flow<List<RoutePointEntity>> = flowOf(emptyList())
         override suspend fun pointsFor(sessionId: String): List<RoutePointEntity> = emptyList()
         override suspend fun allPoints(): List<RoutePointEntity> = emptyList()

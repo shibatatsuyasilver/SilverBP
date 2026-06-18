@@ -5,6 +5,7 @@ import com.silverbp.android.core.db.MemberDao
 import com.silverbp.android.core.db.MemberEntity
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.sync.LocalSyncWriter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -24,7 +25,10 @@ import java.util.UUID
  * restore drop it explicitly. Without this the cache strands every owner-scoped
  * read on an id that no longer has a member row (cross-device restore data loss).
  */
-class MemberRepository(private val dao: MemberDao) {
+class MemberRepository(
+    private val dao: MemberDao,
+    private val localSync: LocalSyncWriter? = null,
+) {
 
     @Volatile private var cachedOwnerId: String? = null
 
@@ -75,14 +79,25 @@ class MemberRepository(private val dao: MemberDao) {
      */
     suspend fun upsert(member: Member) {
         val memberId = member.id.toString()
+        // Stamp a real HLC from the shared sync clock so a local member write is
+        // never left at "0" — the LWW gate treats "0" as "no local trace" and lets
+        // a stale peer overwrite it. Mirrors the other repositories' write path.
+        val hlc = localSync?.nextHlc()
         if (member.isOwner) {
             val current = dao.getOwner()
             if (current != null && current.id != memberId) {
-                dao.upsert(current.copy(isOwner = false, updatedAt = System.currentTimeMillis()))
+                dao.upsert(
+                    current.copy(
+                        isOwner = false,
+                        updatedAt = System.currentTimeMillis(),
+                        hlcUpdatedAt = hlc ?: current.hlcUpdatedAt,
+                    ),
+                )
             }
             cachedOwnerId = memberId
         }
-        dao.upsert(member.toEntity())
+        val entity = member.toEntity()
+        dao.upsert(entity.copy(hlcUpdatedAt = hlc ?: entity.hlcUpdatedAt))
     }
 
     suspend fun archive(id: UUID) = dao.archive(id.toString(), System.currentTimeMillis())

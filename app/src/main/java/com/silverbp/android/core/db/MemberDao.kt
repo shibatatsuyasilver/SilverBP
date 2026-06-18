@@ -17,7 +17,7 @@ interface MemberDao {
     @Query("SELECT * FROM member ORDER BY sortOrder ASC")
     suspend fun getAll(): List<MemberEntity>
 
-    @Query("SELECT * FROM member WHERE isOwner = 1 LIMIT 1")
+    @Query("SELECT * FROM member WHERE isOwner = 1 ORDER BY createdAt ASC, id ASC LIMIT 1")
     suspend fun getOwner(): MemberEntity?
 
     @Query("SELECT * FROM member WHERE id = :id LIMIT 1")

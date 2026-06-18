@@ -7,6 +7,8 @@ import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
 import com.silverbp.android.health.HealthConnectNutritionBridge
 import com.silverbp.android.health.classifySodium
+import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -27,6 +29,7 @@ class NutritionRepository(
     private val healthConnect: HealthConnectNutritionBridge? = null,
     /** Coarse on/off for the Health Connect mirror; defaults off for tests. */
     private val healthConnectEnabled: suspend () -> Boolean = { false },
+    private val localSync: LocalSyncWriter? = null,
 ) {
 
     fun observeAll(): Flow<List<FoodLog>> =
@@ -50,7 +53,10 @@ class NutritionRepository(
             // doesn't needlessly clear it and re-mirror.
             hcRecordId = log.hcRecordId ?: existing?.hcRecordId,
         )
-        if (existing == null) dao.insert(toSave.toEntity()) else dao.update(toSave.toEntity())
+        val entity = toSave.toEntity().copy(
+            hlcUpdatedAt = localSync?.nextHlc() ?: existing?.hlcUpdatedAt ?: "0",
+        )
+        if (existing == null) dao.insert(entity) else dao.update(entity)
 
         // Best-effort one-way mirror to Health Connect (gated on the master
         // toggle; the bridge independently re-checks the write permission).
@@ -58,7 +64,11 @@ class NutritionRepository(
             val hcId = healthConnect.write(toSave)
             if (hcId != null && hcId != toSave.hcRecordId) {
                 toSave = toSave.copy(hcRecordId = hcId, updatedAt = Instant.now())
-                dao.update(toSave.toEntity())
+                dao.update(
+                    toSave.toEntity().copy(
+                        hlcUpdatedAt = localSync?.nextHlc() ?: entity.hlcUpdatedAt,
+                    ),
+                )
             }
         }
 
@@ -67,7 +77,11 @@ class NutritionRepository(
 
     suspend fun delete(id: UUID) {
         val existing = dao.findById(id.toString())
-        dao.delete(id.toString())
+        if (localSync != null) {
+            localSync.delete(SyncEntityType.FOOD_LOG, id.toString())
+        } else {
+            dao.delete(id.toString())
+        }
         // Best-effort removal of the Health Connect mirror (same gating as the
         // upsert mirror); only attempted when the log was actually mirrored.
         if (existing?.hcRecordId != null && healthConnect != null &&
@@ -105,7 +119,7 @@ class NutritionRepository(
                 vegServings = existing?.vegServings ?: 0,
                 sourceRaw = "food",
                 updatedAt = System.currentTimeMillis(),
-                hlcUpdatedAt = existing?.hlcUpdatedAt ?: "0",
+                hlcUpdatedAt = localSync?.nextHlc() ?: existing?.hlcUpdatedAt ?: "0",
             ),
         )
     }

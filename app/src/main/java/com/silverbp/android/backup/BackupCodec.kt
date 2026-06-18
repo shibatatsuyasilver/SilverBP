@@ -323,7 +323,9 @@ object BackupCodec {
         while (pos < bytes.size) {
             val (recBytes, after) = readBlock(bytes, pos)
                 ?: error("Truncated record block at offset $pos")
-            records += SyncRecordCodec.decode(recBytes)
+            // Skip record types this build doesn't know (forward-compat with a
+            // backup written by a newer app) rather than failing the whole restore.
+            SyncRecordCodec.decodeOrNull(recBytes)?.let { records += it }
             pos = after
         }
         return manifest to records

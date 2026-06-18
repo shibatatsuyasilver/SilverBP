@@ -221,6 +221,8 @@ class PairingViewModel(
                     glucoseMapper = ServiceLocator.glucoseReadingSyncMapper,
                     weightDao = db.weightDao(),
                     weightMapper = ServiceLocator.weightReadingSyncMapper,
+                    syncDao = db.syncDao(),
+                    localSyncDao = db.localSyncMutationDao(),
                 )
                 val sink = CombinedRoomSyncSink(
                     bpMapper = ServiceLocator.bpReadingSyncMapper,

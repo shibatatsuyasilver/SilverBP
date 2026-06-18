@@ -15,6 +15,7 @@ import com.silverbp.android.core.db.SleepLogEntity
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toPlanEntity
 import com.silverbp.android.core.db.toTaskEntity
+import com.silverbp.android.sync.LocalSyncWriter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -36,11 +37,19 @@ class CoachRepository(
     private val doses: MedicationDoseDao,
     private val medicationSchedules: MedicationScheduleDao,
     private val medications: MedicationDao,
+    private val localSync: LocalSyncWriter? = null,
 ) {
 
     suspend fun savePlan(plan: CoachPlan) {
-        val planEntity: CoachPlanEntity = plan.toPlanEntity()
-        val taskEntities: List<CoachTaskEntity> = plan.tasks.map { it.toTaskEntity() }
+        val hlc = localSync?.nextHlc()
+        val planEntity: CoachPlanEntity = plan.toPlanEntity().let { entity ->
+            if (hlc == null) entity else entity.copy(hlcUpdatedAt = hlc)
+        }
+        val taskEntities: List<CoachTaskEntity> = plan.tasks.map { task ->
+            task.toTaskEntity().let { entity ->
+                if (hlc == null) entity else entity.copy(hlcUpdatedAt = hlc)
+            }
+        }
         plans.insertPlanWithTasks(planEntity, taskEntities)
     }
 
@@ -100,19 +109,22 @@ class CoachRepository(
     }
 
     // ----- Sleep -----
-    suspend fun upsertSleep(entry: SleepLogEntity) = sleeps.upsert(entry)
+    suspend fun upsertSleep(entry: SleepLogEntity) =
+        sleeps.upsert(entry.copy(hlcUpdatedAt = localSync?.nextHlc() ?: entry.hlcUpdatedAt))
     suspend fun sleepForDay(dayStart: Long): SleepLogEntity? = sleeps.forDay(dayStart)
     suspend fun sleepRange(from: Long, to: Long): List<SleepLogEntity> = sleeps.range(from, to)
     fun observeSleepRange(from: Long, to: Long): Flow<List<SleepLogEntity>> = sleeps.observeRange(from, to)
 
     // ----- Diet -----
-    suspend fun upsertDiet(entry: DietCheckEntity) = diets.upsert(entry)
+    suspend fun upsertDiet(entry: DietCheckEntity) =
+        diets.upsert(entry.copy(hlcUpdatedAt = localSync?.nextHlc() ?: entry.hlcUpdatedAt))
     suspend fun dietForDay(dayStart: Long): DietCheckEntity? = diets.forDay(dayStart)
     suspend fun dietRange(from: Long, to: Long): List<DietCheckEntity> = diets.range(from, to)
     fun observeDietRange(from: Long, to: Long): Flow<List<DietCheckEntity>> = diets.observeRange(from, to)
 
     // ----- Medication doses -----
-    suspend fun upsertDose(dose: MedicationDoseEntity) = doses.upsert(dose)
+    suspend fun upsertDose(dose: MedicationDoseEntity) =
+        doses.upsert(dose.copy(hlcUpdatedAt = localSync?.nextHlc() ?: dose.hlcUpdatedAt))
     suspend fun dosesForDay(dayStart: Long): List<MedicationDoseEntity> = doses.forDay(dayStart)
     fun observeDosesForDay(dayStart: Long): Flow<List<MedicationDoseEntity>> = doses.observeForDay(dayStart)
 

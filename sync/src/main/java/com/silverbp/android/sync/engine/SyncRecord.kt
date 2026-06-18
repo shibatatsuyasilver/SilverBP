@@ -51,8 +51,13 @@ enum class SyncEntityType(val tag: Int, val tableName: String) {
 
     companion object {
         private val byTag = entries.associateBy { it.tag }
-        fun fromTag(tag: Int): SyncEntityType =
-            byTag[tag] ?: error("Unknown SyncEntityType tag: $tag")
+
+        /**
+         * Resolve a wire tag, or null when this build doesn't know the type — a
+         * newer peer/backup may carry record types added on the other side. Callers
+         * decoding untrusted frames should skip unknown types rather than crash.
+         */
+        fun fromTag(tag: Int): SyncEntityType? = byTag[tag]
     }
 }
 

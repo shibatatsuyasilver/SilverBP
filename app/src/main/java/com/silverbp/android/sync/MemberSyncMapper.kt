@@ -32,13 +32,10 @@ import com.silverbp.android.sync.mapping.SyncRecordMapper
  * (synthesises the owner); BP/medication records that arrive without a memberId
  * resolve to the owner in their own mappers.
  *
- * Single-owner invariant: apply upserts the row directly via the DAO (bypassing
- * [com.silverbp.android.core.member.MemberRepository]'s demote-on-owner logic).
- * That's correct for same-device restore (owner id matches the local owner).
- * Cross-device member sync — where a peer's owner id could differ and create a
- * transient two-owner state — is an explicit Phase 1 non-goal (roadmap §1-1, §8)
- * and the pairing entrypoint stays behind BuildConfig.DEBUG until then; the
- * conflict-resolution policy is deferred to whenever that ships.
+ * Single-owner invariant: if an inbound owner row has a different id from the
+ * current local owner, import it as a non-owner. A fresh restore with no owner
+ * still accepts the inbound owner row, and updates to the same owner id remain
+ * owner updates.
  */
 class MemberSyncMapper(
     private val memberDao: MemberDao,
@@ -136,7 +133,13 @@ class MemberSyncMapper(
             targetWeightKg = optionalDouble(p, Field.TARGET_WEIGHT_KG),
             hlcUpdatedAt = record.hlc.packed,
         )
-        memberDao.upsert(entity)
+        val currentOwner = if (entity.isOwner) memberDao.getOwner() else null
+        val toSave = if (currentOwner != null && currentOwner.id != entity.id) {
+            entity.copy(isOwner = false)
+        } else {
+            entity
+        }
+        memberDao.upsert(toSave)
     }
 
     private fun extractInt(p: Map<Int, SyncValue>, key: Int): Long =

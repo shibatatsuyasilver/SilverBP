@@ -26,6 +26,8 @@ class RoomMigrationTest {
         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
         MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+        MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
+        MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
     )
 
     @get:Rule
@@ -34,11 +36,25 @@ class RoomMigrationTest {
         SilverBpDatabase::class.java,
     )
 
-    /** The whole chain applies cleanly and matches the v13 schema. */
+    /** The whole chain applies cleanly and matches the latest (v21) schema. */
     @Test
-    fun migrateAll_1_to_13() {
+    fun migrateAll_1_to_21() {
         helper.createDatabase(dbName, 1).close()
-        helper.runMigrationsAndValidate(dbName, 13, true, *allMigrations).close()
+        helper.runMigrationsAndValidate(dbName, 21, true, *allMigrations).close()
+    }
+
+    /** v19 → v20 adds the weight_log table and still matches the v20 schema. */
+    @Test
+    fun migrate_19_to_20_matchesSchema() {
+        helper.createDatabase(dbName, 19).close()
+        helper.runMigrationsAndValidate(dbName, 20, true, MIGRATION_19_20).close()
+    }
+
+    /** v20 → v21 adds medication_dose.scheduledMinute / scheduleId. */
+    @Test
+    fun migrate_20_to_21_matchesSchema() {
+        helper.createDatabase(dbName, 20).close()
+        helper.runMigrationsAndValidate(dbName, 21, true, MIGRATION_20_21).close()
     }
 
     /** v12 → v13 adds hcRecordId (defaulting NULL) and preserves existing rows. */

@@ -5,6 +5,8 @@ import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.health.HealthConnectBpBridge
+import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -16,6 +18,7 @@ class BpRepository(
     private val healthConnect: HealthConnectBpBridge? = null,
     /** Coarse on/off for the Health Connect mirror; defaults off for tests. */
     private val healthConnectEnabled: suspend () -> Boolean = { false },
+    private val localSync: LocalSyncWriter? = null,
 ) {
 
     // ============================================================
@@ -70,7 +73,10 @@ class BpRepository(
                 null
             },
         )
-        if (existing == null) dao.insert(toSave.toEntity()) else dao.update(toSave.toEntity())
+        val entity = toSave.toEntity().copy(
+            hlcUpdatedAt = localSync?.nextHlc() ?: existing?.hlcUpdatedAt ?: "0",
+        )
+        if (existing == null) dao.insert(entity) else dao.update(entity)
 
         // Best-effort one-way mirror to Health Connect so the reading flows into
         // Google Health / other health apps. Must never fail the local save: the
@@ -88,10 +94,22 @@ class BpRepository(
         ) {
             val hcId = healthConnect.write(toSave)
             if (hcId != null && hcId != toSave.hcRecordId) {
-                dao.update(toSave.copy(hcRecordId = hcId, updatedAt = Instant.now()).toEntity())
+                val mirrored = toSave.copy(hcRecordId = hcId, updatedAt = Instant.now())
+                dao.update(
+                    mirrored.toEntity().copy(
+                        hlcUpdatedAt = localSync?.nextHlc() ?: entity.hlcUpdatedAt,
+                    ),
+                )
             }
         }
     }
 
-    suspend fun delete(id: UUID) = dao.delete(id.toString())
+    suspend fun delete(id: UUID) {
+        val pk = id.toString()
+        if (localSync != null) {
+            localSync.delete(SyncEntityType.BP_READING, pk)
+        } else {
+            dao.delete(pk)
+        }
+    }
 }

@@ -34,6 +34,7 @@ class MedicationActionReceiver : BroadcastReceiver() {
         val scheduleId = intent.getStringExtra(EXTRA_SCHEDULE_ID) ?: return
         val dayStart = intent.getLongExtra(EXTRA_DAY_START, -1L)
         val scheduledHour = intent.getIntExtra(EXTRA_SCHEDULED_HOUR, -1)
+        val scheduledMinute = intent.getIntExtra(EXTRA_SCHEDULED_MINUTE, 0)
         val notifId = intent.getIntExtra(EXTRA_NOTIF_ID, -1)
         if (dayStart < 0 || scheduledHour < 0) return
 
@@ -46,6 +47,8 @@ class MedicationActionReceiver : BroadcastReceiver() {
                         dayStart = dayStart,
                         medicationId = medicationId,
                         scheduledHour = scheduledHour,
+                        scheduledMinute = scheduledMinute,
+                        scheduleId = scheduleId,
                         taken = true,
                         updatedAt = System.currentTimeMillis(),
                     )
@@ -68,6 +71,7 @@ class MedicationActionReceiver : BroadcastReceiver() {
         const val EXTRA_SCHEDULE_ID = "scheduleId"
         const val EXTRA_DAY_START = "dayStart"
         const val EXTRA_SCHEDULED_HOUR = "scheduledHour"
+        const val EXTRA_SCHEDULED_MINUTE = "scheduledMinute"
         const val EXTRA_NOTIF_ID = "notifId"
 
         /** Deterministic dose id; shared by the in-app Switch and the notification action. */

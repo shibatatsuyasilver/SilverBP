@@ -87,6 +87,8 @@ data class MedicationDoseEntity(
     val dayStart: Long,
     val medicationId: String,
     val scheduledHour: Int,
+    val scheduledMinute: Int = 0,
+    val scheduleId: String? = null,
     val taken: Boolean,
     val updatedAt: Long,
     val hlcUpdatedAt: String = "0",

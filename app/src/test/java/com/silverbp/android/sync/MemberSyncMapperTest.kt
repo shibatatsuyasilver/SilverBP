@@ -116,6 +116,20 @@ class MemberSyncMapperTest {
     }
 
     @Test
+    fun apply_inbound_second_owner_demotes_imported_row() = runTest {
+        val localOwner = fixture(id = "11111111-1111-1111-1111-111111111111", isOwner = true)
+        val remoteOwner = fixture(id = "22222222-2222-2222-2222-222222222222", isOwner = true)
+        val dao = FakeMemberDao().apply { upsert(localOwner) }
+        val mapper = MemberSyncMapper(dao, FakeSyncDao())
+        val hlc = Hlc.of(1_730_000_001_000L, 0, 0xABCDL)
+
+        mapper.apply(mapper.encode(remoteOwner, hlc))
+
+        assertTrue(dao.findById(localOwner.id)!!.isOwner)
+        assertFalse("remote owner must be imported as non-owner", dao.findById(remoteOwner.id)!!.isOwner)
+    }
+
+    @Test
     fun apply_tombstone_deletes_non_owner_and_writes_tombstone() = runTest {
         val dao = FakeMemberDao().apply { upsert(fixture()) }
         val syncDao = FakeSyncDao()

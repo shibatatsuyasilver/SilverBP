@@ -157,10 +157,10 @@ interface MedicationDoseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(dose: MedicationDoseEntity)
 
-    @Query("SELECT * FROM medication_dose WHERE dayStart = :dayStart ORDER BY scheduledHour ASC")
+    @Query("SELECT * FROM medication_dose WHERE dayStart = :dayStart ORDER BY scheduledHour ASC, scheduledMinute ASC")
     fun observeForDay(dayStart: Long): Flow<List<MedicationDoseEntity>>
 
-    @Query("SELECT * FROM medication_dose WHERE dayStart = :dayStart ORDER BY scheduledHour ASC")
+    @Query("SELECT * FROM medication_dose WHERE dayStart = :dayStart ORDER BY scheduledHour ASC, scheduledMinute ASC")
     suspend fun forDay(dayStart: Long): List<MedicationDoseEntity>
 
     @Query("SELECT * FROM medication_dose WHERE dayStart >= :from AND dayStart < :to ORDER BY dayStart ASC")
@@ -178,22 +178,39 @@ interface MedicationDoseDao {
      * Bulk read used by the cross-device sync source. Ordered by dayStart so
      * paginated peers see deterministic ordering.
      */
-    @Query("SELECT * FROM medication_dose ORDER BY dayStart ASC")
+    @Query("SELECT * FROM medication_dose ORDER BY dayStart ASC, scheduledHour ASC, scheduledMinute ASC")
     suspend fun all(): List<MedicationDoseEntity>
 
     @Query("SELECT COUNT(*) FROM medication_dose")
     suspend fun count(): Int
 
-    /** Content-key dedup lookup for cross-device sync apply. */
+    @Query("SELECT * FROM medication_dose WHERE id = :id LIMIT 1")
+    suspend fun findById(id: String): MedicationDoseEntity?
+
+    /** Preferred sync dedup lookup once scheduleId is present on the payload. */
     @Query(
         "SELECT * FROM medication_dose " +
-            "WHERE dayStart = :dayStart AND medicationId = :medicationId AND scheduledHour = :scheduledHour " +
+            "WHERE dayStart = :dayStart AND medicationId = :medicationId AND scheduleId = :scheduleId " +
+            "LIMIT 1"
+    )
+    suspend fun findBySchedule(
+        dayStart: Long,
+        medicationId: String,
+        scheduleId: String,
+    ): MedicationDoseEntity?
+
+    /** Content-key dedup lookup for pre-scheduleId peers. */
+    @Query(
+        "SELECT * FROM medication_dose " +
+            "WHERE dayStart = :dayStart AND medicationId = :medicationId " +
+            "AND scheduledHour = :scheduledHour AND scheduledMinute = :scheduledMinute " +
             "LIMIT 1"
     )
     suspend fun findByContent(
         dayStart: Long,
         medicationId: String,
         scheduledHour: Int,
+        scheduledMinute: Int,
     ): MedicationDoseEntity?
 
     /**

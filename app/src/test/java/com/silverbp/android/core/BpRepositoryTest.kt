@@ -5,6 +5,9 @@ import com.silverbp.android.core.db.BpReadingEntity
 import com.silverbp.android.core.db.MemberDao
 import com.silverbp.android.core.db.MemberEntity
 import com.silverbp.android.core.member.MemberRepository
+import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.Hlc
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -77,6 +80,30 @@ class BpRepositoryTest {
         repo.upsert(reading(id, memberId, hcRecordId = null))
 
         assertNull(bpDao.findById(id.toString())!!.hcRecordId)
+    }
+
+    @Test
+    fun local_upsert_stamps_hlc_from_sync_clock() = runTest {
+        val bpDao = FakeBpDao()
+        val localSync = FakeLocalSyncWriter(Hlc.of(1_730_000_010_000L, 0, 0xABCDL).packed)
+        val repo = BpRepository(bpDao, ownerRepo(), localSync = localSync)
+        val id = UUID.randomUUID()
+
+        repo.upsert(reading(id, ownerId, hcRecordId = null))
+
+        assertEquals(localSync.hlc, bpDao.findById(id.toString())!!.hlcUpdatedAt)
+    }
+
+    @Test
+    fun local_delete_delegates_to_tombstone_writer() = runTest {
+        val bpDao = FakeBpDao()
+        val localSync = FakeLocalSyncWriter(Hlc.of(1_730_000_010_000L, 0, 0xABCDL).packed)
+        val repo = BpRepository(bpDao, ownerRepo(), localSync = localSync)
+        val id = UUID.randomUUID()
+
+        repo.delete(id)
+
+        assertEquals(SyncEntityType.BP_READING to id.toString(), localSync.deleted.single())
     }
 
     private fun BpReading.toEntityWith(member: String, hc: String?) = BpReadingEntity(
@@ -152,5 +179,13 @@ class BpRepositoryTest {
         override suspend fun updateSortOrder(id: String, sortOrder: Int, now: Long) {}
         override suspend fun count(): Int = rows.size
         override suspend fun deleteById(id: String) { rows.remove(id) }
+    }
+
+    private class FakeLocalSyncWriter(val hlc: String) : LocalSyncWriter {
+        val deleted = mutableListOf<Pair<SyncEntityType, String>>()
+        override fun nextHlc(): String = hlc
+        override suspend fun delete(type: SyncEntityType, pk: String) {
+            deleted += type to pk
+        }
     }
 }

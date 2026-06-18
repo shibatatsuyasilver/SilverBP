@@ -3,6 +3,8 @@ package com.silverbp.android.exercise
 import com.silverbp.android.core.db.ExerciseDao
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -23,6 +25,7 @@ import java.util.UUID
 class ExerciseRepository(
     private val dao: ExerciseDao,
     private val healthConnect: HealthConnectExerciseBridge,
+    private val localSync: LocalSyncWriter? = null,
     private val onSessionPersisted: () -> Unit = {},
 ) {
 
@@ -57,15 +60,28 @@ class ExerciseRepository(
         } else {
             session.copy(createdAt = now, updatedAt = now)
         }
+        val sessionHlc = localSync?.nextHlc()
         dao.upsertWithPoints(
-            session = initial.toEntity(),
-            points = points.map { it.toEntity() },
+            session = initial.toEntity().copy(
+                hlcUpdatedAt = sessionHlc ?: if (existed) {
+                    dao.findById(session.id.toString())?.hlcUpdatedAt ?: "0"
+                } else {
+                    "0"
+                },
+            ),
+            points = points.map { point ->
+                point.toEntity().copy(hlcUpdatedAt = localSync?.nextHlc() ?: "0")
+            },
         )
 
         val hcId = healthConnect.write(initial, points)
         val saved = if (hcId != null && hcId != initial.hcRecordId) {
             val withHc = initial.copy(hcRecordId = hcId, updatedAt = Instant.now())
-            dao.updateSession(withHc.toEntity())
+            dao.updateSession(
+                withHc.toEntity().copy(
+                    hlcUpdatedAt = localSync?.nextHlc() ?: sessionHlc ?: "0",
+                ),
+            )
             withHc
         } else {
             initial
@@ -75,10 +91,14 @@ class ExerciseRepository(
     }
 
     suspend fun delete(id: UUID) {
-        dao.delete(id.toString())
+        val pk = id.toString()
+        if (localSync != null) {
+            localSync.delete(SyncEntityType.EXERCISE_SESSION, pk)
+        } else {
+            dao.delete(pk)
+        }
         onSessionPersisted()
     }
 
     suspend fun count(): Int = dao.count()
 }
-

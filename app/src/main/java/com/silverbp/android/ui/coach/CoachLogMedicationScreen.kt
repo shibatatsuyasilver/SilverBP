@@ -175,6 +175,8 @@ fun CoachLogMedicationScreen(onClose: () -> Unit, onManage: () -> Unit) {
                                             dayStart = row.dayStart,
                                             medicationId = row.medication.id,
                                             scheduledHour = row.schedule.hour,
+                                            scheduledMinute = row.schedule.minute,
+                                            scheduleId = row.schedule.id,
                                             taken = takenNow,
                                             updatedAt = System.currentTimeMillis(),
                                         )

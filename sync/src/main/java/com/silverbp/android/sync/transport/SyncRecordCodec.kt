@@ -54,7 +54,16 @@ object SyncRecordCodec {
         return w.toByteArray()
     }
 
-    fun decode(bytes: ByteArray): SyncRecord {
+    fun decode(bytes: ByteArray): SyncRecord =
+        decodeOrNull(bytes) ?: error("Unknown SyncRecord type tag")
+
+    /**
+     * Decode a frame, or return null when its entity-type tag is unknown to this
+     * build. A newer peer or backup may carry record types we don't understand
+     * yet; a forward-compatible reader skips them rather than aborting the whole
+     * sync/restore. Malformed frames (missing required fields) still throw.
+     */
+    fun decodeOrNull(bytes: ByteArray): SyncRecord? {
         val r = CborReader(bytes)
         val mapEntries = r.readMapHeader()
 
@@ -82,8 +91,11 @@ object SyncRecordCodec {
             }
         }
 
+        val type = SyncEntityType.fromTag(
+            requireNotNull(typeTag) { "SyncRecord missing type" },
+        ) ?: return null
         return SyncRecord(
-            type = SyncEntityType.fromTag(requireNotNull(typeTag) { "SyncRecord missing type" }),
+            type = type,
             pk = requireNotNull(pk) { "SyncRecord missing pk" },
             hlc = Hlc(requireNotNull(hlc) { "SyncRecord missing hlc" }),
             deletedAt = deletedAt,

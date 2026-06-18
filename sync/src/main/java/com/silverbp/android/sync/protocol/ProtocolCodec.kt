@@ -92,8 +92,11 @@ object ProtocolCodec {
                         }
                         Cbor.MT_ARRAY -> {
                             val n = r.readArrayHeader()
-                            records = (0 until n).map {
-                                SyncRecordCodec.decode(r.readBytes())
+                            // readBytes() advances the reader for every element even
+                            // when the record's type is unknown; decodeOrNull then
+                            // drops it so a newer peer's record can't abort the round.
+                            records = (0 until n).mapNotNull {
+                                SyncRecordCodec.decodeOrNull(r.readBytes())
                             }
                         }
                         else -> error("unexpected major type for key=2")

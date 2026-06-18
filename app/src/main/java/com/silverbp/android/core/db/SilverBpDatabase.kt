@@ -42,7 +42,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         GlucoseReadingEntity::class,
         WeightLogEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -59,6 +59,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
     abstract fun dietDao(): DietDao
     abstract fun medicationDoseDao(): MedicationDoseDao
     abstract fun syncDao(): SyncDao
+    abstract fun localSyncMutationDao(): LocalSyncMutationDao
     abstract fun exerciseLibraryDao(): ExerciseLibraryDao
     abstract fun strengthWorkoutDao(): StrengthWorkoutDao
     abstract fun bpWorkoutAssociationDao(): BpWorkoutAssociationDao
@@ -112,6 +113,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_17_18,
                 MIGRATION_18_19,
                 MIGRATION_19_20,
+                MIGRATION_20_21,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -1036,5 +1038,20 @@ internal val MIGRATION_19_20: Migration = object : Migration(19, 20) {
             "CREATE INDEX IF NOT EXISTS `index_weight_log_memberId_timestamp` " +
                 "ON `weight_log` (`memberId`, `timestamp`)",
         )
+    }
+}
+
+/**
+ * v20 → v21: disambiguate medication dose rows by schedule minute and carry the
+ * originating schedule id. Existing rows default to minute 0 and null scheduleId
+ * so older same-hour data remains readable while new sync payloads can preserve
+ * Android's deterministic `(dayStart, scheduleId)` dose id.
+ */
+internal val MIGRATION_20_21: Migration = object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `medication_dose` ADD COLUMN `scheduledMinute` INTEGER NOT NULL DEFAULT 0",
+        )
+        db.execSQL("ALTER TABLE `medication_dose` ADD COLUMN `scheduleId` TEXT")
     }
 }

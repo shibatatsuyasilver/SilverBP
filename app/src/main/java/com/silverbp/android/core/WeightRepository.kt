@@ -4,6 +4,8 @@ import com.silverbp.android.core.db.WeightDao
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
 import com.silverbp.android.core.member.MemberRepository
+import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -35,6 +37,7 @@ class WeightRepository(
     private val healthConnect: WeightHealthConnectBridge? = null,
     /** Coarse on/off for the Health Connect mirror; defaults off for tests. */
     private val healthConnectEnabled: suspend () -> Boolean = { false },
+    private val localSync: LocalSyncWriter? = null,
 ) {
 
     // ============================================================
@@ -84,7 +87,10 @@ class WeightRepository(
                 null
             },
         )
-        dao.upsert(toSave.toEntity())
+        val entity = toSave.toEntity().copy(
+            hlcUpdatedAt = localSync?.nextHlc() ?: existing?.hlcUpdatedAt ?: "0",
+        )
+        dao.upsert(entity)
 
         // Best-effort one-way mirror to Health Connect; never fails the local
         // save (the bridge swallows its own errors, and the enabled-check is
@@ -98,12 +104,24 @@ class WeightRepository(
         ) {
             val hcId = healthConnect.write(toSave)
             if (hcId != null && hcId != toSave.hcRecordId) {
-                dao.upsert(toSave.copy(hcRecordId = hcId, updatedAt = Instant.now()).toEntity())
+                val mirrored = toSave.copy(hcRecordId = hcId, updatedAt = Instant.now())
+                dao.upsert(
+                    mirrored.toEntity().copy(
+                        hlcUpdatedAt = localSync?.nextHlc() ?: entity.hlcUpdatedAt,
+                    ),
+                )
             }
         }
     }
 
-    suspend fun delete(id: UUID) = dao.delete(id.toString())
+    suspend fun delete(id: UUID) {
+        val pk = id.toString()
+        if (localSync != null) {
+            localSync.delete(SyncEntityType.WEIGHT_LOG, pk)
+        } else {
+            dao.delete(pk)
+        }
+    }
 
     /** Owner-only retry set for the Health Connect mirror (mirrors [BpRepository]). */
     suspend fun findUnmirrored(): List<WeightReading> =

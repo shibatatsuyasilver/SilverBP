@@ -42,8 +42,15 @@ import com.silverbp.android.sync.mapping.SyncRecordMapper
  *   8: note                  (string)
  *   9: createdAtMs           (int)
  *  10: updatedAtMs           (int)
- *  11: caloriesKcal          (double?, iOS-only data — null on Android)
+ *  11: caloriesKcal          (double?)
  *  12: elevationGainMeters   (double?, iOS-only data — null on Android)
+ *  13: activeDurationMillis  (int, appended v21; absent => wall-clock fallback)
+ *  14: heartRateBpm          (int?)
+ *  15: caloriesIsEstimate    (bool)
+ *  16: heartRateIsEstimate   (bool)
+ *  17: distanceUnitRaw       (string?)
+ *  18: floors                (int?)
+ *  19: rawMetricsJson        (string?)
  *  // hcRecordId / hkWorkoutUUID intentionally NOT synced
  *
  * ### route_point payload
@@ -74,6 +81,8 @@ import com.silverbp.android.sync.mapping.SyncRecordMapper
  *   3: scheduledHour         (int)
  *   4: taken                 (bool)
  *   5: updatedAtMs           (int)
+ *   6: scheduledMinute       (int, appended v21; absent => 0)
+ *   7: scheduleId            (string?, appended v21)
  *
  * ### daily_step_log payload
  *   1: steps                 (int)
@@ -110,6 +119,13 @@ class ExerciseSessionSyncMapper(
             // caloriesKcal — now populated on Android by gym-machine OCR sessions.
             11 to (entity.caloriesKcal?.let { SyncValue.Double(it) } ?: SyncValue.Null),
             12 to SyncValue.Null, // elevationGainMeters — Android-side absent
+            13 to SyncValue.Int64(entity.activeDurationMillis),
+            14 to (entity.heartRateBpm?.let { SyncValue.Int64(it.toLong()) } ?: SyncValue.Null),
+            15 to SyncValue.Bool(entity.caloriesIsEstimate),
+            16 to SyncValue.Bool(entity.heartRateIsEstimate),
+            17 to (entity.distanceUnitRaw?.let { SyncValue.Text(it) } ?: SyncValue.Null),
+            18 to (entity.floors?.let { SyncValue.Int64(it.toLong()) } ?: SyncValue.Null),
+            19 to (entity.rawMetricsJson?.let { SyncValue.Text(it) } ?: SyncValue.Null),
         )
         return SyncRecord(
             type = SyncEntityType.EXERCISE_SESSION,
@@ -143,13 +159,8 @@ class ExerciseSessionSyncMapper(
             activityKind = (p[1] as? SyncValue.Text)?.value ?: "walking",
             startedAt = startedAtMs,
             endedAt = endedAtMs,
-            // activeDurationMillis is NOT carried in the wire (iOS-byte-identical
-            // tag layout 1..12 is frozen). Fall back to wall-clock window so
-            // legacy + iOS-sourced sessions behave the same as they did before
-            // v12 locally added the column. When the synced session is updated
-            // again on a v12+ device, the local activeDurationMillis is
-            // preserved if we already had a row for this pk.
-            activeDurationMillis = existing?.activeDurationMillis
+            activeDurationMillis = (p[13] as? SyncValue.Int64)?.value
+                ?: existing?.activeDurationMillis
                 ?: (endedAtMs - startedAtMs).coerceAtLeast(0L),
             distanceMeters = (p[4] as? SyncValue.Double)?.value ?: 0.0,
             stepCount = (p[5] as? SyncValue.Int64)?.value?.toInt(),
@@ -161,16 +172,13 @@ class ExerciseSessionSyncMapper(
             createdAt = (p[9] as? SyncValue.Int64)?.value ?: 0L,
             updatedAt = (p[10] as? SyncValue.Int64)?.value ?: 0L,
             hlcUpdatedAt = record.hlc.packed,
-            // caloriesKcal is the only OCR field carried in the frozen 1..12 wire
-            // layout; the rest (heartRate, estimate flags, distance unit, floors,
-            // rawMetrics) stay device-local. Preserve any local values on update.
             caloriesKcal = (p[11] as? SyncValue.Double)?.value ?: existing?.caloriesKcal,
-            heartRateBpm = existing?.heartRateBpm,
-            caloriesIsEstimate = existing?.caloriesIsEstimate ?: true,
-            heartRateIsEstimate = existing?.heartRateIsEstimate ?: true,
-            distanceUnitRaw = existing?.distanceUnitRaw,
-            floors = existing?.floors,
-            rawMetricsJson = existing?.rawMetricsJson,
+            heartRateBpm = (p[14] as? SyncValue.Int64)?.value?.toInt() ?: existing?.heartRateBpm,
+            caloriesIsEstimate = (p[15] as? SyncValue.Bool)?.value ?: existing?.caloriesIsEstimate ?: true,
+            heartRateIsEstimate = (p[16] as? SyncValue.Bool)?.value ?: existing?.heartRateIsEstimate ?: true,
+            distanceUnitRaw = (p[17] as? SyncValue.Text)?.value ?: existing?.distanceUnitRaw,
+            floors = (p[18] as? SyncValue.Int64)?.value?.toInt() ?: existing?.floors,
+            rawMetricsJson = (p[19] as? SyncValue.Text)?.value ?: existing?.rawMetricsJson,
         )
         if (existing == null) dao.insertSession(entity) else dao.updateSession(entity)
     }
@@ -417,6 +425,8 @@ class MedicationDoseSyncMapper(
             3 to SyncValue.Int64(entity.scheduledHour.toLong()),
             4 to SyncValue.Bool(entity.taken),
             5 to SyncValue.Int64(entity.updatedAt),
+            6 to SyncValue.Int64(entity.scheduledMinute.toLong()),
+            7 to (entity.scheduleId?.let { SyncValue.Text(it) } ?: SyncValue.Null),
         )
         return SyncRecord(
             type = SyncEntityType.MEDICATION_DOSE,
@@ -435,11 +445,18 @@ class MedicationDoseSyncMapper(
         val dayStart = (p[1] as? SyncValue.Int64)?.value ?: 0L
         val medicationId = (p[2] as? SyncValue.Text)?.value ?: return
         val scheduledHour = ((p[3] as? SyncValue.Int64)?.value ?: 0L).toInt()
-        // pk is platform-defined (Android: "med-{dayMs}-{medUUID}", iOS:
-        // UUID string). Dedupe by content tuple instead of pk so the two
-        // platforms don't accumulate duplicate doses for the same regimen
-        // slot. Existing row's id is preserved; new rows take the wire pk.
-        val existing = dao.findByContent(dayStart, medicationId, scheduledHour)
+        val scheduledMinute = ((p[6] as? SyncValue.Int64)?.value ?: 0L).toInt()
+        val scheduleId = (p[7] as? SyncValue.Text)?.value?.takeIf { it.isNotBlank() }
+        // pk is platform-defined (Android: "med-{dayMs}-{scheduleId}", iOS:
+        // UUID string). Prefer scheduleId when present so Android's
+        // deterministic id survives; fall back to hour+minute for older peers.
+        val existing = if (scheduleId != null) {
+            dao.findById(record.pk)
+                ?: dao.findBySchedule(dayStart, medicationId, scheduleId)
+                ?: dao.findById(androidDoseId(dayStart, scheduleId))
+        } else {
+            dao.findByContent(dayStart, medicationId, scheduledHour, scheduledMinute)
+        }
         // B6 LWW gate (in-mapper because dose is content-keyed, not pk-keyed, so
         // the sink-level pk lookup can't find the local row). Drop stale/equal
         // records: a pre-sync local row ("0") always loses to a real inbound HLC.
@@ -450,12 +467,17 @@ class MedicationDoseSyncMapper(
             dayStart = dayStart,
             medicationId = medicationId,
             scheduledHour = scheduledHour,
+            scheduledMinute = scheduledMinute,
+            scheduleId = scheduleId,
             taken = (p[4] as? SyncValue.Bool)?.value ?: false,
             updatedAt = (p[5] as? SyncValue.Int64)?.value ?: 0L,
             hlcUpdatedAt = record.hlc.packed,
         )
         dao.upsert(entity)
     }
+
+    private fun androidDoseId(dayStart: Long, scheduleId: String): String =
+        "med-$dayStart-$scheduleId"
 }
 
 /**

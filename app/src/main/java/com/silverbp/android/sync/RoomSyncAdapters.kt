@@ -10,6 +10,7 @@ import com.silverbp.android.core.db.DietDao
 import com.silverbp.android.core.db.ExerciseDao
 import com.silverbp.android.core.db.ExerciseLibraryDao
 import com.silverbp.android.core.db.FoodLogDao
+import com.silverbp.android.core.db.LocalSyncMutationDao
 import com.silverbp.android.core.db.MedicationDao
 import com.silverbp.android.core.db.MedicationDoseDao
 import com.silverbp.android.core.db.MedicationScheduleDao
@@ -24,36 +25,95 @@ import com.silverbp.android.sync.protocol.SyncRecordSink
 import com.silverbp.android.sync.protocol.SyncRecordSource
 import kotlinx.coroutines.flow.first
 
+internal data class SyncCandidate(
+    val record: SyncRecord,
+    val dependencyRank: Int,
+)
+
+internal fun selectRecordsSince(
+    candidates: List<SyncCandidate>,
+    peerLastHlcSeen: Hlc,
+    limit: Int,
+): List<SyncRecord> {
+    if (limit <= 0) return emptyList()
+    return candidates
+        .asSequence()
+        .filter { it.record.hlc > peerLastHlcSeen }
+        .sortedWith(
+            compareBy<SyncCandidate> { it.record.hlc.packed }
+                .thenBy { it.dependencyRank }
+                .thenBy { it.record.type.tag }
+                .thenBy { it.record.pk },
+        )
+        .take(limit)
+        .toList()
+        .toDependencyOrderedRecords()
+}
+
+private fun List<SyncCandidate>.toDependencyOrderedRecords(): List<SyncRecord> =
+    sortedWith(
+        compareBy<SyncCandidate> { it.dependencyRank }
+            .thenBy { it.record.hlc.packed }
+            .thenBy { it.record.type.tag }
+            .thenBy { it.record.pk },
+    ).map { it.record }
+
+private fun isZeroHlc(stored: String): Boolean =
+    stored == "0" || stored == "0".repeat(Hlc.HEX_LEN)
+
+private fun dependencyRank(type: SyncEntityType): Int = when (type) {
+    SyncEntityType.MEMBER -> 0
+    SyncEntityType.BP_READING -> 10
+    SyncEntityType.EXERCISE_SESSION -> 20
+    SyncEntityType.MEDICATION -> 30
+    SyncEntityType.MEDICATION_SCHEDULE -> 40
+    SyncEntityType.MEDICATION_DOSE -> 50
+    SyncEntityType.DAILY_STEP_LOG -> 60
+    SyncEntityType.ACHIEVEMENT -> 70
+    SyncEntityType.COACH_PLAN -> 80
+    SyncEntityType.COACH_TASK -> 90
+    SyncEntityType.SLEEP_LOG -> 100
+    SyncEntityType.DIET_CHECK -> 110
+    SyncEntityType.EXERCISE_CATALOG_ITEM -> 120
+    SyncEntityType.STRENGTH_WORKOUT_SESSION -> 130
+    SyncEntityType.SET_LOG -> 140
+    SyncEntityType.BP_WORKOUT_ASSOCIATION -> 150
+    SyncEntityType.FOOD_LOG -> 160
+    SyncEntityType.GLUCOSE_READING -> 170
+    SyncEntityType.WEIGHT_LOG -> 180
+    SyncEntityType.ROUTE_POINT -> 190
+    else -> 1_000
+}
+
 /**
  * Bridges the Room `bp_reading` table into the wire-format `SyncRecord`s
  * the [SyncSession] pushes to the peer.
  *
- * MVP semantics: emit every row each round (don't filter by hlcUpdatedAt).
- * Rows that pre-date sync have hlcUpdatedAt='0'; we stamp a fresh HLC at
- * encode time so the receiver's LWW logic accepts them. Bandwidth-optimised
- * incremental sync (filter by peer's lastHlcSeen) lands in Phase 2.
+ * Incremental semantics: emit rows with HLC newer than the peer watermark.
+ * Rows that pre-date sync have hlcUpdatedAt='0'; we stamp and persist a fresh
+ * HLC at encode time so the receiver's LWW logic accepts them and future
+ * rounds can advance by watermark safely.
  */
 class BpRoomSyncSource(
     private val bpDao: BpDao,
     private val mapper: BpReadingSyncMapper,
     private val clock: HlcClock,
+    private val localSyncDao: LocalSyncMutationDao? = null,
 ) : SyncRecordSource {
     override suspend fun recordsSince(
         peerLastHlcSeen: com.silverbp.android.sync.engine.Hlc,
         limit: Int,
     ): List<SyncRecord> {
         val all = bpDao.observeAll().first()
-        return all.take(limit).map { entity ->
-            // Use the row's existing HLC if it has one; otherwise mint a
-            // fresh one so the receiver's LWW gate accepts.
-            val hlc = if (entity.hlcUpdatedAt == "0".repeat(32) || entity.hlcUpdatedAt == "0") {
-                clock.next()
-            } else {
-                com.silverbp.android.sync.engine.Hlc(entity.hlcUpdatedAt)
-            }
-            mapper.encode(entity, hlc)
+        val candidates = all.map { entity ->
+            val hlc = hlcFor(entity.hlcUpdatedAt) { localSyncDao?.stampBpReadingHlc(entity.id, it.packed) }
+            SyncCandidate(mapper.encode(entity, hlc), dependencyRank = dependencyRank(SyncEntityType.BP_READING))
         }
+        return selectRecordsSince(candidates, peerLastHlcSeen, limit)
     }
+
+    private suspend fun hlcFor(stored: String, persist: suspend (Hlc) -> Unit): Hlc =
+        if (isZeroHlc(stored)) clock.next().also { persist(it) } else Hlc(stored)
 }
 
 /**
@@ -75,9 +135,10 @@ class BpRoomSyncSink(
  * so the pairing flow can flush every domain over the same Noise channel.
  *
  * Per-row HLC handling mirrors [BpRoomSyncSource]: pre-Phase-2 rows have
- * `hlcUpdatedAt = "0"` and get a fresh HLC minted at encode time so the
- * receiver's LWW gate accepts them; rows that already carry an HLC are
- * re-encoded with the stored timestamp.
+ * `hlcUpdatedAt = "0"` and get a fresh HLC minted and persisted at encode
+ * time so the receiver's LWW gate accepts them and the peer watermark can
+ * advance safely; rows that already carry an HLC are re-encoded with the stored
+ * timestamp.
  *
  * `limit` is applied across the *combined* stream — emit order puts the
  * small per-domain tables FIRST and `route_point` LAST so a quota-bounded
@@ -140,6 +201,9 @@ class CombinedRoomSyncSource(
     // Body weight (v20). Optional so older callers compile.
     private val weightDao: com.silverbp.android.core.db.WeightDao? = null,
     private val weightMapper: WeightReadingSyncMapper? = null,
+    // Local HLC repair for pre-sync rows. Optional for legacy unit tests; wired
+    // in production so minted HLCs are persisted instead of being transient.
+    private val localSyncDao: LocalSyncMutationDao? = null,
 ) : SyncRecordSource {
 
     override suspend fun recordsSince(
@@ -147,15 +211,20 @@ class CombinedRoomSyncSource(
         limit: Int,
     ): List<SyncRecord> {
         if (limit <= 0) return emptyList()
-        val out = ArrayList<SyncRecord>(limit.coerceAtMost(256))
+        val candidates = ArrayList<SyncCandidate>(256)
 
         // 0. member — emit FIRST so a peer/import has every owning member row
         // before the BP/medication rows that reference it land.
         var memberCount = 0
         if (memberDao != null && memberMapper != null) {
             for (m in memberDao.getAll()) {
-                if (out.size >= limit) return out
-                out += memberMapper.encode(m, hlcFor(m.hlcUpdatedAt))
+                candidates += SyncCandidate(
+                    memberMapper.encode(
+                        m,
+                        hlcFor(m.hlcUpdatedAt) { localSyncDao?.stampMemberHlc(m.id, it.packed) },
+                    ),
+                    dependencyRank = 0,
+                )
                 memberCount++
             }
         }
@@ -163,86 +232,161 @@ class CombinedRoomSyncSource(
         // 1. bp_reading
         val bpRows = bpDao.observeAll().first()
         for (row in bpRows) {
-            if (out.size >= limit) return out
-            out += bpMapper.encode(row, hlcFor(row.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                bpMapper.encode(
+                    row,
+                    hlcFor(row.hlcUpdatedAt) { localSyncDao?.stampBpReadingHlc(row.id, it.packed) },
+                ),
+                dependencyRank = 10,
+            )
         }
 
         // 2. exercise_session
         val sessions = exerciseDao.observeAll().first()
+        val sessionHlcById = HashMap<String, Hlc>(sessions.size)
         for (session in sessions) {
-            if (out.size >= limit) return out
-            out += exerciseSessionMapper.encode(session, hlcFor(session.hlcUpdatedAt))
+            val hlc = hlcFor(session.hlcUpdatedAt) {
+                localSyncDao?.stampExerciseSessionHlc(session.id, it.packed)
+            }
+            sessionHlcById[session.id] = hlc
+            candidates += SyncCandidate(
+                exerciseSessionMapper.encode(
+                    session,
+                    hlc,
+                ),
+                dependencyRank = 20,
+            )
         }
 
         // 3. medication
         val meds = medicationDao.observeAll().first()
         for (med in meds) {
-            if (out.size >= limit) return out
-            out += medicationMapper.encode(med, hlcFor(med.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                medicationMapper.encode(
+                    med,
+                    hlcFor(med.hlcUpdatedAt) { localSyncDao?.stampMedicationHlc(med.id, it.packed) },
+                ),
+                dependencyRank = 30,
+            )
         }
 
         // 4. medication_schedule
         val schedules = medicationScheduleDao.all()
         for (sched in schedules) {
-            if (out.size >= limit) return out
-            out += medicationScheduleMapper.encode(sched, hlcFor(sched.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                medicationScheduleMapper.encode(
+                    sched,
+                    hlcFor(sched.hlcUpdatedAt) {
+                        localSyncDao?.stampMedicationScheduleHlc(sched.id, it.packed)
+                    },
+                ),
+                dependencyRank = 40,
+            )
         }
 
         // 5. medication_dose
         val doses = medicationDoseDao.all()
         for (dose in doses) {
-            if (out.size >= limit) return out
-            out += medicationDoseMapper.encode(dose, hlcFor(dose.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                medicationDoseMapper.encode(
+                    dose,
+                    hlcFor(dose.hlcUpdatedAt) {
+                        localSyncDao?.stampMedicationDoseHlc(dose.id, it.packed)
+                    },
+                ),
+                dependencyRank = 50,
+            )
         }
 
         // 6. daily_step_log
         val stepLogs = achievementDao.listAllStepLogs()
         for (log in stepLogs) {
-            if (out.size >= limit) return out
-            out += dailyStepLogMapper.encode(log, hlcFor(log.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                dailyStepLogMapper.encode(
+                    log,
+                    hlcFor(log.hlcUpdatedAt) {
+                        localSyncDao?.stampDailyStepLogHlc(log.dayStart, it.packed)
+                    },
+                ),
+                dependencyRank = 60,
+            )
         }
 
         // 7. achievement
         val achievements = achievementDao.listAll()
         for (medal in achievements) {
-            if (out.size >= limit) return out
-            out += achievementMapper.encode(medal, hlcFor(medal.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                achievementMapper.encode(
+                    medal,
+                    hlcFor(medal.hlcUpdatedAt) {
+                        localSyncDao?.stampAchievementHlc(medal.kindRaw, it.packed)
+                    },
+                ),
+                dependencyRank = 70,
+            )
         }
 
         // 8a. coach_plan — emit before coach_task so the FK on tasks resolves.
         val coachPlans = coachPlanDao.listAllPlans()
         for (plan in coachPlans) {
-            if (out.size >= limit) return out
-            out += coachPlanMapper.encode(plan, hlcFor(plan.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                coachPlanMapper.encode(
+                    plan,
+                    hlcFor(plan.hlcUpdatedAt) { localSyncDao?.stampCoachPlanHlc(plan.id, it.packed) },
+                ),
+                dependencyRank = 80,
+            )
         }
 
         // 8b. coach_task
         val coachTasks = coachPlanDao.listAllTasks()
         for (task in coachTasks) {
-            if (out.size >= limit) return out
-            out += coachTaskMapper.encode(task, hlcFor(task.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                coachTaskMapper.encode(
+                    task,
+                    hlcFor(task.hlcUpdatedAt) { localSyncDao?.stampCoachTaskHlc(task.id, it.packed) },
+                ),
+                dependencyRank = 90,
+            )
         }
 
         // 9. sleep_log
         val sleeps = sleepDao.listAll()
         for (s in sleeps) {
-            if (out.size >= limit) return out
-            out += sleepLogMapper.encode(s, hlcFor(s.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                sleepLogMapper.encode(
+                    s,
+                    hlcFor(s.hlcUpdatedAt) { localSyncDao?.stampSleepLogHlc(s.dayStart, it.packed) },
+                ),
+                dependencyRank = 100,
+            )
         }
 
         // 10. diet_check
         val diets = dietDao.listAll()
         for (d in diets) {
-            if (out.size >= limit) return out
-            out += dietCheckMapper.encode(d, hlcFor(d.hlcUpdatedAt))
+            candidates += SyncCandidate(
+                dietCheckMapper.encode(
+                    d,
+                    hlcFor(d.hlcUpdatedAt) { localSyncDao?.stampDietCheckHlc(d.dayStart, it.packed) },
+                ),
+                dependencyRank = 110,
+            )
         }
 
         // 11. exercise_catalog_item
         var catalogCount = 0
         if (exerciseLibraryDao != null && exerciseCatalogItemMapper != null) {
             for (item in exerciseLibraryDao.allOnce()) {
-                if (out.size >= limit) return out
-                out += exerciseCatalogItemMapper.encode(item, hlcFor(item.hlcUpdatedAt))
+                candidates += SyncCandidate(
+                    exerciseCatalogItemMapper.encode(
+                        item,
+                        hlcFor(item.hlcUpdatedAt) {
+                            localSyncDao?.stampExerciseCatalogItemHlc(item.id, it.packed)
+                        },
+                    ),
+                    dependencyRank = 120,
+                )
                 catalogCount++
             }
         }
@@ -253,15 +397,27 @@ class CombinedRoomSyncSource(
         if (strengthWorkoutDao != null && strengthWorkoutSessionMapper != null && setLogMapper != null) {
             val strengthSessions = strengthWorkoutDao.observeAllSessions().first()
             for (s in strengthSessions) {
-                if (out.size >= limit) return out
-                out += strengthWorkoutSessionMapper.encode(s, hlcFor(s.hlcUpdatedAt))
+                candidates += SyncCandidate(
+                    strengthWorkoutSessionMapper.encode(
+                        s,
+                        hlcFor(s.hlcUpdatedAt) {
+                            localSyncDao?.stampStrengthWorkoutSessionHlc(s.id, it.packed)
+                        },
+                    ),
+                    dependencyRank = 130,
+                )
                 strengthSessionCount++
             }
             // 12b. set_log
             for (s in strengthSessions) {
                 for (set in strengthWorkoutDao.setsForSession(s.id)) {
-                    if (out.size >= limit) return out
-                    out += setLogMapper.encode(set, hlcFor(set.hlcUpdatedAt))
+                    candidates += SyncCandidate(
+                        setLogMapper.encode(
+                            set,
+                            hlcFor(set.hlcUpdatedAt) { localSyncDao?.stampSetLogHlc(set.id, it.packed) },
+                        ),
+                        dependencyRank = 140,
+                    )
                     setLogCount++
                 }
             }
@@ -271,8 +427,15 @@ class CombinedRoomSyncSource(
         var assocCount = 0
         if (bpWorkoutAssociationDao != null && bpWorkoutAssociationMapper != null) {
             for (assoc in bpWorkoutAssociationDao.listAll()) {
-                if (out.size >= limit) return out
-                out += bpWorkoutAssociationMapper.encode(assoc, hlcFor(assoc.hlcUpdatedAt))
+                candidates += SyncCandidate(
+                    bpWorkoutAssociationMapper.encode(
+                        assoc,
+                        hlcFor(assoc.hlcUpdatedAt) {
+                            localSyncDao?.stampBpWorkoutAssociationHlc(assoc.id, it.packed)
+                        },
+                    ),
+                    dependencyRank = 150,
+                )
                 assocCount++
             }
         }
@@ -281,8 +444,13 @@ class CombinedRoomSyncSource(
         var foodLogCount = 0
         if (foodLogDao != null && foodLogMapper != null) {
             for (log in foodLogDao.all()) {
-                if (out.size >= limit) return out
-                out += foodLogMapper.encode(log, hlcFor(log.hlcUpdatedAt))
+                candidates += SyncCandidate(
+                    foodLogMapper.encode(
+                        log,
+                        hlcFor(log.hlcUpdatedAt) { localSyncDao?.stampFoodLogHlc(log.id, it.packed) },
+                    ),
+                    dependencyRank = 160,
+                )
                 foodLogCount++
             }
         }
@@ -292,8 +460,15 @@ class CombinedRoomSyncSource(
         var glucoseCount = 0
         if (glucoseDao != null && glucoseMapper != null) {
             for (row in glucoseDao.getAll()) {
-                if (out.size >= limit) return out
-                out += glucoseMapper.encode(row, hlcFor(row.hlcUpdatedAt))
+                candidates += SyncCandidate(
+                    glucoseMapper.encode(
+                        row,
+                        hlcFor(row.hlcUpdatedAt) {
+                            localSyncDao?.stampGlucoseReadingHlc(row.id, it.packed)
+                        },
+                    ),
+                    dependencyRank = 170,
+                )
                 glucoseCount++
             }
         }
@@ -303,23 +478,59 @@ class CombinedRoomSyncSource(
         var weightCount = 0
         if (weightDao != null && weightMapper != null) {
             for (row in weightDao.getAll()) {
-                if (out.size >= limit) return out
-                out += weightMapper.encode(row, hlcFor(row.hlcUpdatedAt))
+                candidates += SyncCandidate(
+                    weightMapper.encode(
+                        row,
+                        hlcFor(row.hlcUpdatedAt) { localSyncDao?.stampWeightLogHlc(row.id, it.packed) },
+                    ),
+                    dependencyRank = 180,
+                )
                 weightCount++
             }
         }
 
-        val countAfterScalar = out.size
-
-        // 8. route_point — emitted LAST so a single GPS-heavy session can't
-        // starve the small per-domain tables above. Orphan points (parent
-        // session not yet on receiver) are silently dropped by the apply
-        // path; subsequent rounds catch them once the parent has landed.
+        // 17. route_point — route rows are children of exercise_session. Repair
+        // old equal/lower point HLCs so HLC-prefix batching sends the parent
+        // before its points and the peer watermark cannot strand orphan points.
         val points = exerciseDao.allPoints()
         for (point in points) {
-            if (out.size >= limit) return out
-            out += routePointMapper.encode(point, hlcFor(point.hlcUpdatedAt))
+            val pointHlc = hlcFor(point.hlcUpdatedAt) {
+                localSyncDao?.stampRoutePointHlc(point.id, it.packed)
+            }
+            val parentHlc = sessionHlcById[point.sessionId]
+            val safePointHlc = if (parentHlc != null && pointHlc <= parentHlc) {
+                clock.observe(parentHlc)
+                clock.next().also { localSyncDao?.stampRoutePointHlc(point.id, it.packed) }
+            } else {
+                pointHlc
+            }
+            candidates += SyncCandidate(
+                routePointMapper.encode(
+                    point,
+                    safePointHlc,
+                ),
+                dependencyRank = 190,
+            )
         }
+
+        if (syncDao != null) {
+            for (t in syncDao.tombstonesSince(peerLastHlcSeen.packed)) {
+                val type = SyncEntityType.entries.firstOrNull { it.tableName == t.entityType } ?: continue
+                candidates += SyncCandidate(
+                    SyncRecord(
+                        type = type,
+                        pk = t.pk,
+                        hlc = Hlc(t.hlc),
+                        deletedAt = t.deletedAt,
+                        payload = emptyMap(),
+                    ),
+                    dependencyRank = dependencyRank(type),
+                )
+            }
+        }
+
+        val out = selectRecordsSince(candidates, peerLastHlcSeen, limit)
+        val routeCount = out.count { it.type == SyncEntityType.ROUTE_POINT }
 
         Log.i(
             "CombinedSyncSrc",
@@ -330,15 +541,17 @@ class CombinedRoomSyncSource(
                 "catalog=$catalogCount strSession=$strengthSessionCount set=$setLogCount " +
                 "assoc=$assocCount food=$foodLogCount glucose=$glucoseCount " +
                 "weight=$weightCount " +
-                "route=${out.size - countAfterScalar} " +
+                "route=$routeCount " +
                 "(total=${out.size}/limit=$limit)",
         )
         return out
     }
 
     /** Mints a fresh HLC for legacy rows and reuses the stored one otherwise. */
-    private fun hlcFor(stored: String): Hlc =
-        if (stored == "0".repeat(32) || stored == "0") clock.next() else Hlc(stored)
+    private suspend fun hlcFor(stored: String, persist: suspend (Hlc) -> Unit): Hlc =
+        if (isZeroHlc(stored)) clock.next().also { persist(it) } else Hlc(stored)
+
+    private suspend fun hlcFor(stored: String): Hlc = hlcFor(stored) {}
 
     // ============================================================
     // Backup snapshot — full table dump for .sbpbk export

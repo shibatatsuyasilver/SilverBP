@@ -199,6 +199,7 @@ object CoachNotifier {
             putExtra(MedicationActionReceiver.EXTRA_SCHEDULE_ID, schedule.id)
             putExtra(MedicationActionReceiver.EXTRA_DAY_START, dayStart)
             putExtra(MedicationActionReceiver.EXTRA_SCHEDULED_HOUR, schedule.hour)
+            putExtra(MedicationActionReceiver.EXTRA_SCHEDULED_MINUTE, schedule.minute)
             putExtra(MedicationActionReceiver.EXTRA_NOTIF_ID, notifId)
         }
         val takenPi = PendingIntent.getBroadcast(

@@ -75,6 +75,7 @@ import com.silverbp.android.sync.MedicationScheduleSyncMapper
 import com.silverbp.android.sync.MedicationSyncMapper
 import com.silverbp.android.sync.MemberSyncMapper
 import com.silverbp.android.sync.RoutePointSyncMapper
+import com.silverbp.android.sync.RoomLocalSyncWriter
 import com.silverbp.android.sync.SyncCoordinator
 import com.silverbp.android.sync.pairing.EncryptedPairingKeyStore
 import com.silverbp.android.sync.pairing.PairingKeyStore
@@ -116,7 +117,7 @@ object ServiceLocator {
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 
     /** Member (family) profiles + the single-owner invariant; anchor for the HC mirror guard. */
-    val memberRepository: MemberRepository by lazy { MemberRepository(database.memberDao()) }
+    val memberRepository: MemberRepository by lazy { MemberRepository(database.memberDao(), localSyncWriter) }
 
     /**
      * Currently-selected member, persisted device-locally (NOT in settings sync).
@@ -135,6 +136,7 @@ object ServiceLocator {
             // integration switched on. The bridge still independently checks
             // the BP write permission before inserting.
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+            localSync = localSyncWriter,
         )
     }
 
@@ -151,6 +153,7 @@ object ServiceLocator {
             members = memberRepository,
             healthConnect = healthConnectGlucoseBridge,
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+            localSync = localSyncWriter,
         )
     }
 
@@ -167,6 +170,7 @@ object ServiceLocator {
             members = memberRepository,
             healthConnect = healthConnectWeightBridge,
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+            localSync = localSyncWriter,
         )
     }
 
@@ -178,6 +182,7 @@ object ServiceLocator {
             dietDao = database.dietDao(),
             healthConnect = healthConnectNutritionBridge,
             healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+            localSync = localSyncWriter,
         )
     }
 
@@ -254,7 +259,7 @@ object ServiceLocator {
     }
 
     val exerciseRepository: ExerciseRepository by lazy {
-        ExerciseRepository(database.exerciseDao(), healthConnectExerciseBridge) {
+        ExerciseRepository(database.exerciseDao(), healthConnectExerciseBridge, localSyncWriter) {
             achievementStore.launchRefresh()
         }
     }
@@ -310,6 +315,7 @@ object ServiceLocator {
             doses = database.medicationDoseDao(),
             medicationSchedules = database.medicationScheduleDao(),
             medications = database.medicationDao(),
+            localSync = localSyncWriter,
         )
     }
 
@@ -470,6 +476,10 @@ object ServiceLocator {
         SyncCoordinator(deviceId = syncDeviceId, keyStore = pairingKeyStore)
     }
 
+    val localSyncWriter: RoomLocalSyncWriter by lazy {
+        RoomLocalSyncWriter(database.localSyncMutationDao(), syncCoordinator.clock)
+    }
+
     // ============================================================
     // Backup (encrypted .sbpbk snapshot)
     // ============================================================
@@ -563,6 +573,7 @@ object ServiceLocator {
                     glucoseMapper = glucoseReadingSyncMapper,
                     weightDao = database.weightDao(),
                     weightMapper = weightReadingSyncMapper,
+                    localSyncDao = database.localSyncMutationDao(),
                 )
             },
             sinkFactory = {
@@ -602,7 +613,7 @@ object ServiceLocator {
             appVersionCode = BuildConfig.VERSION_CODE,
             // Room schema version — keep in lock-step with SilverBpDatabase.
             // 升 schema 時改這裡(備份檔頭會記下,匯入時做相容處理).
-            schemaVersion = 19,
+            schemaVersion = 21,
             // 向後相容:匯入 pre-v18 (無 member 表) 備份時合成 owner,
             // 讓無 memberId 的讀數歸 owner。
             ensureOwnerId = { memberRepository.ownerId() },
