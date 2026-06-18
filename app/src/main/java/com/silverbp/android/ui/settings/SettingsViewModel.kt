@@ -11,6 +11,7 @@ import com.silverbp.android.coach.NutritionBackfillWorker
 import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.health.GlucoseSyncWorker
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.security.DbCipherMigration
@@ -32,6 +33,16 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun coreHealthConnectPermissions(): Set<String> =
+    ServiceLocator.healthConnectExerciseBridge.readPermissions +
+        ServiceLocator.healthConnectExerciseBridge.permissions +
+        ServiceLocator.healthConnectBpBridge.permissions +
+        ServiceLocator.healthConnectGlucoseBridge.permissions +
+        ServiceLocator.healthConnectNutritionBridge.permissions +
+        ServiceLocator.healthConnectWeightBridge.writePermissions +
+        ServiceLocator.healthConnectWeightBridge.readPermissions +
+        ServiceLocator.healthConnectBridge.backgroundReadPermissions
 
 class SettingsViewModel(
     private val repo: UserSettingsRepository = ServiceLocator.userSettings,
@@ -62,7 +73,7 @@ class SettingsViewModel(
     }
 
     private val _hcDenied = Channel<Unit>(capacity = Channel.BUFFERED)
-    /** Emits when the user dismissed/denied the Health Connect READ_STEPS prompt. UI shows a snackbar. */
+    /** Emits when the user dismissed/denied the Health Connect permission prompt. UI shows a snackbar. */
     val hcPermissionDenied: Flow<Unit> = _hcDenied.receiveAsFlow()
 
     fun setGuideline(g: HypertensionGuideline) { viewModelScope.launch { repo.setGuideline(g) } }
@@ -87,16 +98,18 @@ class SettingsViewModel(
     /**
      * Called from the composable's permission-result callback after the user
      * has interacted with the Health Connect permission sheet. We only flip
-     * `enableHealthConnect` to true when every required read permission was
-     * granted; otherwise the toggle stays off and we emit a denied event so
-     * the UI can prompt the user to open Health Connect manually.
+     * `enableHealthConnect` to true when every permission requested by the
+     * master integration toggle was granted; otherwise the toggle stays off and
+     * we emit a denied event so the UI can prompt the user to open Health
+     * Connect manually.
      */
     fun onHealthConnectGrantResult(granted: Set<String>) {
         viewModelScope.launch {
-            val required = ServiceLocator.healthConnectExerciseBridge.readPermissions
+            val required = coreHealthConnectPermissions()
             if (granted.containsAll(required)) {
                 repo.setHealthConnectEnabled(true)
                 StepSyncScheduler.schedule(ServiceLocator.context)
+                GlucoseSyncWorker.enqueue(ServiceLocator.context)
                 ServiceLocator.achievementStore.launchRefresh()
             } else {
                 _hcDenied.trySend(Unit)

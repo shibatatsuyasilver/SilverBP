@@ -126,21 +126,10 @@ fun SettingsScreen(
     //   • steps READ      — medals / step backfill
     //   • exercise WRITE  — finished workouts (+route) mirror to HC
     //   • blood-pressure WRITE — readings flow into Google Health / other apps
+    //   • blood-glucose WRITE — glucose readings mirror to HC
     //   • weight WRITE+READ — owner weight mirrors out; smart-scale weight reads in
     // Sleep & diet reads stay behind their own Coach toggles further down.
-    val hcCorePerms = remember {
-        ServiceLocator.healthConnectExerciseBridge.readPermissions +
-            ServiceLocator.healthConnectExerciseBridge.permissions +
-            ServiceLocator.healthConnectBpBridge.permissions +
-            // 飲食: mirror logged meals into Health Connect as NutritionRecord.
-            ServiceLocator.healthConnectNutritionBridge.permissions +
-            // 體重: mirror the owner's weight out (WRITE) and import smart-scale /
-            // other-app weight back in (READ) — unlike BP/glucose this is two-way.
-            ServiceLocator.healthConnectWeightBridge.writePermissions +
-            ServiceLocator.healthConnectWeightBridge.readPermissions +
-            // Android 15+: the background step-sync worker reads nothing without this.
-            ServiceLocator.healthConnectBridge.backgroundReadPermissions
-    }
+    val hcCorePerms = remember { coreHealthConnectPermissions() }
     // 1.1.0's request contract is platform-aware: it delegates to the built-in
     // Health Connect module on Android 14+ and the standalone HC app on
     // Android 13, so one launcher covers both. (The old dual-launcher hack
@@ -573,6 +562,20 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.settings_privacy_policy))
+                }
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(BuildConfig.TERMS_POLICY_URL),
+                            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                            context.startActivity(intent)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_terms_of_service))
                 }
                 TextButton(
                     onClick = { vm.reviewConsent() },

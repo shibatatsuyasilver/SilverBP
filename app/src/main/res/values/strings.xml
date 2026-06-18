@@ -428,6 +428,7 @@
 
     <!-- Settings — privacy policy actions -->
     <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="settings_terms_of_service">Terms of service</string>
     <string name="settings_review_consent">Review consent</string>
 
     <!-- Settings — recognition backend selector -->
@@ -500,7 +501,7 @@
     <string name="model_download_progress">Download progress %1$d%%</string>
 
     <!-- Settings — Health Connect snackbar -->
-    <string name="settings_hc_steps_denied">Health Connect permission denied — please grant \"read steps\" manually.</string>
+    <string name="settings_hc_steps_denied">Health Connect permissions denied — please grant the requested permissions manually.</string>
     <string name="settings_hc_open_action">Open Health Connect</string>
 
     <!-- Chat sessions drawer -->
@@ -807,10 +808,10 @@
     <string name="hc_rationale_title">Data usage</string>
     <string name="hc_rationale_close">Close</string>
     <string name="hc_rationale_heading">Why does SilverBP need Health Connect access?</string>
-    <string name="hc_rationale_read_label">Read steps / sleep / nutrition</string>
-    <string name="hc_rationale_read_body">Used for daily step achievement badges, streaks, and sleep and nutrition trends — combined with your blood-pressure readings for a fuller picture of your health. With your permission these are also read in the background to backfill missing days and keep your trends current.</string>
-    <string name="hc_rationale_write_label">Write blood pressure / blood glucose / exercise + route / nutrition</string>
-    <string name="hc_rationale_write_body">When you add a blood-pressure reading, a blood-glucose reading, finish an exercise (including its GPS route), or log a meal, SilverBP can optionally write it to Health Connect so other health apps such as Google Health can read it (you stay in control and can turn it off at any time).</string>
+    <string name="hc_rationale_read_label">Read steps / sleep / nutrition / weight</string>
+    <string name="hc_rationale_read_body">Used for daily step achievement badges, streaks, and sleep, nutrition, and weight trends — combined with your blood-pressure readings for a fuller picture of your health. With your permission these are also read in the background to backfill missing days and keep your trends current.</string>
+    <string name="hc_rationale_write_label">Write blood pressure / blood glucose / weight / exercise + route / nutrition</string>
+    <string name="hc_rationale_write_body">When you add a blood-pressure reading, a blood-glucose reading, a weight reading, finish an exercise (including its GPS route), or log a meal, SilverBP can optionally write it to Health Connect so other health apps such as Google Health can read it (you stay in control and can turn it off at any time).</string>
     <string name="hc_rationale_usage_label">How is the data used?</string>
     <string name="hc_rationale_usage_body">• Everything is computed and stored on your phone; it is not uploaded to our servers. The only exception is the optional Google Drive backup, which uploads an end-to-end-encrypted snapshot to your own Drive if you turn it on.\n• You can revoke any permission at any time in the system Health Connect settings.\n• After revoking, SilverBP stops background syncing; your existing local records are not deleted.</string>
     <string name="hc_rationale_disclaimer">The content provided by this app is for reference only and is not a medical device or medical diagnosis.</string>

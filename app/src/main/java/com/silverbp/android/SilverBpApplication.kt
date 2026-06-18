@@ -12,6 +12,7 @@ import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseNotification
 import com.silverbp.android.health.BpSyncWorker
+import com.silverbp.android.health.ExerciseSyncWorker
 import com.silverbp.android.health.GlucoseSyncWorker
 import com.silverbp.android.health.WeightSyncWorker
 import com.silverbp.android.nutrition.BulkNutritionStore
@@ -50,7 +51,7 @@ class SilverBpApplication : Application() {
         appScope.launch { sweepOldChatImages() }
         appScope.launch { reconcileStepSync() }
         appScope.launch { reconcileCoach() }
-        appScope.launch { reconcileBpSync() }
+        appScope.launch { reconcileHealthConnectMirrors() }
         appScope.launch { reconcileEntitlement() }
 
         // Watcher fires anomaly notifications in real time as the user logs
@@ -112,19 +113,25 @@ class SilverBpApplication : Application() {
     }
 
     /**
-     * Kick the Health Connect blood-pressure + blood-glucose + body-weight mirror
-     * retries on every cold start when the integration is on. Each worker
-     * self-no-ops if its respective permission is missing, so this unconditional
-     * enqueue is safe and catches any readings whose inline mirror failed while HC
-     * was unavailable (the weight worker additionally imports foreign scale data).
+     * Kick the Health Connect blood-pressure + blood-glucose + body-weight +
+     * exercise mirror retries on every cold start when the integration is on.
+     * Workers self-no-op if their respective permission is missing, except the
+     * glucose worker, which we enqueue only after confirming the write
+     * permission so older enabled toggles don't schedule a known-no-op job.
      */
-    private suspend fun reconcileBpSync() {
+    private suspend fun reconcileHealthConnectMirrors() {
         val enabled = runCatching { ServiceLocator.userSettings.flow.first().enableHealthConnect }
             .getOrDefault(false)
         if (enabled) {
             BpSyncWorker.enqueue(this)
-            GlucoseSyncWorker.enqueue(this)
+            val hasGlucoseWrite = runCatching {
+                ServiceLocator.healthConnectGlucoseBridge.hasWritePermission()
+            }.getOrDefault(false)
+            if (hasGlucoseWrite) {
+                GlucoseSyncWorker.enqueue(this)
+            }
             WeightSyncWorker.enqueue(this)
+            ExerciseSyncWorker.enqueue(this)
         }
     }
 

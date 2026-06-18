@@ -35,6 +35,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise_session WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): ExerciseSessionEntity?
 
+    @Query("SELECT * FROM exercise_session WHERE hcRecordId IS NULL ORDER BY startedAt ASC")
+    suspend fun findUnmirrored(): List<ExerciseSessionEntity>
+
     @Query("SELECT * FROM route_point WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     fun observePoints(sessionId: String): Flow<List<RoutePointEntity>>
 
