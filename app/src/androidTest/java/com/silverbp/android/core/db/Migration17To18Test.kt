@@ -23,7 +23,7 @@ import org.junit.runner.RunWith
  *  - the empty-`user_profile` branch synthesizes a single owner and still
  *    backfills existing readings to it.
  *
- * Like [Migration13To14Test], this drives the Migration object directly instead
+ * Like [Migration14To15Test], this drives the Migration object directly instead
  * of [androidx.room.testing.MigrationTestHelper] (which would need the exported
  * schema JSONs wired as androidTest assets — this module doesn't configure that).
  * Requires a connected device/emulator: `./gradlew :app:connectedDebugAndroidTest`.

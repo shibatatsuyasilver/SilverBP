@@ -95,6 +95,8 @@
     <string name="model_download_notif_title">正在下載辨識模型</string>
     <string name="model_download_notif_text">可放著切到背景,我們會繼續下載。</string>
     <string name="model_download_notif_text_pct">下載中… %1$d%% — 可放著切到背景。</string>
+    <string name="model_download_notif_short_indeterminate">下載</string>
+    <string name="model_download_notification_permission_denied">模型會繼續下載，但鎖屏與原子島進度需要通知權限。</string>
     <string name="model_delete_dialog_title">刪除此模型?</string>
     <string name="model_delete_dialog_message">%1$s（約 %2$.1f GB）將被永久刪除以釋放空間，你之後可以再次下載。</string>
 

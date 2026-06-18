@@ -15,12 +15,12 @@ class NoiseXkTest {
         val initiator = NoiseXkHandshake(
             role = NoiseXkHandshake.Role.INITIATOR,
             localStatic = initiatorStatic,
-            remoteStatic = NoiseXk.publicKeyBytes(responderStatic.public),
+            remoteStatic = NoiseXk.publicKeyBytes(responderStatic.publicKey),
         )
         val responder = NoiseXkHandshake(
             role = NoiseXkHandshake.Role.RESPONDER,
             localStatic = responderStatic,
-            remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.public),
+            remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
         )
 
         // m1: -> e, es
@@ -67,12 +67,12 @@ class NoiseXkTest {
         val initiator = NoiseXkHandshake(
             role = NoiseXkHandshake.Role.INITIATOR,
             localStatic = initiatorStatic,
-            remoteStatic = NoiseXk.publicKeyBytes(attacker.public),     // wrong
+            remoteStatic = NoiseXk.publicKeyBytes(attacker.publicKey),     // wrong
         )
         val responder = NoiseXkHandshake(
             role = NoiseXkHandshake.Role.RESPONDER,
             localStatic = realResponder,                                 // real
-            remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.public),
+            remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
         )
 
         val m1 = initiator.writeFirst("trying".toByteArray())
@@ -84,12 +84,12 @@ class NoiseXkTest {
     @Test
     fun public_key_round_trip_via_raw_bytes() {
         val kp = NoiseXk.generateKeyPair()
-        val raw = NoiseXk.publicKeyBytes(kp.public)
+        val raw = NoiseXk.publicKeyBytes(kp.publicKey)
         assertEquals(NoiseXk.DH_LEN, raw.size)
         val rebuilt = NoiseXk.publicKeyFromBytes(raw)
         // Compute DH(self_priv, rebuilt_pub) — should match dh(self_priv, original_pub)
-        val a = NoiseXk.dh(kp.private, kp.public)
-        val b = NoiseXk.dh(kp.private, rebuilt)
+        val a = NoiseXk.dh(kp.privateKey, kp.publicKey)
+        val b = NoiseXk.dh(kp.privateKey, rebuilt)
         assertArrayEquals(a, b)
     }
 }

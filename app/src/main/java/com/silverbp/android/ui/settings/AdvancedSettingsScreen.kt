@@ -58,6 +58,7 @@ import com.silverbp.android.recognition.ModelVariant
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA
+import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
@@ -78,6 +79,7 @@ fun AdvancedSettingsScreen(
     val scope = rememberCoroutineScope()
     val state by vm.state.collectAsStateWithLifecycle()
     val modelPhase by ServiceLocator.modelLoadStatus.phase.collectAsStateWithLifecycle()
+    val requestModelDownloadPermission = rememberModelDownloadPermissionGate()
     var hfToken by remember { mutableStateOf("") }
     // Bumped after a model delete so each ModelVariantRow re-reads the disk and
     // drops its "Downloaded" chip (file existence isn't a reactive State).
@@ -181,7 +183,9 @@ fun AdvancedSettingsScreen(
                                 ModelBootstrap.switchTo(context, variant)
                             },
                             onDownload = {
-                                ModelBootstrap.downloadAndPreload(context, variant, hfToken.takeIf { it.isNotBlank() })
+                                requestModelDownloadPermission {
+                                    ModelBootstrap.downloadAndPreload(context, variant, hfToken.takeIf { it.isNotBlank() })
+                                }
                             },
                             onDelete = { pendingDelete = variant },
                             canDelete = !ServiceLocator.modelLoadStatus.isBusy,

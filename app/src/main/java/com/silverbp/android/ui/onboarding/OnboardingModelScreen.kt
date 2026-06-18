@@ -55,6 +55,7 @@ import com.silverbp.android.recognition.DeviceCapabilities.RecommendedBackend
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
@@ -83,6 +84,7 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
+    val requestModelDownloadPermission = rememberModelDownloadPermissionGate()
 
     var recommended by remember { mutableStateOf<RecommendedBackend?>(null) }
     var selected by remember { mutableStateOf<RecognitionBackend?>(null) }
@@ -146,7 +148,9 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     showDownloadDialog = false
-                    applyAndFinish(RecognitionBackend.Local, download = true)
+                    requestModelDownloadPermission {
+                        applyAndFinish(RecognitionBackend.Local, download = true)
+                    }
                 }) { Text(stringResource(R.string.onboarding_model_download_confirm)) }
             },
             dismissButton = {

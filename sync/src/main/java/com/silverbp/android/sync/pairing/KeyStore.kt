@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.silverbp.android.sync.transport.NoiseXk
 import java.security.SecureRandom
 import java.util.Base64
 
@@ -33,8 +34,7 @@ interface PairingKeyStore {
      *
      * Returns `(privRaw32, pubRaw32)`. JCA can't derive an X25519 pubkey
      * from the private scalar alone at runtime, so we persist both bytes
-     * captured at generation time and rebuild the [java.security.KeyPair]
-     * via XECPrivateKeySpec / XECPublicKeySpec at use sites.
+     * captured at generation time and reused as raw key material at use sites.
      */
     fun loadOrCreateStaticKey(): Pair<ByteArray, ByteArray>
 
@@ -99,49 +99,17 @@ class EncryptedPairingKeyStore(
         if (priv != null && priv.size == 32 && pub != null && pub.size == 32) {
             return priv to pub
         }
-        // First use — generate a real X25519 keypair via JCA and persist both halves.
-        val gen = java.security.KeyPairGenerator.getInstance("X25519")
-        val kp = gen.generateKeyPair()
-        val privRaw = extractX25519PrivateRaw(kp.private)
-        val pubRaw = com.silverbp.android.sync.transport.NoiseXk.publicKeyBytes(kp.public)
+        // First use: generate raw X25519 bytes without relying on Android's
+        // optional JCA provider support for X25519.
+        val kp = NoiseXk.generateKeyPair()
+        val privRaw = kp.privateKey
+        val pubRaw = kp.publicKey
         prefs.edit().apply {
             putString(PairingKeyStore.ACCOUNT_STATIC_PRIV, Base64.getEncoder().encodeToString(privRaw))
             putString(PairingKeyStore.ACCOUNT_STATIC_PUB, Base64.getEncoder().encodeToString(pubRaw))
             apply()
         }
         return privRaw to pubRaw
-    }
-
-    /**
-     * Extract the raw 32-byte scalar from a JCA X25519 PrivateKey.
-     *
-     * Three fallback paths because Android's provider zoo is inconsistent:
-     *  1. Direct `XECPrivateKey` cast — works on JDK reference impl.
-     *  2. KeyFactory.getKeySpec(...) — works on conscrypt, which has its own
-     *     `OpenSSLX25519PrivateKey` that does NOT implement `XECPrivateKey`
-     *     (caught at runtime on vivo OriginOS / many OEM ROMs).
-     *  3. PKCS8 ASN.1 trailing 32 bytes — last resort, brittle but standard.
-     */
-    private fun extractX25519PrivateRaw(privateKey: java.security.PrivateKey): ByteArray {
-        // Path 1: standard XECPrivateKey interface.
-        val asXec = privateKey as? java.security.interfaces.XECPrivateKey
-        if (asXec != null) {
-            val opt = asXec.scalar
-            if (opt.isPresent) return opt.get()
-        }
-        // Path 2: cross-provider key-spec extraction (works on conscrypt).
-        runCatching {
-            val spec = java.security.KeyFactory.getInstance("X25519")
-                .getKeySpec(privateKey, java.security.spec.XECPrivateKeySpec::class.java)
-            return spec.scalar
-        }
-        // Path 3: PKCS8 envelope trailing 32 bytes are the OCTET STRING content.
-        val encoded = privateKey.encoded
-            ?: error("X25519 private key has no encoded form on this provider")
-        require(encoded.size >= 32) {
-            "PKCS8 encoded X25519 key shorter than 32 bytes: ${encoded.size}"
-        }
-        return encoded.takeLast(32).toByteArray()
     }
 
     companion object {

@@ -40,7 +40,7 @@ class SyncSessionTest {
                     handshake = NoiseXkHandshake(
                         role = NoiseXkHandshake.Role.INITIATOR,
                         localStatic = initiatorStatic,
-                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.public),
+                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.publicKey),
                     ),
                     channel = deviceAChannel,
                 )
@@ -50,7 +50,7 @@ class SyncSessionTest {
                     handshake = NoiseXkHandshake(
                         role = NoiseXkHandshake.Role.RESPONDER,
                         localStatic = responderStatic,
-                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.public),
+                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
                     ),
                     channel = deviceBChannel,
                 )
@@ -116,7 +116,7 @@ class SyncSessionTest {
                     handshake = NoiseXkHandshake(
                         role = NoiseXkHandshake.Role.INITIATOR,
                         localStatic = initiatorStatic,
-                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.public),
+                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.publicKey),
                     ),
                     channel = deviceAChannel,
                 )
@@ -126,7 +126,7 @@ class SyncSessionTest {
                     handshake = NoiseXkHandshake(
                         role = NoiseXkHandshake.Role.RESPONDER,
                         localStatic = responderStatic,
-                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.public),
+                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
                     ),
                     channel = deviceBChannel,
                 )

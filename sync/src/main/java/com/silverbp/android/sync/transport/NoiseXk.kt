@@ -1,15 +1,8 @@
 package com.silverbp.android.sync.transport
 
-import java.security.KeyFactory
-import java.security.KeyPair
-import java.security.KeyPairGenerator
+import com.google.crypto.tink.subtle.X25519
 import java.security.MessageDigest
-import java.security.PrivateKey
-import java.security.PublicKey
-import java.security.spec.NamedParameterSpec
-import java.security.spec.XECPublicKeySpec
 import javax.crypto.Cipher
-import javax.crypto.KeyAgreement
 import javax.crypto.Mac
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -44,75 +37,45 @@ object NoiseXk {
         class NonceOverflow : NoiseException("ChaCha20 nonce counter exhausted")
     }
 
-    /** Generate a fresh X25519 keypair. */
-    fun generateKeyPair(): KeyPair {
-        val gen = KeyPairGenerator.getInstance("X25519")
-        return gen.generateKeyPair()
+    /** Generate a fresh X25519 keypair without relying on Android/JCA providers. */
+    fun generateKeyPair(): X25519KeyPair {
+        val priv = X25519.generatePrivateKey()
+        return X25519KeyPair(privateKey = priv, publicKey = X25519.publicFromPrivate(priv))
     }
 
-    /** Extract the 32-byte raw public key (u-coordinate, little-endian).
-     *
-     * Three fallback paths because Android's Conscrypt-based providers ship
-     * `OpenSSLX25519PublicKey` which does NOT implement
-     * [java.security.interfaces.XECPublicKey] — direct cast crashes on every
-     * non-AOSP-reference device (vivo / OPPO / Samsung etc.).
-     */
-    fun publicKeyBytes(pub: PublicKey): ByteArray {
-        // Path 1: standard XECPublicKey interface (JDK reference impl).
-        val asXec = pub as? java.security.interfaces.XECPublicKey
-        if (asXec != null) return uToLittleEndian(asXec.u)
-        // Path 2: cross-provider key-spec extraction.
-        runCatching {
-            val spec = KeyFactory.getInstance("X25519")
-                .getKeySpec(pub, java.security.spec.XECPublicKeySpec::class.java)
-            return uToLittleEndian(spec.u)
-        }
-        // Path 3: X.509 SubjectPublicKeyInfo trailing 32 bytes are the
-        // little-endian u-coordinate per RFC 8410.
-        val encoded = pub.encoded
-            ?: error("X25519 public key has no encoded form on this provider")
-        require(encoded.size >= DH_LEN) {
-            "X.509 encoded X25519 key shorter than $DH_LEN bytes: ${encoded.size}"
-        }
-        return encoded.takeLast(DH_LEN).toByteArray()
+    fun publicKeyBytes(pub: ByteArray): ByteArray {
+        require(pub.size == DH_LEN) { "X25519 public key must be $DH_LEN bytes, got ${pub.size}" }
+        return pub.copyOf()
     }
 
-    private fun uToLittleEndian(u: java.math.BigInteger): ByteArray {
-        val raw = ByteArray(DH_LEN)
-        var v = u
-        for (i in 0 until DH_LEN) {
-            raw[i] = (v.toLong() and 0xFF).toByte()
-            v = v.shiftRight(8)
-        }
-        return raw
-    }
-
-    /** Construct an X25519 PublicKey from its 32-byte raw form.
-     *
-     * Wraps the raw u-coordinate in an X.509 SubjectPublicKeyInfo envelope
-     * (RFC 8410 §4) because Conscrypt's KeyFactory rejects [XECPublicKeySpec]
-     * — even though it claims to accept it. JDK reference impl also
-     * accepts X509EncodedKeySpec, so this path is universal.
-     */
-    fun publicKeyFromBytes(raw: ByteArray): PublicKey {
+    fun publicKeyFromBytes(raw: ByteArray): ByteArray {
         require(raw.size == DH_LEN) { "X25519 public key must be $DH_LEN bytes, got ${raw.size}" }
-        val prefix = byteArrayOf(
-            0x30, 0x2A,                 // SEQUENCE, length 42
-            0x30, 0x05,                 // SEQUENCE, length 5 (algorithm)
-            0x06, 0x03, 0x2B, 0x65, 0x6E, // OID 1.3.101.110 (X25519)
-            0x03, 0x21, 0x00,           // BIT STRING, length 33, 0 unused bits
-        )
-        val encoded = prefix + raw
-        val spec = java.security.spec.X509EncodedKeySpec(encoded)
-        return KeyFactory.getInstance("X25519").generatePublic(spec)
+        return raw.copyOf()
     }
 
     /** Compute X25519 DH and return the 32-byte shared secret. */
-    fun dh(privateKey: PrivateKey, peerPublic: PublicKey): ByteArray {
-        val ka = KeyAgreement.getInstance("X25519")
-        ka.init(privateKey)
-        ka.doPhase(peerPublic, true)
-        return ka.generateSecret()
+    fun dh(privateKey: ByteArray, peerPublic: ByteArray): ByteArray {
+        require(privateKey.size == DH_LEN) {
+            "X25519 private key must be $DH_LEN bytes, got ${privateKey.size}"
+        }
+        require(peerPublic.size == DH_LEN) {
+            "X25519 public key must be $DH_LEN bytes, got ${peerPublic.size}"
+        }
+        return X25519.computeSharedSecret(privateKey, peerPublic)
+    }
+}
+
+data class X25519KeyPair(
+    val privateKey: ByteArray,
+    val publicKey: ByteArray,
+) {
+    init {
+        require(privateKey.size == NoiseXk.DH_LEN) {
+            "X25519 private key must be ${NoiseXk.DH_LEN} bytes, got ${privateKey.size}"
+        }
+        require(publicKey.size == NoiseXk.DH_LEN) {
+            "X25519 public key must be ${NoiseXk.DH_LEN} bytes, got ${publicKey.size}"
+        }
     }
 }
 
@@ -304,7 +267,7 @@ class NoiseSymmetricState(protocolName: String) {
  */
 class NoiseXkHandshake(
     val role: Role,
-    private val localStatic: KeyPair,
+    private val localStatic: X25519KeyPair,
     private val remoteStatic: ByteArray,
 ) {
     enum class Role { INITIATOR, RESPONDER }
@@ -316,8 +279,8 @@ class NoiseXkHandshake(
     }
 
     private val symm = NoiseSymmetricState(NoiseXk.PROTOCOL_NAME)
-    private val localStaticPublic: ByteArray = NoiseXk.publicKeyBytes(localStatic.public)
-    private var localEphemeral: KeyPair? = null
+    private val localStaticPublic: ByteArray = NoiseXk.publicKeyBytes(localStatic.publicKey)
+    private var localEphemeral: X25519KeyPair? = null
     private var remoteEphemeral: ByteArray? = null
     private var step: Int = 0
 
@@ -337,9 +300,9 @@ class NoiseXkHandshake(
         check(role == Role.INITIATOR && step == 0) { "writeFirst: wrong role/step" }
         val e = NoiseXk.generateKeyPair()
         localEphemeral = e
-        val ePub = NoiseXk.publicKeyBytes(e.public)
+        val ePub = NoiseXk.publicKeyBytes(e.publicKey)
         symm.mixHash(ePub)
-        val dh = NoiseXk.dh(e.private, NoiseXk.publicKeyFromBytes(remoteStatic))
+        val dh = NoiseXk.dh(e.privateKey, NoiseXk.publicKeyFromBytes(remoteStatic))
         symm.mixKey(dh)
         val ct = symm.encryptAndHash(payload)
         step = 1
@@ -359,16 +322,16 @@ class NoiseXkHandshake(
         remoteEphemeral = re
         symm.mixHash(re)
         val rePub = NoiseXk.publicKeyFromBytes(re)
-        val dh1 = NoiseXk.dh(localStatic.private, rePub)
+        val dh1 = NoiseXk.dh(localStatic.privateKey, rePub)
         symm.mixKey(dh1)
         val firstPayload = symm.decryptAndHash(message.copyOfRange(NoiseXk.DH_LEN, message.size))
 
         // -> e, ee
         val e = NoiseXk.generateKeyPair()
         localEphemeral = e
-        val ePub = NoiseXk.publicKeyBytes(e.public)
+        val ePub = NoiseXk.publicKeyBytes(e.publicKey)
         symm.mixHash(ePub)
-        val dh2 = NoiseXk.dh(e.private, rePub)
+        val dh2 = NoiseXk.dh(e.privateKey, rePub)
         symm.mixKey(dh2)
         val ct = symm.encryptAndHash(payload)
         step = 1
@@ -385,7 +348,7 @@ class NoiseXkHandshake(
         remoteEphemeral = re
         symm.mixHash(re)
         val e = checkNotNull(localEphemeral) { "no localEphemeral" }
-        val dh = NoiseXk.dh(e.private, NoiseXk.publicKeyFromBytes(re))
+        val dh = NoiseXk.dh(e.privateKey, NoiseXk.publicKeyFromBytes(re))
         symm.mixKey(dh)
         val payload = symm.decryptAndHash(message.copyOfRange(NoiseXk.DH_LEN, message.size))
         step = 2
@@ -397,7 +360,7 @@ class NoiseXkHandshake(
         check(role == Role.INITIATOR && step == 2) { "writeThird: wrong role/step" }
         val staticCipher = symm.encryptAndHash(localStaticPublic)
         val re = checkNotNull(remoteEphemeral) { "no remoteEphemeral" }
-        val dh = NoiseXk.dh(localStatic.private, NoiseXk.publicKeyFromBytes(re))
+        val dh = NoiseXk.dh(localStatic.privateKey, NoiseXk.publicKeyFromBytes(re))
         symm.mixKey(dh)
         val payloadCipher = symm.encryptAndHash(payload)
         step = 3
@@ -443,7 +406,7 @@ class NoiseXkHandshake(
         // "se" token: DH between initiator.s and responder.e — responder uses
         // its own ephemeral private key.
         val e = checkNotNull(localEphemeral) { "no localEphemeral" }
-        val dh = NoiseXk.dh(e.private, NoiseXk.publicKeyFromBytes(rsBytes))
+        val dh = NoiseXk.dh(e.privateKey, NoiseXk.publicKeyFromBytes(rsBytes))
         symm.mixKey(dh)
         val payload = symm.decryptAndHash(message.copyOfRange(staticCipherLen, message.size))
         step = 2

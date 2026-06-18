@@ -26,6 +26,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.tink.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

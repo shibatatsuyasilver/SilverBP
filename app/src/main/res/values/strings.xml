@@ -95,6 +95,8 @@
     <string name="model_download_notif_title">Downloading recognition model</string>
     <string name="model_download_notif_text">You can leave this in the background — we\'ll keep downloading.</string>
     <string name="model_download_notif_text_pct">Downloading… %1$d%% — you can leave this in the background.</string>
+    <string name="model_download_notif_short_indeterminate">DL</string>
+    <string name="model_download_notification_permission_denied">The model will keep downloading, but lock screen and live progress need notification permission.</string>
     <string name="model_delete_dialog_title">Delete this model?</string>
     <string name="model_delete_dialog_message">%1$s (about %2$.1f GB) will be permanently removed to free up space. You can download it again later.</string>
 

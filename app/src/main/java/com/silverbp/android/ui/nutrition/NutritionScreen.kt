@@ -67,6 +67,7 @@ import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.settings.BarcodeRegion
 import com.silverbp.android.ui.coach.components.GoalRing
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
@@ -89,6 +90,7 @@ fun NutritionScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val requestModelDownloadPermission = rememberModelDownloadPermissionGate()
     // Barcode lookup (Open Food Facts) only pays off in well-covered regions; hide
     // it elsewhere so Taiwan users aren't misled into scanning 超商 hot food.
     val barcodeSupported = remember { BarcodeRegion.isBarcodeSupported(context) }
@@ -141,7 +143,9 @@ fun NutritionScreen(
                         readiness.phase is ModelLoadPhase.Failed
                     ) {
                         Button(
-                            onClick = { vm.downloadModel() },
+                            onClick = {
+                                requestModelDownloadPermission { vm.downloadModel() }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(stringResource(R.string.nutrition_download_model_cta))
@@ -293,7 +297,9 @@ fun NutritionScreen(
                         }
                         is ModelLoadPhase.Downloading, ModelLoadPhase.Loading -> Unit
                         else -> {
-                            Button(onClick = { vm.downloadModel() }) {
+                            Button(onClick = {
+                                requestModelDownloadPermission { vm.downloadModel() }
+                            }) {
                                 Text(stringResource(R.string.nutrition_download_model_cta))
                             }
                         }

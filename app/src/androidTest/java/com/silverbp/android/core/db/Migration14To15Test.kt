@@ -13,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Drives [MIGRATION_13_14] against a hand-seeded v13 database. Asserts the new
+ * Drives [MIGRATION_14_15] against a hand-seeded v14 database. Asserts the new
  * `bp_workout_association` table + its two indices exist, `coach_task` gained
  * the `skipped` / `movedDayOffset` columns, and a pre-existing coach_task row
  * survives with the correct migrated defaults (skipped=0, movedDayOffset=NULL).
@@ -23,10 +23,10 @@ import org.junit.runner.RunWith
  * configure. Driving the Migration object directly validates the same SQL.
  */
 @RunWith(AndroidJUnit4::class)
-class Migration13To14Test {
+class Migration14To15Test {
 
     private companion object {
-        const val DB = "migration-13-14-test.db"
+        const val DB = "migration-14-15-test.db"
     }
 
     private lateinit var helper: SupportSQLiteOpenHelper
@@ -37,9 +37,9 @@ class Migration13To14Test {
         helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(ctx)
                 .name(DB)
-                .callback(object : SupportSQLiteOpenHelper.Callback(13) {
+                .callback(object : SupportSQLiteOpenHelper.Callback(14) {
                     override fun onCreate(db: SupportSQLiteDatabase) {
-                        // Minimal v13 subset the migration touches.
+                        // Minimal v14 subset the migration touches.
                         db.execSQL(
                             "CREATE TABLE `coach_plan` (`id` TEXT NOT NULL, `weekStart` INTEGER NOT NULL, " +
                                 "`generatedAt` INTEGER NOT NULL, `ruleVersion` INTEGER NOT NULL, " +
@@ -77,7 +77,7 @@ class Migration13To14Test {
                 "VALUES ('task-1', 'plan-1', 2, 'ex', '快走', 30.0, 'min', 'moderate', 0, NULL, '0')",
         )
 
-        MIGRATION_13_14.migrate(db)
+        MIGRATION_14_15.migrate(db)
 
         // New table exists.
         assertTrue("bp_workout_association table missing", tableExists(db, "bp_workout_association"))

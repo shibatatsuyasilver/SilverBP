@@ -54,7 +54,7 @@ class EndToEndPipeTest {
                     handshake = NoiseXkHandshake(
                         role = NoiseXkHandshake.Role.INITIATOR,
                         localStatic = initiatorStatic,
-                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.public),
+                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.publicKey),
                     ),
                     channel = initiatorChannel,
                 )
@@ -64,7 +64,7 @@ class EndToEndPipeTest {
                     handshake = NoiseXkHandshake(
                         role = NoiseXkHandshake.Role.RESPONDER,
                         localStatic = responderStatic,
-                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.public),
+                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
                     ),
                     channel = responderChannel,
                 )

@@ -9,11 +9,7 @@ import com.silverbp.android.sync.transport.FrameChannel
 import com.silverbp.android.sync.transport.NoiseTransport
 import com.silverbp.android.sync.transport.NoiseXk
 import com.silverbp.android.sync.transport.NoiseXkHandshake
-import java.security.KeyFactory
-import java.security.KeyPair
-import java.security.spec.NamedParameterSpec
-import java.security.spec.XECPrivateKeySpec
-import java.security.spec.XECPublicKeySpec
+import com.silverbp.android.sync.transport.X25519KeyPair
 
 /**
  * Two-step pairing flow over a [FrameChannel]:
@@ -204,34 +200,6 @@ class PairingService(
         return handshake.unsafeReadThirdReturningStaticKey(m3)
     }
 
-    private fun rebuildKeyPair(privRaw: ByteArray, pubRaw: ByteArray): KeyPair {
-        require(privRaw.size == 32 && pubRaw.size == 32) {
-            "static key bytes must be 32 each"
-        }
-        val kf = KeyFactory.getInstance("X25519")
-        // Conscrypt rejects standard XECPrivateKeySpec/XECPublicKeySpec; wrap
-        // the raw scalar/u-coordinate in PKCS8 / X.509 envelopes per RFC 8410.
-        // Same workaround as SyncCoordinator.rebuildKeyPair.
-        val priv = kf.generatePrivate(java.security.spec.PKCS8EncodedKeySpec(pkcs8WrapX25519(privRaw)))
-        val pub = kf.generatePublic(java.security.spec.X509EncodedKeySpec(x509WrapX25519(pubRaw)))
-        return KeyPair(pub, priv)
-    }
-
-    private fun pkcs8WrapX25519(scalar32: ByteArray): ByteArray {
-        require(scalar32.size == 32)
-        val prefix = byteArrayOf(
-            0x30, 0x2E, 0x02, 0x01, 0x00, 0x30, 0x05,
-            0x06, 0x03, 0x2B, 0x65, 0x6E, 0x04, 0x22, 0x04, 0x20,
-        )
-        return prefix + scalar32
-    }
-
-    private fun x509WrapX25519(u32: ByteArray): ByteArray {
-        require(u32.size == 32)
-        val prefix = byteArrayOf(
-            0x30, 0x2A, 0x30, 0x05,
-            0x06, 0x03, 0x2B, 0x65, 0x6E, 0x03, 0x21, 0x00,
-        )
-        return prefix + u32
-    }
+    private fun rebuildKeyPair(privRaw: ByteArray, pubRaw: ByteArray): X25519KeyPair =
+        X25519KeyPair(privateKey = privRaw, publicKey = pubRaw)
 }
