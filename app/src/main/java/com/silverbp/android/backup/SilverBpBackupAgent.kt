@@ -6,93 +6,24 @@ import android.app.backup.BackupDataOutput
 import android.app.backup.FullBackupDataOutput
 import android.os.ParcelFileDescriptor
 import android.util.Log
-import com.silverbp.android.di.ServiceLocator
-import com.silverbp.android.security.DbKeyStore
 import java.io.File
 
 /**
- * 自訂 Backup Agent — 處理 SQLCipher 開啟時的 DB 排除邏輯.
+ * 自訂 Backup Agent — 系統 Auto Backup 不備份健康資料.
  *
  * **為什麼需要這個 agent?**
- * Auto Backup 的 XML 規則(`data_extraction_rules.xml`) 是靜態的,但 SQLCipher
- * 是 runtime 切換的選項(`UserSettings.appLockEnabled`). 當使用者開啟 app-lock
- * 加密 DB 後,silverbp.db 是 SQLCipher ciphertext;Auto Backup 把 ciphertext
- * 傳到 Google Drive 沒用 — 解密用的 Keystore key 在解除安裝時會被清掉,還原
- * 後拿回的 ciphertext 是無法解密的廢檔.
+ * `data_extraction_rules.xml` / `backup_rules.xml` 已排除 Room DB、DataStore、
+ * photos 與模型快取;但 app 宣告了 `backupAgent` 時,[onFullBackup] 會接管全量
+ * 備份列舉。若這裡再呼叫 [fullBackupFile],就會繞過 XML 排除規則。
  *
- * 解法: 在 [onFullBackup] 動態檢查 [DbKeyStore.isDbEncrypted];為 true 時跳過
- * 所有 DB 檔. 一次性 UI 提示由 Settings 畫面負責(看到 `appLockEnabled=true`
- * 時就告訴使用者要改用「匯出加密快照」).
- *
- * 註: 覆寫 [onFullBackup] 表示完全接管 — XML 規則不再生效. 因此這裡要 explicit
- * 把 DataStore 加進來. Key-Value backup 路徑([onBackup] / [onRestore]) 留空,
- * 走 Full Backup.
+ * SilverBP 的健康資料備份路徑是使用者手動啟用的端對端加密 Drive 快照;系統
+ * cloud backup / transfer 不複製 DB 或 DataStore,讓隱私政策「健康資料只透過
+ * 使用者啟用的 Drive 備份離開裝置」維持真實。
  */
 class SilverBpBackupAgent : BackupAgent() {
 
-    /**
-     * 全量備份: 手動 enumerate 要備份的檔案,動態檢查 SQLCipher 狀態.
-     *
-     * 包含:
-     *  - filesDir/datastore/user_settings.preferences_pb (DataStore)
-     *  - silverbp.db / -wal / -shm (僅在 SQLCipher 未啟用時)
-     *
-     * 排除(由 [onFullBackup] 不呼叫 [fullBackupFile] 達成):
-     *  - `filesDir/models/` (LLM weights, 可重新下載)
-     *  - `filesDir/photos/` (依備份計畫不入備份)
-     *  - `cacheDir` 內所有檔案 (transient)
-     *  - SQLCipher 加密的 DB
-     */
     override fun onFullBackup(data: FullBackupDataOutput) {
-        val isDbEncrypted = runCatching {
-            DbKeyStore.create(applicationContext).isDbEncrypted()
-        }.getOrDefault(false)
-
-        // DataStore — 永遠備份(其內的敏感欄位若有 Keystore 加密,還原後雖然
-        // 拿回 ciphertext 也只是個 base64 字串而已 — 不會 crash,使用者重設
-        // 即可. 比整個檔案不還原好.)
-        val datastoreFile = File(filesDir, "datastore/user_settings.preferences_pb")
-        if (datastoreFile.exists()) {
-            try {
-                fullBackupFile(datastoreFile, data)
-            } catch (t: Throwable) {
-                Log.w(TAG, "DataStore backup failed: $t")
-            }
-        }
-
-        if (isDbEncrypted) {
-            Log.i(TAG, "SQLCipher 啟用 — Auto Backup 不送 silverbp.db.")
-            return
-        }
-
-        // 走非加密 DB 路徑.
-        //
-        // 自訂 backupAgent 表示 app process 是活的 — Application.onCreate 跑了,
-        // coroutine 還在寫 DB. 逐檔複製 .db/-wal/-shm 時若中間發生寫入,快照會
-        // 撕裂(torn),還原時 SQLite 偵測到 corruption,Room 預設 handler 直接抹掉
-        // 整個 DB. 在複製前強制一次 full WAL checkpoint(TRUNCATE): 把 -wal 清空、
-        // 讓 .db 自洽,緊接著馬上複製,把撕裂窗口縮到接近零.
-        //
-        // 註: backup agent 內無法對 DB 上完整鎖(沒有可掛的事務邊界 API),所以這
-        // 只是縮小窗口而非消除;checkpoint 後立即複製是這裡能做到的最佳保證.
-        runCatching {
-            ServiceLocator.init(applicationContext)
-            val db = ServiceLocator.database.openHelper.writableDatabase
-            // 讀 cursor 才會真正執行 pragma.
-            db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-        }.onFailure { Log.w(TAG, "WAL checkpoint before backup failed: $it") }
-
-        val dbDir = File(applicationInfo.dataDir, "databases")
-        listOf("silverbp.db", "silverbp.db-wal", "silverbp.db-shm").forEach { name ->
-            val file = File(dbDir, name)
-            if (file.exists()) {
-                try {
-                    fullBackupFile(file, data)
-                } catch (t: Throwable) {
-                    Log.w(TAG, "DB file backup failed ($name): $t")
-                }
-            }
-        }
+        Log.i(TAG, "System backup skipped; use SilverBP encrypted Drive backup for health data.")
     }
 
     /**

@@ -16,9 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.security.DbCipherMigration
 import com.silverbp.android.ui.lock.LockScreen
+import com.silverbp.android.ui.lock.canDeviceAuthenticate
 import com.silverbp.android.ui.nav.AppNavHost
 import com.silverbp.android.ui.paywall.PaywallHost
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SilverBpApp() {
@@ -28,19 +32,33 @@ fun SilverBpApp() {
     val context = LocalContext.current
 
     val s = settings
+    val canUseAppLock = s?.appLockEnabled != true || canDeviceAuthenticate(context)
 
     // Keep LockManager driven by settings (cold-start gating happens on the
     // first non-null emission inside LockManager.bind).
     LaunchedEffect(s?.appLockEnabled, s?.appLockTimeoutSeconds) {
-        if (s != null) lockManager.bind(s.appLockEnabled, s.appLockTimeoutSeconds)
+        if (s != null) {
+            if (s.appLockEnabled && !canDeviceAuthenticate(context)) {
+                lockManager.bind(enabled = false, timeoutSeconds = s.appLockTimeoutSeconds)
+                val decrypted = withContext(Dispatchers.IO) {
+                    DbCipherMigration.decrypt(context, ServiceLocator.dbKeyStore)
+                } is DbCipherMigration.Outcome.Success
+                if (decrypted) {
+                    ServiceLocator.userSettings.migrateSensitiveFields()
+                    ServiceLocator.userSettings.setAppLockEnabled(false)
+                }
+            } else {
+                lockManager.bind(s.appLockEnabled, s.appLockTimeoutSeconds)
+            }
+        }
     }
 
     // FLAG_SECURE whenever app-lock is on — blocks the recents thumbnail and
     // screenshots for the whole app, not just the lock screen.
-    DisposableEffect(s?.appLockEnabled) {
+    DisposableEffect(canUseAppLock, s?.appLockEnabled) {
         val window = context.findActivity()?.window
         if (window != null) {
-            if (s?.appLockEnabled == true) {
+            if (canUseAppLock && s?.appLockEnabled == true) {
                 window.setFlags(
                     WindowManager.LayoutParams.FLAG_SECURE,
                     WindowManager.LayoutParams.FLAG_SECURE,
@@ -64,7 +82,7 @@ fun SilverBpApp() {
                 PaywallHost {
                     AppNavHost()
                 }
-                if (s.appLockEnabled && locked) {
+                if (s.appLockEnabled && canUseAppLock && locked) {
                     LockScreen(onUnlocked = { lockManager.onUnlocked() })
                 }
             }

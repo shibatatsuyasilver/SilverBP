@@ -40,6 +40,7 @@
     <string name="paywall_subscribe">Subscribe</string>
     <string name="paywall_restore">Restore purchases</string>
     <string name="paywall_manage">Manage subscription</string>
+    <string name="paywall_terms">Terms of use</string>
     <string name="paywall_close">Close</string>
 
     <!-- States -->

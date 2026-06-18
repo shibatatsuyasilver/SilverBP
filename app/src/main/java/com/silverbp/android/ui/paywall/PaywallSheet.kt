@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.selection.selectable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
 import com.silverbp.android.billing.Entitlement
 import com.silverbp.android.billing.PREMIUM_PRODUCT_ID
@@ -228,6 +229,12 @@ fun PaywallSheet(
             ) {
                 Text(stringResource(R.string.paywall_manage))
             }
+            TextButton(
+                onClick = { openTermsPolicy(context) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.paywall_terms))
+            }
 
             // One-shot messages (restore result / unavailable) as an inline note;
             // simplest robust surface inside a bottom sheet (no Scaffold here).
@@ -338,19 +345,25 @@ private fun PlanChip(text: String) {
     )
 }
 
+fun openTermsPolicy(context: Context) {
+    openUrl(context, BuildConfig.TERMS_POLICY_URL)
+}
+
 /**
  * Deep-link to the Play subscription management page for this product. Shared by
  * the paywall's "Manage subscription" button and the Settings Premium card's
  * manage CTA (so an existing subscriber goes straight to Play, not via the sheet).
  */
 fun openManageSubscription(context: Context) {
-    val uri = Uri.parse(
-        "https://play.google.com/store/account/subscriptions" +
-            "?sku=$PREMIUM_PRODUCT_ID&package=${context.packageName}",
-    )
+    val url = "https://play.google.com/store/account/subscriptions" +
+        "?sku=$PREMIUM_PRODUCT_ID&package=${context.packageName}"
+    openUrl(context, url)
+}
+
+private fun openUrl(context: Context, url: String) {
     runCatching {
         context.startActivity(
-            Intent(Intent.ACTION_VIEW, uri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) },
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) },
         )
     }
 }

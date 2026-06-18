@@ -2,41 +2,29 @@
 <!--
     Primary Auto Backup + device-transfer rules for API 31+.
 
-    cloud-backup: backed up to the user's Google Drive (E2E-encrypted on
-    devices with screen lock). Skipped when the user has no encryption
-    capabilities (disableIfNoEncryptionCapabilities) so health data is never
-    sent to Drive without on-device key derivation.
-
-    device-transfer: phone-to-phone migration (no quota). Includes the LLM
-    model files since the user is the same person on the same network.
-
-    SilverBpBackupAgent additionally drops silverbp.db* from the cloud-backup
-    when the DB is SQLCipher-encrypted — Keystore keys are wiped on uninstall
-    so the ciphertext would not be decryptable on a fresh install.
+    SilverBP has its own explicit encrypted Drive export path, so system backup
+    and device-transfer channels must not copy health data or privacy-sensitive
+    settings. SilverBpBackupAgent is a no-op defense-in-depth layer; these XML
+    rules keep the policy explicit if the agent is ever removed.
 -->
 <data-extraction-rules>
     <cloud-backup disableIfNoEncryptionCapabilities="true">
-        <include domain="database" path="silverbp.db" />
-        <include domain="database" path="silverbp.db-wal" />
-        <include domain="database" path="silverbp.db-shm" />
-        <include domain="file" path="datastore/user_settings.preferences_pb" />
-
-        <!-- models/ (LLM weights) and photos/ are excluded by omission: the
-             file-domain <include> above restricts cloud-backup to datastore only.
-             Explicit file-domain <exclude>s here are redundant and fail
-             FullBackupContent lint, so they are intentionally not listed. -->
+        <exclude domain="database" path="silverbp.db" />
+        <exclude domain="database" path="silverbp.db-wal" />
+        <exclude domain="database" path="silverbp.db-shm" />
         <exclude domain="database" path="silverbp.db-journal" />
+        <exclude domain="file" path="datastore/user_settings.preferences_pb" />
+        <exclude domain="file" path="photos/" />
+        <exclude domain="file" path="models/" />
     </cloud-backup>
 
     <device-transfer>
-        <include domain="database" path="silverbp.db" />
-        <include domain="database" path="silverbp.db-wal" />
-        <include domain="database" path="silverbp.db-shm" />
-        <include domain="file" path="datastore/user_settings.preferences_pb" />
-        <!-- Phone-to-phone has no quota — bring the LLM weights too. -->
-        <include domain="file" path="models/" />
-        <include domain="file" path="photos/" />
-
+        <exclude domain="database" path="silverbp.db" />
+        <exclude domain="database" path="silverbp.db-wal" />
+        <exclude domain="database" path="silverbp.db-shm" />
         <exclude domain="database" path="silverbp.db-journal" />
+        <exclude domain="file" path="datastore/user_settings.preferences_pb" />
+        <exclude domain="file" path="photos/" />
+        <exclude domain="file" path="models/" />
     </device-transfer>
 </data-extraction-rules>

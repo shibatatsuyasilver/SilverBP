@@ -37,6 +37,7 @@
     <string name="paywall_subscribe">訂閱</string>
     <string name="paywall_restore">恢復購買</string>
     <string name="paywall_manage">管理訂閱</string>
+    <string name="paywall_terms">使用條款</string>
     <string name="paywall_close">關閉</string>
 
     <!-- 狀態 -->

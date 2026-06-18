@@ -44,7 +44,7 @@
 -dontwarn androidx.health.connect.**
 
 # ---- LAN sync module (Noise XK / NSD; uses reflection on serializable types) ----
--keep class com.silverbp.sync.** { *; }
+-keep class com.silverbp.android.sync.** { *; }
 
 # ---- ZXing / barcode ----
 -keep class com.google.zxing.** { *; }

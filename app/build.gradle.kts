@@ -17,8 +17,7 @@ val mapsApiKey: String = localProps.getProperty("MAPS_API_KEY") ?: ""
 //   keytool -genkey -v -keystore ~/keystores/silverbp-upload.jks \
 //     -alias upload -keyalg RSA -keysize 2048 -validity 10000
 // Then add KEYSTORE_PATH / KEYSTORE_PASS / KEY_ALIAS / KEY_PASS to local.properties
-// (do NOT commit). When any value is missing the release config falls back to the
-// debug key, so a fresh clone can still build a debug APK.
+// (do NOT commit). Release artifacts fail fast when any signing value is missing.
 val keystorePath: String? = localProps.getProperty("KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 val keystorePass: String? = localProps.getProperty("KEYSTORE_PASS")?.takeIf { it.isNotBlank() }
 val keystoreAlias: String? = localProps.getProperty("KEY_ALIAS")?.takeIf { it.isNotBlank() }
@@ -28,6 +27,7 @@ val hasReleaseSigning: Boolean =
 
 // Hosted via GitHub Pages from /docs in this repo.
 val privacyPolicyUrl: String = "https://shibatatsuyasilver.github.io/SilverBP/privacy.html"
+val termsPolicyUrl: String = "https://shibatatsuyasilver.github.io/SilverBP/terms.html"
 
 android {
     namespace = "com.silverbp.android"
@@ -46,11 +46,10 @@ android {
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
+        buildConfigField("String", "TERMS_POLICY_URL", "\"$termsPolicyUrl\"")
 
-        // Phase 3 (Play Billing) master gate. FALSE during beta → every premium
-        // gate stays unlocked (EntitlementManager.isPremium() short-circuits to
-        // true) so beta testers see ZERO behaviour change. Flip to "true" in the
-        // release buildType when subscriptions go live — one line, see RELEASE.md.
+        // Debug/beta stays unlocked for local testing; release overrides this to
+        // true so paid gates are enforced in production artifacts.
         buildConfigField("boolean", "PREMIUM_ENFORCED", "false")
 
         ksp {
@@ -71,6 +70,7 @@ android {
 
     buildTypes {
         release {
+            buildConfigField("boolean", "PREMIUM_ENFORCED", "true")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -80,8 +80,6 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            // else: falls back to the debug signing config so a fresh clone
-            // without a keystore can still produce an installable release APK.
         }
     }
 
@@ -207,12 +205,17 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
-// A release build must ship a real Maps key, else the exercise map renders
-// blank. Checked only when a release artifact is actually assembled, so a fresh
-// clone can still build debug/test without the key. See RELEASE.md for how to
-// obtain and restrict the key (release SHA-1 + applicationId).
+// Release artifacts must ship a real signing key and Maps key. Checked only
+// when a release artifact is actually assembled, so a fresh clone can still
+// build debug/test. See RELEASE.md for setup details.
 tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
     doFirst {
+        if (!hasReleaseSigning) {
+            throw GradleException(
+                "Release signing is not configured. Add KEYSTORE_PATH, KEYSTORE_PASS, " +
+                    "KEY_ALIAS and KEY_PASS to local.properties before building release artifacts.",
+            )
+        }
         if (mapsApiKey.isBlank()) {
             throw GradleException(
                 "MAPS_API_KEY is missing in local.properties — a release build would ship a blank " +

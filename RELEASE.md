@@ -330,8 +330,8 @@
 > Billing 串接、付費牆、entitlement 與付費閘已經寫好(產品 ID `silverbp_premium`),
 > 但訂閱方案、商店金流、稅務、價格與測試帳號**只能在 Play Console 手動建立**。
 > 模擬器無法測真實購買 —— 必須用實機 + 已加入授權測試清單的帳號才買得到。
-> ⚠️ 此外:正式向使用者收費前,務必先完成 N-5 把 `PREMIUM_ENFORCED` 翻成 `true`
-> 並重新出 AAB,否則所有付費功能仍對外免費(beta 期間刻意如此,測試者不會被鎖)。
+> ⚠️ 此外:release buildType 已覆寫 `PREMIUM_ENFORCED=true`;正式向使用者收費前,
+> 務必照 N-5 用實機測完整購買/解鎖流程,避免 enforced 版本把功能鎖住卻買不到 Premium。
 
 ### N-1. 建立付款(商家)設定檔 ⚠️ 最優先,需稅務/收款資料審核
 
@@ -413,16 +413,15 @@
    (顯示為測試卡),且可立即取消/重買做迴歸測試。
    ⚠️ 仍需用**實機**(模擬器無 Google Play 結帳)+ 該帳號**已加入 N-2 商品所屬軌道的測試者**。
 
-### N-5. 正式收費時:release 打開 PREMIUM_ENFORCED 並重出 AAB ⚠️ 一行設定
+### N-5. 正式收費時:確認 PREMIUM_ENFORCED release 覆寫並重出 AAB
 
-> beta 期間 `PREMIUM_ENFORCED=false`(defaultConfig),所有付費功能對所有人免費,
-> 測試者不會被鎖 —— 這是刻意設計。**真正要向使用者收費的那一版**才翻開關。
+> debug/defaultConfig 仍是 `PREMIUM_ENFORCED=false`,方便本地測試;release buildType
+> 已覆寫成 `true`,正式 AAB 會照真實 entitlement 鎖/解鎖付費功能。
 
-1. 編輯 `app/build.gradle.kts`,在 `buildTypes { release { … } }` 內加一行:
+1. 確認 `app/build.gradle.kts` 的 `buildTypes { release { … } }` 內仍有:
    ```kotlin
    buildConfigField("boolean", "PREMIUM_ENFORCED", "true")
    ```
-   (defaultConfig 的 `false` 保留;release 覆寫成 `true`。debug 仍 false,方便本地測。)
 2. 依**附錄三**調升 `versionCode`(+1)與 `versionName`,測試全綠,重新 `./gradlew :app:bundleRelease`。
 3. 把新 AAB 走 內部 → 封閉 → 正式 的同流程上架。
    ⚠️ **務必先確認 N-1~N-4 全部就緒且訂閱商品為「啟用」**,否則 enforced 版本會把功能鎖住
@@ -567,7 +566,7 @@ SilverBP 是一款專為長輩與家人設計的血壓管理 App。介面字大�
 步數與睡眠則可讀取回來。
 
 【你的資料,你作主】
-所有紀錄預設只存在你的手機本機,採 AES-256 加密。可選擇加密備份到你自己的
+所有紀錄預設只存在你的手機本機。可選擇啟用 AES-256 本機加密,或加密備份到你自己的
 Google Drive,並用回復碼或指紋/臉部解鎖保護隱私。雲端辨識、Drive 備份、
 Health Connect 皆為選用功能,不開也能正常使用核心記錄。
 
@@ -620,10 +619,10 @@ With your consent, write blood pressure, exercise and nutrition to Health
 Connect to share with other health apps; read steps and sleep back in.
 
 Your data, your control
-By default everything stays on your phone, encrypted with AES-256. Optionally
-back up — encrypted — to your own Google Drive, and protect it with a recovery
-code or fingerprint/face unlock. Cloud recognition, Drive backup and Health
-Connect are all optional; core logging works without them.
+By default everything stays on your phone. You can optionally enable AES-256
+at-rest encryption, or back up — encrypted — to your own Google Drive and
+protect it with a recovery code or fingerprint/face unlock. Cloud recognition,
+Drive backup and Health Connect are all optional; core logging works without them.
 
 Not a medical device; for personal health reference only. It does not provide
 medical diagnosis or treatment advice. If you feel unwell or see abnormal
