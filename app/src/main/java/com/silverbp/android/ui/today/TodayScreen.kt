@@ -247,6 +247,7 @@ fun TodayScreen(
                         WeightMiniCard(
                             latest = state.latestWeight,
                             bmi = state.weightBmi,
+                            weightCount = state.weightCount,
                             onRecord = onLogWeight,
                             onEdit = onEditWeight,
                             onViewHistory = onViewWeightHistory,
@@ -482,7 +483,8 @@ private fun GlucoseMiniCard(
         icon = Icons.Filled.Bloodtype,
         tint = glucoseColorFor(cat),
         title = stringResource(R.string.today_section_glucose),
-        count = readings.size,
+        historyLabel = readings.takeIf { it.size > 1 }
+            ?.let { stringResource(R.string.today_count_today, it.size) },
         value = formatGlucoseValue(latest.valueMgdl, unit),
         unit = glucoseUnitLabel(unit),
         categoryLabel = glucoseCategoryLabel(cat),
@@ -507,6 +509,7 @@ private fun GlucoseMiniCard(
 private fun WeightMiniCard(
     latest: WeightReading?,
     bmi: Double?,
+    weightCount: Int,
     onRecord: () -> Unit,
     onEdit: (String) -> Unit,
     onViewHistory: () -> Unit,
@@ -533,7 +536,7 @@ private fun WeightMiniCard(
         icon = Icons.Filled.MonitorWeight,
         tint = color ?: MaterialTheme.colorScheme.primary,
         title = stringResource(R.string.weight_title),
-        count = 0,
+        historyLabel = if (weightCount > 1) stringResource(R.string.weight_view_all) else null,
         value = formatWeightValue(latest.valueIn(unit)),
         unit = weightUnitLabel(unit),
         categoryLabel = category?.let { weightCategoryLabel(it) }
@@ -549,16 +552,16 @@ private fun WeightMiniCard(
 
 /**
  * Shared compact metric card used for 血糖 / 體重 — a [StandardCard] with a
- * leading tinted type-icon tile, the section title (+ a "今天 N 筆" affordance
- * when [count] > 1), the big value + unit, and a category dot + label. Mirrors
- * the iOS `MergedTimelineRow` / side-by-side latest cards. File-private.
+ * leading tinted type-icon tile, the section title (+ an optional history
+ * affordance), the big value + unit, and a category dot + label. Mirrors the iOS
+ * `MergedTimelineRow` / side-by-side latest cards. File-private.
  */
 @Composable
 private fun MetricMiniCard(
     icon: ImageVector,
     tint: Color,
     title: String,
-    count: Int,
+    historyLabel: String?,
     value: String,
     unit: String,
     categoryLabel: String?,
@@ -578,8 +581,7 @@ private fun MetricMiniCard(
         verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
         // Header: small tinted type-icon + title on one row, with the latest
-        // reading's time on the right (or the "今天 N 筆" history affordance when
-        // there's more than one today).
+        // reading's time on the right or a type-specific history affordance.
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -598,9 +600,9 @@ private fun MetricMiniCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
-            if (count > 1) {
+            if (historyLabel != null) {
                 TextButton(onClick = onViewHistory) {
-                    Text(stringResource(R.string.today_count_today, count))
+                    Text(historyLabel)
                 }
             } else if (recency != null) {
                 Text(

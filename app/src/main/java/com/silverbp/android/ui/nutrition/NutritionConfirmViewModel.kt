@@ -42,6 +42,14 @@ class NutritionConfirmViewModel(
     private val _barcodeBasis = MutableStateFlow<NutrimentBasis?>(null)
     val barcodeBasis: StateFlow<NutrimentBasis?> = _barcodeBasis.asStateFlow()
 
+    /** True while a save is in flight — re-entry guard against rapid double taps. */
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    /** Set when an edit id is requested but no row exists; the screen dismisses. */
+    private val _notFound = MutableStateFlow(false)
+    val notFound: StateFlow<Boolean> = _notFound.asStateFlow()
+
     private var initialized = false
 
     fun init(idArg: String?) {
@@ -49,7 +57,8 @@ class NutritionConfirmViewModel(
         initialized = true
         viewModelScope.launch {
             if (idArg != null) {
-                _draft.value = repo.findById(UUID.fromString(idArg)) ?: FoodLog()
+                val found = repo.findById(UUID.fromString(idArg))
+                if (found != null) _draft.value = found else _notFound.value = true
             } else {
                 val m = NutritionDraftHolder.takeMeal()
                 if (m != null) _meal.value = m
@@ -69,10 +78,11 @@ class NutritionConfirmViewModel(
 
     fun save(onSaved: () -> Unit) {
         val d = _draft.value ?: return
+        if (!_isSaving.compareAndSet(false, true)) return
         viewModelScope.launch {
             repo.upsert(d)
             onSaved()
-        }
+        }.invokeOnCompletion { _isSaving.value = false }
     }
 
     fun delete(onDeleted: () -> Unit) {
@@ -97,6 +107,7 @@ class NutritionConfirmViewModel(
         excluded: Set<Int>,
         onSaved: () -> Unit,
     ) {
+        if (!_isSaving.compareAndSet(false, true)) return
         viewModelScope.launch {
             val items = ArrayList<FoodItem>()
             var kcal = 0.0; var protein = 0.0; var carb = 0.0; var fat = 0.0
@@ -140,6 +151,6 @@ class NutritionConfirmViewModel(
             )
             repo.upsert(log)
             onSaved()
-        }
+        }.invokeOnCompletion { _isSaving.value = false }
     }
 }

@@ -202,7 +202,9 @@ private fun MemberAvatar(member: Member, size: Dp) {
     }
 }
 
-/** Owner with an empty name shows the localized "Me"; others show their name. */
+/** Owner with an empty name shows the localized "Me"; a blank non-owner shows a neutral label. */
 @Composable
 private fun displayNameOrFallback(member: Member): String =
-    member.displayName.ifBlank { stringResource(R.string.member_me) }
+    member.displayName.ifBlank {
+        stringResource(if (member.isOwner) R.string.member_me else R.string.member_unnamed)
+    }

@@ -101,6 +101,7 @@ private fun RecognizedMealContent(
     vm: NutritionConfirmViewModel,
 ) {
     val context = LocalContext.current
+    val isSaving by vm.isSaving.collectAsStateWithLifecycle()
     val portions = remember { mutableStateMapOf<Int, Portion>() }
     // idx -> excluded? Lets the user drop a wrong/duplicate recognition (e.g. a
     // phantom second rice or a misidentified side) so it stops inflating the meal
@@ -131,7 +132,7 @@ private fun RecognizedMealContent(
                 },
                 actions = {
                     TextButton(
-                        enabled = matched > 0,
+                        enabled = matched > 0 && !isSaving,
                         onClick = {
                             vm.saveRecognizedMeal(
                                 meal,
@@ -341,6 +342,10 @@ private fun FlatConfirmContent(
 ) {
     val draft by vm.draft.collectAsStateWithLifecycle()
     val barcodeBasis by vm.barcodeBasis.collectAsStateWithLifecycle()
+    val isSaving by vm.isSaving.collectAsStateWithLifecycle()
+    val notFound by vm.notFound.collectAsStateWithLifecycle()
+    // Editing an id that no longer exists: dismiss instead of saving a blank row.
+    LaunchedEffect(notFound) { if (notFound) onCancel() }
     val isEditing = idArg != null
     var showDelete by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -371,7 +376,7 @@ private fun FlatConfirmContent(
                         }
                     }
                     TextButton(
-                        enabled = draft != null,
+                        enabled = draft?.description?.isNotBlank() == true && !isSaving,
                         onClick = { vm.save(onSaved) },
                     ) {
                         Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)

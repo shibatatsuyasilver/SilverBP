@@ -100,7 +100,9 @@ fun MemberEditorSheet(
 
     // The wheel pickers can only yield in-range values (or null when cleared), so
     // there is nothing to validate; save is gated only on the in-flight save.
-    val canSave = !saving
+    // A blank name is only allowed for the owner (rendered as the localized "Me");
+    // new members and other non-owners must enter a name.
+    val canSave = !saving && (member?.isOwner == true || displayName.isNotBlank())
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(

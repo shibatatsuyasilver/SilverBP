@@ -25,6 +25,7 @@
 
     <!-- 歷史 -->
     <string name="weight_history_title">體重歷史</string>
+    <string name="weight_view_all">查看全部</string>
     <string name="weight_no_data">尚無體重紀錄</string>
 
     <!-- BMI 分類 -->

@@ -3,6 +3,7 @@ package com.silverbp.android.ui.confirm
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.R
@@ -33,11 +34,13 @@ import java.util.UUID
 private const val TAG = "ConfirmReading"
 
 class ConfirmReadingViewModel(
-    private val repo: BpRepository = ServiceLocator.bpRepository,
-    private val context: Context = ServiceLocator.context,
-    private val members: MemberRepository = ServiceLocator.memberRepository,
-    private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
+    private val savedState: SavedStateHandle,
 ) : ViewModel() {
+
+    private val repo: BpRepository = ServiceLocator.bpRepository
+    private val context: Context = ServiceLocator.context
+    private val members: MemberRepository = ServiceLocator.memberRepository
+    private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore
 
     private val _draft = MutableStateFlow(BpReadingDraft())
     val draft: StateFlow<BpReadingDraft> = _draft.asStateFlow()
@@ -76,27 +79,40 @@ class ConfirmReadingViewModel(
     fun initWith(arg: String?) {
         if (initialized) return
         initialized = true
+
+        // M5: restore a process-death-surviving draft if one was mirrored.
+        editingId = savedState.get<String>(KEY_EDITING_ID)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+        if (savedState.contains(KEY_SYS)) {
+            _draft.value = restoreFromHandle()
+            return
+        }
+
         viewModelScope.launch {
             // New/draft readings default to the currently-selected member; editing
             // an existing reading keeps its own memberId (carried in fromReading).
             val selectedMemberId = currentMember.current()
             when {
                 arg == null || arg == "new" -> {
-                    _draft.value = BpReadingDraft(timestamp = Instant.now(), memberId = selectedMemberId)
+                    setDraft(BpReadingDraft(timestamp = Instant.now(), memberId = selectedMemberId))
                     editingId = null
+                    savedState.remove<String>(KEY_EDITING_ID)
                 }
                 arg == "draft" -> {
                     val taken = CaptureSessionHolder.take()
-                    _draft.value = (taken ?: BpReadingDraft(timestamp = Instant.now()))
-                        .let { if (it.memberId.isBlank()) it.copy(memberId = selectedMemberId) else it }
+                    setDraft(
+                        (taken ?: BpReadingDraft(timestamp = Instant.now()))
+                            .let { if (it.memberId.isBlank()) it.copy(memberId = selectedMemberId) else it },
+                    )
                     editingId = null
+                    savedState.remove<String>(KEY_EDITING_ID)
                 }
                 else -> {
                     val id = runCatching { UUID.fromString(arg) }.getOrNull()
                     if (id != null) {
                         repo.findById(id)?.let {
-                            _draft.value = BpReadingDraft.fromReading(it)
+                            setDraft(BpReadingDraft.fromReading(it))
                             editingId = it.id
+                            savedState[KEY_EDITING_ID] = it.id.toString()
                         }
                     }
                 }
@@ -105,7 +121,13 @@ class ConfirmReadingViewModel(
     }
 
     fun update(transform: (BpReadingDraft) -> BpReadingDraft) {
-        _draft.value = transform(_draft.value)
+        setDraft(transform(_draft.value))
+    }
+
+    /** Single sink for draft mutations that also mirrors to the handle (M5). */
+    private fun setDraft(d: BpReadingDraft) {
+        _draft.value = d
+        mirrorToHandle(d)
     }
 
     fun save(onDone: () -> Unit) {
@@ -164,5 +186,61 @@ class ConfirmReadingViewModel(
         val name = "${UUID.randomUUID()}.jpg"
         FileOutputStream(File(dir, name)).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it) }
         name
+    }
+
+    // ---- SavedStateHandle mirror (M5) ----
+    // The transient photo Bitmap can't survive process death; only the on-disk
+    // photo *filename* is mirrored (a fresh camera draft loses just its preview).
+
+    private fun mirrorToHandle(d: BpReadingDraft) {
+        savedState[KEY_SYS] = d.systolic
+        savedState[KEY_DIA] = d.diastolic
+        savedState[KEY_PULSE] = d.pulse ?: -1
+        savedState[KEY_TIMESTAMP] = d.timestamp.toEpochMilli()
+        savedState[KEY_ARM] = d.arm.name
+        savedState[KEY_POSTURE] = d.posture.name
+        savedState[KEY_PART] = d.partOfDay.name
+        savedState[KEY_BEFORE_MED] = d.beforeMedication
+        savedState[KEY_IRREGULAR] = d.irregularHeartbeat
+        savedState[KEY_CONFIDENCE] = d.confidence
+        savedState[KEY_NOTE] = d.note
+        savedState[KEY_PHOTO] = d.photoFilename
+        savedState[KEY_SOURCE] = d.source.name
+        savedState[KEY_MEMBER_ID] = d.memberId
+    }
+
+    private fun restoreFromHandle(): BpReadingDraft = BpReadingDraft(
+        systolic = savedState.get<Int>(KEY_SYS) ?: 0,
+        diastolic = savedState.get<Int>(KEY_DIA) ?: 0,
+        pulse = (savedState.get<Int>(KEY_PULSE) ?: -1).takeIf { it >= 0 },
+        timestamp = Instant.ofEpochMilli(savedState.get<Long>(KEY_TIMESTAMP) ?: System.currentTimeMillis()),
+        arm = runCatching { Arm.valueOf(savedState.get<String>(KEY_ARM) ?: "") }.getOrDefault(Arm.Left),
+        posture = runCatching { Posture.valueOf(savedState.get<String>(KEY_POSTURE) ?: "") }.getOrDefault(Posture.Sitting),
+        partOfDay = runCatching { PartOfDay.valueOf(savedState.get<String>(KEY_PART) ?: "") }.getOrDefault(PartOfDay.Morning),
+        beforeMedication = savedState.get<Boolean>(KEY_BEFORE_MED) ?: true,
+        irregularHeartbeat = savedState.get<Boolean>(KEY_IRREGULAR) ?: false,
+        confidence = savedState.get<Double>(KEY_CONFIDENCE) ?: 1.0,
+        note = savedState.get<String>(KEY_NOTE) ?: "",
+        photoFilename = savedState.get<String>(KEY_PHOTO),
+        source = runCatching { Source.valueOf(savedState.get<String>(KEY_SOURCE) ?: "") }.getOrDefault(Source.Manual),
+        memberId = savedState.get<String>(KEY_MEMBER_ID) ?: "",
+    )
+
+    private companion object {
+        const val KEY_SYS = "bp_sys"
+        const val KEY_DIA = "bp_dia"
+        const val KEY_PULSE = "bp_pulse"
+        const val KEY_TIMESTAMP = "bp_timestamp"
+        const val KEY_ARM = "bp_arm"
+        const val KEY_POSTURE = "bp_posture"
+        const val KEY_PART = "bp_part"
+        const val KEY_BEFORE_MED = "bp_before_med"
+        const val KEY_IRREGULAR = "bp_irregular"
+        const val KEY_CONFIDENCE = "bp_confidence"
+        const val KEY_NOTE = "bp_note"
+        const val KEY_PHOTO = "bp_photo"
+        const val KEY_SOURCE = "bp_source"
+        const val KEY_MEMBER_ID = "bp_member_id"
+        const val KEY_EDITING_ID = "bp_editing_id"
     }
 }

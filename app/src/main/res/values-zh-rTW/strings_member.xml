@@ -5,6 +5,8 @@
 
     <!-- 切換器 + owner fallback -->
     <string name="member_me">我</string>
+    <!-- 空白姓名的非 owner 成員的中性 fallback -->
+    <string name="member_unnamed">成員</string>
     <string name="member_switcher_cd">切換成員</string>
     <!-- %1$s = 目前成員姓名;app bar 切換器 chip 的語音標籤 -->
     <string name="member_switcher_cd_current">目前記錄對象:%1$s,點按切換成員</string>

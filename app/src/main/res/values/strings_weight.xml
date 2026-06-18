@@ -26,6 +26,7 @@
 
     <!-- History -->
     <string name="weight_history_title">Weight history</string>
+    <string name="weight_view_all">View all</string>
     <string name="weight_no_data">No weight logged yet</string>
 
     <!-- BMI categories -->

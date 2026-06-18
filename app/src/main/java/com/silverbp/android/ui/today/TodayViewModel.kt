@@ -55,9 +55,14 @@ data class TodayUiState(
      * The selected member's most-recent weight reading (latest-ever, not
      * today-scoped). Unlike BP/glucose, weight is tracked as a single hero value
      * — a "today's weigh-in" list adds no clinical signal — so this mirrors the
-     * old latest-ever card via [WeightRepository.observeLatest]. null = no data.
+     * old latest-ever card. null = no data.
      */
     val latestWeight: WeightReading? = null,
+    /**
+     * Total selected-member weight readings. Weight is latest-ever in the Today card,
+     * so this is all-history count, not today-scoped; it drives the history affordance.
+     */
+    val weightCount: Int = 0,
     /**
      * BMI for [latestWeight] using the selected member's profile height, or null
      * when there's no weight reading or the member's heightCm is missing/invalid.
@@ -76,6 +81,12 @@ data class TodayUiState(
     val userName: String = "",
     val isLoading: Boolean = true,
     val error: Boolean = false,
+)
+
+private data class WeightSummary(
+    val latest: WeightReading?,
+    val bmi: Double?,
+    val count: Int,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -146,19 +157,22 @@ class TodayViewModel(
         settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) },
     ) { readings, unit -> readings to unit }
 
-    // Selected member's latest weight reading paired with the BMI it implies for
-    // that member's profile height. Weight is a latest-ever hero (no today-scoped
-    // list — see [TodayUiState.latestWeight]), so this follows member selection
-    // via flatMapLatest like guidelineFlow but skips the day ticker. heightCm is
-    // resolved off the member row (null when missing/unresolvable), so the BMI is
-    // null until both a reading and a height exist. Pairs reading+BMI in a single
-    // source to avoid an extra combine arity downstream.
+    // Selected member's latest weight reading, all-history count, and BMI from the
+    // member profile height. Weight is a latest-ever hero (no today-scoped list —
+    // see [TodayUiState.latestWeight]), so this follows member selection via
+    // flatMapLatest like guidelineFlow but skips the day ticker. observeAll gives
+    // the real count for the history affordance without adding repository surface.
     private val latestWeightFlow = currentMember.flow.flatMapLatest { id ->
-        weight.observeLatest(id).map { reading ->
+        weight.observeAll(id).map { readings ->
+            val reading = readings.maxByOrNull { it.timestamp }
             val heightCm = runCatching { members.findById(UUID.fromString(id)) }
                 .getOrNull()?.heightCm
             val bmi = reading?.let { WeightGuideline.bmi(it.valueKg, heightCm) }
-            reading to bmi
+            WeightSummary(
+                latest = reading,
+                bmi = bmi,
+                count = readings.size,
+            )
         }
     }
 
@@ -167,7 +181,7 @@ class TodayViewModel(
     // edits don't restart the downstream combine.
     private val nicknameFlow = settings.flow.map { it.userNickname }.distinctUntilChanged()
 
-    // The guideline, latest weight, and greeting nickname are all profile-derived;
+    // The guideline, weight summary, and greeting nickname are all profile-derived;
     // folding them into one source keeps the outer state combine at five typed args
     // (Kotlin's combine only has typed overloads up to arity five — a sixth flow
     // would force the type-erased vararg form).
@@ -184,12 +198,12 @@ class TodayViewModel(
         todayGlucoseFlow,
         dayTicker,
     ) { bp, phase, (guideline, weight, userName), (glucoseReadings, glucoseUnit), today ->
-        val (latestWeight, weightBmi) = weight
         TodayUiState(
             todayBp = bp,
             todayGlucose = glucoseReadings,
-            latestWeight = latestWeight,
-            weightBmi = weightBmi,
+            latestWeight = weight.latest,
+            weightCount = weight.count,
+            weightBmi = weight.bmi,
             today = today,
             modelPhase = phase,
             guideline = guideline,

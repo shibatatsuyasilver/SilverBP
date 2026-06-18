@@ -87,6 +87,7 @@ fun ExerciseHomeScreen(
     onOpenDetail: (String) -> Unit,
     onOpenMedals: () -> Unit,
     onOpenSummary: () -> Unit,
+    onMeasureBp: () -> Unit = {},
     vm: ExerciseHomeViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -148,6 +149,7 @@ fun ExerciseHomeScreen(
                     onStartSession = onStartSession,
                     onCaptureMachine = onCaptureMachine,
                     onOpenMedals = onOpenMedals,
+                    onMeasureBp = onMeasureBp,
                 )
                 HubSection.Library -> StrengthLibrarySection(
                     onStartStrengthSession = onStartStrengthSession,
@@ -215,6 +217,7 @@ private fun PlanSection(
     onStartSession: () -> Unit,
     onCaptureMachine: () -> Unit,
     onOpenMedals: () -> Unit,
+    onMeasureBp: () -> Unit,
 ) {
     val (perm, requestPerm) = rememberExercisePermissionState()
     val achievementState by ServiceLocator.achievementStore.state.collectAsStateWithLifecycle()
@@ -306,7 +309,10 @@ private fun PlanSection(
                 pendingCardio = null
                 startCardio(kind)
             },
-            onMeasure = { pendingCardio = null },
+            onMeasure = {
+                pendingCardio = null
+                onMeasureBp()
+            },
             onDismiss = { pendingCardio = null },
         )
     }

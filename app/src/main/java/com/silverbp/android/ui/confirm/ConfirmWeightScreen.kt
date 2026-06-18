@@ -20,7 +20,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -29,6 +31,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +50,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.mapSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -108,11 +114,13 @@ fun ConfirmWeightScreen(
             runCatching { UUID.fromString(readingIdArg) }.isSuccess
     }
 
-    var draft by remember { mutableStateOf(WeightDraftUi()) }
-    var editingId by remember { mutableStateOf<UUID?>(null) }
+    var draft by rememberSaveable(stateSaver = WeightDraftUiSaver) { mutableStateOf(WeightDraftUi()) }
+    var editingId by rememberSaveable(stateSaver = NullableUuidSaver) { mutableStateOf<UUID?>(null) }
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    var loaded by remember { mutableStateOf(false) }
+    // Persisted so a restored draft (above) isn't clobbered by the init reload.
+    var loaded by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Initialise: edit an existing row, else a blank draft for the current member
     // with the user's preferred display unit. Guarded so recomposition doesn't
@@ -179,6 +187,23 @@ fun ConfirmWeightScreen(
         }
     }
 
+    fun delete() {
+        val id = editingId ?: return
+        if (saving) return
+        saving = true
+        saveError = null
+        scope.launch {
+            try {
+                repo.delete(id)
+                saving = false
+                onSaved()
+            } catch (e: Throwable) {
+                saving = false
+                saveError = e.message
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             androidx.compose.material3.TopAppBar(
@@ -187,6 +212,18 @@ fun ConfirmWeightScreen(
                     TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
                 },
                 actions = {
+                    if (isEditing && editingId != null) {
+                        IconButton(
+                            enabled = !saving,
+                            onClick = { showDeleteDialog = true },
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                     TextButton(
                         enabled = draft.isValid && !saving,
                         onClick = { save() },
@@ -299,6 +336,30 @@ fun ConfirmWeightScreen(
 
             Spacer(Modifier.size(AppSpacing.itemGap))
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.delete_reading_confirm_title)) },
+            text = { Text(stringResource(R.string.delete_reading_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    delete()
+                }) {
+                    Text(
+                        stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 
@@ -421,6 +482,42 @@ private data class WeightDraftUi(
         fun formatValue(value: Double): String = String.format(Locale.US, "%.1f", value)
     }
 }
+
+/**
+ * Persist the weight draft across process death (P1-14). [WeightDraftUi] isn't
+ * Parcelable, so map its primitive fields; the canonical kg is recomputed from
+ * valueText + displayUnit via [WeightDraftUi.toReading], nothing lossy is stored.
+ */
+private val WeightDraftUiSaver: Saver<WeightDraftUi, Any> = mapSaver(
+    save = { d ->
+        mapOf(
+            "valueText" to d.valueText,
+            "unit" to d.displayUnit.name,
+            "timestamp" to d.timestamp.toEpochMilli(),
+            "source" to d.source.name,
+            "note" to d.note,
+            "memberId" to d.memberId,
+            "photo" to d.photoFilename,
+        )
+    },
+    restore = { m ->
+        WeightDraftUi(
+            valueText = m["valueText"] as? String ?: "",
+            displayUnit = runCatching { WeightUnit.valueOf(m["unit"] as String) }.getOrDefault(WeightUnit.Kg),
+            timestamp = Instant.ofEpochMilli(m["timestamp"] as? Long ?: System.currentTimeMillis()),
+            source = runCatching { WeightSource.valueOf(m["source"] as String) }.getOrDefault(WeightSource.Manual),
+            note = m["note"] as? String ?: "",
+            memberId = m["memberId"] as? String ?: "",
+            photoFilename = m["photo"] as? String,
+        )
+    },
+)
+
+/** Saves a nullable [UUID] as its string form (a null editing-id is simply absent). */
+private val NullableUuidSaver: Saver<UUID?, String> = Saver(
+    save = { it?.toString() },
+    restore = { runCatching { UUID.fromString(it) }.getOrNull() },
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -288,6 +288,7 @@ fun AppNavHost() {
             ExerciseSummaryScreen(
                 onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onDiscard = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onMeasureBp = { rootNav.navigate(Routes.CAPTURE) },
             )
         }
         composable(Routes.MACHINE_CAPTURE) {
@@ -481,6 +482,19 @@ private fun HomeWithTabs(rootNav: NavHostController) {
         }
     }
 
+    // If Coach is turned off while the user is sitting on the Coach tab, its
+    // bottom-nav item disappears (see visibleTabs) and they'd be stranded on a
+    // route with no matching tab. Redirect back to Today.
+    LaunchedEffect(settings?.enableCoach) {
+        if (settings?.enableCoach == false && currentRoute == TabDestination.Coach.route) {
+            tabsNav.navigate(TabDestination.Today.route) {
+                popUpTo(TabDestination.Today.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
     // The AI assistant (聊天) is a floating pill instead of a bottom-nav tab —
     // mirroring Google Health's "詢問教練". It collapses to icon-only while the
     // user scrolls down and expands (icon + label) on scroll-up / at rest.
@@ -603,6 +617,8 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
             // Finished 檢查點的還原路徑:跳過運動畫面,直接進摘要頁儲存。
             onOpenSummary = { rootNav.navigate(Routes.EXERCISE_SUMMARY) },
+            // Pre-workout「先量血壓」gate → open the BP camera.
+            onMeasureBp = { rootNav.navigate(Routes.CAPTURE) },
         )
     }
     composable(TabDestination.Data.route) {

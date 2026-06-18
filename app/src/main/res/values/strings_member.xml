@@ -6,6 +6,8 @@
 
     <!-- Switcher + owner fallback -->
     <string name="member_me">Me</string>
+    <!-- Neutral fallback for a blank-named non-owner member. -->
+    <string name="member_unnamed">Member</string>
     <string name="member_switcher_cd">Switch member</string>
     <!-- %1$s = current member name; spoken label for the app-bar switcher chip -->
     <string name="member_switcher_cd_current">Recording for %1$s, tap to switch member</string>
