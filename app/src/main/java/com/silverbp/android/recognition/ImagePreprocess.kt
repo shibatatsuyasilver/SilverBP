@@ -59,8 +59,14 @@ fun Bitmap.rotateByExif(orientation: Int): Bitmap {
     return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
 }
 
-fun decodeFileWithExif(file: File): Bitmap? {
-    val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+fun decodeFileWithExif(file: File, maxDim: Int = 2048): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.absolutePath, bounds)
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxDim)
+        inPreferredConfig = Bitmap.Config.ARGB_8888
+    }
+    val bitmap = BitmapFactory.decodeFile(file.absolutePath, options) ?: return null
     return try {
         val exif = ExifInterface(file.absolutePath)
         val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED)

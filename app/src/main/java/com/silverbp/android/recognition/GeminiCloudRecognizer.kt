@@ -2,6 +2,7 @@ package com.silverbp.android.recognition
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.silverbp.android.BuildConfig
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -123,7 +124,9 @@ class GeminiCloudRecognizer(
             TAG,
             "[Cloud] finishReason=${firstCandidate?.finishReason ?: "?"} text len=${rawText.length}",
         )
-        android.util.Log.i(TAG, "[Cloud] Final JSON to parse:\n$rawText\n[Cloud] (end)")
+        if (BuildConfig.DEBUG) {
+            android.util.Log.d(TAG, "[Cloud] Final JSON to parse:\n$rawText\n[Cloud] (end)")
+        }
 
         BpResponseParser.parse(rawText)
     }

@@ -41,6 +41,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,6 +69,7 @@ import com.silverbp.android.recognition.decodeFileWithExif
 import com.silverbp.android.ui.components.ModelLoadBanner
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.Executors
 
 /**
  * Live in-app camera capture for a digital body-weight scale display — the weight
@@ -113,10 +115,12 @@ fun WeightCaptureScreen(
 
     val previewView = remember { PreviewView(context) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    val cameraProviderState = remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
     if (hasPermission) {
         LaunchedEffect(previewView) {
             val provider = ProcessCameraProvider.getInstance(context).get()
+            cameraProviderState.value = provider
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
@@ -130,6 +134,11 @@ fun WeightCaptureScreen(
             } catch (e: Exception) {
                 Log.e("WeightCapture", "[Capture] bind failed", e)
             }
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraProviderState.value?.unbindAll()
         }
     }
 
@@ -360,19 +369,31 @@ private fun capturePhoto(
     val cacheDir = File(context.cacheDir, "capture").apply { mkdirs() }
     val outFile = File(cacheDir, "${UUID.randomUUID()}.jpg")
     val output = ImageCapture.OutputFileOptions.Builder(outFile).build()
-    // Deliver callbacks on the main thread so onResult can navigate safely.
+    // Decode on a per-shot worker; deliver the final callback on main for navigation.
+    val executor = Executors.newSingleThreadExecutor()
+    val mainExecutor = ContextCompat.getMainExecutor(context)
+    fun finish(bmp: Bitmap?) {
+        executor.shutdown()
+        mainExecutor.execute { onResult(bmp) }
+    }
     capture.takePicture(
         output,
-        ContextCompat.getMainExecutor(context),
+        executor,
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(result: ImageCapture.OutputFileResults) {
-                val bmp = decodeFileWithExif(outFile)
-                outFile.delete()
-                onResult(bmp)
+                val bmp = try {
+                    decodeFileWithExif(outFile)
+                } catch (t: Throwable) {
+                    Log.e("WeightCapture", "[Capture] decode failed", t)
+                    null
+                } finally {
+                    outFile.delete()
+                }
+                finish(bmp)
             }
             override fun onError(exception: ImageCaptureException) {
                 Log.e("WeightCapture", "[Capture] capture failed", exception)
-                onResult(null)
+                finish(null)
             }
         }
     )

@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,10 +104,12 @@ fun CaptureScreen(
 
     val previewView = remember { PreviewView(context) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    val cameraProviderState = remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
     if (hasPermission) {
         LaunchedEffect(previewView) {
             val provider = ProcessCameraProvider.getInstance(context).get()
+            cameraProviderState.value = provider
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
@@ -120,6 +123,11 @@ fun CaptureScreen(
             } catch (e: Exception) {
                 Log.e("CaptureScreen", "[CaptureView] bind failed", e)
             }
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraProviderState.value?.unbindAll()
         }
     }
 

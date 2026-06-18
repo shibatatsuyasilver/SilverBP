@@ -55,14 +55,23 @@ class ModelDownloader(
 
         val builder = Request.Builder().url(variant.downloadUrl)
         if (!bearerToken.isNullOrBlank()) builder.addHeader("Authorization", "Bearer $bearerToken")
-        if (partial.exists()) builder.addHeader("Range", "bytes=${partial.length()}-")
+        val resumeBytes = partial.takeIf { it.exists() && it.length() > 0L }?.length() ?: 0L
+        val requestedResume = resumeBytes > 0L
+        if (requestedResume) builder.addHeader("Range", "bytes=$resumeBytes-")
         val response = client.newCall(builder.build()).execute()
         check(response.isSuccessful) { "HTTP ${response.code}" }
+        val append = when {
+            requestedResume && response.code == 206 -> true
+            requestedResume && response.code == 200 -> false
+            requestedResume -> error("HTTP ${response.code}")
+            else -> false
+        }
 
         val body = response.body ?: error("empty body")
-        val total = body.contentLength().let { if (it > 0) it + partial.length() else -1L }
-        val out = FileOutputStream(partial, partial.exists())
-        var read = partial.length()
+        val existingBytes = if (append) resumeBytes else 0L
+        val total = body.contentLength().let { if (it > 0) it + existingBytes else -1L }
+        val out = FileOutputStream(partial, append)
+        var read = existingBytes
         out.use { sink ->
             body.byteStream().use { src ->
                 val buf = ByteArray(64 * 1024)
