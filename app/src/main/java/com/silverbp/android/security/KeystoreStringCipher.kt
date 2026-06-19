@@ -11,8 +11,8 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * AES-256-GCM string encryption keyed by a hardware-backed Android Keystore
- * key. Used to protect the sensitive free-text DataStore fields (API key,
- * prompts, nickname) at rest when the user opts into app-lock + encryption.
+ * key. Used to protect sensitive free-text DataStore fields (API key,
+ * prompts, nickname) at rest independently of the optional app-lock setting.
  *
  * Same design contract as [DbKeyStore]: the Keystore key is **not**
  * `setUserAuthenticationRequired`-bound, so a failed/changed biometric never

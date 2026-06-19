@@ -3,6 +3,8 @@ package com.silverbp.android.strength
 import com.silverbp.android.core.db.ExerciseLibraryDao
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.sync.LocalSyncWriter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -17,7 +19,11 @@ import kotlinx.coroutines.flow.map
  */
 class ExerciseLibraryRepository(
     private val dao: ExerciseLibraryDao,
+    private val localSync: LocalSyncWriter? = null,
 ) {
+
+    private val syncWriter: LocalSyncWriter?
+        get() = localSync ?: runCatching { ServiceLocator.localSyncWriter }.getOrNull()
 
     private fun List<ExerciseCatalogItem>.sortedByName() = sortedBy { it.name }
 
@@ -37,12 +43,22 @@ class ExerciseLibraryRepository(
     fun observeByBodyPart(bodyPart: BodyPart): Flow<List<ExerciseCatalogItem>> =
         dao.observeByBodyPart(bodyPart.raw).map { list -> list.map { it.toDomain().localized() }.sortedByName() }
 
-    suspend fun setFavorite(id: String, favorite: Boolean) =
-        dao.setFavorite(id, favorite)
+    suspend fun setFavorite(id: String, favorite: Boolean) {
+        val hlc = syncWriter?.nextHlc()
+        if (hlc != null) {
+            dao.setFavoriteWithHlc(id, favorite, hlc)
+        } else {
+            dao.setFavorite(id, favorite)
+        }
+    }
 
     suspend fun upsert(item: ExerciseCatalogItem) {
         val now = System.currentTimeMillis()
-        dao.upsert(item.toEntity(createdAt = now, updatedAt = now))
+        dao.upsert(
+            item.toEntity(createdAt = now, updatedAt = now).copy(
+                hlcUpdatedAt = syncWriter?.nextHlc() ?: "0",
+            ),
+        )
     }
 
     suspend fun count(): Int = dao.count()

@@ -74,15 +74,20 @@ private data class TodayDose(
 @Composable
 fun CoachLogMedicationScreen(onClose: () -> Unit, onManage: () -> Unit) {
     val coachRepo = remember { ServiceLocator.coachRepository }
-    val medsDao = remember { ServiceLocator.database.medicationDao() }
-    val scheduleDao = remember { ServiceLocator.database.medicationScheduleDao() }
+    val medicationRepo = remember { ServiceLocator.medicationRepository }
+    val currentMemberStore = remember { ServiceLocator.currentMemberStore }
     val scope = rememberCoroutineScope()
     val zone = remember { ZoneId.systemDefault() }
     val today = remember { LocalDate.now(zone) }
     val dayStart = remember { today.atStartOfDay(zone).toInstant().toEpochMilli() }
 
-    val meds by medsDao.observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
-    val schedules by scheduleDao.observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
+    val currentMemberId by currentMemberStore.flow.collectAsStateWithLifecycle(initialValue = "")
+    val meds by remember(medicationRepo, currentMemberId) {
+        medicationRepo.observeForMember(currentMemberId)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val schedules by remember(medicationRepo, currentMemberId) {
+        medicationRepo.observeSchedulesForMember(currentMemberId)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
     val doses by coachRepo.observeDosesForDay(dayStart).collectAsStateWithLifecycle(initialValue = emptyList())
 
     val todayDoses = remember(meds, schedules, dayStart, today) {

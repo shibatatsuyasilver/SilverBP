@@ -44,6 +44,7 @@ class NutritionRepository(
         dao.rangeOnce(from.toEpochMilli(), to.toEpochMilli()).map { it.toDomain() }
 
     suspend fun upsert(log: FoodLog) {
+        validate(log)
         val now = Instant.now()
         val existing = dao.findById(log.id.toString())
         var toSave = log.copy(
@@ -122,5 +123,22 @@ class NutritionRepository(
                 hlcUpdatedAt = localSync?.nextHlc() ?: existing?.hlcUpdatedAt ?: "0",
             ),
         )
+    }
+
+    private fun validate(log: FoodLog) {
+        validateOptionalNonNegativeFinite(log.calories, "calories")
+        validateOptionalNonNegativeFinite(log.sodiumMg, "sodiumMg")
+        validateOptionalNonNegativeFinite(log.sodiumMgLow, "sodiumMgLow")
+        validateOptionalNonNegativeFinite(log.sodiumMgHigh, "sodiumMgHigh")
+    }
+
+    private fun validateOptionalNonNegativeFinite(value: Double?, field: String) {
+        value ?: return
+        require(value.isFinite()) {
+            "Invalid nutrition log: $field must be finite"
+        }
+        require(value >= 0.0) {
+            "Invalid nutrition log: $field must be non-negative"
+        }
     }
 }

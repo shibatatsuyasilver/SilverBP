@@ -61,7 +61,7 @@ class AutoBackupWorker(
             ServiceLocator.backupManager.export(out, recoveryCode)
             val bytes = out.toByteArray()
 
-            val fileName = "SilverBP-Backup-${nowFileTimestamp()}.sbpbk"
+            val fileName = "${GoogleDriveBackupClient.BACKUP_NAME_PREFIX}${nowFileTimestamp()}${GoogleDriveBackupClient.BACKUP_EXTENSION}"
             ServiceLocator.googleDriveBackupClient.upload(bytes, fileName, token)
 
             // Prune oldest entries beyond the retention cap. listBackups
@@ -70,7 +70,7 @@ class AutoBackupWorker(
             runCatching {
                 val all = ServiceLocator.googleDriveBackupClient.listBackups(token)
                 all.drop(KEEP_LAST).forEach { stale ->
-                    ServiceLocator.googleDriveBackupClient.deleteFile(stale.id, token)
+                    ServiceLocator.googleDriveBackupClient.deleteBackup(stale, token)
                 }
             }.onFailure { Log.w(TAG, "retention prune failed (non-fatal)", it) }
 

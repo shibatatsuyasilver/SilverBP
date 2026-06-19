@@ -12,6 +12,7 @@ import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.ExperimentalApi
 import com.google.ai.edge.litertlm.ExperimentalFlags
+import com.silverbp.android.BuildConfig
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -201,7 +202,9 @@ object GemmaBpService {
                 val raw = response.toString()
                 android.util.Log.i(TAG, "[Extract] stream done, ${raw.length} chars")
                 memSnapshot(appCtx, "post-generate")
-                android.util.Log.i(TAG, "[Extract] raw output: ${raw.take(200)}")
+                if (BuildConfig.DEBUG) {
+                    android.util.Log.d(TAG, "[Extract] raw output: ${raw.take(200)}")
+                }
                 try {
                     val parsed = BpResponseParser.parse(raw)
                     android.util.Log.i(
@@ -212,7 +215,14 @@ object GemmaBpService {
                     )
                     parsed
                 } catch (e: BpExtractionError) {
-                    android.util.Log.w(TAG, "[Extract] parse failed (${e.message}); raw was: ${raw.take(500)}")
+                    if (BuildConfig.DEBUG) {
+                        android.util.Log.w(TAG, "[Extract] parse failed (${e.message}); raw was: ${raw.take(500)}")
+                    } else {
+                        android.util.Log.w(
+                            TAG,
+                            "[Extract] parse failed (${e.message}); respChars=${raw.length}",
+                        )
+                    }
                     throw e
                 }
             }

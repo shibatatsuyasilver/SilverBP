@@ -88,6 +88,7 @@ fun NutritionScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val cameraPermissionDenied = stringResource(R.string.camera_permission_denied)
     val requestModelDownloadPermission = rememberModelDownloadPermissionGate()
     // Barcode lookup (Open Food Facts) only pays off in well-covered regions; hide
     // it elsewhere so Taiwan users aren't misled into scanning 超商 hot food.
@@ -110,7 +111,7 @@ fun NutritionScreen(
         if (granted) {
             camera.launch(null)
         } else {
-            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.camera_permission_denied)) }
+            scope.launch { snackbarHostState.showSnackbar(cameraPermissionDenied) }
         }
     }
 

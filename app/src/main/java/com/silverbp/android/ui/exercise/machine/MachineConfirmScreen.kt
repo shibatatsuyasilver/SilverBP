@@ -68,7 +68,7 @@ fun MachineConfirmScreen(
                     TextButton(onClick = { vm.discard(onCancel) }) { Text(stringResource(R.string.cancel)) }
                 },
                 actions = {
-                    TextButton(onClick = { vm.save(onSaved) }, enabled = !saving) {
+                    TextButton(onClick = { vm.save(onSaved) }, enabled = s.isValid && !saving) {
                         Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)
                     }
                 },
@@ -195,7 +195,7 @@ fun MachineConfirmScreen(
             ExpressivePrimaryButton(
                 text = stringResource(R.string.save),
                 onClick = { vm.save(onSaved) },
-                enabled = !saving,
+                enabled = s.isValid && !saving,
                 icon = Icons.Filled.Check,
                 fillWidth = true,
             )

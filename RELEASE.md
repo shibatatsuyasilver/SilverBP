@@ -91,9 +91,9 @@
 
    | 類別 → 資料類型 | 收集 | 分享 | 必要或可選 | 備註 |
    |---|---|---|---|---|
-   | 健康與健身 → 健康資訊 | ✓ | ✗ | 必要(核心功能) | 血壓、運動、睡眠、營養 |
+   | 健康與健身 → 健康資訊 | ✓ | ✗ | 必要(核心功能) | 血壓、血糖、體重、運動、睡眠、營養 |
    | 位置 → 精確位置 | ✓ | ✗ | 可選(GPS 運動才用) | 僅裝置端 |
-   | 相片和影片 → 相片 | ✓ | ✓* | 可選 | *僅當使用者自選 Gemini 雲端 OCR 時傳 Google API |
+   | 相片和影片 → 相片 | ✓ | ✓* | 可選 | *僅當使用者自選 Gemini 雲端 AI 時,辨識照片或聊天圖片傳 Google API |
    | 個人資訊 → 電子郵件地址 | ✓ | ✗ | 可選(Drive 備份才用) | 可跳過登入 |
    | 應用程式活動 → 其他動作 | ✓ | ✗ | 必要 | 用藥、飲食打卡等記錄 |
 
@@ -109,28 +109,29 @@
 
 1. 「您的應用程式是否屬於健康應用程式?」→ **是**。
 2. 功能類別:勾「**健康與健身**」(不要勾「醫療」— 會要求醫療器材認證)。
-3. 出現權限清單,表單依**活動 / 營養 / 睡眠 / 其他**分組,**逐欄填使用理由**
-   (可直接用下面文字)。實測會要求填的是 `ACTIVITY_RECOGNITION` 與所有
-   **READ** 類權限;`WRITE_*` 類通常不需另填說明(只有讀取敏感資料才要),
-   但保留於此備查:
+3. 目前 manifest 的健康/健身相關權限清單如下,表單依**活動 / 營養 / 睡眠 / 其他**
+   分組,**逐欄填使用理由**(可直接用下面文字)。實測會要求填的是
+   `ACTIVITY_RECOGNITION` 與所有 **READ** 類權限;`WRITE_*` 類通常不需另填說明
+   (只有讀取敏感資料才要),但保留於此備查:
    - `ACTIVITY_RECOGNITION`(分組:活動):「存取裝置計步器,辨識使用者在 App 內
      進行走路/跑步運動時的活動量,用於運動追蹤與每日/每週運動目標進度。」
    - `READ_STEPS`(分組:活動):「讀取每日步數,用於步數目標獎章與連續達標統計。」
+   - `READ_WEIGHT`(分組:其他/身體測量):「讀取 Health Connect 體重紀錄,匯入使用者的智慧體重計或其他健康 App 體重資料,用於體重趨勢與 BMI 計算。」
    - `READ_NUTRITION`(分組:營養):「讀取營養(鈉)資料,用於高血壓飲食教練的鈉攝取追蹤。」
    - `READ_SLEEP`(分組:睡眠):「讀取睡眠時數,用於生活教練的睡眠目標追蹤。」
    - `READ_HEALTH_DATA_IN_BACKGROUND`(分組:其他):「以排程工作在背景回補缺漏日的
-     步數/睡眠/營養,讓趨勢保持最新;資料僅在裝置端處理與儲存,絕不上傳開發者伺服器。」
+     步數/睡眠/營養/體重,讓趨勢保持最新;資料僅在裝置端處理與儲存,絕不上傳開發者伺服器。」
    - `WRITE_BLOOD_PRESSURE`(若被要求):「使用者手動或拍照記錄的血壓值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
+   - `WRITE_BLOOD_GLUCOSE`(若被要求):「使用者手動或拍照記錄的血糖值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
+   - `WRITE_WEIGHT`(若被要求):「使用者手動或拍照記錄的體重值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
    - `WRITE_EXERCISE` / `WRITE_EXERCISE_ROUTE`(若被要求):「使用者主動開始的運動(走路/跑步)及其 GPS 路線,經同意寫入 Health Connect。」
    - `WRITE_NUTRITION`(若被要求):「使用者記錄的飲食(熱量、鈉等),經同意寫入 Health Connect。」
 4. 隱私政策 URL 會被比對 — 我們的 `docs/privacy.html` 已含對應揭露,直接過。
 5. 提交。狀態會顯示「審核中」;**通過前不能正式發布**(測試軌道通常可以)。
 
-> ⚠️ **v1.2 血糖(Phase 2)新增 `WRITE_BLOOD_GLUCOSE` → 必須重送本聲明。**
-> AndroidManifest 已加入 `android.permission.health.WRITE_BLOOD_GLUCOSE`(血糖一律寫入式單向鏡像,僅 owner 成員)。新增任何 `health.*` 權限都會讓既有的健康應用程式聲明失效,需在本頁逐項清單再補一條使用理由並**重新提交**(審核同樣需數天到數週),且**必須在 v1.2 正式發布前通過**。理由文案沿用上面格式:
-> - `WRITE_BLOOD_GLUCOSE`:「使用者手動或拍照記錄的血糖值,經其同意鏡像寫入 Health Connect,供其他健康 app 共用。」
->
-> 與 B5 初次申報同流程,排在 Phase 2 第一週與開發並行送審(roadmap §4-4 critical path)。`docs/privacy.html` 的健康資料揭露也要同步增列血糖。
+> 任何新增/移除 `android.permission.health.*` 權限都會讓既有健康應用程式聲明失效,
+> 必須在本頁逐項更新並**重新提交**(審核同樣需數天到數週)。血糖與體重目前已是正式
+> manifest 權限,不是 future-only 項目。
 
 ### C-9. 前景服務權限聲明 ⚠️ 需要影片
 
@@ -143,7 +144,10 @@
    - 用途說明:「使用者主動開始 GPS 運動(走路/跑步)時,前景服務持續記錄位置
      以繪製路線與計算距離;結束運動即停止。服務僅由使用者明確操作啟動。」
    - 影片連結:貼 YouTube URL。
-4. 提交。
+4. 表單中 `FOREGROUND_SERVICE_DATA_SYNC` →
+   - 用途說明:「使用者主動下載或更新裝置端 AI 模型時,WorkManager 前景服務顯示常駐進度通知並保持下載不中斷;下載完成或取消即停止。不會上傳健康資料。」
+   - 影片連結:若 Console 要求,補一段從設定啟動模型下載並顯示下載通知的短影片。
+5. 提交。
 
 ## D. 商店資訊(Store listing)
 
@@ -179,6 +183,9 @@
 ./gradlew :app:bundleRelease              # 產出 AAB
 # 產出:app/build/outputs/bundle/release/app-release.aab
 ```
+
+`assembleRelease` / `bundleRelease` 會在缺少任一簽章值或 `MAPS_API_KEY` 時**直接失敗**,
+避免產出 debug 簽章或空白 Maps key 的上架檔。
 
 ### E-2. 上傳到內部測試軌道
 
@@ -477,7 +484,7 @@ keytool -genkeypair -v -keystore ~/keystores/silverbp-upload-2.jks \
   -dname "CN=SilverBP, OU=Mobile, O=SilverBP, L=Taipei, S=Taiwan, C=TW"
 ```
 
-加進 `local.properties`(**絕不提交**;四項缺一就退回 debug 簽章):
+加進 `local.properties`(**絕不提交**;四項簽章值與 Maps key 缺一不可):
 
 ```properties
 KEYSTORE_PATH=/Users/<你>/keystores/silverbp-upload-2.jks
@@ -487,8 +494,9 @@ KEY_PASS=…
 MAPS_API_KEY=AIza…
 ```
 
-只要任一 `KEYSTORE_*` 缺漏,release 設定就會退回 debug 簽章(讓全新 clone
-也能建置),所以真正可上架的簽章版**四項缺一不可**。
+`assembleRelease` / `bundleRelease` 會在任一 `KEYSTORE_*` / `KEY_ALIAS` / `KEY_PASS`
+值缺漏時**直接失敗**;不會退回 debug 簽章。debug/test 任務仍可在沒有 release
+簽章的全新 clone 上執行。
 
 ## 附錄二:一次性設定 — 限制 Maps API key
 
@@ -498,7 +506,7 @@ Google Cloud Console → 憑證 → 該 Maps key:
 - 加入**套件名稱** `com.silverbp.android` + debug 與 release/upload 兩把金鑰的 **SHA-1**:
   ```sh
   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey   # debug
-  keytool -list -v -keystore ~/keystores/silverbp-upload.jks -alias upload        # release
+  keytool -list -v -keystore ~/keystores/silverbp-upload-2.jks -alias upload      # upload key
   ```
   使用 Play App Signing 後,還要加 **App signing key** 的 SHA-1(見 F 節)。
 
@@ -562,12 +570,12 @@ SilverBP 是一款專為長輩與家人設計的血壓管理 App。介面字大�
 透過 Health Connect 同步每日步數與睡眠時數,納入週報與獎章統計。
 
 【Health Connect 整合】
-經你同意後,可將血壓、運動、飲食寫入 Health Connect,與其他健康 App 共用;
-步數與睡眠則可讀取回來。
+經你同意後,可將血壓、血糖、體重、運動與飲食寫入 Health Connect,與其他健康 App 共用;
+步數、睡眠、營養與體重則可讀取回來。
 
 【你的資料,你作主】
 所有紀錄預設只存在你的手機本機。可選擇啟用 AES-256 本機加密,或加密備份到你自己的
-Google Drive,並用回復碼或指紋/臉部解鎖保護隱私。雲端辨識、Drive 備份、
+Google Drive,並用回復碼或指紋/臉部解鎖保護隱私。Gemini 雲端 AI、Drive 備份、
 Health Connect 皆為選用功能,不開也能正常使用核心記錄。
 
 ⚠️ 本應用程式僅供健康記錄與個人參考,非醫療器材,不提供醫療診斷或治療建議。
@@ -615,13 +623,14 @@ Sync daily steps and sleep via Health Connect, folded into your weekly
 summary and medals.
 
 Health Connect
-With your consent, write blood pressure, exercise and nutrition to Health
-Connect to share with other health apps; read steps and sleep back in.
+With your consent, write blood pressure, blood glucose, weight, exercise and
+nutrition to Health Connect to share with other health apps; read steps, sleep,
+nutrition and weight back in.
 
 Your data, your control
 By default everything stays on your phone. You can optionally enable AES-256
 at-rest encryption, or back up — encrypted — to your own Google Drive and
-protect it with a recovery code or fingerprint/face unlock. Cloud recognition,
+protect it with a recovery code or fingerprint/face unlock. Gemini cloud AI,
 Drive backup and Health Connect are all optional; core logging works without them.
 
 Not a medical device; for personal health reference only. It does not provide

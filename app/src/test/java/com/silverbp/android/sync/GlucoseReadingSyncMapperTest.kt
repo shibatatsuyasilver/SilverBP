@@ -160,6 +160,19 @@ class GlucoseReadingSyncMapperTest {
         assertEquals(tombstone.deletedAt, ts?.deletedAt)
     }
 
+    @Test
+    fun health_connect_retry_hc_id_update_preserves_hlc() = runTest {
+        val dao = FakeGlucoseDao()
+        val hlc = Hlc.of(1_730_000_020_000L, 0, 0xABCDL).packed
+        dao.upsert(fixture().copy(hlcUpdatedAt = hlc, hcRecordId = null))
+
+        dao.updateHcRecordId(fixture().id, "hc-glucose-001")
+
+        val stored = dao.findById(fixture().id)
+        assertEquals("hc-glucose-001", stored?.hcRecordId)
+        assertEquals(hlc, stored?.hlcUpdatedAt)
+    }
+
     // --- B6 LWW gate over the real mapper (the CombinedRoomSyncSink composition) ---
 
     private fun gateOver(dao: GlucoseDao, syncDao: FakeSyncDao): LwwMerger {
@@ -248,6 +261,9 @@ class GlucoseReadingSyncMapperTest {
         override suspend fun findById(id: String): GlucoseReadingEntity? = rows[id]
         override suspend fun getAll(): List<GlucoseReadingEntity> = rows.values.sortedBy { it.timestamp }
         override suspend fun upsert(r: GlucoseReadingEntity) { rows[r.id] = r }
+        override suspend fun updateHcRecordId(id: String, hcId: String) {
+            rows[id]?.let { rows[id] = it.copy(hcRecordId = hcId) }
+        }
         override suspend fun delete(id: String) { rows.remove(id) }
         override suspend fun findUnmirrored(ownerId: String): List<GlucoseReadingEntity> =
             rows.values.filter { it.hcRecordId == null && it.memberId == ownerId }

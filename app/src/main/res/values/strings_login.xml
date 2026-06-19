@@ -4,7 +4,7 @@
          complete but before HOME is released, whenever googleAccountEmail is
          blank and the user hasn't tapped 稍後再說 (skippedGoogleLink). -->
     <string name="login_title">Sign in to keep your data safe</string>
-    <string name="login_body">After you sign in with Google, your blood pressure, exercise, medication, and Coach records are automatically encrypted and backed up to your Google Drive, so you can restore them directly when you switch phones or reinstall. Until you link an account, automatic backup stays off — you can still link it anytime from the Backup page.</string>
+    <string name="login_body">Sign in with Google now to link Drive for SilverBP. Backups stay off until you set a recovery code and choose an auto-backup schedule from the Backup page; then encrypted snapshots can be restored when you switch phones or reinstall.</string>
     <string name="login_button">Sign in with Google</string>
     <string name="login_signing_in">Signing in…</string>
     <string name="login_error">Sign-in failed. Please try again.</string>

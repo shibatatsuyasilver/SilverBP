@@ -15,7 +15,6 @@ import com.silverbp.android.billing.EntitlementStore
 import com.silverbp.android.coach.DayOfWeekMask
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.recognition.GeminiCloudRecognizer
-import com.silverbp.android.security.DbKeyStore
 import com.silverbp.android.security.KeystoreStringCipher
 import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.RecognitionBackend
@@ -27,14 +26,8 @@ private val Context.dataStore by preferencesDataStore(name = "user_settings")
 
 class UserSettingsRepository(private val context: Context) : EntitlementStore {
 
-    // Sensitive free-text fields (API key / prompts / nickname) are stored
-    // encrypted once the user opts into at-rest encryption. The marker is the
-    // same synchronous source of truth Room uses; values carry a sentinel so
-    // the read path is tolerant during opt-in/opt-out (mixed states).
-    private val dbKey: DbKeyStore by lazy { DbKeyStore.create(context) }
-
     private fun protect(v: String): String =
-        if (v.isNotEmpty() && dbKey.isDbEncrypted()) KeystoreStringCipher.encrypt(v) else v
+        if (v.isNotEmpty()) KeystoreStringCipher.encrypt(v) else v
 
     private fun reveal(v: String): String =
         if (KeystoreStringCipher.isEncrypted(v)) KeystoreStringCipher.decrypt(v) else v
@@ -343,12 +336,9 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
     }
 
     /**
-     * Rewrite the sensitive free-text fields so their on-disk form matches the
-     * current [DbKeyStore.isDbEncrypted] marker. Called by the app-lock
-     * opt-in/opt-out flow **after** the marker has been flipped:
-     *  - opt-in  (marker now true)  → plaintext values get re-stored encrypted
-     *  - opt-out (marker now false) → encrypted values get re-stored plaintext
-     * Idempotent: [reveal] tolerates either state, [protect] keys off the marker.
+     * Rewrite legacy plaintext sensitive free-text fields into their current
+     * Keystore-wrapped form. App-lock controls the UI/DB gate; user secrets stay
+     * wrapped by Android Keystore regardless of that setting.
      */
     suspend fun migrateSensitiveFields() {
         val sensitive = listOf(Keys.GEMINI_KEY, Keys.SYSTEM_PROMPT, Keys.CHAT_PERSONA, Keys.USER_NICKNAME)

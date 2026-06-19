@@ -8,6 +8,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +25,8 @@ import com.silverbp.android.ui.strength.StrengthExerciseDetailScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+val LocalStrengthMeasureBp = compositionLocalOf<() -> Unit> { {} }
+
 /**
  * 動作庫 section of the training hub. Hosts [LibraryScreen] and, when an item is
  * tapped, [StrengthExerciseDetailScreen] in a lightweight in-screen back stack
@@ -38,6 +41,7 @@ import kotlinx.coroutines.launch
 fun StrengthLibrarySection(
     onStartStrengthSession: () -> Unit,
 ) {
+    val onMeasureBp = LocalStrengthMeasureBp.current
     var selectedId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     // Resolved item + BP-gate verdict awaiting confirmation (CAUTION/BLOCK only).
@@ -89,7 +93,10 @@ fun StrengthLibrarySection(
                 pendingStrength = null
                 startStrength(item)
             },
-            onMeasure = { pendingStrength = null },
+            onMeasure = {
+                pendingStrength = null
+                onMeasureBp()
+            },
             onDismiss = { pendingStrength = null },
         )
     }

@@ -179,7 +179,7 @@
     <string name="exercise_notification_paused_suffix"> · 已暫停</string>
     <string name="exercise_recording_body_with_pace">%1$s · %2$s · %3$s</string>
     <string name="exercise_recording_body_paused">⏸ %1$s · %2$s</string>
-    <string name="exercise_notification_big_summary_format">%1$s · %2$s 步</string>
+    <string name="exercise_notification_big_summary_format">%1$s · %2$d 步</string>
     <string name="exercise_notification_big_summary_no_steps">%1$s</string>
     <string name="exercise_notification_action_pause">暫停</string>
     <string name="exercise_notification_action_resume">繼續</string>
@@ -401,7 +401,7 @@
 
     <!-- 引導 step 0 — 歡迎 + 醫療免責聲明 + 隱私同意 -->
     <string name="onboarding_welcome_title">歡迎使用 SilverBP</string>
-    <string name="onboarding_welcome_body">SilverBP 將您的血壓紀錄、運動 session 與教練回饋全部留在這台裝置。不需要帳號,健康資料也不會上傳雲端。</string>
+    <string name="onboarding_welcome_body">SilverBP 預設將您的血壓、血糖、體重、運動、營養與教練紀錄留在這台裝置。只有在您啟用 Google Drive 備份,或選擇 Google Gemini 雲端 AI 處理照片、聊天文字/圖片或紀錄脈絡時,資料才會上傳。</string>
     <string name="onboarding_privacy_link">查看隱私政策</string>
     <string name="onboarding_accept">我已閱讀並同意上述隱私政策。</string>
 
@@ -438,7 +438,7 @@
     <string name="settings_backend_local_title">本機模型 (LiteRT-LM)</string>
     <string name="settings_backend_local_desc">離線運作,無 API 費用,首次需下載</string>
     <string name="settings_backend_cloud_title">雲端 API (Google Gemini)</string>
-    <string name="settings_backend_cloud_desc">不佔本機 RAM,需 API key + 網路</string>
+    <string name="settings_backend_cloud_desc">會將您選用的 AI 任務傳送至 Google Gemini:血壓計、食物、運動器材、血糖機與體重計照片;聊天文字/圖片;以及啟用聊天紀錄脈絡時的血壓、血糖、運動與獎章摘要。需 API key + 網路。</string>
     <string name="settings_backend_aicore_title">AICore (Gemini Nano,Pixel 9/10 only)</string>
     <string name="settings_backend_aicore_desc">系統內建 Gemini Nano + Tensor TPU 加速。模型由 Android 管理,APK 不增重。</string>
 
@@ -469,7 +469,7 @@
     <!-- 設定頁:Gemini 雲端 -->
     <string name="settings_gemini_section">Gemini 設定</string>
     <string name="settings_gemini_api_label">API Key (AIza…)</string>
-    <string name="settings_gemini_help">至 https://aistudio.google.com/app/apikey 取得 API key。\nFlash 適合大多數情況,Pro 用於模糊或反光的照片。</string>
+    <string name="settings_gemini_help">至 https://aistudio.google.com/app/apikey 取得 API key。\n雲端 AI 可處理辨識照片、聊天文字/圖片,以及在相關設定啟用時的聊天紀錄脈絡。Flash 適合大多數情況,Pro 用於模糊或反光的照片。</string>
     <string name="settings_gemini_model_label">Gemini 模型</string>
 
     <!-- 設定頁:AICore (Gemini Nano) -->
@@ -489,7 +489,7 @@
     <string name="settings_chat_persona_label">聊天 persona</string>
     <string name="settings_chat_persona_help">留空 = 使用內建預設 persona。下一輪訊息即套用,不需重新載入模型。</string>
     <string name="settings_chat_include_records">包含個人健康紀錄</string>
-    <string name="settings_chat_include_records_help">啟用時會把最新血壓 / 7 日 30 日統計 / 運動 / 徽章摘要附在 system prompt 中讓 LLM 參考。關閉適合測試模型對中性問題的回應。</string>
+    <string name="settings_chat_include_records_help">啟用時會把最新血壓 / 7 日 30 日統計 / 運動 / 徽章摘要附在 system prompt 中讓 LLM 參考。若選用 Cloud API,這份摘要會傳送至 Google Gemini。關閉適合測試模型對中性問題的回應。</string>
 
     <!-- 設定頁:跨裝置同步 -->
     <string name="settings_sync_section">跨裝置同步</string>
@@ -817,4 +817,8 @@
     <string name="hc_rationale_usage_label">資料如何被使用?</string>
     <string name="hc_rationale_usage_body">• 全部運算與儲存在你的手機本機,不會上傳至我們的伺服器。唯一的例外是選用的 Google Drive 備份,若你開啟,會將端對端加密的快照上傳至你自己的 Drive。\n• 你可以隨時在系統 Health Connect 設定中撤銷任何權限。\n• 撤銷後,SilverBP 會停止背景同步,既有的本地紀錄不會被刪除。</string>
     <string name="hc_rationale_disclaimer">本應用程式提供的內容僅供參考,並非醫療設備或醫療診斷。</string>
+    <string name="bp_crisis_warning_title">血壓非常高</string>
+    <string name="bp_crisis_warning_body">此次血壓讀數非常高。請安靜休息幾分鐘後重新量測；若仍然偏高或感到不適,請就醫。本 App 並非醫療器材。</string>
+    <string name="weight_reading_not_found_title">找不到體重紀錄</string>
+    <string name="weight_reading_not_found_body">這筆體重紀錄可能已刪除或無法使用。</string>
 </resources>

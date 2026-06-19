@@ -1,6 +1,7 @@
 package com.silverbp.android.recognition
 
 import androidx.annotation.StringRes
+import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
 
 /**
@@ -46,7 +47,7 @@ object ModelCatalog {
     // re-uploaded these files in place before; if upstream changes the file, the
     // download will fail "sha256 mismatch" until the hash here is refreshed
     // (`curl -sIL <resolve-url> | grep -i x-linked-etag`, or `shasum -a 256`).
-    val variants: List<ModelVariant> = listOf(
+    private val releaseVariants: List<ModelVariant> = listOf(
         ModelVariant(
             id = "gemma-4-E2B-it",
             displayNameRes = R.string.model_gemma4_e2b_name,
@@ -71,6 +72,9 @@ object ModelCatalog {
             notesRes = R.string.model_gemma4_e4b_notes,
             sha256 = "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
         ),
+    )
+
+    private val debugOnlyVariants: List<ModelVariant> = listOf(
         ModelVariant(
             id = "gemma-3n-E4B-it",
             displayNameRes = R.string.model_gemma3n_e4b_name,
@@ -80,11 +84,12 @@ object ModelCatalog {
             supportsVision = true,
             supportsSpeculativeDecoding = false,
             notesRes = R.string.model_gemma3n_e4b_notes,
-            // Gated repo (Google license) — LFS OID isn't exposed unauthenticated.
-            // Fill from your authenticated download: `shasum -a 256 <file>`.
-            sha256 = null,
+            // Debug-only until an authenticated SHA-256 pin is added for release.
         ),
     )
+
+    val variants: List<ModelVariant> =
+        if (BuildConfig.DEBUG) releaseVariants + debugOnlyVariants else releaseVariants
 
     val default: ModelVariant get() = variants.first()
     fun byId(id: String): ModelVariant = variants.firstOrNull { it.id == id } ?: default

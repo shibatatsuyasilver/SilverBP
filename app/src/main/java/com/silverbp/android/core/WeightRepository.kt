@@ -63,6 +63,7 @@ class WeightRepository(
     suspend fun findById(id: UUID): WeightReading? = dao.findById(id.toString())?.toDomain()
 
     suspend fun upsert(reading: WeightReading) {
+        validate(reading)
         val now = Instant.now()
         val existing = dao.findById(reading.id.toString())
         // Empty memberId (fresh drafts) resolves to the owner so a reading is
@@ -126,4 +127,13 @@ class WeightRepository(
     /** Owner-only retry set for the Health Connect mirror (mirrors [BpRepository]). */
     suspend fun findUnmirrored(): List<WeightReading> =
         dao.findUnmirrored(members.ownerId()).map { it.toDomain() }
+
+    private fun validate(reading: WeightReading) {
+        require(reading.valueKg.isFinite()) {
+            "Invalid weight reading: value must be finite"
+        }
+        require(reading.valueKg in 2.0..500.0) {
+            "Invalid weight reading: value must be 2..500 kg"
+        }
+    }
 }

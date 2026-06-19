@@ -39,6 +39,7 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
         /** RFC 3339 timestamp from Drive (e.g. `2026-05-27T08:00:00.000Z`). */
         val createdTime: String,
         val sizeBytes: Long,
+        val appProperties: Map<String, String> = emptyMap(),
     )
 
     data class DriveUser(
@@ -57,8 +58,13 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
         accessToken: String,
     ): String = withContext(Dispatchers.IO) {
         val metaJson = JSONObject().apply {
-            put("name", fileName)
+            put("name", normalizeBackupFileName(fileName))
+            put("mimeType", BACKUP_MEDIA_TYPE)
             put("parents", JSONArray().put("appDataFolder"))
+            put(
+                "appProperties",
+                JSONObject().put(BACKUP_APP_PROPERTY_KEY, BACKUP_APP_PROPERTY_VALUE),
+            )
         }.toString()
         val body = MultipartBody.Builder()
             .setType("multipart/related".toMediaType())
@@ -85,11 +91,15 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
      * cap, one page is always enough.
      */
     suspend fun listBackups(accessToken: String): List<DriveBackupFile> = withContext(Dispatchers.IO) {
+        val query = "trashed = false " +
+            "and name contains '$BACKUP_NAME_PREFIX' " +
+            "and appProperties has { key='$BACKUP_APP_PROPERTY_KEY' and value='$BACKUP_APP_PROPERTY_VALUE' }"
         val url = "$API_BASE/files".toHttpUrl().newBuilder()
             .addQueryParameter("spaces", "appDataFolder")
+            .addQueryParameter("q", query)
             .addQueryParameter("orderBy", "createdTime desc")
             .addQueryParameter("pageSize", "100")
-            .addQueryParameter("fields", "files(id,name,createdTime,size)")
+            .addQueryParameter("fields", "files(id,name,createdTime,size,appProperties)")
             .build()
         val request = Request.Builder()
             .url(url)
@@ -102,20 +112,30 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
             }
             val payload = resp.body?.string().orEmpty()
             val files = JSONObject(payload).optJSONArray("files") ?: JSONArray()
-            (0 until files.length()).map { i ->
+            (0 until files.length()).mapNotNull { i ->
                 val f = files.getJSONObject(i)
-                DriveBackupFile(
+                val appProperties = f.optStringMap("appProperties")
+                val file = DriveBackupFile(
                     id = f.getString("id"),
                     name = f.getString("name"),
                     createdTime = f.optString("createdTime", ""),
                     // Drive returns `size` as a stringified Long.
                     sizeBytes = f.optString("size", "0").toLongOrNull() ?: 0L,
+                    appProperties = appProperties,
                 )
+                file.takeIf { isSilverBpBackup(it.name, it.appProperties) }
             }
         }
     }
 
-    suspend fun deleteFile(fileId: String, accessToken: String) = withContext(Dispatchers.IO) {
+    suspend fun deleteBackup(file: DriveBackupFile, accessToken: String) {
+        require(isSilverBpBackup(file.name, file.appProperties)) {
+            "Refusing to delete a Drive file that is not marked as a SilverBP backup"
+        }
+        deleteFile(file.id, accessToken)
+    }
+
+    private suspend fun deleteFile(fileId: String, accessToken: String) = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("$API_BASE/files/$fileId")
             .header("Authorization", "Bearer $accessToken")
@@ -170,9 +190,36 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
     private fun okhttp3.Response.peekErrorText(): String =
         runCatching { peekBody(1024).string() }.getOrElse { "<no body>" }
 
+    private fun normalizeBackupFileName(fileName: String): String {
+        val trimmed = fileName.trim()
+        val prefixed = if (trimmed.startsWith(BACKUP_NAME_PREFIX)) trimmed else "$BACKUP_NAME_PREFIX$trimmed"
+        return if (prefixed.endsWith(BACKUP_EXTENSION)) prefixed else "$prefixed$BACKUP_EXTENSION"
+    }
+
+    private fun isSilverBpBackup(name: String, appProperties: Map<String, String>): Boolean =
+        name.startsWith(BACKUP_NAME_PREFIX) &&
+            name.endsWith(BACKUP_EXTENSION) &&
+            appProperties[BACKUP_APP_PROPERTY_KEY] == BACKUP_APP_PROPERTY_VALUE
+
+    private fun JSONObject.optStringMap(name: String): Map<String, String> {
+        val obj = optJSONObject(name) ?: return emptyMap()
+        val out = LinkedHashMap<String, String>()
+        val keys = obj.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            out[key] = obj.optString(key, "")
+        }
+        return out
+    }
+
     companion object {
+        const val BACKUP_NAME_PREFIX = "SilverBP-Backup-"
+        const val BACKUP_EXTENSION = ".sbpbk"
+
         private const val API_BASE = "https://www.googleapis.com/drive/v3"
         private const val UPLOAD_BASE = "https://www.googleapis.com/upload/drive/v3"
         private const val BACKUP_MEDIA_TYPE = "application/octet-stream"
+        private const val BACKUP_APP_PROPERTY_KEY = "silverbpBackup"
+        private const val BACKUP_APP_PROPERTY_VALUE = "v1"
     }
 }

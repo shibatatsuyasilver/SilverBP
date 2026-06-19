@@ -119,6 +119,7 @@ fun ConfirmWeightScreen(
     var saveError by remember { mutableStateOf<String?>(null) }
     // Persisted so a restored draft (above) isn't clobbered by the init reload.
     var loaded by rememberSaveable { mutableStateOf(false) }
+    var loadNotFound by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Initialise: edit an existing row, else a blank draft for the current member
@@ -133,6 +134,7 @@ fun ConfirmWeightScreen(
         // nothing was staged (e.g. recognition produced no value).
         if (readingIdArg == "draft") {
             val staged = WeightCaptureSessionHolder.take()
+            loadNotFound = false
             draft = if (staged != null) {
                 WeightDraftUi(
                     valueText = staged.valueText,
@@ -156,9 +158,14 @@ fun ConfirmWeightScreen(
         val id = readingIdArg?.let { runCatching { UUID.fromString(it) }.getOrNull() }
         val existing = id?.let { repo.findById(it) }
         if (existing != null) {
+            loadNotFound = false
             draft = WeightDraftUi.fromReading(existing)
             editingId = existing.id
+        } else if (id != null && isEditing) {
+            loadNotFound = true
+            editingId = null
         } else {
+            loadNotFound = false
             draft = WeightDraftUi(
                 timestamp = Instant.now(),
                 displayUnit = preferredUnit,
@@ -166,6 +173,39 @@ fun ConfirmWeightScreen(
             )
             editingId = null
         }
+    }
+
+    if (loadNotFound) {
+        Scaffold(
+            topBar = {
+                AppTopBar(
+                    title = stringResource(R.string.weight_confirm_title),
+                    navigationIcon = {
+                        TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+            ) {
+                StandardCard(title = stringResource(R.string.weight_reading_not_found_title)) {
+                    Text(
+                        stringResource(R.string.weight_reading_not_found_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onCancel) {
+                        Text(stringResource(R.string.confirm))
+                    }
+                }
+            }
+        }
+        return
     }
 
     fun save() {

@@ -10,6 +10,7 @@ import com.silverbp.android.core.db.SyncDeviceEntity
 import com.silverbp.android.core.db.SyncOutboxEntity
 import com.silverbp.android.core.db.TombstoneEntity
 import com.silverbp.android.sync.engine.Hlc
+import com.silverbp.android.sync.engine.LwwMerger
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.transport.SyncRecordCodec
 import kotlinx.coroutines.flow.Flow
@@ -189,6 +190,37 @@ class StrengthSyncMappersTest {
         assertTrue(dao.setsForSession(setFixture().workoutSessionId).isEmpty())
     }
 
+    @Test
+    fun lww_set_log_tombstone_blocks_stale_live_resurrection() = runTest {
+        val dao = FakeStrengthDao().apply { insertSession(sessionFixture()) }
+        val syncDao = FakeSyncDao().apply {
+            val tombHlc = Hlc.of(5_000L, 0, 0xABCDL)
+            upsertTombstone(
+                TombstoneEntity(
+                    entityType = SyncEntityType.SET_LOG.tableName,
+                    pk = setFixture().id,
+                    hlc = tombHlc.packed,
+                    deletedAt = 5_000L,
+                ),
+            )
+        }
+        val mapper = SetLogSyncMapper(dao)
+        val gate = LwwMerger(
+            inner = { rec -> mapper.apply(rec) },
+            localHlc = { rec ->
+                LwwTables.resolveLocalHlc(
+                    dao.setById(rec.pk)?.hlcUpdatedAt,
+                    syncDao.tombstoneFor(rec.type.tableName, rec.pk)?.hlc,
+                )
+            },
+        )
+
+        val stalePeerSet = mapper.encode(setFixture(), Hlc.of(2_000L, 0, 0xABCDL))
+
+        assertEquals(false, gate.apply(stalePeerSet))
+        assertTrue(dao.setsForSession(setFixture().workoutSessionId).isEmpty())
+    }
+
     // --- in-memory fakes (no Room / Robolectric required) ---
 
     private class FakeLibraryDao : ExerciseLibraryDao {
@@ -204,6 +236,9 @@ class StrengthSyncMappersTest {
             flowOf(rows.values.filter { it.bodyPart == raw }.sortedBy { it.name })
         override suspend fun setFavorite(id: String, fav: Boolean) {
             rows[id]?.let { rows[id] = it.copy(isFavorite = fav) }
+        }
+        override suspend fun setFavoriteWithHlc(id: String, fav: Boolean, hlc: String) {
+            rows[id]?.let { rows[id] = it.copy(isFavorite = fav, hlcUpdatedAt = hlc) }
         }
         override suspend fun upsert(item: ExerciseCatalogItemEntity) { rows[item.id] = item }
         override suspend fun upsertAll(items: List<ExerciseCatalogItemEntity>) {
@@ -224,6 +259,9 @@ class StrengthSyncMappersTest {
             flowOf(sets.values.filter { it.workoutSessionId == id }.sortedBy { it.setNumber })
         override suspend fun setsForSession(id: String): List<SetLogEntity> =
             sets.values.filter { it.workoutSessionId == id }.sortedBy { it.setNumber }
+        override suspend fun setIdsForSession(id: String): List<String> =
+            sets.values.filter { it.workoutSessionId == id }.map { it.id }
+        fun setById(id: String): SetLogEntity? = sets[id]
         override suspend fun insertSession(session: StrengthWorkoutSessionEntity) {
             sessions[session.id] = session
         }
@@ -237,6 +275,7 @@ class StrengthSyncMappersTest {
             sessions.remove(id)
             sets.entries.removeIf { it.value.workoutSessionId == id } // CASCADE
         }
+        override suspend fun upsertTombstones(tombstones: List<TombstoneEntity>) {}
         override suspend fun count(): Int = sessions.size
     }
 

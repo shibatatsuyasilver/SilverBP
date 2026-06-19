@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 import java.util.UUID
@@ -104,6 +105,20 @@ class BpRepositoryTest {
         repo.delete(id)
 
         assertEquals(SyncEntityType.BP_READING to id.toString(), localSync.deleted.single())
+    }
+
+    @Test
+    fun upsert_rejects_out_of_range_values_before_persisting() = runTest {
+        val bpDao = FakeBpDao()
+        val repo = BpRepository(bpDao, ownerRepo())
+        val id = UUID.randomUUID()
+
+        val thrown = runCatching {
+            repo.upsert(reading(id, ownerId, hcRecordId = null).copy(systolic = 300))
+        }.exceptionOrNull()
+
+        assertTrue(thrown is IllegalArgumentException)
+        assertNull(bpDao.findById(id.toString()))
     }
 
     private fun BpReading.toEntityWith(member: String, hc: String?) = BpReadingEntity(

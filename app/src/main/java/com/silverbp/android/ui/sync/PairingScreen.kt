@@ -7,6 +7,7 @@ import android.graphics.Color
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview as CameraPreview
@@ -572,6 +573,7 @@ private fun QrCameraPreview(onScanned: (String) -> Unit) {
     )
 }
 
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
 private fun analyseProxy(
     proxy: ImageProxy,
     scanner: com.google.mlkit.vision.barcode.BarcodeScanner,

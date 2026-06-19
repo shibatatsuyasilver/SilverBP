@@ -4,12 +4,15 @@ import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
 import com.silverbp.android.sync.engine.SyncValue
+import com.silverbp.android.sync.transport.CborWriter
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
+import java.io.ByteArrayOutputStream
 
 class BackupCodecTest {
 
@@ -68,10 +71,15 @@ class BackupCodecTest {
         )
 
         val bytes = BackupCodec.encodePayload(manifest, records)
-        val (decodedManifest, decodedRecords) = BackupCodec.decodePayload(bytes)
+        val decodedPayload = BackupCodec.decodePayload(bytes)
+        val decodedManifest = decodedPayload.manifest
+        val decodedRecords = decodedPayload.records
 
         assertEquals(manifest.manifestVersion, decodedManifest.manifestVersion)
         assertEquals(records.size, decodedRecords.size)
+        assertEquals(records.size, decodedPayload.rawRecordBlockCount)
+        assertEquals(records.size, decodedPayload.knownRecordCount)
+        assertEquals(0, decodedPayload.skippedUnknownRecordCount)
         for ((orig, dec) in records.zip(decodedRecords)) {
             assertEquals(orig.type, dec.type)
             assertEquals(orig.pk, dec.pk)
@@ -85,6 +93,23 @@ class BackupCodecTest {
         val bytes = BackupCodec.encodePayload(sampleManifest(), emptyList())
         val (_, decoded) = BackupCodec.decodePayload(bytes)
         assertTrue(decoded.isEmpty())
+    }
+
+    @Test
+    fun `payload skips unknown future record type but preserves raw count`() {
+        val known = sampleBpRecord("known-row")
+        val payload = appendRawRecordBlock(
+            BackupCodec.encodePayload(sampleManifest(), listOf(known)),
+            unknownFutureRecordBlock(),
+        )
+
+        val decoded = BackupCodec.decodePayload(payload)
+
+        assertEquals(2, decoded.rawRecordBlockCount)
+        assertEquals(1, decoded.knownRecordCount)
+        assertEquals(1, decoded.skippedUnknownRecordCount)
+        assertEquals(2, decoded.knownRecordCount + decoded.skippedUnknownRecordCount)
+        assertEquals("known-row", decoded.records.single().pk)
     }
 
     @Test
@@ -168,5 +193,82 @@ class BackupCodecTest {
 
         assertNull(decoded.keystoreWrap)
         assertEquals(header.sourcePlatform, decoded.sourcePlatform)
+    }
+
+    @Test
+    fun `header validation rejects out-of-bounds KDF params before decrypt`() {
+        val header = validImportHeader(
+            kdfParams = BackupCrypto.KdfParams(
+                memKib = BackupCrypto.KDF_MEM_KIB_MAX + 1,
+                iterations = 3,
+                parallelism = 1,
+            ),
+            payloadSize = 0L,
+        )
+        val decoded = BackupCodec.decodeHeader(BackupCodec.encodeHeader(header))
+
+        assertFailsWithMessage("KDF memory") {
+            BackupCodec.validateHeaderForImport(decoded, BackupCrypto.GCM_TAG_BYTES)
+        }
+    }
+
+    private fun unknownFutureRecordBlock(): ByteArray {
+        val w = CborWriter()
+        w.writeMapHeader(4)
+        w.writeUInt(1L); w.writeUInt(9_999L)
+        w.writeUInt(2L); w.writeText("future-row")
+        w.writeUInt(3L); w.writeText(sampleHlc().packed)
+        w.writeUInt(5L); w.writeMapHeader(0)
+        return w.toByteArray()
+    }
+
+    private fun appendRawRecordBlock(payload: ByteArray, block: ByteArray): ByteArray =
+        ByteArrayOutputStream().apply {
+            write(payload)
+            writeBlock(block)
+        }.toByteArray()
+
+    private fun ByteArrayOutputStream.writeBlock(block: ByteArray) {
+        val len = block.size
+        write((len ushr 24) and 0xFF)
+        write((len ushr 16) and 0xFF)
+        write((len ushr 8) and 0xFF)
+        write(len and 0xFF)
+        write(block)
+    }
+
+    private fun validImportHeader(
+        kdfParams: BackupCrypto.KdfParams = BackupCrypto.KdfParams(),
+        payloadSize: Long = 0L,
+    ) = BackupCodec.Header(
+        formatVersion = BackupContainer.FORMAT_VERSION,
+        sourcePlatform = "android",
+        sourceAppVer = "1.0+1",
+        schemaVersion = 12,
+        contentVersion = 1,
+        createdAtMs = 1_700_000_000_000L,
+        payloadSize = payloadSize,
+        kdfSalt = ByteArray(BackupCrypto.KDF_SALT_BYTES),
+        kdfParams = kdfParams,
+        aeadAlg = BackupCrypto.AEAD_ALG_AES_256_GCM,
+        aeadNonce = ByteArray(BackupCrypto.GCM_NONCE_BYTES),
+        keystoreWrap = null,
+        recoveryWrap = BackupCodec.RecoveryWrapRef(
+            BackupCrypto.KeyWrap(
+                ByteArray(BackupCrypto.GCM_NONCE_BYTES),
+                ByteArray(BackupCrypto.KEY_WRAP_CIPHERTEXT_BYTES),
+            ),
+        ),
+        recordCount = 0,
+        includesChat = true,
+    )
+
+    private fun assertFailsWithMessage(messagePart: String, block: () -> Unit) {
+        try {
+            block()
+            fail("Expected failure containing '$messagePart'")
+        } catch (t: IllegalArgumentException) {
+            assertTrue("Unexpected message: ${t.message}", t.message?.contains(messagePart) == true)
+        }
     }
 }

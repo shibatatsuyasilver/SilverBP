@@ -61,7 +61,7 @@
 
 <section id="en">
   <h1>SilverBP — Privacy Policy</h1>
-  <p class="meta">Effective date: 2026-06-16 · Version 2</p>
+  <p class="meta">Effective date: 2026-06-19 · Version 3</p>
 
   <p>SilverBP ("the app") is a personal blood-pressure tracking, exercise, and lifestyle-coach Android application developed by <strong>Silver</strong> ("we", "us"). Contact: <a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a>. This policy explains what data the app handles, where it is stored, and your choices.</p>
 
@@ -74,7 +74,7 @@
     <li><strong>Exercise sessions</strong> — type (walk / run), duration, distance, GPS path, calories, optional notes. GPS is recorded only while you have explicitly started a session.</li>
     <li><strong>Health Connect data (optional)</strong> — when you opt in, SilverBP reads steps, sleep, nutrition, and weight from Health Connect, and writes blood-pressure, blood-glucose, weight, exercise (including route), and nutrition data back to Health Connect. Only the account owner's readings are written; other family members' readings stay on the device. With your permission it also reads these record types in the background to keep your trends current.</li>
     <li><strong>Microphone (optional)</strong> — the chat feature uses the Android Speech Recognizer to transcribe your voice into text in real time. Audio is processed by the system speech recognizer and is not stored or uploaded by SilverBP.</li>
-    <li><strong>Camera (optional)</strong> — used to photograph your home blood-pressure monitor display so the on-device model can extract numbers. Photos are processed locally and saved into the app's private storage; you can delete them at any time.</li>
+    <li><strong>Camera and photos (optional)</strong> — used to photograph or attach home blood-pressure monitor displays, food/nutrition items, exercise-machine displays, blood-glucose meters, body-weight scales, and chat images. Photos are processed locally by default and saved into the app's private storage; you can delete them at any time. If you choose the Google Gemini cloud AI route, the selected photo or chat image is sent to Gemini as described below.</li>
     <li><strong>Nickname</strong> — a short label you may enter during onboarding so the coach can address you. Optional and editable in Settings.</li>
     <li><strong>Hugging Face access token (optional)</strong> — only if you choose to download a gated Gemma model variant. Stored locally; used only for the download request.</li>
     <li><strong>LAN-sync peer keys (optional)</strong> — when you pair another device, we store the peer's public key locally so future syncs over the same Wi-Fi can be authenticated.</li>
@@ -85,7 +85,7 @@
   <ul>
     <li>All app data is kept on your device (Room database + Android DataStore), inside SilverBP's private app sandbox.</li>
     <li>Health Connect data is managed by the Android Health Connect platform; SilverBP only reads or writes it with permissions you grant in the system Health Connect app.</li>
-    <li>SilverBP does <strong>not</strong> have a server. Your health data is never uploaded to us or to any third-party analytics or advertising service. The only place it can leave your device is the optional Google Drive backup you turn on yourself (see <a href="#drive-backup-en">Network use</a>), which uploads an encrypted snapshot to your own Drive.</li>
+    <li>SilverBP does <strong>not</strong> have a server. Your health data is never uploaded to us or to any third-party analytics or advertising service. It can leave your device only through optional features you choose: Google Gemini cloud AI (photos, chat text/images, and chat record context when enabled) or Google Drive backup (see <a href="#drive-backup-en">Network use</a>), which uploads an encrypted snapshot to your own Drive.</li>
   </ul>
 
   <h2>3. Network use</h2>
@@ -93,19 +93,19 @@
     <li><strong>Model download</strong> — when you initiate a download, the app fetches the Gemma model file over HTTPS from Hugging Face (or Google AI Edge). No personal data is sent — only your access token if you provided one.</li>
     <li><strong>Google Maps</strong> — exercise route maps are rendered by the Google Maps Android SDK. Your map view interactions are subject to <a href="https://policies.google.com/privacy">Google's Privacy Policy</a>. Recorded GPS coordinates remain on your device.</li>
     <li><strong>LAN sync (optional)</strong> — when paired with another of your devices on the same Wi-Fi, your health records (blood-pressure, blood-glucose, weight, exercise and related records) are exchanged peer-to-peer over an end-to-end encrypted Noise XK channel. The data does not pass through any cloud server.</li>
-    <li><strong>Cloud recognition (optional)</strong> — if you opt to use the Google Gemini cloud route for OCR, the photo of your monitor display is sent to Google's Gemini API using the API key you configured. This is governed by Google's API terms.</li>
+    <li><strong>Google Gemini cloud AI (optional)</strong> — if you choose the Cloud API / Google Gemini backend, SilverBP sends the selected AI request to Google's Gemini API using the API key you configured. This can include blood-pressure monitor photos, food/nutrition photos, exercise-machine display photos, blood-glucose meter photos, body-weight scale photos, chat text, and chat image attachments. When the chat "Include personal health records" setting is enabled, cloud chat requests also include a compact record context: your latest blood-pressure reading, 7-day and 30-day blood-pressure statistics, recent glucose summary when present, exercise sessions, step-goal progress, recognition backend setting, and achievement summaries. You can turn that record-context setting off in Settings. Gemini processing is governed by Google's API terms.</li>
     <li id="drive-backup-en"><strong>Google Drive backup (optional)</strong> — if you connect Google Drive and enable backup, SilverBP periodically uploads a <code>.sbpbk</code> snapshot of your health database (blood-pressure, blood-glucose, weight, exercise, nutrition, sleep and related records) to the hidden <code>appDataFolder</code> of <em>your own</em> Google Drive. The snapshot is end-to-end encrypted with a key derived from your recovery code before it leaves the device, so neither we nor Google can read it. To remove it: disconnect Drive and delete the backups from within SilverBP, then revoke the app's Drive access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
   </ul>
 
   <h2>4. Sharing with third parties</h2>
-  <p>SilverBP does <strong>not</strong> share your data with third-party analytics, advertising, or tracking SDKs. The only third parties involved are the optional services you explicitly enable (Health Connect, Google Maps, Hugging Face downloads, Google Gemini cloud OCR), as described above.</p>
+  <p>SilverBP does <strong>not</strong> share your data with third-party analytics, advertising, or tracking SDKs. The only third parties involved are the optional services you explicitly enable (Health Connect, Google Maps, Hugging Face downloads, Google Gemini cloud AI, Google Drive backup), as described above.</p>
   <!-- Data Safety form note: the Premium subscription introduces NO new data collection or sharing. Payments are processed entirely by Google Play; SilverBP never receives any payment/card data. The Play Console Data Safety form therefore remains UNCHANGED. -->
   <p>If you purchase the optional Premium subscription, the payment is processed entirely by <strong>Google Play</strong>; SilverBP never receives, stores, or processes your payment or card data, and no new personal data is collected by the app for billing.</p>
 
   <h2>5. Permissions</h2>
   <p>SilverBP requests the following Android permissions only when needed for a feature you use:</p>
   <ul>
-    <li><code>CAMERA</code> — photograph your monitor display for OCR.</li>
+    <li><code>CAMERA</code> — photograph blood-pressure monitors, food, exercise machines, glucose meters, body-weight scales, and chat images for the features you choose.</li>
     <li><code>RECORD_AUDIO</code> — voice input in chat (real-time transcription, not recorded).</li>
     <li><code>ACCESS_FINE_LOCATION</code> + <code>FOREGROUND_SERVICE_LOCATION</code> — GPS path tracking during an exercise session you started.</li>
     <li><code>ACTIVITY_RECOGNITION</code> — read step count from the device's step sensor.</li>
@@ -116,7 +116,7 @@
 
   <h2>6. Your choices and rights</h2>
   <ul>
-    <li>Every feature that uses sensitive data (Health Connect, GPS, microphone, notifications, LAN sync) can be enabled or disabled in Settings or via the system permission screen.</li>
+    <li>Every feature that uses sensitive data (Health Connect, GPS, microphone, notifications, LAN sync, Google Gemini cloud AI, Google Drive backup, and chat record context) can be enabled or disabled in Settings or via the system permission screen.</li>
     <li>Uninstalling SilverBP removes all data stored by the app on your device. Records that were synced to Health Connect remain in Health Connect; you can remove them in the system Health Connect app.</li>
     <li>You may contact us at <a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a> with any privacy-related questions.</li>
   </ul>
@@ -140,7 +140,7 @@
 
 <section id="zh-tw" lang="zh-TW">
   <h1>SilverBP — 隱私政策</h1>
-  <p class="meta">生效日期:2026-06-16 · 版本 2</p>
+  <p class="meta">生效日期:2026-06-19 · 版本 3</p>
 
   <p>SilverBP(以下稱「本 App」)是一款由 <strong>Silver</strong>(以下稱「我們」)所開發的個人血壓追蹤、運動與生活方式教練的 Android 應用程式。聯絡信箱:<a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a>。本政策說明本 App 處理哪些資料、儲存於何處,以及您的選擇。</p>
 
@@ -153,7 +153,7 @@
     <li><strong>運動紀錄</strong> — 類型(走路 / 跑步)、時間、距離、GPS 路徑、卡路里以及備註。GPS 僅在您主動開始 session 時記錄。</li>
     <li><strong>Health Connect 資料(選用)</strong> — 啟用後,本 App 會從 Health Connect 讀取步數、睡眠、營養與體重,並把血壓、血糖、體重、運動(含路徑)與營養資料寫回 Health Connect。僅帳號擁有者本人的讀數會寫回,其他家庭成員的讀數僅保留於本機。經您授權後,也會在背景讀取這些資料類型,讓您的趨勢保持最新。</li>
     <li><strong>麥克風(選用)</strong> — 聊天功能使用 Android Speech Recognizer 即時把您的語音轉成文字。音訊由系統語音辨識服務處理,本 App 不儲存、不上傳。</li>
-    <li><strong>相機(選用)</strong> — 用於拍攝家用血壓計螢幕,讓裝置端模型辨識數字。照片在本機處理並儲存於本 App 私有空間,您可隨時刪除。</li>
+    <li><strong>相機與照片(選用)</strong> — 用於拍攝或附加家用血壓計螢幕、食物/營養照片、運動器材螢幕、血糖機、體重計與聊天圖片。照片預設在本機處理並儲存於本 App 私有空間,您可隨時刪除。若您選擇 Google Gemini 雲端 AI 路線,所選照片或聊天圖片會依下方說明傳送至 Gemini。</li>
     <li><strong>暱稱</strong> — 您在引導頁可選擇輸入一個簡短稱呼,讓教練稱呼您。可選,可在設定中修改。</li>
     <li><strong>Hugging Face access token(選用)</strong> — 只有在您下載受授權保護的 Gemma 模型版本時才需要。儲存於本機,僅用於下載請求。</li>
     <li><strong>區網同步對端公鑰(選用)</strong> — 配對另一台裝置時,我們把對端的公鑰儲存於本機,日後在同一 Wi-Fi 同步時用於認證。</li>
@@ -164,7 +164,7 @@
   <ul>
     <li>所有資料都儲存在您的裝置(Room 資料庫 + Android DataStore),位於 SilverBP 私有的 App sandbox 內。</li>
     <li>Health Connect 資料由 Android Health Connect 平台管理;SilverBP 僅在您於系統 Health Connect App 授權後讀寫。</li>
-    <li>SilverBP <strong>沒有伺服器</strong>。您的健康資料絕不上傳至我們或任何第三方分析、廣告平台。唯一可能離開您裝置的情況,是您自行開啟的選用 Google Drive 備份(請見<a href="#drive-backup-zh">網路使用</a>),它會將加密後的快照上傳至您自己的 Drive。</li>
+    <li>SilverBP <strong>沒有伺服器</strong>。您的健康資料絕不上傳至我們或任何第三方分析、廣告平台。資料只有在您選用特定功能時才會離開裝置:Google Gemini 雲端 AI(照片、聊天文字/圖片,以及啟用時的聊天紀錄脈絡)或 Google Drive 備份(請見<a href="#drive-backup-zh">網路使用</a>),後者會將加密後的快照上傳至您自己的 Drive。</li>
   </ul>
 
   <h2>3. 網路使用</h2>
@@ -172,19 +172,19 @@
     <li><strong>模型下載</strong> — 當您主動下載時,本 App 透過 HTTPS 從 Hugging Face(或 Google AI Edge)取得 Gemma 模型檔。除了您所提供的 access token 之外,不會傳送任何個人資料。</li>
     <li><strong>Google 地圖</strong> — 運動路徑地圖由 Google Maps Android SDK 繪製,適用 <a href="https://policies.google.com/privacy">Google 隱私政策</a>。您所記錄的 GPS 座標仍儲存在本機。</li>
     <li><strong>區網同步(選用)</strong> — 在同一 Wi-Fi 上配對另一台您的裝置時,您的健康紀錄(血壓、血糖、體重、運動及相關紀錄)透過端對端加密的 Noise XK 通道直接交換。資料不經任何雲端伺服器。</li>
-    <li><strong>雲端辨識(選用)</strong> — 如您選擇使用 Google Gemini 雲端 OCR,血壓計螢幕的照片會以您所設定的 API key 傳送至 Google Gemini API,適用 Google 的 API 條款。</li>
+    <li><strong>Google Gemini 雲端 AI(選用)</strong> — 若您選擇 Cloud API / Google Gemini 後端,SilverBP 會使用您設定的 API key 將所選 AI 請求傳送至 Google Gemini API。可能包含血壓計照片、食物/營養照片、運動器材螢幕照片、血糖機照片、體重計照片、聊天文字與聊天圖片附件。當「包含個人健康紀錄」聊天設定啟用時,雲端聊天請求也會包含精簡紀錄脈絡:最新血壓讀數、7 日與 30 日血壓統計、若有血糖紀錄則包含近期血糖摘要、運動 session、步數目標進度、辨識後端設定與獎章摘要。您可在設定中關閉這個紀錄脈絡設定。Gemini 處理適用 Google 的 API 條款。</li>
     <li id="drive-backup-zh"><strong>Google Drive 備份(選用)</strong> — 若您連結 Google Drive 並啟用備份,本 App 會定期將健康資料庫的 <code>.sbpbk</code> 快照(血壓、血糖、體重、運動、營養、睡眠及相關紀錄)上傳至<em>您自己</em> Google Drive 的隱藏 <code>appDataFolder</code>。快照在離開裝置前已用您的復原碼衍生的金鑰做端對端加密,因此我們與 Google 都無法讀取。若要移除:在 SilverBP 內中斷 Drive 連結並刪除備份,再到 <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> 撤銷本 App 的 Drive 存取權。</li>
   </ul>
 
   <h2>4. 第三方分享</h2>
-  <p>SilverBP 不與任何第三方分析、廣告或追蹤 SDK 分享您的資料。唯一涉及的第三方,是您主動啟用的選用服務(Health Connect、Google Maps、Hugging Face 下載、Google Gemini 雲端 OCR),如上所述。</p>
+  <p>SilverBP 不與任何第三方分析、廣告或追蹤 SDK 分享您的資料。唯一涉及的第三方,是您主動啟用的選用服務(Health Connect、Google Maps、Hugging Face 下載、Google Gemini 雲端 AI、Google Drive 備份),如上所述。</p>
   <!-- Data Safety form note: the Premium subscription introduces NO new data collection or sharing. Payments are processed entirely by Google Play; SilverBP never receives any payment/card data. The Play Console Data Safety form therefore remains UNCHANGED. -->
   <p>若您購買選用的 Premium 訂閱,付款完全由 <strong>Google Play</strong> 處理;SilverBP 絕不接收、儲存或處理您的付款或信用卡資料,本 App 也不會為了計費而蒐集任何新的個人資料。</p>
 
   <h2>5. 權限</h2>
   <p>本 App 僅在您使用對應功能時才請求下列 Android 權限:</p>
   <ul>
-    <li><code>CAMERA</code> — 拍攝血壓計螢幕進行辨識。</li>
+    <li><code>CAMERA</code> — 依您選用的功能拍攝血壓計、食物、運動器材、血糖機、體重計與聊天圖片。</li>
     <li><code>RECORD_AUDIO</code> — 聊天語音輸入(即時轉錄,不錄音)。</li>
     <li><code>ACCESS_FINE_LOCATION</code> + <code>FOREGROUND_SERVICE_LOCATION</code> — 您主動開始運動 session 時記錄 GPS 路徑。</li>
     <li><code>ACTIVITY_RECOGNITION</code> — 讀取裝置計步感測器的步數。</li>
@@ -195,7 +195,7 @@
 
   <h2>6. 您的選擇與權利</h2>
   <ul>
-    <li>所有使用敏感資料的功能(Health Connect、GPS、麥克風、通知、區網同步)都可在設定或系統權限頁面隨時啟用或關閉。</li>
+    <li>所有使用敏感資料的功能(Health Connect、GPS、麥克風、通知、區網同步、Google Gemini 雲端 AI、Google Drive 備份與聊天紀錄脈絡)都可在設定或系統權限頁面隨時啟用或關閉。</li>
     <li>移除 SilverBP 即清除本 App 在裝置上儲存的所有資料。已同步到 Health Connect 的紀錄會留在 Health Connect 中,您可在系統 Health Connect App 內刪除。</li>
     <li>如有任何隱私相關問題,請來信:<a href="mailto:shibatatsuyasilver@gmail.com">shibatatsuyasilver@gmail.com</a>。</li>
   </ul>

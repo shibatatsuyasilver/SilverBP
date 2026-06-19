@@ -48,6 +48,7 @@ class BpRepository(
     suspend fun findById(id: UUID): BpReading? = dao.findById(id.toString())?.toDomain()
 
     suspend fun upsert(reading: BpReading) {
+        validate(reading)
         val now = Instant.now()
         val existing = dao.findById(reading.id.toString())
         // Empty memberId (legacy drafts) resolves to the owner so a reading is
@@ -110,6 +111,23 @@ class BpRepository(
             localSync.delete(SyncEntityType.BP_READING, pk)
         } else {
             dao.delete(pk)
+        }
+    }
+
+    private fun validate(reading: BpReading) {
+        require(reading.systolic in 61..259) {
+            "Invalid blood pressure reading: systolic must be 61..259 mmHg"
+        }
+        require(reading.diastolic in 31..159) {
+            "Invalid blood pressure reading: diastolic must be 31..159 mmHg"
+        }
+        require(reading.diastolic < reading.systolic) {
+            "Invalid blood pressure reading: diastolic must be less than systolic"
+        }
+        reading.pulse?.let { pulse ->
+            require(pulse in 20..250) {
+                "Invalid blood pressure reading: pulse must be 20..250 bpm"
+            }
         }
     }
 }

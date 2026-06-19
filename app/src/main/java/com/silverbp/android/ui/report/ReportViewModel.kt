@@ -6,6 +6,7 @@ import com.silverbp.android.R
 import com.silverbp.android.billing.EntitlementManager
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.BpRepository
+import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
@@ -30,9 +31,14 @@ enum class ReportRange(val days: Long?) {
     ThisMonth(null), LastMonth(null), Last30(30), Last90(90), AllTime(null);
 }
 
+sealed class ReportReading {
+    data class BloodPressure(val reading: BpReading) : ReportReading()
+    data class Glucose(val reading: GlucoseReading) : ReportReading()
+}
+
 data class ReportUiState(
     val range: ReportRange = ReportRange.Last30,
-    val readings: List<BpReading> = emptyList(),
+    val readings: List<ReportReading> = emptyList(),
     val generatedFile: File? = null,
     val isGenerating: Boolean = false,
     val errorMessage: String? = null,
@@ -59,6 +65,7 @@ class ReportViewModel(
 
     val state: StateFlow<ReportUiState> = combine(
         currentMember.flow.flatMapLatest { repo.observeAll(it) },
+        currentMember.flow.flatMapLatest { glucoseRepo.observeAll(it) },
         rangeFlow,
         generatedFlow,
         generatingFlow,
@@ -70,13 +77,18 @@ class ReportViewModel(
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val all = values[0] as List<BpReading>
-        val range = values[1] as ReportRange
-        val file = values[2] as File?
-        val generating = values[3] as Boolean
-        val error = values[4] as String?
+        val glucoseAll = values[1] as List<GlucoseReading>
+        val range = values[2] as ReportRange
+        val file = values[3] as File?
+        val generating = values[4] as Boolean
+        val error = values[5] as String?
         val (from, to) = boundsFor(range)
         val filtered = all.filter { it.timestamp in from..to }
-        ReportUiState(range, filtered, file, generating, error, isPremium = entitlements.isPremium())
+        val filteredGlucose = glucoseAll.filter { it.timestamp in from..to }
+        val reportableReadings =
+            filtered.map { ReportReading.BloodPressure(it) } +
+                filteredGlucose.map { ReportReading.Glucose(it) }
+        ReportUiState(range, reportableReadings, file, generating, error, isPremium = entitlements.isPremium())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReportUiState())
 
     fun setRange(r: ReportRange) {

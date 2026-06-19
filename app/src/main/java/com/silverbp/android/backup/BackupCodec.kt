@@ -107,6 +107,15 @@ object BackupCodec {
         val includesChat: Boolean,
     )
 
+    data class DecodedPayload(
+        val manifest: Manifest,
+        val records: List<SyncRecord>,
+        val rawRecordBlockCount: Int,
+        val skippedUnknownRecordCount: Int,
+    ) {
+        val knownRecordCount: Int get() = records.size
+    }
+
     // ---------------- header ----------------
 
     fun encodeHeader(h: Header): ByteArray {
@@ -127,7 +136,7 @@ object BackupCodec {
         // kdf_params 子 map.
         w.writeUInt(HeaderKey.KDF_PARAMS.toLong())
         w.writeMapHeader(4)
-        w.writeUInt(KdfParamKey.ALG.toLong()); w.writeText("argon2id")
+        w.writeUInt(KdfParamKey.ALG.toLong()); w.writeText(h.kdfParams.alg)
         w.writeUInt(KdfParamKey.MEM_KIB.toLong()); w.writeUInt(h.kdfParams.memKib.toLong())
         w.writeUInt(KdfParamKey.ITERS.toLong()); w.writeUInt(h.kdfParams.iterations.toLong())
         w.writeUInt(KdfParamKey.PARALLELISM.toLong()); w.writeUInt(h.kdfParams.parallelism.toLong())
@@ -168,6 +177,7 @@ object BackupCodec {
         var createdAtMs = 0L
         var payloadSize = 0L
         var kdfSalt = ByteArray(0)
+        var kdfAlg = BackupCrypto.KDF_ALG_ARGON2ID
         var kdfMem = 0; var kdfIters = 0; var kdfPar = 0
         var aeadAlg = ""
         var aeadNonce = ByteArray(0)
@@ -177,23 +187,23 @@ object BackupCodec {
         var includesChat = true
 
         repeat(entries) {
-            when (val key = r.readUInt().toInt()) {
-                HeaderKey.FORMAT_VERSION -> formatVersion = r.readUInt().toInt()
+            when (val key = r.readUIntInt("header_key")) {
+                HeaderKey.FORMAT_VERSION -> formatVersion = r.readUIntInt("format_version")
                 HeaderKey.SOURCE_PLATFORM -> sourcePlatform = r.readText()
                 HeaderKey.SOURCE_APP_VER -> sourceAppVer = r.readText()
-                HeaderKey.SCHEMA_VERSION -> schemaVersion = r.readUInt().toInt()
-                HeaderKey.CONTENT_VERSION -> contentVersion = r.readUInt().toInt()
+                HeaderKey.SCHEMA_VERSION -> schemaVersion = r.readUIntInt("schema_version")
+                HeaderKey.CONTENT_VERSION -> contentVersion = r.readUIntInt("content_version")
                 HeaderKey.CREATED_AT_MS -> createdAtMs = r.readUInt()
                 HeaderKey.PAYLOAD_SIZE -> payloadSize = r.readUInt()
                 HeaderKey.KDF_SALT -> kdfSalt = r.readBytes()
                 HeaderKey.KDF_PARAMS -> {
                     val subEntries = r.readMapHeader()
                     repeat(subEntries) {
-                        when (r.readUInt().toInt()) {
-                            KdfParamKey.ALG -> r.readText() // ignored (we assume argon2id)
-                            KdfParamKey.MEM_KIB -> kdfMem = r.readUInt().toInt()
-                            KdfParamKey.ITERS -> kdfIters = r.readUInt().toInt()
-                            KdfParamKey.PARALLELISM -> kdfPar = r.readUInt().toInt()
+                        when (r.readUIntInt("kdf_param_key")) {
+                            KdfParamKey.ALG -> kdfAlg = r.readText()
+                            KdfParamKey.MEM_KIB -> kdfMem = r.readUIntInt("kdf.mem_kib")
+                            KdfParamKey.ITERS -> kdfIters = r.readUIntInt("kdf.iterations")
+                            KdfParamKey.PARALLELISM -> kdfPar = r.readUIntInt("kdf.parallelism")
                             else -> skipValue(r)
                         }
                     }
@@ -209,7 +219,7 @@ object BackupCodec {
                         var iv = ByteArray(0)
                         var ct = ByteArray(0)
                         repeat(sub) {
-                            when (r.readUInt().toInt()) {
+                            when (r.readUIntInt("keystore_wrap_key")) {
                                 WrapKey.ALIAS -> alias = r.readText()
                                 WrapKey.IV -> iv = r.readBytes()
                                 WrapKey.CIPHERTEXT -> ct = r.readBytes()
@@ -224,7 +234,7 @@ object BackupCodec {
                     var iv = ByteArray(0)
                     var ct = ByteArray(0)
                     repeat(sub) {
-                        when (r.readUInt().toInt()) {
+                        when (r.readUIntInt("recovery_wrap_key")) {
                             WrapKey.IV -> iv = r.readBytes()
                             WrapKey.CIPHERTEXT -> ct = r.readBytes()
                             else -> skipValue(r)
@@ -232,7 +242,7 @@ object BackupCodec {
                     }
                     recoveryWrap = RecoveryWrapRef(BackupCrypto.KeyWrap(iv, ct))
                 }
-                HeaderKey.RECORD_COUNT -> recordCount = r.readUInt().toInt()
+                HeaderKey.RECORD_COUNT -> recordCount = r.readUIntInt("record_count")
                 HeaderKey.INCLUDES_CHAT -> includesChat = r.readBool()
                 else -> skipValue(r) // forward-compat: skip unknown keys
             }
@@ -251,6 +261,7 @@ object BackupCodec {
                 memKib = kdfMem,
                 iterations = kdfIters,
                 parallelism = kdfPar,
+                alg = kdfAlg,
             ),
             aeadAlg = aeadAlg,
             aeadNonce = aeadNonce,
@@ -259,6 +270,33 @@ object BackupCodec {
             recordCount = recordCount,
             includesChat = includesChat,
         )
+    }
+
+    fun validateHeaderForImport(
+        header: Header,
+        payloadCiphertextSize: Int,
+        containerVersion: Int? = null,
+    ) {
+        require(header.formatVersion in BackupContainer.MIN_SUPPORTED_VERSION..BackupContainer.FORMAT_VERSION) {
+            "Unsupported backup header format version: ${header.formatVersion}"
+        }
+        if (containerVersion != null) {
+            require(header.formatVersion == containerVersion) {
+                "Backup header version ${header.formatVersion} does not match container version $containerVersion"
+            }
+        }
+        require(header.contentVersion >= 1) { "Unsupported backup content version: ${header.contentVersion}" }
+        require(header.recordCount >= 0) { "Backup record count out of range: ${header.recordCount}" }
+        require(header.aeadAlg == BackupCrypto.AEAD_ALG_AES_256_GCM) {
+            "Unsupported backup AEAD algorithm: ${header.aeadAlg}"
+        }
+        require(header.aeadNonce.size == BackupCrypto.GCM_NONCE_BYTES) {
+            "Backup AEAD nonce must be ${BackupCrypto.GCM_NONCE_BYTES} bytes"
+        }
+        BackupCrypto.validatePayloadCiphertextSize(header.payloadSize, payloadCiphertextSize)
+        BackupCrypto.validateKdfInputs(header.kdfSalt, header.kdfParams)
+        BackupCrypto.validateKeyWrap(header.recoveryWrap.wrap, "Recovery wrap")
+        header.keystoreWrap?.let { BackupCrypto.validateKeyWrap(it.wrap, "Keystore wrap") }
     }
 
     // ---------------- payload (length-prefixed CBOR blocks) ----------------
@@ -284,7 +322,7 @@ object BackupCodec {
         var nodeId = ""
         var includesChat = true
         repeat(entries) {
-            when (r.readUInt().toInt()) {
+            when (r.readUIntInt("manifest_key")) {
                 ManifestKey.MANIFEST_VERSION -> version = r.readUInt().toInt()
                 ManifestKey.SOURCE_PLATFORM -> platform = r.readText()
                 ManifestKey.SCHEMA_VERSION -> schema = r.readUInt().toInt()
@@ -310,7 +348,7 @@ object BackupCodec {
     }
 
     /** 解碼明文載荷,回傳 manifest + 解出的 record 列表(包含 tombstones). */
-    fun decodePayload(bytes: ByteArray): Pair<Manifest, List<SyncRecord>> {
+    fun decodePayload(bytes: ByteArray): DecodedPayload {
         var pos = 0
         // 1) manifest
         val (manifestBytes, after1) = readBlock(bytes, pos)
@@ -320,15 +358,28 @@ object BackupCodec {
 
         // 2) records...
         val records = ArrayList<SyncRecord>()
+        var rawRecordBlockCount = 0
+        var skippedUnknownRecordCount = 0
         while (pos < bytes.size) {
             val (recBytes, after) = readBlock(bytes, pos)
                 ?: error("Truncated record block at offset $pos")
             // Skip record types this build doesn't know (forward-compat with a
             // backup written by a newer app) rather than failing the whole restore.
-            SyncRecordCodec.decodeOrNull(recBytes)?.let { records += it }
+            rawRecordBlockCount++
+            val decoded = SyncRecordCodec.decodeOrNull(recBytes)
+            if (decoded != null) {
+                records += decoded
+            } else {
+                skippedUnknownRecordCount++
+            }
             pos = after
         }
-        return manifest to records
+        return DecodedPayload(
+            manifest = manifest,
+            records = records,
+            rawRecordBlockCount = rawRecordBlockCount,
+            skippedUnknownRecordCount = skippedUnknownRecordCount,
+        )
     }
 
     // ---------------- block framing helpers ----------------
@@ -353,6 +404,12 @@ object BackupCodec {
         if (len < 0 || pos + 4 + len > bytes.size) return null
         val block = bytes.copyOfRange(pos + 4, pos + 4 + len)
         return block to (pos + 4 + len)
+    }
+
+    private fun CborReader.readUIntInt(field: String): Int {
+        val value = readUInt()
+        require(value <= Int.MAX_VALUE) { "$field too large: $value" }
+        return value.toInt()
     }
 
     // ---------------- CBOR skip (for forward-compat unknown keys) ----------------

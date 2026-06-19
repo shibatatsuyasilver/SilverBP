@@ -90,6 +90,16 @@ interface MedicationDao {
     @Query("SELECT * FROM medication WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): MedicationEntity?
 
+    @Query("SELECT COUNT(*) FROM medication WHERE memberId = ''")
+    suspend fun countBlankMemberIds(): Int
+
+    @Query(
+        "UPDATE medication SET memberId = :ownerId, " +
+            "hlcUpdatedAt = CASE WHEN :hlc IS NULL THEN hlcUpdatedAt ELSE :hlc END " +
+            "WHERE memberId = ''"
+    )
+    suspend fun backfillBlankMemberIds(ownerId: String, hlc: String?): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(m: MedicationEntity)
 
@@ -104,6 +114,14 @@ interface MedicationScheduleDao {
 
     @Query("SELECT * FROM medication_schedule WHERE medicationId = :medicationId ORDER BY hour, minute")
     fun observeForMedication(medicationId: String): Flow<List<MedicationScheduleEntity>>
+
+    @Query(
+        "SELECT s.* FROM medication_schedule s " +
+            "INNER JOIN medication m ON m.id = s.medicationId " +
+            "WHERE m.memberId = :memberId " +
+            "ORDER BY s.medicationId, s.hour, s.minute"
+    )
+    fun observeForMember(memberId: String): Flow<List<MedicationScheduleEntity>>
 
     @Query("SELECT * FROM medication_schedule ORDER BY medicationId, hour, minute")
     suspend fun all(): List<MedicationScheduleEntity>

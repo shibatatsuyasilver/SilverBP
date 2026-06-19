@@ -7,12 +7,14 @@ import com.silverbp.android.core.db.SyncDeviceEntity
 import com.silverbp.android.core.db.SyncOutboxEntity
 import com.silverbp.android.core.db.TombstoneEntity
 import com.silverbp.android.sync.engine.Hlc
+import com.silverbp.android.sync.engine.LwwMerger
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.transport.SyncRecordCodec
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class BpWorkoutAssociationSyncMapperTest {
@@ -65,6 +67,37 @@ class BpWorkoutAssociationSyncMapperTest {
         assertEquals(0, dao.listAll().size)
         val ts = syncDao.tombstoneFor(SyncEntityType.BP_WORKOUT_ASSOCIATION.tableName, fixture().id)
         assertEquals(tombstone.deletedAt, ts?.deletedAt)
+    }
+
+    @Test
+    fun lww_assoc_tombstone_blocks_stale_live_resurrection() = runTest {
+        val dao = FakeAssocDao()
+        val syncDao = FakeSyncDao().apply {
+            val tombHlc = Hlc.of(5_000L, 0, 0xABCDL)
+            upsertTombstone(
+                TombstoneEntity(
+                    entityType = SyncEntityType.BP_WORKOUT_ASSOCIATION.tableName,
+                    pk = fixture().id,
+                    hlc = tombHlc.packed,
+                    deletedAt = 5_000L,
+                ),
+            )
+        }
+        val mapper = BpWorkoutAssociationSyncMapper(dao, syncDao)
+        val gate = LwwMerger(
+            inner = { rec -> mapper.apply(rec) },
+            localHlc = { rec ->
+                LwwTables.resolveLocalHlc(
+                    dao.findById(rec.pk)?.hlcUpdatedAt,
+                    syncDao.tombstoneFor(rec.type.tableName, rec.pk)?.hlc,
+                )
+            },
+        )
+
+        val stalePeerAssoc = mapper.encode(fixture(), Hlc.of(2_000L, 0, 0xABCDL))
+
+        assertFalse(gate.apply(stalePeerAssoc))
+        assertEquals(0, dao.listAll().size)
     }
 
     // --- in-memory fakes (no Room / Robolectric required) ---

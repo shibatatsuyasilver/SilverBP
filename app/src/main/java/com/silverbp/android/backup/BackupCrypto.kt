@@ -39,8 +39,21 @@ object BackupCrypto {
     const val DEK_BYTES = 32
     const val KEK_BYTES = 32
     const val GCM_TAG_BITS = 128
+    const val GCM_TAG_BYTES = 16
     const val GCM_NONCE_BYTES = 12
     const val KDF_SALT_BYTES = 16
+    const val KEY_WRAP_CIPHERTEXT_BYTES = DEK_BYTES + GCM_TAG_BYTES
+
+    const val KDF_ALG_ARGON2ID = "argon2id"
+    const val AEAD_ALG_AES_256_GCM = "AES-256-GCM"
+
+    const val KDF_MEM_KIB_MIN = 1_024
+    const val KDF_MEM_KIB_MAX = 256 * 1_024
+    const val KDF_ITERATIONS_MIN = 1
+    const val KDF_ITERATIONS_MAX = 10
+    const val KDF_PARALLELISM_MIN = 1
+    const val KDF_PARALLELISM_MAX = 4
+    const val MAX_PAYLOAD_BYTES: Long = 128L * 1024L * 1024L
 
     /** Keystore alias for the device-bound DEK wrapping key. */
     const val KEYSTORE_ALIAS = "silverbp.backup.v1"
@@ -56,6 +69,7 @@ object BackupCrypto {
         val memKib: Int = 65_536,
         val iterations: Int = 3,
         val parallelism: Int = 1,
+        val alg: String = KDF_ALG_ARGON2ID,
     )
 
     /**
@@ -87,7 +101,7 @@ object BackupCrypto {
      * canonicalisation rule applies on both encode and decode.
      */
     fun deriveKekArgon2id(passphrase: String, salt: ByteArray, params: KdfParams): ByteArray {
-        require(salt.size == KDF_SALT_BYTES) { "KDF salt must be $KDF_SALT_BYTES bytes" }
+        validateKdfInputs(salt, params)
         val result = argon2.hash(
             mode = Argon2Mode.ARGON2_ID,
             password = passphrase.toByteArray(Charsets.UTF_8),
@@ -163,9 +177,41 @@ object BackupCrypto {
     fun decryptPayload(ciphertextWithTag: ByteArray, dek: ByteArray, nonce: ByteArray, aad: ByteArray?): ByteArray =
         aesGcmDecrypt(ciphertextWithTag, SecretKeySpec(dek, "AES"), nonce, aad)
 
+    fun validateKdfInputs(salt: ByteArray, params: KdfParams) {
+        require(salt.size == KDF_SALT_BYTES) { "KDF salt must be $KDF_SALT_BYTES bytes" }
+        require(params.alg == KDF_ALG_ARGON2ID) { "Unsupported KDF algorithm: ${params.alg}" }
+        require(params.memKib in KDF_MEM_KIB_MIN..KDF_MEM_KIB_MAX) {
+            "KDF memory out of range: ${params.memKib} KiB (allowed $KDF_MEM_KIB_MIN..$KDF_MEM_KIB_MAX)"
+        }
+        require(params.iterations in KDF_ITERATIONS_MIN..KDF_ITERATIONS_MAX) {
+            "KDF iterations out of range: ${params.iterations} (allowed $KDF_ITERATIONS_MIN..$KDF_ITERATIONS_MAX)"
+        }
+        require(params.parallelism in KDF_PARALLELISM_MIN..KDF_PARALLELISM_MAX) {
+            "KDF parallelism out of range: ${params.parallelism} (allowed $KDF_PARALLELISM_MIN..$KDF_PARALLELISM_MAX)"
+        }
+    }
+
+    fun validateKeyWrap(wrap: KeyWrap, label: String) {
+        require(wrap.iv.size == GCM_NONCE_BYTES) { "$label IV must be $GCM_NONCE_BYTES bytes" }
+        require(wrap.ciphertextWithTag.size == KEY_WRAP_CIPHERTEXT_BYTES) {
+            "$label ciphertext must be $KEY_WRAP_CIPHERTEXT_BYTES bytes"
+        }
+    }
+
+    fun validatePayloadCiphertextSize(payloadSize: Long, ciphertextWithTagSize: Int) {
+        require(payloadSize in 0..MAX_PAYLOAD_BYTES) {
+            "Backup payload size out of range: $payloadSize bytes (max $MAX_PAYLOAD_BYTES)"
+        }
+        val expectedCiphertextSize = payloadSize + GCM_TAG_BYTES
+        require(ciphertextWithTagSize.toLong() == expectedCiphertextSize) {
+            "Backup payload ciphertext length mismatch: expected $expectedCiphertextSize bytes, got $ciphertextWithTagSize"
+        }
+    }
+
     // ---------------- internals ----------------
 
     private fun aesGcmEncrypt(plain: ByteArray, key: SecretKey, iv: ByteArray, aad: ByteArray?): ByteArray {
+        require(iv.size == GCM_NONCE_BYTES) { "AES-GCM nonce must be $GCM_NONCE_BYTES bytes" }
         val cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
         if (aad != null) cipher.updateAAD(aad)
@@ -173,6 +219,8 @@ object BackupCrypto {
     }
 
     private fun aesGcmDecrypt(ct: ByteArray, key: SecretKey, iv: ByteArray, aad: ByteArray?): ByteArray {
+        require(iv.size == GCM_NONCE_BYTES) { "AES-GCM nonce must be $GCM_NONCE_BYTES bytes" }
+        require(ct.size >= GCM_TAG_BYTES) { "AES-GCM ciphertext is missing its authentication tag" }
         val cipher = Cipher.getInstance(AES_GCM_TRANSFORMATION)
         cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
         if (aad != null) cipher.updateAAD(aad)

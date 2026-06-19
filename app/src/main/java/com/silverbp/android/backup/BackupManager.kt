@@ -222,6 +222,7 @@ class BackupManager(
             // 1. 讀 container + header.
             val parsed = BackupContainer.read(input)
             val header = BackupCodec.decodeHeader(parsed.headerCbor)
+            BackupCodec.validateHeaderForImport(header, parsed.payloadCiphertext.size, parsed.version)
 
             // 2. 解 DEK: 先試 Keystore,失敗回退到 recovery 路徑.
             val dek = unwrapDek(header, passphrase)
@@ -235,12 +236,15 @@ class BackupManager(
 
             // 4. 解碼 payload(manifest + records).
             _importPhase.value = Phase.Encoding(0.5f)
-            val (_, records) = BackupCodec.decodePayload(plaintext)
-            // 完整性檢查:解出的筆數必須等於 header 宣告的筆數。AEAD 已經會擋掉
-            // 截斷的密文,這層是對 codec/邏輯錯誤的縱深防禦,避免靜默少匯入。
-            if (records.size != header.recordCount) {
+            val decodedPayload = BackupCodec.decodePayload(plaintext)
+            val records = decodedPayload.records
+            // 完整性檢查:明文 record block 數必須等於 header 宣告的筆數。未知的
+            // future record type 會被 decodePayload 計為 skippedUnknown,讓舊版 app
+            // 能略過但仍確認備份沒有被靜默截斷。
+            val decodedRecordBlocks = decodedPayload.knownRecordCount + decodedPayload.skippedUnknownRecordCount
+            if (decodedRecordBlocks != header.recordCount) {
                 throw IOException(
-                    ServiceLocator.context.getString(R.string.backup_err_incomplete, header.recordCount, records.size),
+                    ServiceLocator.context.getString(R.string.backup_err_incomplete, header.recordCount, decodedRecordBlocks),
                 )
             }
             _importPhase.value = Phase.Encoding(1f)

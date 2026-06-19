@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import com.silverbp.android.R
 
@@ -29,10 +30,11 @@ fun rememberModelDownloadPermissionGate(
     onPermissionDenied: (() -> Unit)? = null,
 ): ((startDownload: () -> Unit) -> Unit) {
     val context = LocalContext.current
+    val deniedMsg = stringResource(R.string.model_download_notification_permission_denied)
     val defaultPermissionDenied = {
         Toast.makeText(
             context,
-            context.getString(R.string.model_download_notification_permission_denied),
+            deniedMsg,
             Toast.LENGTH_LONG,
         ).show()
     }

@@ -2,7 +2,6 @@ package com.silverbp.android
 
 import android.app.Application
 import com.silverbp.android.achievements.MedalNotifier
-import com.silverbp.android.achievements.StepSyncScheduler
 import com.silverbp.android.billing.EntitlementRevalidationScheduler
 import com.silverbp.android.coach.CoachNotifier
 import com.silverbp.android.coach.CoachReminderScheduler
@@ -11,10 +10,6 @@ import com.silverbp.android.coach.NutritionBackfillWorker
 import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseNotification
-import com.silverbp.android.health.BpSyncWorker
-import com.silverbp.android.health.ExerciseSyncWorker
-import com.silverbp.android.health.GlucoseSyncWorker
-import com.silverbp.android.health.WeightSyncWorker
 import com.silverbp.android.nutrition.BulkNutritionStore
 import com.silverbp.android.nutrition.NutritionDatabase
 import com.silverbp.android.recognition.DeviceCapabilities
@@ -49,9 +44,8 @@ class SilverBpApplication : Application() {
 
         appScope.launch { loadBulkNutrition() }
         appScope.launch { sweepOldChatImages() }
-        appScope.launch { reconcileStepSync() }
+        appScope.launch { reconcileHealthConnect() }
         appScope.launch { reconcileCoach() }
-        appScope.launch { reconcileHealthConnectMirrors() }
         appScope.launch { reconcileEntitlement() }
 
         // Watcher fires anomaly notifications in real time as the user logs
@@ -73,7 +67,7 @@ class SilverBpApplication : Application() {
     }
 
     /**
-     * Mirror [reconcileStepSync] for the Coach feature: align the WorkManager
+     * Mirror [reconcileHealthConnect] for the Coach feature: align the WorkManager
      * schedule with the user's `enableCoach` toggle on every cold start so a
      * setting change made while the app was killed takes effect. Also kicks
      * off any HC backfill that's been opted into.
@@ -113,52 +107,14 @@ class SilverBpApplication : Application() {
     }
 
     /**
-     * Kick the Health Connect blood-pressure + blood-glucose + body-weight +
-     * exercise mirror retries on every cold start when the integration is on.
-     * Workers self-no-op if their respective permission is missing, except the
-     * glucose worker, which we enqueue only after confirming the write
-     * permission so older enabled toggles don't schedule a known-no-op job.
+     * Cold-start reconciliation of the Health Connect integration: delegate to
+     * the shared [reconcileHealthConnect], which re-checks the full core
+     * permission set (not just steps), schedules/cancels every mirror + step
+     * worker to match, and flips the master toggle off if the user revoked a
+     * core permission in the system Health Connect app while we were killed.
      */
-    private suspend fun reconcileHealthConnectMirrors() {
-        val enabled = runCatching { ServiceLocator.userSettings.flow.first().enableHealthConnect }
-            .getOrDefault(false)
-        if (enabled) {
-            BpSyncWorker.enqueue(this)
-            val hasGlucoseWrite = runCatching {
-                ServiceLocator.healthConnectGlucoseBridge.hasWritePermission()
-            }.getOrDefault(false)
-            if (hasGlucoseWrite) {
-                GlucoseSyncWorker.enqueue(this)
-            }
-            WeightSyncWorker.enqueue(this)
-            ExerciseSyncWorker.enqueue(this)
-        }
-    }
-
-    /**
-     * Re-align the WorkManager periodic step-sync schedule with the current
-     * setting + Health Connect read permission. The user may have toggled the
-     * flag while the app was killed, or revoked the permission in the system
-     * Health Connect app — either way we want the schedule to reflect today's
-     * truth.
-     */
-    private suspend fun reconcileStepSync() {
-        val enabled = runCatching { ServiceLocator.userSettings.flow.first().enableHealthConnect }
-            .getOrDefault(false)
-        val granted = runCatching {
-            ServiceLocator.healthConnectExerciseBridge.hasReadStepsPermission()
-        }.getOrDefault(false)
-        if (enabled && granted) {
-            StepSyncScheduler.schedule(this)
-        } else {
-            StepSyncScheduler.cancel(this)
-            // If the user had the toggle on (carried over from a previous build,
-            // or granted then revoked perms in the system Health Connect app),
-            // flip the flag off so the Settings switch stays honest.
-            if (enabled && !granted) {
-                runCatching { ServiceLocator.userSettings.setHealthConnectEnabled(false) }
-            }
-        }
+    private suspend fun reconcileHealthConnect() {
+        com.silverbp.android.ui.settings.reconcileHealthConnect(this)
     }
 
     /**

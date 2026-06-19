@@ -7,13 +7,13 @@ import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import androidx.work.workDataOf
 import com.silverbp.android.di.ServiceLocator
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -39,10 +39,13 @@ class ModelDownloadWorker(
     override suspend fun doWork(): Result {
         val status = ServiceLocator.modelLoadStatus
         val variant = resolveVariant()
-        val hfToken = inputData.getString(KEY_HF_TOKEN)?.takeIf { it.isNotBlank() }
+        val hfTokenRef = inputData.getString(KEY_HF_TOKEN_REF)
+        var hfToken: String? = null
+        var clearTokenRef = false
         val sha = inputData.getString(KEY_SHA256)?.takeIf { it.isNotBlank() } ?: variant.sha256
 
         return try {
+            hfToken = ModelDownloadTokenStore.resolve(applicationContext, hfTokenRef)
             setForeground(foregroundInfo(-1))
             status.set(ModelLoadPhase.Downloading(0f, variant.id))
             val downloader = ModelDownloader(applicationContext)
@@ -60,6 +63,7 @@ class ModelDownloadWorker(
             // Download complete — load the engine into memory (Loading → Ready).
             ModelBootstrap.preloadVariant(applicationContext, variant)
             ServiceLocator.userSettings.setModelDownloaded(true)
+            clearTokenRef = true
             Result.success()
         } catch (e: IOException) {
             // Network blip / interrupted stream — keep the .part file and let
@@ -70,7 +74,11 @@ class ModelDownloadWorker(
         } catch (e: Throwable) {
             Log.w(TAG, "[ModelDownload] failed: ${e.message}", e)
             status.set(ModelLoadPhase.Failed(e.message ?: "download failed"))
+            clearTokenRef = true
             Result.failure()
+        } finally {
+            if (clearTokenRef) ModelDownloadTokenStore.clear(applicationContext, hfTokenRef)
+            hfToken = null
         }
     }
 
@@ -95,7 +103,7 @@ class ModelDownloadWorker(
     companion object {
         const val UNIQUE_NAME = "silverbp.model.download"
         private const val KEY_VARIANT_ID = "variant_id"
-        private const val KEY_HF_TOKEN = "hf_token"
+        private const val KEY_HF_TOKEN_REF = "hf_token_ref"
         private const val KEY_SHA256 = "sha256"
         private const val TAG = "ModelDownloadWorker"
 
@@ -110,21 +118,24 @@ class ModelDownloadWorker(
             hfToken: String? = null,
             sha256: String? = null,
         ) {
+            val appContext = context.applicationContext
+            val hfTokenRef = ModelDownloadTokenStore.put(appContext, hfToken)
             val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .setRequiredNetworkType(NetworkType.UNMETERED)
+                .build()
+            val data = Data.Builder()
+                .putString(KEY_VARIANT_ID, variantId)
+                .apply {
+                    hfTokenRef?.let { putString(KEY_HF_TOKEN_REF, it) }
+                    sha256?.takeIf { it.isNotBlank() }?.let { putString(KEY_SHA256, it) }
+                }
                 .build()
             val req = OneTimeWorkRequestBuilder<ModelDownloadWorker>()
                 .setConstraints(constraints)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-                .setInputData(
-                    workDataOf(
-                        KEY_VARIANT_ID to variantId,
-                        KEY_HF_TOKEN to hfToken,
-                        KEY_SHA256 to sha256,
-                    )
-                )
+                .setInputData(data)
                 .build()
-            WorkManager.getInstance(context.applicationContext)
+            WorkManager.getInstance(appContext)
                 .enqueueUniqueWork(UNIQUE_NAME, ExistingWorkPolicy.KEEP, req)
         }
     }

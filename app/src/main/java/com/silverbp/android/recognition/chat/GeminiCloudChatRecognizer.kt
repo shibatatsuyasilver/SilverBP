@@ -1,12 +1,12 @@
 package com.silverbp.android.recognition.chat
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Base64
 import com.silverbp.android.chat.ChatMessage
 import com.silverbp.android.recognition.GeminiContent
 import com.silverbp.android.recognition.GeminiInlineData
 import com.silverbp.android.recognition.GeminiPart
+import com.silverbp.android.recognition.decodeFileWithExif
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -317,7 +317,7 @@ class GeminiCloudChatRecognizer(
     private fun inlineImagePart(path: String): GeminiPart? {
         val file = File(path)
         if (!file.exists()) return null
-        val bmp: Bitmap = runCatching { BitmapFactory.decodeFile(file.absolutePath) }.getOrNull() ?: return null
+        val bmp: Bitmap = decodeFileWithExif(file, maxDim = CHAT_IMAGE_MAX_DIM) ?: return null
         val bytes = ByteArrayOutputStream().use { os ->
             bmp.compress(Bitmap.CompressFormat.JPEG, 85, os)
             os.toByteArray()
@@ -328,6 +328,7 @@ class GeminiCloudChatRecognizer(
 
     companion object {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+        private const val CHAT_IMAGE_MAX_DIM = 1536
 
         /**
          * Only `gemini-2.5-pro` and `gemini-2.5-flash` accept `thinkingConfig`

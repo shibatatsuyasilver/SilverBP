@@ -66,14 +66,18 @@ fun MedicationManageScreen(
     onAddNew: () -> Unit,
     onEdit: (medicationId: String) -> Unit,
 ) {
-    val medsDao = remember { ServiceLocator.database.medicationDao() }
-    val scheduleDao = remember { ServiceLocator.database.medicationScheduleDao() }
+    val medicationRepo = remember { ServiceLocator.medicationRepository }
+    val currentMemberStore = remember { ServiceLocator.currentMemberStore }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val meds by medsDao.observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
-    val schedules by scheduleDao.observeAll()
-        .collectAsStateWithLifecycle(initialValue = emptyList())
+    val currentMemberId by currentMemberStore.flow.collectAsStateWithLifecycle(initialValue = "")
+    val meds by remember(medicationRepo, currentMemberId) {
+        medicationRepo.observeForMember(currentMemberId)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val schedules by remember(medicationRepo, currentMemberId) {
+        medicationRepo.observeSchedulesForMember(currentMemberId)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
     val schedulesByMed = remember(schedules) { schedules.groupBy { it.medicationId } }
 
     var pendingDelete by remember { mutableStateOf<MedicationEntity?>(null) }
@@ -183,7 +187,7 @@ fun MedicationManageScreen(
                         // Cancel queued workers BEFORE the FK CASCADE wipes
                         // schedule rows so we still know what to cancel.
                         MedicationReminderScheduler.cancelForMedication(context, target.id)
-                        medsDao.delete(target.id)
+                        medicationRepo.delete(target.id)
                     }
                 }) { Text(stringResource(R.string.delete)) }
             },

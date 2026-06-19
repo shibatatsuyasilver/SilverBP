@@ -10,6 +10,7 @@ import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.ImagePart
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
+import com.silverbp.android.BuildConfig
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -170,7 +171,9 @@ object AICoreBpService {
         val text = response.candidates.firstOrNull()?.text
             ?: throw BpExtractionError.InvalidJson
         android.util.Log.i(TAG, "[Extract] stream done, ${text.length} chars")
-        android.util.Log.i(TAG, "[Extract] raw output: ${text.take(200)}")
+        if (BuildConfig.DEBUG) {
+            android.util.Log.d(TAG, "[Extract] raw output: ${text.take(200)}")
+        }
         try {
             val parsed = BpResponseParser.parse(text)
             android.util.Log.i(
@@ -181,7 +184,14 @@ object AICoreBpService {
             )
             parsed
         } catch (e: BpExtractionError) {
-            android.util.Log.w(TAG, "[Extract] parse failed (${e.message}); raw was: ${text.take(500)}")
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w(TAG, "[Extract] parse failed (${e.message}); raw was: ${text.take(500)}")
+            } else {
+                android.util.Log.w(
+                    TAG,
+                    "[Extract] parse failed (${e.message}); respChars=${text.length}",
+                )
+            }
             throw e
         }
     }

@@ -83,8 +83,8 @@ fun MedicationEditScreen(
     onSaved: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val medsDao = remember { ServiceLocator.database.medicationDao() }
-    val scheduleDao = remember { ServiceLocator.database.medicationScheduleDao() }
+    val medicationRepo = remember { ServiceLocator.medicationRepository }
+    val currentMemberStore = remember { ServiceLocator.currentMemberStore }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -97,16 +97,16 @@ fun MedicationEditScreen(
 
     LaunchedEffect(medicationId) {
         if (medicationId != null) {
-            val med = medsDao.findById(medicationId)
+            val editData = medicationRepo.findForCurrentMember(medicationId)
+            val med = editData?.medication
             if (med != null) {
                 name = med.name
                 dose = med.dose
                 kind = med.kind
             }
-            val rows = scheduleDao.forMedication(medicationId)
             schedules.clear()
             schedules.addAll(
-                rows.map {
+                editData?.schedules.orEmpty().map {
                     EditableSchedule(
                         existingId = it.id,
                         daysOfWeekMask = it.daysOfWeekMask,
@@ -127,19 +127,15 @@ fun MedicationEditScreen(
     val onSave: () -> Unit = {
         scope.launch {
             val medId = medicationId ?: UUID.randomUUID().toString()
-            medsDao.upsert(
+            val memberId = currentMemberStore.current()
+            medicationRepo.saveForCurrentMember(
                 MedicationEntity(
                     id = medId,
                     name = name.trim(),
                     dose = dose.trim(),
                     kind = kind,
-                )
-            )
-            // Replace-all keeps the editor logic simple
-            // and the worker cancellation deterministic:
-            // rescheduleForMedication cancels stale ids.
-            scheduleDao.deleteForMedication(medId)
-            scheduleDao.upsertAll(
+                    memberId = memberId,
+                ),
                 schedules.map {
                     MedicationScheduleEntity(
                         id = it.existingId ?: UUID.randomUUID().toString(),

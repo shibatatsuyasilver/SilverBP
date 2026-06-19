@@ -275,7 +275,7 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
             // 逐檔 runCatching — 單檔失敗不擋下一檔,盡量刪乾淨.
             withContext(Dispatchers.IO) {
                 drive.listBackups(token)
-                    .map { file -> runCatching { drive.deleteFile(file.id, token) }.isSuccess }
+                    .map { file -> runCatching { drive.deleteBackup(file, token) }.isSuccess }
                     .all { it }
             }
         }.getOrDefault(false)

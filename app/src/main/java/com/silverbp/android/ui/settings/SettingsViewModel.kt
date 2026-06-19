@@ -1,6 +1,8 @@
 package com.silverbp.android.ui.settings
 
 import android.content.Context
+import android.os.Build
+import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.silverbp.android.achievements.StepSyncScheduler
@@ -11,7 +13,10 @@ import com.silverbp.android.coach.NutritionBackfillWorker
 import com.silverbp.android.coach.SleepBackfillWorker
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.health.BpSyncWorker
+import com.silverbp.android.health.ExerciseSyncWorker
 import com.silverbp.android.health.GlucoseSyncWorker
+import com.silverbp.android.health.WeightSyncWorker
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.security.DbCipherMigration
@@ -34,15 +39,98 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-internal fun coreHealthConnectPermissions(): Set<String> =
+private const val ANDROID_15_API = 35
+
+private fun requiredHealthConnectPermissions(): Set<String> =
     ServiceLocator.healthConnectExerciseBridge.readPermissions +
         ServiceLocator.healthConnectExerciseBridge.permissions +
         ServiceLocator.healthConnectBpBridge.permissions +
         ServiceLocator.healthConnectGlucoseBridge.permissions +
         ServiceLocator.healthConnectNutritionBridge.permissions +
         ServiceLocator.healthConnectWeightBridge.writePermissions +
-        ServiceLocator.healthConnectWeightBridge.readPermissions +
-        ServiceLocator.healthConnectBridge.backgroundReadPermissions
+        ServiceLocator.healthConnectWeightBridge.readPermissions
+
+private fun backgroundHealthConnectReadPermissions(): Set<String> =
+    ServiceLocator.healthConnectBridge.backgroundReadPermissions
+
+/**
+ * Permission set requested by the Settings master Health Connect toggle.
+ * Background read is included so users can grant it opportunistically, but
+ * [reconcileHealthConnect] treats it as optional and only uses it to schedule
+ * background read workers.
+ */
+internal fun coreHealthConnectPermissions(): Set<String> =
+    requiredHealthConnectPermissions() + backgroundHealthConnectReadPermissions()
+
+internal suspend fun reconcileHealthConnect(
+    context: Context = ServiceLocator.context,
+    repo: UserSettingsRepository = ServiceLocator.userSettings,
+    grantedHint: Set<String>? = null,
+    enabledOverride: Boolean? = null,
+): Boolean {
+    val enabled = enabledOverride ?: runCatching {
+        repo.flow.first().enableHealthConnect
+    }.getOrDefault(false)
+    if (!enabled) {
+        StepSyncScheduler.cancel(context)
+        return false
+    }
+
+    val granted = resolvedHealthConnectPermissions(context, grantedHint)
+    val coreGranted = granted.containsAll(requiredHealthConnectPermissions())
+    if (!coreGranted) {
+        StepSyncScheduler.cancel(context)
+        runCatching { repo.setHealthConnectEnabled(false) }
+        return false
+    }
+
+    scheduleHealthConnectWork(context, granted)
+    return true
+}
+
+private suspend fun resolvedHealthConnectPermissions(
+    context: Context,
+    grantedHint: Set<String>?,
+): Set<String> = currentHealthConnectPermissions(context) + grantedHint.orEmpty()
+
+private suspend fun currentHealthConnectPermissions(context: Context): Set<String> = runCatching {
+    if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
+        return@runCatching emptySet()
+    }
+    HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions()
+}.getOrDefault(emptySet())
+
+private fun canRunBackgroundHealthConnectReads(granted: Set<String>): Boolean =
+    Build.VERSION.SDK_INT < ANDROID_15_API ||
+        granted.containsAll(backgroundHealthConnectReadPermissions())
+
+private fun scheduleHealthConnectWork(context: Context, granted: Set<String>) {
+    if (granted.containsAll(ServiceLocator.healthConnectBpBridge.permissions)) {
+        BpSyncWorker.enqueue(context)
+    }
+    if (granted.containsAll(ServiceLocator.healthConnectGlucoseBridge.permissions)) {
+        GlucoseSyncWorker.enqueue(context)
+    }
+    val weight = ServiceLocator.healthConnectWeightBridge
+    // WeightSyncWorker includes smart-scale import, so keep that mixed worker
+    // behind the optional background-read grant on Android 15+.
+    if (canRunBackgroundHealthConnectReads(granted) &&
+        (granted.containsAll(weight.writePermissions) || granted.containsAll(weight.readPermissions))
+    ) {
+        WeightSyncWorker.enqueue(context)
+    }
+    if (granted.containsAll(ServiceLocator.healthConnectExerciseBridge.permissions)) {
+        ExerciseSyncWorker.enqueue(context)
+    }
+
+    if (canRunBackgroundHealthConnectReads(granted) &&
+        granted.containsAll(ServiceLocator.healthConnectExerciseBridge.readPermissions)
+    ) {
+        StepSyncScheduler.schedule(context)
+    } else {
+        StepSyncScheduler.cancel(context)
+    }
+}
 
 class SettingsViewModel(
     private val repo: UserSettingsRepository = ServiceLocator.userSettings,
@@ -97,19 +185,28 @@ class SettingsViewModel(
 
     /**
      * Called from the composable's permission-result callback after the user
-     * has interacted with the Health Connect permission sheet. We only flip
-     * `enableHealthConnect` to true when every permission requested by the
-     * master integration toggle was granted; otherwise the toggle stays off and
-     * we emit a denied event so the UI can prompt the user to open Health
-     * Connect manually.
+     * has interacted with the Health Connect permission sheet. The master
+     * toggle asks for background read opportunistically, but reconciliation only
+     * requires the core foreground/write set; background read is allowed to be
+     * denied and only gates read-back workers.
      */
     fun onHealthConnectGrantResult(granted: Set<String>) {
         viewModelScope.launch {
-            val required = coreHealthConnectPermissions()
-            if (granted.containsAll(required)) {
-                repo.setHealthConnectEnabled(true)
-                StepSyncScheduler.schedule(ServiceLocator.context)
-                GlucoseSyncWorker.enqueue(ServiceLocator.context)
+            val ctx = ServiceLocator.context
+            val grantedNow = resolvedHealthConnectPermissions(ctx, granted)
+            if (!grantedNow.containsAll(requiredHealthConnectPermissions())) {
+                StepSyncScheduler.cancel(ctx)
+                _hcDenied.trySend(Unit)
+                return@launch
+            }
+            repo.setHealthConnectEnabled(true)
+            val reconciled = reconcileHealthConnect(
+                context = ctx,
+                repo = repo,
+                grantedHint = grantedNow,
+                enabledOverride = true,
+            )
+            if (reconciled) {
                 ServiceLocator.achievementStore.launchRefresh()
             } else {
                 _hcDenied.trySend(Unit)
@@ -120,7 +217,11 @@ class SettingsViewModel(
     fun disableHealthConnect() {
         viewModelScope.launch {
             repo.setHealthConnectEnabled(false)
-            StepSyncScheduler.cancel(ServiceLocator.context)
+            reconcileHealthConnect(
+                context = ServiceLocator.context,
+                repo = repo,
+                enabledOverride = false,
+            )
         }
     }
 
@@ -220,14 +321,18 @@ class SettingsViewModel(
      * successful grant. Re-query the bridge instead; that hits HC directly
      * and gives the truth regardless of which permission UI rendered.
      */
-    fun onSleepGrantResult(@Suppress("UNUSED_PARAMETER") granted: Set<String>) {
+    fun onSleepGrantResult(granted: Set<String>) {
         viewModelScope.launch {
+            val ctx = ServiceLocator.context
+            val grantedNow = resolvedHealthConnectPermissions(ctx, granted)
             val ok = runCatching {
                 ServiceLocator.healthConnectBridge.hasSleepReadPermission()
             }.getOrDefault(false)
             if (ok) {
                 repo.setSleepTrackingEnabled(true)
-                SleepBackfillWorker.enqueue(ServiceLocator.context)
+                if (canRunBackgroundHealthConnectReads(grantedNow)) {
+                    SleepBackfillWorker.enqueue(ctx)
+                }
             }
         }
     }
@@ -236,14 +341,18 @@ class SettingsViewModel(
         viewModelScope.launch { repo.setSleepTrackingEnabled(false) }
     }
 
-    fun onDietGrantResult(@Suppress("UNUSED_PARAMETER") granted: Set<String>) {
+    fun onDietGrantResult(granted: Set<String>) {
         viewModelScope.launch {
+            val ctx = ServiceLocator.context
+            val grantedNow = resolvedHealthConnectPermissions(ctx, granted)
             val ok = runCatching {
                 ServiceLocator.healthConnectBridge.hasNutritionReadPermission()
             }.getOrDefault(false)
             if (ok) {
                 repo.setDietTrackingEnabled(true)
-                NutritionBackfillWorker.enqueue(ServiceLocator.context)
+                if (canRunBackgroundHealthConnectReads(grantedNow)) {
+                    NutritionBackfillWorker.enqueue(ctx)
+                }
             }
         }
     }

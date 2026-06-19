@@ -19,6 +19,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,7 @@ import com.silverbp.android.ui.exercise.ExerciseDetailScreen
 import com.silverbp.android.ui.exercise.ExerciseHomeScreen
 import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
+import com.silverbp.android.ui.exercise.LocalStrengthMeasureBp
 import com.silverbp.android.ui.exercise.machine.MachineCaptureScreen
 import com.silverbp.android.ui.exercise.machine.MachineConfirmScreen
 import com.silverbp.android.ui.history.WeightHistoryScreen
@@ -323,6 +325,7 @@ fun AppNavHost() {
             WorkoutSummaryScreen(
                 onSaved = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onDiscard = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
+                onMeasureBp = { rootNav.navigate(Routes.CAPTURE) },
             )
         }
         composable(
@@ -609,17 +612,21 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
         )
     }
     composable(TabDestination.Exercise.route) {
-        ExerciseHomeScreen(
-            onStartSession = { rootNav.navigate(Routes.EXERCISE_SESSION) },
-            onStartStrengthSession = { rootNav.navigate(Routes.STRENGTH_SESSION) },
-            onCaptureMachine = { rootNav.navigate(Routes.MACHINE_CAPTURE) },
-            onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
-            onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
-            // Finished 檢查點的還原路徑:跳過運動畫面,直接進摘要頁儲存。
-            onOpenSummary = { rootNav.navigate(Routes.EXERCISE_SUMMARY) },
-            // Pre-workout「先量血壓」gate → open the BP camera.
-            onMeasureBp = { rootNav.navigate(Routes.CAPTURE) },
-        )
+        CompositionLocalProvider(
+            LocalStrengthMeasureBp provides { rootNav.navigate(Routes.CAPTURE) },
+        ) {
+            ExerciseHomeScreen(
+                onStartSession = { rootNav.navigate(Routes.EXERCISE_SESSION) },
+                onStartStrengthSession = { rootNav.navigate(Routes.STRENGTH_SESSION) },
+                onCaptureMachine = { rootNav.navigate(Routes.MACHINE_CAPTURE) },
+                onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
+                onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
+                // Finished 檢查點的還原路徑:跳過運動畫面,直接進摘要頁儲存。
+                onOpenSummary = { rootNav.navigate(Routes.EXERCISE_SUMMARY) },
+                // Pre-workout「先量血壓」gate → open the BP camera.
+                onMeasureBp = { rootNav.navigate(Routes.CAPTURE) },
+            )
+        }
     }
     composable(TabDestination.Data.route) {
         DataHubScreen(
@@ -657,7 +664,10 @@ private fun WeightHistoryRoute(
                 title = { Text(stringResource(R.string.weight_history_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.a11y_back),
+                        )
                     }
                 },
             )

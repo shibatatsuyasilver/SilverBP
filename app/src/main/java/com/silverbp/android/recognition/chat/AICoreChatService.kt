@@ -1,7 +1,6 @@
 package com.silverbp.android.recognition.chat
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.SystemClock
 import com.google.mlkit.genai.prompt.GenerateContentRequest
 import com.google.mlkit.genai.prompt.GenerateContentResponse
@@ -10,6 +9,7 @@ import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
 import com.silverbp.android.chat.ChatMessage
 import com.silverbp.android.recognition.AICoreBpService
+import com.silverbp.android.recognition.decodeFileWithExif
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -49,7 +49,7 @@ object AICoreChatService {
                 .lastOrNull { it.role == ChatMessage.Role.User && it.imagePath != null }
                 ?.imagePath
             val imageBitmap: Bitmap? = latestImagePath?.let { path ->
-                runCatching { BitmapFactory.decodeFile(File(path).absolutePath) }.getOrNull()
+                decodeFileWithExif(File(path), maxDim = CHAT_IMAGE_MAX_DIM)
             }
 
             val req: GenerateContentRequest = if (imageBitmap != null) {
@@ -111,4 +111,6 @@ object AICoreChatService {
         sb.append("[Assistant]\n")
         return sb.toString()
     }
+
+    private const val CHAT_IMAGE_MAX_DIM = 1536
 }

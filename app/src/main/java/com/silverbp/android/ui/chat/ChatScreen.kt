@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -88,6 +87,8 @@ import com.silverbp.android.R
 import com.silverbp.android.chat.ChatMessage
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.recognition.decodeFileWithExif
+import com.silverbp.android.recognition.decodeUriWithExif
 import androidx.compose.ui.graphics.Color
 import com.silverbp.android.ui.components.ExpressiveAssistChip
 import com.silverbp.android.ui.components.ModelLoadBanner
@@ -132,13 +133,14 @@ fun ChatScreen(
         }
     }
     // 相機需要 CAMERA 權限,未授權就啟動 TakePicturePreview 會擲出 SecurityException。
+    val cameraDeniedMsg = stringResource(R.string.camera_permission_denied)
     val cameraPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
             camera.launch(null)
         } else {
-            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.camera_permission_denied)) }
+            scope.launch { snackbarHostState.showSnackbar(cameraDeniedMsg) }
         }
     }
 
@@ -436,7 +438,7 @@ private fun MessageBubble(
             ) {
                 imagePath?.let { path ->
                     val bmp = remember(path) {
-                        runCatching { BitmapFactory.decodeFile(File(path).absolutePath) }.getOrNull()
+                        decodeFileWithExif(File(path), maxDim = CHAT_THUMBNAIL_MAX_DIM)
                     }
                     bmp?.let {
                         androidx.compose.foundation.Image(
@@ -638,7 +640,7 @@ private fun ChatInputBar(
 @Composable
 private fun StagedImageStrip(path: String, onClear: () -> Unit) {
     val bmp = remember(path) {
-        runCatching { BitmapFactory.decodeFile(File(path).absolutePath) }.getOrNull()
+        decodeFileWithExif(File(path), maxDim = CHAT_THUMBNAIL_MAX_DIM)
     }
     Row(
         Modifier
@@ -688,8 +690,8 @@ private fun launchVoice(context: Context, launch: (Intent) -> Unit) {
         }
 }
 
-private fun decodeUri(context: Context, uri: Uri): Bitmap? = runCatching {
-    context.contentResolver.openInputStream(uri)?.use { stream ->
-        BitmapFactory.decodeStream(stream)
-    }
-}.getOrNull()
+private fun decodeUri(context: Context, uri: Uri): Bitmap? =
+    decodeUriWithExif(context, uri, maxDim = CHAT_ATTACHMENT_MAX_DIM)
+
+private const val CHAT_ATTACHMENT_MAX_DIM = 1536
+private const val CHAT_THUMBNAIL_MAX_DIM = 512

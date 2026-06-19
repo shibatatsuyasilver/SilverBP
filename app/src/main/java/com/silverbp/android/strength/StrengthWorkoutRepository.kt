@@ -4,6 +4,9 @@ import com.silverbp.android.core.db.ExerciseLibraryDao
 import com.silverbp.android.core.db.StrengthWorkoutDao
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
+import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -18,7 +21,11 @@ import kotlinx.coroutines.flow.map
 class StrengthWorkoutRepository(
     private val dao: StrengthWorkoutDao,
     private val libraryDao: ExerciseLibraryDao,
+    private val localSync: LocalSyncWriter? = null,
 ) {
+
+    private val syncWriter: LocalSyncWriter?
+        get() = localSync ?: runCatching { ServiceLocator.localSyncWriter }.getOrNull()
 
     fun observeAllSessions(): Flow<List<StrengthWorkoutSession>> =
         dao.observeAllSessions().map { list -> list.map { it.toShallowDomain() } }
@@ -31,17 +38,48 @@ class StrengthWorkoutRepository(
         return session.toDomain(sets, catalog)
     }
 
-    suspend fun delete(id: String) = dao.delete(id)
+    suspend fun delete(id: String) {
+        val writer = syncWriter
+        if (writer != null) {
+            dao.deleteSessionWithTombstones(
+                id = id,
+                sessionEntityType = SyncEntityType.STRENGTH_WORKOUT_SESSION.tableName,
+                setEntityType = SyncEntityType.SET_LOG.tableName,
+                hlc = writer.nextHlc(),
+                deletedAt = System.currentTimeMillis(),
+            )
+        } else {
+            dao.delete(id)
+        }
+    }
 
     suspend fun count(): Int = dao.count()
 
     suspend fun upsert(session: StrengthWorkoutSession) {
         val now = System.currentTimeMillis()
-        val sessionEntity = session.toEntity(createdAt = now, updatedAt = now)
+        val writer = syncWriter
+        val sessionHlc = writer?.nextHlc()
+        val sessionEntity = session.toEntity(createdAt = now, updatedAt = now).copy(
+            hlcUpdatedAt = sessionHlc ?: "0",
+        )
         val setEntities = session.items.flatMap { (_, sets) ->
-            sets.map { it.toEntity(workoutSessionId = session.id, createdAt = now) }
+            sets.map {
+                it.toEntity(workoutSessionId = session.id, createdAt = now).copy(
+                    hlcUpdatedAt = writer?.nextHlc() ?: "0",
+                )
+            }
         }
-        dao.insertSessionWithSets(sessionEntity, setEntities)
+        if (writer != null) {
+            dao.insertSessionWithSetsAndTombstonesForRemovedSets(
+                session = sessionEntity,
+                sets = setEntities,
+                setEntityType = SyncEntityType.SET_LOG.tableName,
+                deletedSetHlc = requireNotNull(sessionHlc),
+                deletedAt = now,
+            )
+        } else {
+            dao.insertSessionWithSets(sessionEntity, setEntities)
+        }
     }
 
     /** Session row only, no set/exercise children attached. */

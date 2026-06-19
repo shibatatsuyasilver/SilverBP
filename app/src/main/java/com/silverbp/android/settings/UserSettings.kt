@@ -34,8 +34,7 @@ data class UserSettings(
     val recognitionBackend: RecognitionBackend = RecognitionBackend.Local,
     /** Local model id (matches one of [ModelCatalog.variants]). */
     val selectedModelId: String = ModelCatalog.default.id,
-    /** Google AI Studio API key for the cloud route. Stored in plain DataStore — fine for personal use,
-     *  swap to EncryptedSharedPreferences if you want device-level secrecy. */
+    /** Google AI Studio API key for the cloud route. Keystore-wrapped at rest. */
     val geminiApiKey: String = "",
     /** Gemini model id (e.g. "gemini-2.5-flash"). */
     val geminiModel: String = GeminiCloudRecognizer.DEFAULT_MODEL,
@@ -154,10 +153,11 @@ data class UserSettings(
 
     /**
      * Opt-in app-lock + at-rest encryption. When true the Room DB is
-     * SQLCipher-encrypted, sensitive settings are encrypted, and the UI
-     * requires biometric / device-credential unlock after the app has been
-     * backgrounded longer than [appLockTimeoutSeconds]. Default off — enabling
-     * runs an irreversible-feeling (but reversible) DB migration. The actual
+     * SQLCipher-encrypted and the UI requires biometric / device-credential
+     * unlock after the app has been backgrounded longer than
+     * [appLockTimeoutSeconds]. Sensitive settings are Keystore-wrapped
+     * regardless of this toggle. Default off — enabling runs an
+     * irreversible-feeling (but reversible) DB migration. The actual
      * "is the DB encrypted" source of truth is the Keystore-backed
      * [com.silverbp.android.security.DbKeyStore] marker; this flag drives the
      * UI gate + Settings row and is kept in lock-step with it.

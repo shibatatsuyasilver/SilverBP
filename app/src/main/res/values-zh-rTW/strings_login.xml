@@ -4,7 +4,7 @@
          complete but before HOME is released, whenever googleAccountEmail is
          blank and the user hasn't tapped 稍後再說 (skippedGoogleLink). -->
     <string name="login_title">登入以保存你的資料</string>
-    <string name="login_body">使用 Google 登入後,你的血壓、運動、用藥與 Coach 記錄會自動加密備份到你的 Google Drive,換手機或重灌時可直接還原。未連結帳號前,自動備份會維持關閉,你仍可隨時在「備份」頁面連結。</string>
+    <string name="login_body">現在使用 Google 登入只會先為 SilverBP 連結 Drive。備份會維持關閉,直到你在「備份」頁面設定復原碼並選擇自動備份頻率；之後加密快照可在換手機或重灌時還原。</string>
     <string name="login_button">使用 Google 登入</string>
     <string name="login_signing_in">登入中…</string>
     <string name="login_error">登入失敗,請再試一次。</string>

@@ -1,6 +1,7 @@
 package com.silverbp.android.di
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.silverbp.android.achievements.AchievementStore
 import com.silverbp.android.achievements.StepBaselineStore
 import com.silverbp.android.chat.ChatRepository
@@ -10,6 +11,7 @@ import com.silverbp.android.coach.CoachEngine
 import com.silverbp.android.coach.CoachNarrator
 import com.silverbp.android.coach.CoachRepository
 import com.silverbp.android.coach.ExerciseRepoSummaryProvider
+import com.silverbp.android.coach.MedicationRepository
 import com.silverbp.android.coach.TodayExerciseTaskGenerator
 import com.silverbp.android.recognition.chat.ChatRecognizerFactory
 import com.silverbp.android.core.BpRepository
@@ -316,6 +318,18 @@ object ServiceLocator {
             medicationSchedules = database.medicationScheduleDao(),
             medications = database.medicationDao(),
             localSync = localSyncWriter,
+        )
+    }
+
+    val medicationRepository: MedicationRepository by lazy {
+        MedicationRepository(
+            medications = database.medicationDao(),
+            schedules = database.medicationScheduleDao(),
+            currentMemberId = { currentMemberStore.current() },
+            ownerMemberId = { memberRepository.ownerId() },
+            localSync = localSyncWriter,
+            writeTombstone = { database.localSyncMutationDao().upsertTombstone(it) },
+            inTransaction = { block -> database.withTransaction { block() } },
         )
     }
 

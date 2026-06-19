@@ -34,7 +34,9 @@ class GemmaLocalWeightRecognizer : WeightDisplayRecognizer {
     override val backendTag = "ai_local"
     override fun isReady(): Boolean = GemmaBpService.isLoaded()
     override suspend fun analyze(bitmap: Bitmap): ExtractedWeight =
-        WeightResponseParser.parse(GemmaBpService.generate(bitmap, WeightPrompt.systemAndAnalyze()))
+        WeightResponseParser.parse(
+            GemmaBpService.generate(bitmap.preprocessForOcr(), WeightPrompt.systemAndAnalyze()),
+        )
 }
 
 /** Gemini Nano via AICore (Pixel 9/10) — reuses the warmed [AICoreBpService]. */
@@ -42,7 +44,9 @@ class AICoreWeightRecognizer : WeightDisplayRecognizer {
     override val backendTag = "ai_aicore"
     override fun isReady(): Boolean = AICoreBpService.isLoaded()
     override suspend fun analyze(bitmap: Bitmap): ExtractedWeight =
-        WeightResponseParser.parse(AICoreBpService.generate(bitmap, WeightPrompt.systemAndAnalyze()))
+        WeightResponseParser.parse(
+            AICoreBpService.generate(bitmap.preprocessForOcr(), WeightPrompt.systemAndAnalyze()),
+        )
 }
 
 /**

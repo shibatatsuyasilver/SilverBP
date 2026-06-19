@@ -28,7 +28,9 @@ class GemmaLocalMachineRecognizer : MachineDisplayRecognizer {
     override val backendTag = "ai_local"
     override fun isReady(): Boolean = GemmaBpService.isLoaded()
     override suspend fun analyze(bitmap: Bitmap): ExtractedMachineWorkout =
-        MachineResponseParser.parse(GemmaBpService.generate(bitmap, MachineDisplayPrompt.systemAndAnalyze()))
+        MachineResponseParser.parse(
+            GemmaBpService.generate(bitmap.preprocessForOcr(), MachineDisplayPrompt.systemAndAnalyze()),
+        )
 }
 
 /** Gemini Nano via AICore (Pixel 9/10) — reuses the warmed [AICoreBpService]. */
@@ -36,7 +38,9 @@ class AICoreMachineRecognizer : MachineDisplayRecognizer {
     override val backendTag = "ai_aicore"
     override fun isReady(): Boolean = AICoreBpService.isLoaded()
     override suspend fun analyze(bitmap: Bitmap): ExtractedMachineWorkout =
-        MachineResponseParser.parse(AICoreBpService.generate(bitmap, MachineDisplayPrompt.systemAndAnalyze()))
+        MachineResponseParser.parse(
+            AICoreBpService.generate(bitmap.preprocessForOcr(), MachineDisplayPrompt.systemAndAnalyze()),
+        )
 }
 
 /**

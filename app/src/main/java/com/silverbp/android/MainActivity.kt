@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -33,9 +34,12 @@ class MainActivity : FragmentActivity() {
             // same DataStore-backed flow that SilverBpApp collects). Initial value
             // == the persisted default so dark users never see a light flash on
             // cold start.
-            val themeMode by ServiceLocator.userSettings.flow
-                .map { it.appThemeMode }
-                .collectAsStateWithLifecycle(initialValue = AppThemeMode.Dark)
+            val themeModeFlow = remember {
+                ServiceLocator.userSettings.flow.map { it.appThemeMode }
+            }
+            val themeMode by themeModeFlow.collectAsStateWithLifecycle(
+                initialValue = AppThemeMode.Dark,
+            )
             SilverBpTheme(themeMode = themeMode) {
                 SilverBpApp()
             }

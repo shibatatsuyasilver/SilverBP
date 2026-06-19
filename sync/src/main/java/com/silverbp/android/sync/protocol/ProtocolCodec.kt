@@ -57,11 +57,16 @@ object ProtocolCodec {
                 w.writeMapHeader(1)
                 w.writeUInt(KEY_TYPE.toLong()); w.writeUInt(SyncMessageType.BYE.tag.toLong())
             }
+            is ProtocolMessage.ProtocolError -> error("ProtocolError is a decode-only message")
         }
         return w.toByteArray()
     }
 
-    fun decode(bytes: ByteArray): ProtocolMessage {
+    fun decode(bytes: ByteArray): ProtocolMessage =
+        runCatching { decodeStrict(bytes) }
+            .getOrElse { ProtocolMessage.ProtocolError("malformed protocol message: ${it.message}") }
+
+    private fun decodeStrict(bytes: ByteArray): ProtocolMessage {
         val r = CborReader(bytes)
         val mapEntries = r.readMapHeader()
         var typeTag: Int? = null
@@ -99,27 +104,34 @@ object ProtocolCodec {
                                 SyncRecordCodec.decodeOrNull(r.readBytes())
                             }
                         }
-                        else -> error("unexpected major type for key=2")
+                        else -> {
+                            r.skipValue()
+                        }
                     }
                 }
                 KEY_LAST_HLC -> lastHlc = r.readText()
-                else -> error("unexpected key in protocol message: $key")
+                else -> r.skipValue()
             }
         }
 
-        return when (val tag = requireNotNull(typeTag) { "missing type tag" }) {
+        val tag = typeTag
+            ?: return ProtocolMessage.ProtocolError("missing type tag")
+        return when (tag) {
             SyncMessageType.HELLO.tag -> ProtocolMessage.Hello(
-                deviceId = requireNotNull(deviceId) { "HELLO missing deviceId" },
-                lastHlcSeen = Hlc(requireNotNull(lastHlc) { "HELLO missing lastHlcSeen" }),
+                deviceId = deviceId
+                    ?: return ProtocolMessage.ProtocolError("HELLO missing deviceId", tag),
+                lastHlcSeen = Hlc(
+                    lastHlc ?: return ProtocolMessage.ProtocolError("HELLO missing lastHlcSeen", tag),
+                ),
             )
             SyncMessageType.RECORDS.tag -> ProtocolMessage.Records(
                 records = records ?: emptyList(),
             )
             SyncMessageType.ACK.tag -> ProtocolMessage.Ack(
-                hlc = Hlc(requireNotNull(ackHlc) { "ACK missing hlc" }),
+                hlc = Hlc(ackHlc ?: return ProtocolMessage.ProtocolError("ACK missing hlc", tag)),
             )
             SyncMessageType.BYE.tag -> ProtocolMessage.Bye
-            else -> error("unknown protocol message type tag: $tag")
+            else -> ProtocolMessage.ProtocolError("unknown protocol message type tag: $tag", tag)
         }
     }
 }

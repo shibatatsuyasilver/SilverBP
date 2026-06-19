@@ -1,6 +1,8 @@
 package com.silverbp.android.exercise
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -69,7 +71,6 @@ class LocationTrackingService : LifecycleService() {
         super.onCreate()
         fusedClient = LocationServices.getFusedLocationProviderClient(this)
         sensorManager = getSystemService()
-        stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
         ExerciseNotification.createChannel(this)
         ExerciseNotification.createIdleReminderChannel(this)
     }
@@ -191,8 +192,24 @@ class LocationTrackingService : LifecycleService() {
     }
 
     private fun startStepCounter() {
-        val sensor = stepSensor ?: return
-        sensorManager?.registerListener(stepListener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            stepSensor = null
+            return
+        }
+        val mgr = sensorManager ?: return
+        val sensor = stepSensor
+            ?: runCatching { mgr.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) }
+                .getOrNull()
+                ?.also { stepSensor = it }
+            ?: return
+        try {
+            mgr.registerListener(stepListener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+        } catch (_: SecurityException) {
+            stepSensor = null
+        }
     }
 
     private fun startNotificationRefresh() {
@@ -203,11 +220,16 @@ class LocationTrackingService : LifecycleService() {
                 delay(1_000L)
                 if (!trackingStarted) break
                 val live = liveStore.flow.value
-                runCatching {
-                    nm.notify(
-                        ExerciseNotification.NOTIF_ID,
-                        ExerciseNotification.build(this@LocationTrackingService, live),
-                    )
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    runCatching {
+                        nm.notify(
+                            ExerciseNotification.NOTIF_ID,
+                            ExerciseNotification.build(this@LocationTrackingService, live),
+                        )
+                    }
                 }
                 maybeUpdateIdleReminder(nm, live)
                 // Checkpoint roughly every 10 s so a process kill loses at most a
@@ -231,8 +253,8 @@ class LocationTrackingService : LifecycleService() {
         // mirrors MedalNotifier's check-before-notify pattern and keeps
         // idleReminderShown honest (we never mark it shown if it can't show).
         val canNotify = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
         when {
             canNotify && paused && pausedSince != null &&
                 (System.currentTimeMillis() - pausedSince) >= ExerciseSessionLiveStore.IDLE_REMINDER_THRESHOLD_MS &&

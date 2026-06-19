@@ -1,5 +1,6 @@
 package com.silverbp.android.core.db
 
+import androidx.room.migration.Migration
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -30,6 +31,37 @@ class RoomMigrationTest {
         MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
     )
 
+    private data class MigrationEdge(
+        val from: Int,
+        val to: Int,
+        val migrations: Array<Migration>,
+    )
+
+    private val schemaBackedEdges = listOf(
+        MigrationEdge(1, 2, arrayOf(MIGRATION_1_2)),
+        MigrationEdge(2, 3, arrayOf(MIGRATION_2_3)),
+        MigrationEdge(3, 4, arrayOf(MIGRATION_3_4)),
+        MigrationEdge(4, 5, arrayOf(MIGRATION_4_5)),
+        MigrationEdge(5, 6, arrayOf(MIGRATION_5_6)),
+        MigrationEdge(6, 7, arrayOf(MIGRATION_6_7)),
+        MigrationEdge(7, 8, arrayOf(MIGRATION_7_8)),
+        MigrationEdge(8, 9, arrayOf(MIGRATION_8_9)),
+        MigrationEdge(9, 10, arrayOf(MIGRATION_9_10)),
+        MigrationEdge(10, 11, arrayOf(MIGRATION_10_11)),
+        MigrationEdge(11, 12, arrayOf(MIGRATION_11_12)),
+        MigrationEdge(12, 13, arrayOf(MIGRATION_12_13)),
+        // TODO: app/schemas/.../SilverBpDatabase/14.json is missing from history.
+        // Do not fabricate it; validate 13->15 as a chained edge until a real
+        // exported v14 schema is recovered.
+        MigrationEdge(13, 15, arrayOf(MIGRATION_13_14, MIGRATION_14_15)),
+        MigrationEdge(15, 16, arrayOf(MIGRATION_15_16)),
+        MigrationEdge(16, 17, arrayOf(MIGRATION_16_17)),
+        MigrationEdge(17, 18, arrayOf(MIGRATION_17_18)),
+        MigrationEdge(18, 19, arrayOf(MIGRATION_18_19)),
+        MigrationEdge(19, 20, arrayOf(MIGRATION_19_20)),
+        MigrationEdge(20, 21, arrayOf(MIGRATION_20_21)),
+    )
+
     @get:Rule
     val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),
@@ -41,6 +73,16 @@ class RoomMigrationTest {
     fun migrateAll_1_to_21() {
         helper.createDatabase(dbName, 1).close()
         helper.runMigrationsAndValidate(dbName, 21, true, *allMigrations).close()
+    }
+
+    /** Every schema-backed adjacent edge through v21 validates, except missing v14. */
+    @Test
+    fun migrate_schemaBackedEdges_through21_matchSchemas() {
+        for (edge in schemaBackedEdges) {
+            val name = "migration-${edge.from}-${edge.to}.db"
+            helper.createDatabase(name, edge.from).close()
+            helper.runMigrationsAndValidate(name, edge.to, true, *edge.migrations).close()
+        }
     }
 
     /** v19 → v20 adds the weight_log table and still matches the v20 schema. */

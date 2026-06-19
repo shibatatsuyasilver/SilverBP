@@ -210,6 +210,39 @@ class CborReader(private val bytes: ByteArray) {
         return len.toInt()
     }
 
+    /** Skips one complete CBOR value, including nested arrays/maps. */
+    fun skipValue() {
+        if (isNextNull()) {
+            consumeNull()
+            return
+        }
+        when (val mt = peekMajorType()) {
+            Cbor.MT_UINT, Cbor.MT_NINT -> readInt()
+            Cbor.MT_TEXT -> readText()
+            Cbor.MT_BYTES -> readBytes()
+            Cbor.MT_ARRAY -> {
+                val n = readArrayHeader()
+                repeat(n) { skipValue() }
+            }
+            Cbor.MT_MAP -> {
+                val n = readMapHeader()
+                repeat(n) {
+                    skipValue()
+                    skipValue()
+                }
+            }
+            Cbor.MT_TAG -> {
+                readHeader()
+                skipValue()
+            }
+            Cbor.MT_SIMPLE -> {
+                val info = peekFirstByte() and 0x1F
+                if (info == Cbor.SIMPLE_FLOAT64) readDouble() else readBool()
+            }
+            else -> error("CBOR: cannot skip major type $mt")
+        }
+    }
+
     private fun readHeader(): Pair<Int, Long> {
         require(pos < bytes.size) { "CBOR: unexpected EOF" }
         val first = bytes[pos].toInt() and 0xFF

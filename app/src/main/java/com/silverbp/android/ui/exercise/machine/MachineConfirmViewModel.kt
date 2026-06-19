@@ -57,7 +57,27 @@ data class MachineConfirmUiState(
     val backendTag: String = "manual",
     val overallConfidence: Double? = null,
     val metrics: List<MachineMetric> = emptyList(),
-)
+) {
+    val isValid: Boolean
+        get() = hasPositiveDuration(durationMinutes, durationSeconds) &&
+            hasMeaningfulActivityMetric(distanceValue, calories, metrics)
+}
+
+internal fun hasPositiveDuration(minutes: String, seconds: String): Boolean {
+    val mins = minutes.toLongOrNull() ?: 0L
+    val secs = seconds.toLongOrNull() ?: 0L
+    return mins * 60L + secs > 0L
+}
+
+internal fun hasMeaningfulActivityMetric(
+    distanceValue: String,
+    calories: String,
+    metrics: List<MachineMetric>,
+): Boolean {
+    if (firstPositiveNumber(distanceValue) != null) return true
+    if (firstPositiveNumber(calories) != null) return true
+    return metrics.any { it.isMeaningfulActivityMetric() }
+}
 
 /**
  * Backs [MachineConfirmScreen]: takes the staged [RecognizedMachineWorkout],
@@ -101,8 +121,9 @@ class MachineConfirmViewModel(
 
     fun save(onSaved: () -> Unit) {
         if (_saving.value) return
-        _saving.value = true
         val s = _state.value
+        if (!s.isValid) return
+        _saving.value = true
         viewModelScope.launch {
             repo.upsert(s.toSession(rawMetricsJson), points = emptyList())
             // exercise_session has no photo column — the JPEG serves no purpose post-save.
@@ -199,4 +220,28 @@ class MachineConfirmViewModel(
         fun trimNumber(d: Double): String =
             if (d == d.toLong().toDouble()) d.toLong().toString() else d.toString()
     }
+}
+
+private fun MachineMetric.isMeaningfulActivityMetric(): Boolean {
+    val labelText = label.trim().lowercase()
+    val unitText = unit.orEmpty().trim().lowercase()
+    if (labelText.isBlank() && value.isBlank()) return false
+    if (labelText.contains("heart") || labelText.contains("pulse") ||
+        labelText == "hr" || labelText.contains("bpm") || unitText == "bpm"
+    ) {
+        return false
+    }
+    if (labelText.contains("time") || labelText.contains("duration")) return false
+    return firstPositiveNumber(value) != null
+}
+
+private val numberRegex = Regex("""[-+]?\d+(?:\.\d+)?""")
+
+private fun firstPositiveNumber(raw: String?): Double? {
+    val normalized = raw?.trim()?.replace(",", ".").orEmpty()
+    if (normalized.isBlank()) return null
+    return numberRegex.find(normalized)
+        ?.value
+        ?.toDoubleOrNull()
+        ?.takeIf { it > 0.0 }
 }

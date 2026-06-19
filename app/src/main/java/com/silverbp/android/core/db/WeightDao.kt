@@ -45,6 +45,9 @@ interface WeightDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(r: WeightLogEntity)
 
+    @Query("UPDATE weight_log SET hcRecordId = :hcId WHERE id = :id")
+    suspend fun updateHcRecordId(id: String, hcId: String)
+
     @Query("DELETE FROM weight_log WHERE id = :id")
     suspend fun delete(id: String)
 

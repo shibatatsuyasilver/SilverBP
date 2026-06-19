@@ -2,6 +2,8 @@ package com.silverbp.android.coach
 
 import com.silverbp.android.core.db.BpWorkoutAssociationDao
 import com.silverbp.android.core.db.BpWorkoutAssociationEntity
+import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.sync.LocalSyncWriter
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -11,7 +13,11 @@ import java.util.UUID
  */
 class BpWorkoutAssociationRepository(
     private val dao: BpWorkoutAssociationDao,
+    private val localSync: LocalSyncWriter? = null,
 ) {
+
+    private val syncWriter: LocalSyncWriter?
+        get() = localSync ?: runCatching { ServiceLocator.localSyncWriter }.getOrNull()
 
     /**
      * Record a pre/post BP↔workout link. Returns the generated association id.
@@ -34,6 +40,7 @@ class BpWorkoutAssociationRepository(
                 sessionType = sessionType,
                 contextType = contextType,
                 createdAt = System.currentTimeMillis(),
+                hlcUpdatedAt = syncWriter?.nextHlc() ?: "0",
             ),
         )
         return id

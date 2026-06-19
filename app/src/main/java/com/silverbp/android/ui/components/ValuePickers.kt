@@ -218,6 +218,7 @@ fun YearPickerField(
  * null. Defaults the wheel to 170 cm when not set.
  */
 @Composable
+@Suppress("LocalContextGetResourceValueCall") // formatted picker label lives in a non-@Composable lambda
 fun HeightPickerField(
     value: Int?,
     onChange: (Int?) -> Unit,
@@ -268,6 +269,7 @@ fun HeightPickerField(
  * Re-derives the wheel range/index whenever [unit] changes.
  */
 @Composable
+@Suppress("LocalContextGetResourceValueCall") // formatted picker label lives in a non-@Composable lambda
 fun WeightPickerField(
     valueKg: Double?,
     unit: WeightUnit,

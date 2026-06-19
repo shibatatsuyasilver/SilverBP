@@ -59,6 +59,13 @@ class ConfirmReadingViewModel(
     private val _saveError = MutableStateFlow<String?>(null)
     val saveError: StateFlow<String?> = _saveError.asStateFlow()
 
+    /**
+     * Set after saving a crisis-range reading so the screen shows a one-shot,
+     * non-diagnostic acknowledgement before returning.
+     */
+    private val _crisisWarning = MutableStateFlow(false)
+    val crisisWarning: StateFlow<Boolean> = _crisisWarning.asStateFlow()
+
     private var editingId: UUID? = null
 
     /** Guards [initWith] so activity recreation doesn't wipe the surviving draft. */
@@ -124,6 +131,8 @@ class ConfirmReadingViewModel(
         setDraft(transform(_draft.value))
     }
 
+    fun clearCrisisWarning() { _crisisWarning.value = false }
+
     /** Single sink for draft mutations that also mirrors to the handle (M5). */
     private fun setDraft(d: BpReadingDraft) {
         _draft.value = d
@@ -134,6 +143,7 @@ class ConfirmReadingViewModel(
         if (_saving.value) return
         _saving.value = true
         _saveError.value = null
+        _crisisWarning.value = false
         viewModelScope.launch {
             val current = _draft.value
             Log.i(
@@ -161,7 +171,11 @@ class ConfirmReadingViewModel(
                 }
                 repo.upsert(reading)
                 _saving.value = false
-                onDone()
+                if (reading.systolic >= 180 || reading.diastolic >= 120) {
+                    _crisisWarning.value = true
+                } else {
+                    onDone()
+                }
             } catch (e: Throwable) {
                 Log.e(TAG, "[Confirm] save failed: ${e.message}", e)
                 // 保留草稿並顯示錯誤,讓使用者可以重試

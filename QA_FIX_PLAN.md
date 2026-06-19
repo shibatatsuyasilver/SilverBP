@@ -1,16 +1,269 @@
 # SilverBP — QA Fix Plan
 
-A remediation backlog for the 37-item QA report. Every item was verified against the
-codebase by two independent read-only passes (an auditor + an adversarial cross-check).
+Original remediation backlog for the QA report. The original body below is preserved for
+traceability, but its checkbox state is stale against current HEAD.
 
-**Status of verification: 36 / 37 confirmed real (high confidence). 1 (P0-4) is real but
-its impact was overstated** — see its note. Several sync items are already self-documented
-in code comments as "MVP / Phase-1 non-goal / lands in Phase 2".
+**Current-head re-audit:** 2026-06-19, static read-only review with 10 completed subagent
+passes plus a main pass. Covered build/release, manifest/security, Room/sync, backup,
+recognition, Health Connect/exercise, UI/navigation, tests/CI, and domain/medical safety.
 
-Legend: `[ ]` to do · ✅ verified-real · 🟡 real defect, impact overstated.
-Line numbers are the verified locations (some differ slightly from the original report).
+Legend in the legacy body: `[ ]` to do · ✅ verified-real · 🟡 real defect, impact
+overstated. The authoritative current status is the re-audit section immediately below.
 
 ---
+
+## 0. 2026-06-19 Current-Head Re-Audit
+
+### Scope and outcome
+
+- **Subagent coverage:** 10 completed read-only subagent passes were incorporated:
+  build/release, manifest/security, Room/local data, LAN sync/pairing, backup/crypto,
+  capture/AI recognition, Health Connect/exercise, Compose UI/navigation, tests/CI,
+  and domain/medical safety.
+- **Original plan count mismatch:** this file says "37-item QA report", but current
+  headings contain **35** `P0/P1/P2` items.
+- **Bottom line:** many original QA defects are fixed in code, but the project is **not**
+  fully clean. Several original items are only partially fixed, and the re-audit found
+  new release-blocking or data-safety issues.
+- **Verification limitation:** this was primarily static review. One subagent reported
+  `./gradlew :app:compileDebugKotlin` could not run because no Java Runtime was available
+  locally; another read the existing lint report instead of running fresh lint.
+
+### Original QA items: current status
+
+| Status | Items |
+| --- | --- |
+| Fixed for the original described defect | `P0-3`, `P0-4`, `P0-5`, `P0-7`, `P0-10`, `P0-11`, `P0-12`, `P0-13`, `P1-14`, `P1-15`, `P1-16`, `P1-17`, `P1-19`, `P1-22`, `P1-24`, `P1-25`, `P1-26`, `P1-27`, `P1-28`, `P2-29`, `P2-30`, `P2-31`, `P2-32`, `P2-33`, `P2-34`, `P2-35` |
+| Partially fixed / residual risk remains | `P0-1`, `P0-2`, `P0-6`, `P0-8`, `P0-9`, `P1-18`, `P1-20`, `P2-36`, `P2-37` |
+
+Detailed residuals:
+
+- `P0-1`: main BP/glucose/weight/member writes now stamp HLC, but Health Connect retry
+  can still rewrite glucose/weight with `hlcUpdatedAt = "0"`; medication/schedule and
+  several coach/strength paths still bypass HLC; `HlcClock.lastSeen` is not persisted
+  across process restarts.
+- `P0-2`: BP/glucose/weight/food/exercise deletes now write tombstones, but
+  medication/schedule and some strength/coach synced deletes still hard-delete without
+  tombstones.
+- `P0-6`: initial Health Connect grant includes glucose/weight and checks the requested
+  set, but cold-start revoke reconciliation still uses steps-only logic and background
+  read is treated as a master-toggle hard requirement.
+- `P0-8`: future system backup is blocked, but `SilverBpBackupAgent.onRestoreFile()` still
+  delegates to `super`, so legacy Android Auto Backup sets may restore health DB/DataStore.
+- `P0-9`: cardio pre/post-workout BP CTAs are wired; strength pre/post-workout BP CTAs are
+  still no-op.
+- `P1-18`: `recordsSince(peerLastHlcSeen)` now filters/sorts, but product pairing does not
+  persist or reuse peer watermarks, and skipped orphan child records still advance the
+  watermark.
+- `P1-20`: Gemini final JSON is debug-gated, but Gemma/AICore and some ViewModel paths still
+  log raw health/model output or health values.
+- `P2-36`: migration registration/test coverage reaches v21, but exported schema
+  `app/schemas/com.silverbp.android.core.db.SilverBpDatabase/14.json` is still missing.
+- `P2-37`: record-level `decodeOrNull()` skips unknown types, but backup import still
+  compares decoded known records with header `recordCount`, so newer backups containing an
+  unknown record fail restore.
+
+### New blocking / high-risk findings
+
+#### 1. Health Connect retry can reset glucose/weight HLC to `"0"`
+- **Evidence:** `GlucoseSyncWorker.kt:67`, `WeightSyncWorker.kt:96`,
+  `GlucoseMappers.kt:10`, `WeightMappers.kt:9`.
+- **Impact:** after a retry writes `hcRecordId`, the worker rebuilds the entity through a
+  domain mapper that does not carry `hlcUpdatedAt`. LWW then treats the row as having no
+  local version, so stale peers can overwrite or resurrect data.
+- **Solution:** do not use domain round-trip for device-local HC id updates. Add DAO methods
+  such as `UPDATE glucose_reading SET hcRecordId = :hcId WHERE id = :id` and the weight
+  equivalent, or load the existing entity and copy only `hcRecordId` while preserving
+  `hlcUpdatedAt`. Add regression tests for both workers.
+
+#### 2. Medication is not member-isolated
+- **Evidence:** `MedicationEditScreen.kt:147`, `MedicationManageScreen.kt:69`,
+  `CoachLogMedicationScreen.kt:84`.
+- **Impact:** new medications may not set `memberId`, and management/log screens use
+  all-member observation. Family members can see, edit, delete, or log each other's
+  medicines.
+- **Solution:** create/edit medication through a repository that always sets/preserves the
+  current member id. Change management/log queries to `observeForMember(currentMemberId)`.
+  Ensure schedules are joined only to that member's medications.
+
+#### 3. Medication/schedule and other synced mutation paths bypass HLC/tombstones
+- **Evidence:** `MedicationEditScreen.kt:158`, `MedicationManageScreen.kt:181`,
+  `MemberRepository.kt:103`, `CoachRepository.kt:83`, `StrengthWorkoutRepository.kt:34`,
+  `ExerciseLibraryRepository.kt:40`, `BpWorkoutAssociationRepository.kt:29`.
+- **Impact:** local edits may never pass incremental sync, and local deletes can be
+  resurrected by a peer.
+- **Solution:** centralize writes in repositories/services. Inject `LocalSyncWriter` or
+  `LocalSyncMutationDao`, stamp every local upsert/update with `nextHlc()`, and write
+  tombstones for every synced delete in the same transaction. Add mapper/LWW tests for
+  medication, schedule, member archive/unarchive/sort, coach task, and strength logs.
+
+#### 4. HLC high-water and peer watermarks are not durable in production pairing
+- **Evidence:** `Hlc.kt:63`, `SyncCoordinator.kt:35`, `PairingService.kt:176`,
+  `PairingViewModel.kt:259`, `SyncDao.kt:51`.
+- **Impact:** process restart or clock skew can generate lower HLCs than already observed.
+  Pairing sessions always start from `Hlc.ZERO` and do not update `sync_device.lastHlcSeen`,
+  so sync is effectively full/redundant and tombstone GC cannot be trusted.
+- **Solution:** persist `HlcClock.lastSeen` in encrypted prefs or Room after `next()` and
+  `observe()`. Seed startup from persisted high-water plus DB/tombstone max. After SAS
+  confirmation, upsert `SyncDeviceEntity`, read `lastHlcSeen` for the session, and update
+  it after successful apply.
+
+#### 5. Skipped orphan child records still advance sync watermark
+- **Evidence:** `SyncSession.kt:78`, `Phase2Mappers.kt:216`, `Phase2Mappers.kt:592`,
+  `StrengthSyncMappers.kt:191`.
+- **Impact:** child records such as route points, coach tasks, or set logs can be skipped
+  when their parent has not arrived; the session still observes their HLC and updates the
+  watermark, so the peer may never resend them.
+- **Solution:** make `SyncRecordSink.apply()` return `Applied`, `Stale`, or `RetryLater`.
+  Do not advance watermarks for retryable child-orphan skips. Alternatively, persist
+  orphans in a pending table and apply after parents arrive.
+
+#### 6. Domain validation is too high in the UI
+- **Evidence:** repository entry points `BpRepository.kt:50`, `GlucoseRepository.kt:65`,
+  `WeightRepository.kt:65`, `NutritionRepository.kt:46`; nutrition UI numeric input around
+  `NutritionConfirmScreen.kt:551`.
+- **Impact:** sync import, Health Connect import, tests, or future callers can bypass UI
+  draft validators and write medically impossible or negative data into reports, coach, and
+  Health Connect mirrors.
+- **Solution:** move validation into domain/repository layers. Require BP/glucose/weight
+  finite values within accepted physiological ranges, and require nutrition calories/sodium
+  to be finite and non-negative. Reject or quarantine invalid inbound sync/import rows and
+  surface an import warning.
+
+#### 7. Health data and model output still reach logs
+- **Evidence:** `GemmaBpService.kt:204`, `GemmaBpService.kt:215`,
+  `AICoreBpService.kt:173`, `AICoreBpService.kt:184`,
+  `GeminiCloudRecognizer.kt:119`, plus flow/ViewModel health-value logs reported in audit.
+- **Impact:** BP, glucose, weight, or raw OCR/model text can enter logcat and bug reports.
+- **Solution:** create a small redacted logging helper. In release builds, never log raw
+  recognizer text, numeric health values, photos, prompts, response bodies, QR URLs, or SAS
+  codes. In debug builds, prefer metadata such as backend, latency, output length, and parse
+  status.
+
+#### 8. Cloud AI privacy disclosure is narrower than actual data flow
+- **Evidence:** privacy copy describes BP monitor photos, while code can send nutrition,
+  glucose, weight, machine photos, chat text/images, and record context to Google Gemini.
+- **Impact:** consent is incomplete for sensitive health data sent to a third-party AI API.
+- **Solution:** update `docs/privacy.html`, onboarding, and Settings disclosure to enumerate
+  all cloud AI routes and data categories. Make cloud chat record context an explicit opt-in
+  or clearly disclose when enabled.
+
+#### 9. Backup restore can commit partial data after replace
+- **Evidence:** `BackupManager.kt:261`, `BackupManager.kt:274`.
+- **Impact:** replace restore clears tables, then catches generic per-record exceptions and
+  commits the transaction with skipped known records. A mapper/FK bug can leave the user with
+  a partially restored database.
+- **Solution:** in Replace mode, known record apply failures should throw and roll back the
+  transaction. Only unknown future record types should be skippable. Consider a dry-run
+  validation pass before destructive clear.
+
+#### 10. Backup forward-compat and malicious-input hardening are incomplete
+- **Evidence:** `BackupCodec.kt:328`, `BackupManager.kt:238`, `BackupCodec.kt:189`,
+  `BackupCrypto.kt:89`.
+- **Impact:** unknown record types break older restores because `recordCount` compares only
+  decoded known records. Also, untrusted backup headers can feed unbounded Argon2 parameters
+  before payload authentication, risking OOM or long stalls.
+- **Solution:** return raw block count, known records, and skipped unknown count from
+  `decodePayload()`. Validate header format/content/aead, salt/nonce/wrap lengths, KDF
+  bounds, and maximum payload size before KDF/decrypt.
+
+#### 11. Google Drive backup lifecycle can mislead users or delete too broadly
+- **Evidence:** login string promises automatic backup; `AutoBackupWorker.kt:35` fails
+  without a recovery code; `GoogleDriveBackupClient.kt:87` lists all appDataFolder files;
+  `BackupViewModel.kt:267` deletes all listed files.
+- **Impact:** first-launch Google linking may not create a usable backup, and disconnect or
+  retention pruning may delete unrelated future appDataFolder files.
+- **Solution:** either change login copy to "link now, configure backup later" or force a
+  recovery-code setup, default frequency, scheduler enqueue, and first snapshot after
+  consent. Tag uploaded backup files with fixed MIME/name prefix and `appProperties`, filter
+  `listBackups()` accordingly, and only delete files positively identified as SilverBP
+  backups.
+
+#### 12. Health Connect/exercise lifecycle defects remain
+- **Evidence:** `StrengthLibrarySection.kt:85`, `WorkoutSummaryScreen.kt:51`,
+  `PermissionGate.kt:86`, `LocationTrackingService.kt:193`, `StepCounterReader.kt:51`,
+  `SilverBpApplication.kt:145`, `SettingsViewModel.kt:37`.
+- **Impact:** strength BP safety CTAs are no-op; denied `ACTIVITY_RECOGNITION` may still lead
+  to protected step-sensor access; HC revoke reconciliation can stay enabled on steps-only;
+  background read denial blocks unrelated foreground write features.
+- **Solution:** thread `onMeasureBp` through strength start and summary flows; check
+  `ACTIVITY_RECOGNITION` before registering step sensors and catch `SecurityException`;
+  implement shared `reconcileHealthConnect()` over the real core permission set; make
+  background reads optional and gate only background workers.
+
+#### 13. Release/Play and operator docs are out of sync with code
+- **Evidence:** `RELEASE.md` C-8/C-9 omits weight read/write and data-sync FGS; signing
+  appendix still says missing `KEYSTORE_*` falls back to debug signing; Health declaration
+  still treats glucose as future-only.
+- **Impact:** Play Console app-content declarations may be incomplete, and operators can add
+  the wrong Maps SHA-1 or misunderstand release signing behavior.
+- **Solution:** update `RELEASE.md` with every manifest health permission, `FOREGROUND_SERVICE_DATA_SYNC`,
+  and current upload key path. State that release artifact tasks fail fast when signing or
+  Maps key values are missing.
+
+#### 14. Lint/CI are not release-clean
+- **Evidence:** existing lint report still matches source patterns in
+  `LocationTrackingService.kt:207`, `PairingScreen.kt:518`, `MainActivity.kt:36`,
+  `ChatScreen.kt:136`, `NutritionScreen.kt:115`, and `ExerciseNotification.kt:407`.
+  No CI workflow was found.
+- **Impact:** `lintDebug`/`lint` may fail, and regressions are not blocked automatically.
+- **Solution:** fix notification permission checks, `ExperimentalGetImage` opt-in,
+  Compose flow allocation/snackbar string issues, and string format mismatch. Add CI to run
+  at least `./gradlew :app:testDebugUnitTest :sync:test :app:lintDebug`; add emulator or
+  scheduled migration validation for instrumentation-only tests.
+
+#### 15. API tokens and large model downloads need stronger safeguards
+- **Evidence:** Gemini API key is encrypted only when DB/app-lock encryption is active;
+  HF token is passed through WorkManager `inputData`; `ModelDownloadWorker.kt:114` uses
+  `NetworkType.CONNECTED`; `ModelCatalog.kt:83` has a gated model with `sha256 = null`.
+- **Impact:** user API tokens may persist in app/WorkManager storage, multi-GB downloads can
+  run on metered networks from some entry points, and one model lacks content pinning.
+- **Solution:** always wrap user secrets with Android Keystore independent of app lock. Pass
+  only a token reference to workers and clear encrypted token material in `finally`. Use
+  `NetworkType.UNMETERED` or a shared metered-network confirmation. Require SHA-256 for every
+  release model variant.
+
+#### 16. Recognition and chat image paths still have robustness gaps
+- **Evidence:** Weight/Machine local/AICore recognizers bypass LCD preprocessing; chat image
+  decode paths use full-size `BitmapFactory.decodeStream/decodeFile`; machine confirm save is
+  enabled even when duration/distance are blank and become zero.
+- **Impact:** OCR accuracy differs by backend, large chat images can spike memory or ignore
+  EXIF, and machine OCR can save zero-duration workouts into achievements/coach/sync.
+- **Solution:** route weight/machine local and AICore input through the same bounded
+  `preprocessForOcr()` path used by cloud where appropriate. Add bounded EXIF-aware decode for
+  chat attachments. Add a machine workout `isValid` rule requiring positive duration and at
+  least one meaningful activity metric.
+
+#### 17. Product/domain gaps
+- **Evidence:** `ReportViewModel.kt:60` / `:101` only gate PDF generation on BP rows even
+  though renderer supports glucose; BP crisis classification exists but BP save completes
+  without immediate acknowledgement; weight edit of a missing id still falls back to a new
+  blank draft.
+- **Impact:** glucose-only users cannot generate reports, users may miss immediate high-BP
+  safety guidance, and broken/deleted weight edit links can silently create new rows.
+- **Solution:** enable reports when BP or glucose rows exist. Add one-time non-diagnostic
+  BP crisis acknowledgement on save for >=180/120, analogous to the existing low-glucose
+  safety warning. Add a not-found state for weight edit.
+
+#### 18. Nutrition and Coach logs are still globally scoped
+- **Evidence:** `NutritionEntities.kt:17` has no `memberId`; `NutritionDao.kt:12` uses
+  unscoped all/range queries; coach plan/sleep/diet/dose entities are also effectively
+  global unless explicitly documented as owner-only.
+- **Impact:** nutrition screens, sodium rollups, weekly coach reports, and AI coach context
+  can merge data from different family members.
+- **Solution:** either document these modules as owner-only and enforce that in UI/queries,
+  or add `memberId` to food, coach plan, sleep, diet, and medication dose records with a
+  migration that backfills the owner. Then scope DAO/repository APIs by current member.
+
+#### 19. Lower-risk hardening
+- **FileProvider:** `file_paths.xml` exposes `files/photos/` although current sharing only
+  needs cached PDFs. Remove the photos path or create a separate purpose-specific provider.
+- **Manifest optional features:** mark microphone, Wi-Fi, and broad/network location
+  hardware as `required="false"` to avoid Play device filtering for optional features.
+- **Protocol forward compatibility:** unknown protocol envelope keys/message types currently
+  abort sessions; skip unknown fields and return explicit protocol errors.
+- **Accessibility:** `AppNavHost.kt:659` back icon for standalone weight history has null
+  content description; use existing `R.string.a11y_back`.
 
 ## 1. Sync data-loss core — highest risk (silent multi-device corruption)
 

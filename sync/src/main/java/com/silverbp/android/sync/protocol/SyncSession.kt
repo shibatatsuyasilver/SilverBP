@@ -22,6 +22,8 @@ fun interface SyncRecordSink {
     suspend fun apply(record: SyncRecord)
 }
 
+class SyncProtocolException(message: String) : IllegalStateException(message)
+
 /**
  * Drives one round of bidirectional BP-reading sync over a [NoiseTransport].
  *
@@ -62,15 +64,13 @@ class SyncSession(
         val ourHello = ProtocolMessage.Hello(localDeviceId, getLocalLastHlcSeen())
         transport.sendFrame(ProtocolCodec.encode(ourHello))
         val peerHelloBytes = transport.receiveFrame() ?: error("EOF before peer HELLO")
-        val peerHello = ProtocolCodec.decode(peerHelloBytes) as? ProtocolMessage.Hello
-            ?: error("expected HELLO, got something else")
+        val peerHello = decodeExpected<ProtocolMessage.Hello>(peerHelloBytes, "HELLO")
 
         // 2. RECORDS exchange — ship everything since peer's last seen
         val outgoing = source.recordsSince(peerHello.lastHlcSeen, recordsBatchLimit)
         transport.sendFrame(ProtocolCodec.encode(ProtocolMessage.Records(outgoing)))
         val peerRecordsBytes = transport.receiveFrame() ?: error("EOF before peer RECORDS")
-        val peerRecords = ProtocolCodec.decode(peerRecordsBytes) as? ProtocolMessage.Records
-            ?: error("expected RECORDS, got something else")
+        val peerRecords = decodeExpected<ProtocolMessage.Records>(peerRecordsBytes, "RECORDS")
 
         // 3. Apply incoming, advance HLC clock + watermark
         var maxIncoming = ourHello.lastHlcSeen
@@ -84,8 +84,7 @@ class SyncSession(
         // 4. ACK exchange
         transport.sendFrame(ProtocolCodec.encode(ProtocolMessage.Ack(maxIncoming)))
         val peerAckBytes = transport.receiveFrame() ?: error("EOF before peer ACK")
-        val peerAck = ProtocolCodec.decode(peerAckBytes) as? ProtocolMessage.Ack
-            ?: error("expected ACK, got something else")
+        decodeExpected<ProtocolMessage.Ack>(peerAckBytes, "ACK")
 
         // 5. BYE — best-effort; the peer may have closed already.
         try {
@@ -93,5 +92,24 @@ class SyncSession(
         } catch (_: Throwable) { /* peer already gone */ }
 
         return maxIncoming
+    }
+
+    private inline fun <reified T : ProtocolMessage> decodeExpected(
+        bytes: ByteArray,
+        expected: String,
+    ): T {
+        return when (val msg = ProtocolCodec.decode(bytes)) {
+            is ProtocolMessage.ProtocolError -> throw SyncProtocolException(msg.reason)
+            is T -> msg
+            else -> throw SyncProtocolException("expected $expected, got ${messageName(msg)}")
+        }
+    }
+
+    private fun messageName(msg: ProtocolMessage): String = when (msg) {
+        is ProtocolMessage.Hello -> "HELLO"
+        is ProtocolMessage.Records -> "RECORDS"
+        is ProtocolMessage.Ack -> "ACK"
+        ProtocolMessage.Bye -> "BYE"
+        is ProtocolMessage.ProtocolError -> "PROTOCOL_ERROR"
     }
 }

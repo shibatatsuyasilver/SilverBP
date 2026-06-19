@@ -45,6 +45,9 @@ interface GlucoseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(r: GlucoseReadingEntity)
 
+    @Query("UPDATE glucose_reading SET hcRecordId = :hcId WHERE id = :id")
+    suspend fun updateHcRecordId(id: String, hcId: String)
+
     @Query("DELETE FROM glucose_reading WHERE id = :id")
     suspend fun delete(id: String)
 

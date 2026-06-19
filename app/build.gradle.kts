@@ -203,6 +203,10 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Real org.json for JVM unit tests (android.jar's is stubbed under
+    // unitTests.isReturnDefaultValues=true) so JSON-building/parsing code
+    // (e.g. GoogleDriveBackupClient) can be exercised in plain unit tests.
+    testImplementation("org.json:json:20240303")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

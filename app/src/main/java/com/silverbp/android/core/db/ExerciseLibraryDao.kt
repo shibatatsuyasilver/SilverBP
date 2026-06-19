@@ -37,6 +37,9 @@ interface ExerciseLibraryDao {
     @Query("UPDATE exercise_catalog_item SET isFavorite = :fav WHERE id = :id")
     suspend fun setFavorite(id: String, fav: Boolean)
 
+    @Query("UPDATE exercise_catalog_item SET isFavorite = :fav, hlcUpdatedAt = :hlc WHERE id = :id")
+    suspend fun setFavoriteWithHlc(id: String, fav: Boolean, hlc: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: ExerciseCatalogItemEntity)
 

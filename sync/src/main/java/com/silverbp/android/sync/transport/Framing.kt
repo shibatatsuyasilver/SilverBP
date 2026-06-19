@@ -23,8 +23,7 @@ enum class SyncMessageType(val tag: Int) {
 
     companion object {
         private val byTag = entries.associateBy { it.tag }
-        fun fromTag(tag: Int): SyncMessageType =
-            byTag[tag] ?: error("Unknown SyncMessageType tag: $tag")
+        fun fromTag(tag: Int): SyncMessageType? = byTag[tag]
     }
 }
 

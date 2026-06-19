@@ -63,6 +63,7 @@ class GlucoseRepository(
     suspend fun findById(id: UUID): GlucoseReading? = dao.findById(id.toString())?.toDomain()
 
     suspend fun upsert(reading: GlucoseReading) {
+        validate(reading)
         val now = Instant.now()
         val existing = dao.findById(reading.id.toString())
         // Empty memberId (fresh drafts) resolves to the owner so a reading is
@@ -126,4 +127,21 @@ class GlucoseRepository(
     /** Owner-only retry set for the Health Connect mirror (mirrors [BpRepository]). */
     suspend fun findUnmirrored(): List<GlucoseReading> =
         dao.findUnmirrored(members.ownerId()).map { it.toDomain() }
+
+    private fun validate(reading: GlucoseReading) {
+        require(reading.valueMgdl.isFinite()) {
+            "Invalid glucose reading: value must be finite"
+        }
+        val valueInDisplayUnit = reading.valueIn(reading.displayUnit)
+        require(valueInDisplayUnit.isFinite()) {
+            "Invalid glucose reading: display value must be finite"
+        }
+        val valid = when (reading.displayUnit) {
+            GlucoseUnit.Mgdl -> valueInDisplayUnit in 20.0..700.0
+            GlucoseUnit.Mmol -> valueInDisplayUnit in 1.1..38.9
+        }
+        require(valid) {
+            "Invalid glucose reading: value out of physiological range"
+        }
+    }
 }

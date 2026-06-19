@@ -7,7 +7,6 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.silverbp.android.core.db.toEntity
 import com.silverbp.android.di.ServiceLocator
 import kotlinx.coroutines.flow.first
 
@@ -64,7 +63,7 @@ class GlucoseSyncWorker(
         for (reading in pending) {
             val hcId = bridge.write(reading)
             if (hcId != null) {
-                runCatching { dao.upsert(reading.copy(hcRecordId = hcId).toEntity()) }
+                runCatching { dao.updateHcRecordId(reading.id.toString(), hcId) }
                 mirrored++
             } else {
                 anyFailure = true

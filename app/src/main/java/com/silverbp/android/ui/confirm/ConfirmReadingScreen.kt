@@ -97,6 +97,7 @@ fun ConfirmReadingScreen(
     val draft by vm.draft.collectAsStateWithLifecycle()
     val saving by vm.saving.collectAsStateWithLifecycle()
     val saveError by vm.saveError.collectAsStateWithLifecycle()
+    val crisisWarning by vm.crisisWarning.collectAsStateWithLifecycle()
     val activeMembers by vm.activeMembers.collectAsStateWithLifecycle()
 
     val isEditing = remember(readingIdArg) {
@@ -323,6 +324,21 @@ fun ConfirmReadingScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
                     Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    // Crisis-range on-save acknowledgement. The reading is already saved; this
+    // is non-diagnostic safety guidance and acknowledging returns to the caller.
+    if (crisisWarning) {
+        AlertDialog(
+            onDismissRequest = { vm.clearCrisisWarning(); onSaved() },
+            title = { Text(stringResource(R.string.bp_crisis_warning_title)) },
+            text = { Text(stringResource(R.string.bp_crisis_warning_body)) },
+            confirmButton = {
+                TextButton(onClick = { vm.clearCrisisWarning(); onSaved() }) {
+                    Text(stringResource(R.string.confirm))
                 }
             },
         )

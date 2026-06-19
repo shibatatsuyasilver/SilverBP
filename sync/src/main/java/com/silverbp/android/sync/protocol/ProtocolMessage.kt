@@ -35,4 +35,10 @@ sealed class ProtocolMessage {
 
     /** Polite session terminator. */
     data object Bye : ProtocolMessage()
+
+    /** Explicit decode result for malformed or future protocol messages. */
+    data class ProtocolError(
+        val reason: String,
+        val typeTag: Int? = null,
+    ) : ProtocolMessage()
 }

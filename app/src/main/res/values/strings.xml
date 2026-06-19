@@ -179,7 +179,7 @@
     <string name="exercise_notification_paused_suffix"> · Paused</string>
     <string name="exercise_recording_body_with_pace">%1$s · %2$s · %3$s</string>
     <string name="exercise_recording_body_paused">⏸ %1$s · %2$s</string>
-    <string name="exercise_notification_big_summary_format">%1$s · %2$s steps</string>
+    <string name="exercise_notification_big_summary_format">%1$s · %2$d steps</string>
     <string name="exercise_notification_big_summary_no_steps">%1$s</string>
     <string name="exercise_notification_action_pause">Pause</string>
     <string name="exercise_notification_action_resume">Resume</string>
@@ -401,7 +401,7 @@
 
     <!-- Onboarding step 0 — welcome + medical disclaimer + privacy consent -->
     <string name="onboarding_welcome_title">Welcome to SilverBP</string>
-    <string name="onboarding_welcome_body">SilverBP keeps your blood-pressure readings, exercise sessions, and coach feedback on your device. No account, no cloud upload of your health data.</string>
+    <string name="onboarding_welcome_body">SilverBP keeps your blood-pressure, glucose, weight, exercise, nutrition, and coach records on your device by default. Cloud upload happens only when you enable Google Drive backup or choose Google Gemini cloud AI for photos, chat text/images, or record context.</string>
     <string name="onboarding_privacy_link">Read the privacy policy</string>
     <string name="onboarding_accept">I have read and agree to the privacy policy.</string>
 
@@ -438,7 +438,7 @@
     <string name="settings_backend_local_title">Local model (LiteRT-LM)</string>
     <string name="settings_backend_local_desc">Runs offline, no API cost — initial download required</string>
     <string name="settings_backend_cloud_title">Cloud API (Google Gemini)</string>
-    <string name="settings_backend_cloud_desc">No on-device RAM, requires API key + internet</string>
+    <string name="settings_backend_cloud_desc">Sends selected AI tasks to Google Gemini: BP monitor, food, exercise-machine, glucose-meter and weight-scale photos; chat text/images; and, when chat record context is enabled, summaries of your BP, glucose, exercise and achievement records. Requires API key + internet.</string>
     <string name="settings_backend_aicore_title">AICore (Gemini Nano, Pixel 9/10 only)</string>
     <string name="settings_backend_aicore_desc">System-installed Gemini Nano with Tensor TPU acceleration. Model is managed by Android — no extra APK weight.</string>
 
@@ -469,7 +469,7 @@
     <!-- Settings — Gemini cloud -->
     <string name="settings_gemini_section">Gemini settings</string>
     <string name="settings_gemini_api_label">API Key (AIza…)</string>
-    <string name="settings_gemini_help">Get an API key at https://aistudio.google.com/app/apikey.\nFlash works for most cases — use Pro for blurry or reflective photos.</string>
+    <string name="settings_gemini_help">Get an API key at https://aistudio.google.com/app/apikey.\nCloud AI can process recognition photos, chat text/images, and chat record context when that setting is enabled. Flash works for most cases — use Pro for blurry or reflective photos.</string>
     <string name="settings_gemini_model_label">Gemini model</string>
 
     <!-- Settings — AICore (Gemini Nano) -->
@@ -489,7 +489,7 @@
     <string name="settings_chat_persona_label">Chat persona</string>
     <string name="settings_chat_persona_help">Leave blank to use the built-in default persona. Applies to the next message — no reload needed.</string>
     <string name="settings_chat_include_records">Include personal health records</string>
-    <string name="settings_chat_include_records_help">When on, the latest reading, 7-day and 30-day stats, exercise sessions, and badge summaries are appended to the system prompt for the LLM to reference. Turn off to test the model\'s response to neutral questions.</string>
+    <string name="settings_chat_include_records_help">When on, the latest reading, 7-day and 30-day stats, exercise sessions, and badge summaries are appended to the system prompt for the LLM to reference. If Cloud API is selected, this summary is sent to Google Gemini. Turn off to test the model\'s response to neutral questions.</string>
 
     <!-- Settings — cross-device sync -->
     <string name="settings_sync_section">Cross-device sync</string>
@@ -817,4 +817,8 @@
     <string name="hc_rationale_usage_label">How is the data used?</string>
     <string name="hc_rationale_usage_body">• Everything is computed and stored on your phone; it is not uploaded to our servers. The only exception is the optional Google Drive backup, which uploads an end-to-end-encrypted snapshot to your own Drive if you turn it on.\n• You can revoke any permission at any time in the system Health Connect settings.\n• After revoking, SilverBP stops background syncing; your existing local records are not deleted.</string>
     <string name="hc_rationale_disclaimer">The content provided by this app is for reference only and is not a medical device or medical diagnosis.</string>
+    <string name="bp_crisis_warning_title">Very high blood pressure</string>
+    <string name="bp_crisis_warning_body">This reading is very high. Rest quietly and re-measure in a few minutes. If it stays high or you feel unwell, seek medical care. This app is not a medical device.</string>
+    <string name="weight_reading_not_found_title">Weight record not found</string>
+    <string name="weight_reading_not_found_body">This weight record may have been deleted or is no longer available.</string>
 </resources>

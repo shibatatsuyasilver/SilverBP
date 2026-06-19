@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -34,6 +35,9 @@ interface StrengthWorkoutDao {
     @Query("SELECT * FROM set_log WHERE workoutSessionId = :id ORDER BY setNumber ASC")
     suspend fun setsForSession(id: String): List<SetLogEntity>
 
+    @Query("SELECT id FROM set_log WHERE workoutSessionId = :id")
+    suspend fun setIdsForSession(id: String): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: StrengthWorkoutSessionEntity)
 
@@ -45,6 +49,9 @@ interface StrengthWorkoutDao {
 
     @Query("DELETE FROM strength_workout_session WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Upsert
+    suspend fun upsertTombstones(tombstones: List<TombstoneEntity>)
 
     @Query("SELECT COUNT(*) FROM strength_workout_session")
     suspend fun count(): Int
@@ -62,5 +69,49 @@ interface StrengthWorkoutDao {
         insertSession(session)
         clearSets(session.id)
         if (sets.isNotEmpty()) insertSets(sets)
+    }
+
+    @Transaction
+    suspend fun insertSessionWithSetsAndTombstonesForRemovedSets(
+        session: StrengthWorkoutSessionEntity,
+        sets: List<SetLogEntity>,
+        setEntityType: String,
+        deletedSetHlc: String,
+        deletedAt: Long,
+    ) {
+        val removedSetIds = setIdsForSession(session.id).toSet() - sets.map { it.id }.toSet()
+        insertSessionWithSets(session, sets)
+        if (removedSetIds.isNotEmpty()) {
+            upsertTombstones(
+                removedSetIds.map { id ->
+                    TombstoneEntity(
+                        entityType = setEntityType,
+                        pk = id,
+                        hlc = deletedSetHlc,
+                        deletedAt = deletedAt,
+                    )
+                },
+            )
+        }
+    }
+
+    @Transaction
+    suspend fun deleteSessionWithTombstones(
+        id: String,
+        sessionEntityType: String,
+        setEntityType: String,
+        hlc: String,
+        deletedAt: Long,
+    ) {
+        val setIds = setIdsForSession(id)
+        delete(id)
+        upsertTombstones(
+            buildList {
+                add(TombstoneEntity(entityType = sessionEntityType, pk = id, hlc = hlc, deletedAt = deletedAt))
+                setIds.forEach { setId ->
+                    add(TombstoneEntity(entityType = setEntityType, pk = setId, hlc = hlc, deletedAt = deletedAt))
+                }
+            },
+        )
     }
 }
