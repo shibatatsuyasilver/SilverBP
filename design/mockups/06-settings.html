@@ -1,0 +1,109 @@
+<!-- @dsCard group="Screens" name="設定 Settings" subtitle="List rows · radios, toggles, steppers" -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SilverBP · 設定</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+</head>
+<body>
+<div class="frame">
+  <div class="cap">設定 · Settings<small>清單列 — 單選 / 開關 / 步進器 / 導航</small></div>
+  <div class="phone"><div class="screen">
+
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="ico"><svg class="i"><use href="#signal"/></svg><svg class="i"><use href="#wifi"/></svg><svg class="i"><use href="#battery"/></svg></span>
+    </div>
+
+    <div class="topbar">
+      <button class="iconbtn"><svg><use href="#close"/></svg></button>
+      <span class="title">設定</span>
+    </div>
+
+    <div class="body">
+      <!-- appearance -->
+      <div class="card" style="margin-top:6px">
+        <div class="card-title"><span class="row" style="gap:10px"><svg class="i" style="width:20px;height:20px;fill:var(--on-surface-variant)"><use href="#palette"/></svg>外觀</span></div>
+        <div class="lrow" style="padding:10px 4px"><div class="ltext"><div class="lt">跟隨系統</div></div><span class="radio"></span></div>
+        <div class="lrow" style="padding:10px 4px"><div class="ltext"><div class="lt">淺色</div></div><span class="radio"></span></div>
+        <div class="lrow" style="padding:10px 4px"><div class="ltext"><div class="lt">深色</div></div><span class="radio on"></span></div>
+      </div>
+
+      <!-- profile -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">個人檔案</div>
+        <div class="lrow" style="padding:8px 4px">
+          <span class="lico tile purple"><svg class="i"><use href="#person"/></svg></span>
+          <div class="ltext"><div class="lt">編輯個人檔案</div><div class="ls">設定年齡、身高、性別、目標體重</div></div>
+          <span class="chev"><svg><use href="#chevron_right"/></svg></span>
+        </div>
+        <div class="ldiv"></div>
+        <div style="padding:8px 4px">
+          <div class="body-l" style="font-weight:600;margin-bottom:8px">教練如何稱呼您</div>
+          <div style="min-height:48px;border-radius:14px;background:var(--surface-c-high);padding:13px 16px;color:var(--on-surface)">陳先生</div>
+          <div class="label-m muted" style="margin-top:8px">套用於每日教練回饋、週報與今日任務標題。</div>
+        </div>
+      </div>
+
+      <!-- coach -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">教練</div>
+        <div class="lrow" style="padding:8px 4px"><div class="ltext"><div class="lt">啟用教練</div><div class="ls">加上教練分頁,顯示每日任務與週報。</div></div><span class="switch on"></span></div>
+        <div class="ldiv"></div>
+        <div class="lrow" style="padding:8px 4px">
+          <span class="lico tile pink"><svg class="i"><use href="#medication"/></svg></span>
+          <div class="ltext"><div class="lt">管理服藥</div><div class="ls">新增、編輯或刪除教練追蹤的藥物。</div></div>
+          <span class="chev"><svg><use href="#chevron_right"/></svg></span>
+        </div>
+      </div>
+
+      <!-- step goal -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">步數目標與獎章</div>
+        <div class="lrow" style="padding:8px 4px">
+          <div class="ltext"><div class="lt">每日步數目標</div><div class="ls">用於連續達標獎章</div></div>
+          <div class="row" style="gap:8px">
+            <button class="iconbtn tonal" style="width:40px;height:40px;font-size:22px;font-weight:600">−</button>
+            <span class="title-m" style="font-weight:700;min-width:62px;text-align:center">8,000</span>
+            <button class="iconbtn tonal" style="width:40px;height:40px;font-size:22px;font-weight:600">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- integration / security nav -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">整合與安全</div>
+        <div class="lrow" style="padding:8px 4px"><span class="lico tile green"><svg class="i"><use href="#favorite_border"/></svg></span><div class="ltext"><div class="lt">Health Connect</div></div><span class="switch on"></span></div>
+        <div class="ldiv"></div>
+        <div class="lrow" style="padding:8px 4px"><span class="lico tile blue"><svg class="i"><use href="#lock"/></svg></span><div class="ltext"><div class="lt">App 鎖定與資料加密</div><div class="ls">開啟需指紋或裝置 PIN。</div></div><span class="switch"></span></div>
+      </div>
+
+      <!-- data -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">資料</div>
+        <div class="lrow" style="padding:8px 4px"><span class="lico tile purple"><svg class="i"><use href="#group"/></svg></span><div class="ltext"><div class="lt">管理成員</div></div><span class="chev"><svg><use href="#chevron_right"/></svg></span></div>
+        <div class="ldiv"></div>
+        <div class="lrow" style="padding:8px 4px"><span class="lico tile teal"><svg class="i"><use href="#backup"/></svg></span><div class="ltext"><div class="lt">匯出 / 匯入備份</div><div class="ls">打包成加密快照。</div></div><span class="chev"><svg><use href="#chevron_right"/></svg></span></div>
+        <div class="ldiv"></div>
+        <div class="lrow" style="padding:8px 4px"><span class="lico tile gold"><svg class="i"><use href="#tune"/></svg></span><div class="ltext"><div class="lt">進階設定</div><div class="ls">辨識引擎、AI 模型與提示詞。</div></div><span class="chev"><svg><use href="#chevron_right"/></svg></span></div>
+      </div>
+
+      <!-- about -->
+      <div class="card" style="margin-top:16px">
+        <div class="body-m muted">本 App 使用 Gemma 4 視覺模型,依 Apache License 2.0 授權。</div>
+        <div class="body-m muted" style="margin-top:8px">⚠️ 本 App 並非醫療裝置;資訊僅供個人健康參考。</div>
+        <div class="ldiv"></div>
+        <button class="btn text block" style="justify-content:flex-start">隱私政策</button>
+        <button class="btn text block" style="justify-content:flex-start">服務條款</button>
+      </div>
+
+    </div><!-- /body -->
+
+  </div></div>
+</div>
+</body>
+</html>

@@ -114,6 +114,15 @@ android {
 
 kotlin {
     jvmToolchain(17)
+    compilerOptions {
+        // The Expressive theme APIs are `internal` in the material3 build this BOM
+        // resolves, so we implement the Expressive look with stable M3 (custom
+        // Shapes/Typography/colors + manual spring motion). This project-wide opt-in
+        // just spares the scattered @OptIn(ExperimentalMaterial3Api) for TopAppBar etc.
+        freeCompilerArgs.add(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+        )
+    }
 }
 
 dependencies {

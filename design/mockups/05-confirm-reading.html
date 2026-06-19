@@ -1,0 +1,91 @@
+<!-- @dsCard group="Screens" name="確認讀數 Confirm" subtitle="Edit reading · pickers + tags" -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SilverBP · 確認讀數</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+<style>
+  .numbox{min-width:88px;text-align:right;padding:10px 16px;border-radius:14px;background:var(--surface-c-high);font:var(--headline-s);font-weight:700;color:var(--on-surface)}
+  .fieldrow{display:flex;align-items:center;justify-content:space-between;min-height:56px}
+  .conf-dot{width:14px;height:14px;border-radius:50%;background:var(--cat-normal)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="cap">確認讀數 · Confirm<small>編輯讀數 — 數值 + 標記 + 儲存</small></div>
+  <div class="phone"><div class="screen">
+
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="ico"><svg class="i"><use href="#signal"/></svg><svg class="i"><use href="#wifi"/></svg><svg class="i"><use href="#battery"/></svg></span>
+    </div>
+
+    <div class="topbar">
+      <button class="btn text" style="padding-left:4px">取消</button>
+      <span class="title" style="font:var(--title-l);font-weight:700;text-align:center">確認讀數</span>
+      <div class="actions">
+        <button class="iconbtn" style="color:var(--error)"><svg><use href="#delete"/></svg></button>
+        <button class="btn text" style="font-weight:700">儲存</button>
+      </div>
+    </div>
+
+    <div class="body">
+      <!-- value hero -->
+      <div class="hero">
+        <div class="hlabel">讀數</div>
+        <div class="big">138<span class="sep">/</span>88<span class="unit">mmHg</span></div>
+        <span class="pulse"><svg><use href="#favorite"/></svg>脈搏 72</span>
+      </div>
+
+      <div class="spacer-m"></div>
+
+      <!-- reading inputs -->
+      <div class="card">
+        <div class="card-title">讀數</div>
+        <div class="fieldrow"><span class="body-l" style="color:var(--cat-stage2);font-weight:600">收縮壓</span><span class="numbox" style="color:var(--cat-stage2)">138</span></div>
+        <div class="ldiv"></div>
+        <div class="fieldrow"><span class="body-l" style="font-weight:600">舒張壓</span><span class="numbox">88</span></div>
+        <div class="ldiv"></div>
+        <div class="fieldrow"><span class="body-l" style="font-weight:600">脈搏 (bpm)</span><span class="numbox">72</span></div>
+        <div class="ldiv"></div>
+        <div class="fieldrow"><span class="body-l muted">時間</span><button class="btn outline sm">2024/06/13 14:30</button></div>
+        <div class="ldiv"></div>
+        <div class="fieldrow">
+          <span class="body-l muted">信心度</span>
+          <span class="row" style="gap:6px"><i class="conf-dot"></i><i class="conf-dot"></i><i class="conf-dot"></i><i class="conf-dot"></i><i class="conf-dot" style="background:var(--surface-c-highest)"></i><span class="label-l" style="margin-left:6px">92%</span></span>
+        </div>
+      </div>
+
+      <!-- tags -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">標記</div>
+        <div class="label-m muted" style="margin-bottom:8px">時段</div>
+        <div class="segmented" style="margin-bottom:16px"><button class="seg sel">早晨</button><button class="seg">傍晚</button></div>
+        <div class="label-m muted" style="margin-bottom:8px">手臂</div>
+        <div class="segmented" style="margin-bottom:16px"><button class="seg sel">左臂</button><button class="seg">右臂</button></div>
+        <div class="label-m muted" style="margin-bottom:8px">姿勢</div>
+        <div class="segmented" style="margin-bottom:8px"><button class="seg sel">坐姿</button><button class="seg">仰臥</button><button class="seg">站姿</button></div>
+        <div class="ldiv"></div>
+        <div class="fieldrow"><span class="body-l">服藥前</span><span class="switch"></span></div>
+        <div class="fieldrow"><span class="body-l">心律不整</span><span class="switch on"></span></div>
+      </div>
+
+      <!-- notes -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">備註</div>
+        <div style="min-height:64px;border-radius:14px;background:var(--surface-c-high);padding:14px 16px;color:var(--on-surface-variant);font:var(--body-l)">(選填)</div>
+      </div>
+
+      <div class="spacer-l"></div>
+      <button class="btn primary block" style="height:60px"><svg><use href="#check"/></svg>儲存</button>
+
+    </div><!-- /body -->
+
+  </div></div>
+</div>
+</body>
+</html>

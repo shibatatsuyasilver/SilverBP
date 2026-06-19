@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -42,7 +44,6 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -54,6 +55,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -86,10 +88,13 @@ import com.silverbp.android.R
 import com.silverbp.android.chat.ChatMessage
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.recognition.RecognitionBackend
+import androidx.compose.ui.graphics.Color
+import com.silverbp.android.ui.components.ExpressiveAssistChip
 import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.ForgePrimary
+import com.silverbp.android.ui.theme.PillShape
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -387,14 +392,16 @@ private fun MessageBubble(
 ) {
     if (role == ChatMessage.Role.System) return
     val isUser = role == ChatMessage.Role.User
-    // User bubble keeps the filled brand-primary fill (clear "this is me");
-    // the assistant bubble adopts the card-family look — a plain `surface`
-    // card with a soft tonal/shadow lift (mirroring TimelineRecordRow), so the
-    // conversation reads as a stack of rounded cards rather than flat chips.
+    // M3 Expressive bubbles (design/mockups/07-chat.html .bubble.me / .bubble.bot):
+    // the user bubble keeps the filled brand-primary fill (clear "this is me")
+    // with a squared bottom-end corner; the assistant bubble adopts the card
+    // family look — a surfaceContainerHigh fill with a soft card shadow and a
+    // squared bottom-start corner — so the thread reads as rounded speech bubbles
+    // anchored to their sender.
     val bubbleColor = if (isUser) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surface
+        MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val textColor = if (isUser) {
         MaterialTheme.colorScheme.onPrimary
@@ -406,6 +413,8 @@ private fun MessageBubble(
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         Surface(
+            // Fully-rounded bubble (22dp) with one squared corner pointing at the
+            // sender: bottom-end for me, bottom-start for the assistant.
             shape = RoundedCornerShape(
                 topStart = AppSpacing.cardCorner,
                 topEnd = AppSpacing.cardCorner,
@@ -415,8 +424,8 @@ private fun MessageBubble(
             color = bubbleColor,
             // Lift only the assistant card off the page; the filled user bubble
             // already separates itself with colour.
-            tonalElevation = if (isUser) 0.dp else 1.dp,
-            shadowElevation = if (isUser) 0.dp else 1.dp,
+            tonalElevation = 0.dp,
+            shadowElevation = if (isUser) 0.dp else 2.dp,
             modifier = Modifier.widthIn(max = 320.dp),
         ) {
             Column(
@@ -504,16 +513,20 @@ private fun EmptyChatHero(onSuggestion: (String) -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(AppSpacing.tight))
-            Column(
+            // Suggestion chips wrap like the mockup's `.row` (flex-wrap),
+            // rendered as M3 Expressive assist chips.
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    AppSpacing.itemGap,
+                    Alignment.CenterHorizontally,
+                ),
                 verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
-                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 suggestions.forEach { s ->
-                    AssistChip(
+                    ExpressiveAssistChip(
+                        label = s,
                         onClick = { onSuggestion(s) },
-                        label = { Text(s, style = MaterialTheme.typography.bodyLarge) },
-                        shape = RoundedCornerShape(AppSpacing.cardCorner),
                     )
                 }
             }
@@ -534,7 +547,10 @@ private fun ChatInputBar(
     isGenerating: Boolean,
     onCancel: () -> Unit,
 ) {
-    Surface(tonalElevation = 3.dp) {
+    // M3 Expressive composer (design/mockups/07-chat.html .inputbar): a
+    // surfaceContainerLow bar with a hairline top border, neutral +/mic icon
+    // buttons, a pill-rounded field, and a circular primary send button.
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
         // imePadding lifts the input row above the keyboard. We deliberately
         // do NOT declare windowSoftInputMode in the manifest — Vivo OriginOS's
         // adjustResize collapses the visible content area to zero under
@@ -547,16 +563,19 @@ private fun ChatInputBar(
             Modifier
                 .fillMaxWidth()
                 .imePadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .padding(horizontal = AppSpacing.itemGap, vertical = AppSpacing.itemGap)
         ) {
             stagedImagePath?.let { path ->
                 StagedImageStrip(path = path, onClear = onClearImage)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(AppSpacing.tight))
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(
-                Modifier.fillMaxWidth().padding(top = 6.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = AppSpacing.itemGap),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
             ) {
                 IconButton(onClick = onAttach) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.a11y_attach))
@@ -568,12 +587,16 @@ private fun ChatInputBar(
                     value = input,
                     onValueChange = onInputChange,
                     placeholder = { Text(stringResource(R.string.chat_input_placeholder)) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 4.dp),
+                    modifier = Modifier.weight(1f),
                     // Pill-rounded field so the composer reads as part of the
-                    // rounded card family (matching the bubble/card corners).
-                    shape = RoundedCornerShape(AppSpacing.cardCorner),
+                    // rounded card family (mockup .inputbar .field uses a full pill).
+                    shape = PillShape,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.Transparent,
+                    ),
                     minLines = 1,
                     maxLines = 5,
                 )
@@ -582,7 +605,8 @@ private fun ChatInputBar(
                     // filled error-tinted target, generously sized.
                     FilledIconButton(
                         onClick = onCancel,
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(AppSpacing.touchTarget),
+                        shape = CircleShape,
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -591,12 +615,14 @@ private fun ChatInputBar(
                         Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.a11y_cancel))
                     }
                 } else {
-                    // Send is the screen's primary action: a filled brand-primary
-                    // button so it stands out from the neutral attach/mic icons.
+                    // Send is the screen's primary action: a circular filled
+                    // brand-primary button (mockup .sendbtn) so it stands out from
+                    // the neutral attach/mic icons.
                     FilledIconButton(
                         onClick = onSend,
                         enabled = canSend,
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(AppSpacing.touchTarget),
+                        shape = CircleShape,
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,

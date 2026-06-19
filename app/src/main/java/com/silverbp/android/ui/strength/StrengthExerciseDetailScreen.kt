@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.strength
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,24 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -40,8 +34,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.silverbp.android.R
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressiveAssistChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StrengthExerciseDetailScreen(
     exerciseId: String,
@@ -57,8 +57,8 @@ fun StrengthExerciseDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(item?.name.orEmpty()) },
+            AppTopBar(
+                title = item?.name.orEmpty(),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
@@ -83,8 +83,8 @@ fun StrengthExerciseDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -96,68 +96,58 @@ fun StrengthExerciseDetailScreen(
                 if (ex.isFavorite) SavedTag()
             }
 
-            Text(
-                stringResource(R.string.strength_detail_muscle_groups),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ex.muscleGroups.forEach { group ->
-                    AssistChip(onClick = {}, label = { Text(group) })
+            StandardCard(title = stringResource(R.string.strength_detail_muscle_groups)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                    ex.muscleGroups.forEach { group ->
+                        ExpressiveAssistChip(label = group, onClick = {})
+                    }
                 }
             }
 
             if (ex.description.isNotBlank()) {
-                Text(
-                    stringResource(R.string.strength_detail_description),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(ex.description, style = MaterialTheme.typography.bodyMedium)
+                StandardCard(title = stringResource(R.string.strength_detail_description)) {
+                    Text(
+                        ex.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
-            Button(
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.strength_start_workout),
                 onClick = { onStartWorkout(ex.id) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.PlayArrow, null)
-                Text(stringResource(R.string.strength_start_workout))
-            }
+                icon = Icons.Filled.PlayArrow,
+                fillWidth = true,
+            )
 
-            OutlinedButton(
+            ExpressiveSecondaryButton(
+                text = stringResource(
+                    if (ex.isFavorite) R.string.strength_unsave else R.string.strength_save
+                ),
                 onClick = vm::toggleFavorite,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    if (ex.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                    null,
-                )
-                Text(
-                    stringResource(
-                        if (ex.isFavorite) R.string.strength_unsave else R.string.strength_save
-                    ),
-                )
-            }
+                icon = if (ex.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                fillWidth = true,
+            )
         }
     }
 }
 
 @Composable
 private fun SavedTag() {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = FavoriteTagColor,
+    Row(
+        modifier = Modifier
+            .background(FavoriteTagColor, PillShape)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.tight),
     ) {
-        Row(
-            Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Filled.Star, null, tint = Color.Black)
-            Text(
-                stringResource(R.string.strength_saved),
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.Black,
-            )
-        }
+        Icon(Icons.Filled.Star, null, tint = Color.Black)
+        Text(
+            stringResource(R.string.strength_saved),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.Black,
+        )
     }
 }

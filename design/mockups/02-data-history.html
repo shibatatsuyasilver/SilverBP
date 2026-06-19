@@ -1,0 +1,122 @@
+<!-- @dsCard group="Screens" name="數據 · 紀錄" subtitle="History list · segmented + rows" -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SilverBP · 數據</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+</head>
+<body>
+<div class="frame">
+  <div class="cap">數據 · 紀錄<small>歷史清單 — 分段控件 + 血壓/血糖列</small></div>
+  <div class="phone"><div class="screen">
+
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="ico"><svg class="i"><use href="#signal"/></svg><svg class="i"><use href="#wifi"/></svg><svg class="i"><use href="#battery"/></svg></span>
+    </div>
+
+    <div class="topbar">
+      <span class="title">數據</span>
+      <div class="actions">
+        <span class="mchip"><span class="avatar" style="background:#6C4CF1">陳</span></span>
+        <button class="iconbtn"><svg><use href="#filter_list"/></svg></button>
+      </div>
+    </div>
+
+    <div class="body">
+      <!-- segmented -->
+      <div class="segmented" style="margin:6px 0 18px">
+        <button class="seg sel"><svg><use href="#chat_bubble"/></svg>紀錄</button>
+        <button class="seg"><svg><use href="#bar_chart"/></svg>分析</button>
+      </div>
+
+      <!-- day group -->
+      <div class="section-h"><span>今天</span><span class="muted label-m" style="font-weight:500">3 筆</span></div>
+
+      <div class="card tappable" style="padding:13px 14px;margin-top:0">
+        <div class="row">
+          <span class="tile bp" style="width:46px;height:46px;border-radius:14px;flex:0 0 auto"><svg class="i"><use href="#favorite"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="label-m muted">血壓</div>
+            <div class="title-l" style="font-weight:700;line-height:1.1">145 <span class="muted" style="font-weight:300">/</span> 92</div>
+            <div class="mcat" style="margin-top:5px"><span class="dot" style="background:var(--cat-stage1)"></span>高血壓 1 期 · 脈 78</div>
+          </div>
+          <span class="label-m muted">14:30</span>
+          <span class="chev"><svg><use href="#chevron_right"/></svg></span>
+        </div>
+      </div>
+
+      <div class="card tappable" style="padding:13px 14px;margin-top:10px">
+        <div class="row">
+          <span class="tile glucose" style="width:46px;height:46px;border-radius:14px;flex:0 0 auto"><svg class="i"><use href="#water_drop"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="label-m muted">血糖</div>
+            <div class="title-l" style="font-weight:700;line-height:1.1">120 <span class="label-m muted" style="font-weight:500">mg/dL</span></div>
+            <div class="mcat" style="margin-top:5px"><span class="dot" style="background:var(--cat-normal)"></span>正常 · 空腹</div>
+          </div>
+          <span class="label-m muted">08:05</span>
+          <span class="chev"><svg><use href="#chevron_right"/></svg></span>
+        </div>
+      </div>
+
+      <div class="card tappable" style="padding:13px 14px;margin-top:10px">
+        <div class="row">
+          <span class="tile bp" style="width:46px;height:46px;border-radius:14px;flex:0 0 auto"><svg class="i"><use href="#favorite"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="label-m muted">血壓</div>
+            <div class="title-l" style="font-weight:700;line-height:1.1">120 <span class="muted" style="font-weight:300">/</span> 80</div>
+            <div class="mcat" style="margin-top:5px"><span class="dot" style="background:var(--cat-normal)"></span>正常 · 脈 72</div>
+          </div>
+          <span class="label-m muted">08:30</span>
+          <span class="chev"><svg><use href="#chevron_right"/></svg></span>
+        </div>
+      </div>
+
+      <div class="section-h"><span>昨天</span><span class="muted label-m" style="font-weight:500">2 筆</span></div>
+
+      <div class="card tappable" style="padding:13px 14px;margin-top:0">
+        <div class="row">
+          <span class="tile bp" style="width:46px;height:46px;border-radius:14px;flex:0 0 auto"><svg class="i"><use href="#favorite"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="label-m muted">血壓</div>
+            <div class="title-l" style="font-weight:700;line-height:1.1">131 <span class="muted" style="font-weight:300">/</span> 85</div>
+            <div class="mcat" style="margin-top:5px"><span class="dot" style="background:var(--cat-elevated)"></span>偏高 · 脈 70</div>
+          </div>
+          <span class="label-m muted">21:10</span>
+          <span class="chev"><svg><use href="#chevron_right"/></svg></span>
+        </div>
+      </div>
+
+      <div class="card tappable" style="padding:13px 14px;margin-top:10px">
+        <div class="row">
+          <span class="tile glucose" style="width:46px;height:46px;border-radius:14px;flex:0 0 auto"><svg class="i"><use href="#water_drop"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="label-m muted">血糖</div>
+            <div class="title-l" style="font-weight:700;line-height:1.1">6.7 <span class="label-m muted" style="font-weight:500">mmol/L</span></div>
+            <div class="mcat" style="margin-top:5px"><span class="dot" style="background:var(--cat-elevated)"></span>偏高 · 餐後</div>
+          </div>
+          <span class="label-m muted">19:40</span>
+          <span class="chev"><svg><use href="#chevron_right"/></svg></span>
+        </div>
+      </div>
+
+    </div><!-- /body -->
+
+    <button class="fab"><svg><use href="#chat"/></svg>助理</button>
+
+    <div class="navbar">
+      <div class="nav-item"><span class="pill"><svg><use href="#home"/></svg></span><span class="nlabel">今日</span></div>
+      <div class="nav-item sel"><span class="pill"><svg><use href="#bar_chart"/></svg></span><span class="nlabel">數據</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#directions_run"/></svg></span><span class="nlabel">運動</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#restaurant"/></svg></span><span class="nlabel">飲食</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#favorite"/></svg></span><span class="nlabel">教練</span></div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

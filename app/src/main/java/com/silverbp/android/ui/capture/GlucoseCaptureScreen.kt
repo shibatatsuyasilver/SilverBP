@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
@@ -67,6 +66,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.recognition.decodeFileWithExif
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -152,10 +153,10 @@ fun GlucoseCaptureScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 56.dp, start = 24.dp, end = 24.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .padding(top = 56.dp, start = AppSpacing.screenH, end = AppSpacing.screenH)
+                    .clip(PillShape)
                     .background(Color.Black.copy(alpha = 0.45f))
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = AppSpacing.cardPadding, vertical = AppSpacing.itemGap),
             ) {
                 Text(
                     stringResource(R.string.glucose_capture_hint),

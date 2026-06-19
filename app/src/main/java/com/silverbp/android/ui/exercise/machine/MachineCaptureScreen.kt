@@ -29,10 +29,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +63,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.recognition.decodeFileWithExif
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -144,10 +146,10 @@ fun MachineCaptureScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 56.dp, start = 24.dp, end = 24.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .padding(top = 56.dp, start = AppSpacing.screenH, end = AppSpacing.screenH)
+                    .clip(PillShape)
                     .background(Color.Black.copy(alpha = 0.45f))
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = AppSpacing.cardPadding, vertical = AppSpacing.itemGap),
             ) {
                 Text(
                     stringResource(R.string.machine_capture_hint),
@@ -157,7 +159,7 @@ fun MachineCaptureScreen(
             }
         } else {
             Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
+                modifier = Modifier.fillMaxSize().padding(AppSpacing.screenH),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -166,14 +168,17 @@ fun MachineCaptureScreen(
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.size(AppSpacing.itemGap))
                 Text(
                     stringResource(R.string.camera_permission_body),
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(Modifier.size(16.dp))
-                Button(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }) {
+                Spacer(Modifier.size(AppSpacing.sectionGap))
+                Button(
+                    onClick = { permLauncher.launch(Manifest.permission.CAMERA) },
+                    shape = PillShape,
+                ) {
                     Text(stringResource(R.string.retry))
                 }
             }
@@ -187,7 +192,7 @@ fun MachineCaptureScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Text(stringResource(R.string.machine_analyzing), color = Color.White)
                 }
             }
@@ -201,12 +206,17 @@ fun MachineCaptureScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Spacer(Modifier.size(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = { vm.discardPendingDraft(); vm.resetCapture() }) {
+                    Spacer(Modifier.size(AppSpacing.sectionGap))
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                        OutlinedButton(
+                            onClick = { vm.discardPendingDraft(); vm.resetCapture() },
+                            shape = PillShape,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        ) {
                             Text(stringResource(R.string.retry))
                         }
-                        Button(onClick = { vm.resetCapture(); onAnalyzed() }) {
+                        Button(onClick = { vm.resetCapture(); onAnalyzed() }, shape = PillShape) {
                             Text(stringResource(R.string.machine_manual_entry))
                         }
                     }
@@ -241,7 +251,7 @@ fun MachineCaptureScreen(
                         stringResource(R.string.capture_model_needed_hint),
                         color = Color.White,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = AppSpacing.sectionGap),
                     )
                 }
             }
@@ -281,11 +291,15 @@ private fun CameraTopBar(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppSpacing.itemGap, vertical = AppSpacing.tight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TextButton(onClick = onClose) {
-            Text(stringResource(R.string.cancel), color = Color.White)
+        TextButton(
+            onClick = onClose,
+            shape = PillShape,
+            colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+        ) {
+            Text(stringResource(R.string.cancel))
         }
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onPickPhoto, enabled = pickEnabled) {

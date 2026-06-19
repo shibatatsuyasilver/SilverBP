@@ -13,9 +13,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,7 +27,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,8 +54,14 @@ import com.silverbp.android.recognition.ModelVariant
 import com.silverbp.android.recognition.RecognitionBackend
 import com.silverbp.android.recognition.VisionBackendOverride
 import com.silverbp.android.ui.chat.CHAT_SYSTEM_PERSONA
-import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressiveAssistChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.RadioListRow
+import com.silverbp.android.ui.components.SettingsDivider
+import com.silverbp.android.ui.components.SettingsGroup
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 
@@ -88,8 +90,8 @@ fun AdvancedSettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_advanced_screen_title)) },
+            AppTopBar(
+                title = stringResource(R.string.settings_advanced_screen_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -110,55 +112,42 @@ fun AdvancedSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             // ===== Recognition backend (Local / Cloud / AICore) =====
-            StandardCard(title = stringResource(R.string.settings_recognition_section)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = state.recognitionBackend == RecognitionBackend.Local,
-                        onClick = { vm.setRecognitionBackend(RecognitionBackend.Local) },
-                    )
-                    Spacer(Modifier.size(AppSpacing.itemGap))
-                    Column {
-                        Text(stringResource(R.string.settings_backend_local_title), fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.settings_backend_local_desc), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = state.recognitionBackend == RecognitionBackend.Cloud,
-                        onClick = { vm.setRecognitionBackend(RecognitionBackend.Cloud) },
-                    )
-                    Spacer(Modifier.size(AppSpacing.itemGap))
-                    Column {
-                        Text(stringResource(R.string.settings_backend_cloud_title), fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.settings_backend_cloud_desc), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = AppSpacing.tight),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = state.recognitionBackend == RecognitionBackend.AICore,
-                        onClick = { vm.setRecognitionBackend(RecognitionBackend.AICore) },
-                    )
-                    Spacer(Modifier.size(AppSpacing.itemGap))
-                    Column {
-                        Text(
-                            stringResource(R.string.settings_backend_aicore_title),
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            stringResource(R.string.settings_backend_aicore_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
+            SettingsGroup(title = stringResource(R.string.settings_recognition_section)) {
+                RadioListRow(
+                    title = stringResource(R.string.settings_backend_local_title),
+                    selected = state.recognitionBackend == RecognitionBackend.Local,
+                    onClick = { vm.setRecognitionBackend(RecognitionBackend.Local) },
+                )
+                Text(
+                    stringResource(R.string.settings_backend_local_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                )
+                SettingsDivider()
+                RadioListRow(
+                    title = stringResource(R.string.settings_backend_cloud_title),
+                    selected = state.recognitionBackend == RecognitionBackend.Cloud,
+                    onClick = { vm.setRecognitionBackend(RecognitionBackend.Cloud) },
+                )
+                Text(
+                    stringResource(R.string.settings_backend_cloud_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                )
+                SettingsDivider()
+                RadioListRow(
+                    title = stringResource(R.string.settings_backend_aicore_title),
+                    selected = state.recognitionBackend == RecognitionBackend.AICore,
+                    onClick = { vm.setRecognitionBackend(RecognitionBackend.AICore) },
+                )
+                Text(
+                    stringResource(R.string.settings_backend_aicore_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                )
             }
 
             // ===== Local model picker (when Local backend active) =====
@@ -230,10 +219,11 @@ fun AdvancedSettingsScreen(
                         onSelect = { vm.setMaxNumTokens(it) },
                     )
                     Spacer(Modifier.size(AppSpacing.itemGap))
-                    Button(
+                    ExpressivePrimaryButton(
+                        text = stringResource(R.string.settings_apply_reload),
                         onClick = { ModelBootstrap.reloadCurrentVariant(context) },
                         enabled = !ServiceLocator.modelLoadStatus.isBusy,
-                    ) { Text(stringResource(R.string.settings_apply_reload)) }
+                    )
 
                     HorizontalDivider(Modifier.padding(vertical = AppSpacing.itemGap))
 
@@ -386,10 +376,11 @@ fun AdvancedSettingsScreen(
                         }
                     }
                     Spacer(Modifier.size(AppSpacing.itemGap))
-                    Button(
+                    ExpressivePrimaryButton(
+                        text = stringResource(R.string.settings_aicore_check_button),
                         onClick = { ModelBootstrap.preloadAICore(context) },
                         enabled = !ServiceLocator.modelLoadStatus.isBusy,
-                    ) { Text(stringResource(R.string.settings_aicore_check_button)) }
+                    )
                     Spacer(Modifier.size(AppSpacing.itemGap))
                     Text(
                         stringResource(R.string.settings_aicore_unavailable_help),
@@ -486,15 +477,10 @@ private fun ModelVariantRow(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (isDownloaded) {
-                    AssistChip(
+                    Spacer(Modifier.size(AppSpacing.tight))
+                    ExpressiveAssistChip(
+                        label = stringResource(R.string.model_chip_downloaded),
                         onClick = {},
-                        label = {
-                            Text(
-                                stringResource(R.string.model_chip_downloaded),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(),
                     )
                 }
             }

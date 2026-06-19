@@ -6,14 +6,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -23,18 +24,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ActivityKind
-import com.silverbp.android.ui.coach.components.ModuleCard
+import com.silverbp.android.ui.coach.components.GoalRing
 import com.silverbp.android.ui.coach.components.NarrationBlock
 import com.silverbp.android.ui.coach.components.TodayTaskCard
 import com.silverbp.android.ui.coach.components.WeeklyProgressCard
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.exercise.colorForModule
 import com.silverbp.android.ui.exercise.rememberExercisePermissionState
 import com.silverbp.android.ui.theme.AppSpacing
 
@@ -129,20 +131,33 @@ private fun ReadyContent(
         // Today's primary task / safety-hold alert lives at the top of the tab.
         TodayTaskCard(task = state.todayTask, onStartExercise = onStartExercise)
 
-        // 各模組進度 — a tidy section header (mirrors the Today / 紀錄 day headers)
-        // followed by the per-module adherence-ring cards.
-        Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+        // 各模組進度 — a section header followed by the per-module adherence rings
+        // laid out as a 2x2 GRID of centered tiles (ring above a stacked label +
+        // count), mirroring design/mockups/04-coach.html.
+        Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap)) {
             CoachSectionHeader(title = stringResource(R.string.coach_modules_title))
-            state.modules.forEach { row ->
-                ModuleCard(
-                    row = row,
-                    onTap = when (row.moduleKey) {
-                        ModuleKey.Diet -> onOpenLogDiet
-                        ModuleKey.Sleep -> onOpenLogSleep
-                        ModuleKey.Medication -> onOpenLogMedication
-                        ModuleKey.Exercise -> null // Exercise has its own dedicated tab.
-                    },
-                )
+            state.modules.chunked(2).forEach { rowPair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
+                ) {
+                    rowPair.forEach { row ->
+                        ModuleTile(
+                            row = row,
+                            modifier = Modifier.weight(1f),
+                            onTap = when (row.moduleKey) {
+                                ModuleKey.Diet -> onOpenLogDiet
+                                ModuleKey.Sleep -> onOpenLogSleep
+                                ModuleKey.Medication -> onOpenLogMedication
+                                ModuleKey.Exercise -> null // Exercise has its own dedicated tab.
+                            },
+                        )
+                    }
+                    // Keep a lone trailing tile aligned left in a 2-column grid.
+                    if (rowPair.size == 1) {
+                        Box(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
 
@@ -153,26 +168,67 @@ private fun ReadyContent(
         // No title — the two labelled buttons are self-describing, and a heading
         // here would duplicate the WeeklyProgressCard's "本週趨勢" directly above.
         StandardCard {
-            OutlinedButton(
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.coach_view_weekly_plan),
                 onClick = onOpenWeeklyPlan,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-            ) {
-                Text(stringResource(R.string.coach_view_weekly_plan))
-            }
-            OutlinedButton(
+                icon = Icons.Filled.Description,
+                fillWidth = true,
+            )
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.coach_view_weekly_report),
                 onClick = onOpenWeeklyReport,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-            ) {
-                Text(stringResource(R.string.coach_view_weekly_report))
-            }
+                icon = Icons.Filled.BarChart,
+                fillWidth = true,
+            )
         }
 
         NarrationBlock(state = state.narration)
     }
+}
+
+/**
+ * A single module-progress tile for the 2x2 grid: an adherence [GoalRing]
+ * centered above a stacked label + "完成 / 目標" count. The ring is tinted by the
+ * lifestyle module identity (colorForModule — NOT a MetricAccent). Tappable tiles
+ * (飲食 / 睡眠 / 服藥) wrap in a [StandardCard] onClick; the 運動 tile is static
+ * because Exercise has its own dedicated tab. Pure UI — no state.
+ */
+@Composable
+private fun ModuleTile(
+    row: ModuleRowUi,
+    modifier: Modifier = Modifier,
+    onTap: (() -> Unit)? = null,
+) {
+    val displayLabel = row.displayName.ifBlank { stringResource(row.moduleKey.labelRes()) }
+    StandardCard(
+        modifier = modifier,
+        onClick = onTap,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+        ) {
+            GoalRing(ratio = row.ratio, color = colorForModule(row.moduleKey))
+            Text(
+                displayLabel,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                stringResource(R.string.coach_module_progress, row.completed, row.target),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun ModuleKey.labelRes(): Int = when (this) {
+    ModuleKey.Exercise -> R.string.coach_module_exercise
+    ModuleKey.Diet -> R.string.coach_module_diet
+    ModuleKey.Sleep -> R.string.coach_module_sleep
+    ModuleKey.Medication -> R.string.coach_module_medication
 }
 
 /**

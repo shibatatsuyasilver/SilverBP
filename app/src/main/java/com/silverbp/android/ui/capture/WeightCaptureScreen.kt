@@ -25,21 +25,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +63,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.recognition.decodeFileWithExif
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -153,10 +151,10 @@ fun WeightCaptureScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 56.dp, start = 24.dp, end = 24.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .padding(top = 56.dp, start = AppSpacing.screenH, end = AppSpacing.screenH)
+                    .clip(PillShape)
                     .background(Color.Black.copy(alpha = 0.45f))
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = AppSpacing.cardPadding, vertical = AppSpacing.itemGap),
             ) {
                 Text(
                     stringResource(R.string.weight_capture_title),
@@ -181,15 +179,17 @@ fun WeightCaptureScreen(
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(Modifier.size(16.dp))
+                Spacer(Modifier.size(AppSpacing.sectionGap))
                 // Manual entry is always available even without the camera.
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text(stringResource(R.string.retry))
-                    }
-                    Button(onClick = { vm.discardPendingDraft(); onManual() }) {
-                        Text(stringResource(R.string.weight_capture_manual))
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                    OverlayOutlinedPill(
+                        text = stringResource(R.string.retry),
+                        onClick = { permLauncher.launch(Manifest.permission.CAMERA) },
+                    )
+                    OverlayFilledPill(
+                        text = stringResource(R.string.weight_capture_manual),
+                        onClick = { vm.discardPendingDraft(); onManual() },
+                    )
                 }
             }
         }
@@ -202,7 +202,7 @@ fun WeightCaptureScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Text(stringResource(R.string.weight_analyzing), color = Color.White)
                 }
             }
@@ -216,14 +216,16 @@ fun WeightCaptureScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Spacer(Modifier.size(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = { vm.discardPendingDraft(); vm.resetCapture() }) {
-                            Text(stringResource(R.string.retry))
-                        }
-                        Button(onClick = { vm.discardPendingDraft(); vm.resetCapture(); onManual() }) {
-                            Text(stringResource(R.string.weight_capture_manual))
-                        }
+                    Spacer(Modifier.size(AppSpacing.sectionGap))
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                        OverlayOutlinedPill(
+                            text = stringResource(R.string.retry),
+                            onClick = { vm.discardPendingDraft(); vm.resetCapture() },
+                        )
+                        OverlayFilledPill(
+                            text = stringResource(R.string.weight_capture_manual),
+                            onClick = { vm.discardPendingDraft(); vm.resetCapture(); onManual() },
+                        )
                     }
                 }
             }
@@ -257,7 +259,7 @@ fun WeightCaptureScreen(
                         stringResource(R.string.capture_model_needed_hint),
                         color = Color.White,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = AppSpacing.sectionGap),
                     )
                 }
             }
@@ -297,23 +299,80 @@ private fun CameraTopBar(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppSpacing.itemGap, vertical = AppSpacing.tight),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
-        TextButton(onClick = onClose) {
-            Text(stringResource(R.string.cancel), color = Color.White)
-        }
+        OverlayTextPill(text = stringResource(R.string.cancel), onClick = onClose)
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onPickPhoto, enabled = pickEnabled) {
+        // Translucent-white circular icon button (>=48dp) over the live preview.
+        Box(
+            modifier = Modifier
+                .size(AppSpacing.touchTarget)
+                .alpha(if (pickEnabled) 1f else 0.4f)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.18f))
+                .clickable(enabled = pickEnabled, onClick = onPickPhoto),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
                 Icons.Filled.Image,
                 contentDescription = stringResource(R.string.weight_capture_gallery),
                 tint = Color.White,
             )
         }
-        TextButton(onClick = onManualEntry) {
-            Text(stringResource(R.string.manual_entry), color = Color.White)
-        }
+        OverlayTextPill(text = stringResource(R.string.manual_entry), onClick = onManualEntry)
+    }
+}
+
+/** Translucent-white text pill control sitting over the live camera preview. */
+@Composable
+private fun OverlayTextPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .heightIn(min = AppSpacing.touchTarget)
+            .clip(PillShape)
+            .background(Color.White.copy(alpha = 0.18f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.sectionGap, vertical = AppSpacing.itemGap)
+            .semantics { role = Role.Button },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = Color.White, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/** Solid-white filled pill (primary action) over the live camera preview. */
+@Composable
+private fun OverlayFilledPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .heightIn(min = AppSpacing.touchTarget)
+            .clip(PillShape)
+            .background(Color.White)
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.cardPadding, vertical = AppSpacing.itemGap)
+            .semantics { role = Role.Button },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = Color.Black, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/** Outlined translucent-white pill (secondary action) over the live camera preview. */
+@Composable
+private fun OverlayOutlinedPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .heightIn(min = AppSpacing.touchTarget)
+            .clip(PillShape)
+            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)), PillShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.cardPadding, vertical = AppSpacing.itemGap)
+            .semantics { role = Role.Button },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = Color.White, style = MaterialTheme.typography.labelLarge)
     }
 }
 

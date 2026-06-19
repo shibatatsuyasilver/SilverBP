@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
  */
 object AppSpacing {
     /** Horizontal padding from the screen edge to content. */
-    val screenH = 16.dp
+    val screenH = 20.dp
 
     /** Vertical padding at the top/bottom of a screen's scroll content. */
     val screenV = 16.dp
@@ -33,5 +33,8 @@ object AppSpacing {
     val cardCorner = 20.dp
 
     /** Corner radius of a prominent "hero" card (e.g. Today's latest reading). */
-    val heroCorner = 24.dp
+    val heroCorner = 28.dp
+
+    /** Minimum tap-target size (older-adult friendly). */
+    val touchTarget = 48.dp
 }

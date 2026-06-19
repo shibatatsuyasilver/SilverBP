@@ -24,20 +24,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +61,8 @@ import com.silverbp.android.capture.CaptureSessionHolder
 import com.silverbp.android.core.Source
 import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.confirm.BpReadingDraft
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 import java.io.File
 import java.time.Instant
 import java.util.UUID
@@ -139,7 +139,7 @@ fun CaptureScreen(
             FrameOverlay(modifier = Modifier.fillMaxSize())
         } else {
             Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
+                modifier = Modifier.fillMaxSize().padding(AppSpacing.screenH),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -148,16 +148,18 @@ fun CaptureScreen(
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.size(AppSpacing.itemGap))
                 Text(
                     stringResource(R.string.camera_permission_body),
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(Modifier.size(16.dp))
-                Button(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }) {
-                    Text(stringResource(R.string.retry))
-                }
+                Spacer(Modifier.size(AppSpacing.sectionGap))
+                OverlayPillButton(
+                    text = stringResource(R.string.retry),
+                    onClick = { permLauncher.launch(Manifest.permission.CAMERA) },
+                    filled = true,
+                )
             }
         }
 
@@ -169,7 +171,7 @@ fun CaptureScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.size(AppSpacing.itemGap))
                     Text(stringResource(R.string.recognizing), color = Color.White)
                 }
             }
@@ -177,14 +179,23 @@ fun CaptureScreen(
                 modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.padding(horizontal = AppSpacing.screenH),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Text(p.message, color = Color.White, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.size(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = { vm.setCapturing() }) { Text(stringResource(R.string.retry)) }
-                        Button(onClick = { onCaptured("draft") }) {
-                            Text(stringResource(R.string.manual_entry))
-                        }
+                    Spacer(Modifier.size(AppSpacing.sectionGap))
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+                        OverlayPillButton(
+                            text = stringResource(R.string.retry),
+                            onClick = { vm.setCapturing() },
+                            filled = false,
+                        )
+                        OverlayPillButton(
+                            text = stringResource(R.string.manual_entry),
+                            onClick = { onCaptured("draft") },
+                            filled = true,
+                        )
                     }
                 }
             }
@@ -220,7 +231,7 @@ fun CaptureScreen(
                         stringResource(R.string.capture_model_needed_hint),
                         color = Color.White,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = AppSpacing.screenH),
                     )
                 }
             }
@@ -245,7 +256,10 @@ fun CaptureScreen(
                         }
                     },
                     enabled = readiness.ready,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = AppSpacing.sectionGap),
                 )
             }
         }
@@ -264,19 +278,77 @@ private fun CameraTopBar(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
-        TextButton(onClick = onClose) {
-            Text(stringResource(R.string.cancel), color = Color.White)
-        }
+        OverlayPillButton(
+            text = stringResource(R.string.cancel),
+            onClick = onClose,
+            filled = false,
+        )
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onPickPhoto, enabled = pickEnabled) {
-            Icon(Icons.Filled.Image, contentDescription = stringResource(R.string.pick_from_library), tint = Color.White)
-        }
-        TextButton(onClick = onManualEntry) {
-            Text(stringResource(R.string.manual_entry), color = Color.White)
-        }
+        OverlayIconPill(
+            onClick = onPickPhoto,
+            enabled = pickEnabled,
+            icon = Icons.Filled.Image,
+            contentDescription = stringResource(R.string.pick_from_library),
+        )
+        OverlayPillButton(
+            text = stringResource(R.string.manual_entry),
+            onClick = onManualEntry,
+            filled = false,
+        )
+    }
+}
+
+/**
+ * Overlay control pill for the camera-immersion surface — translucent-white (or
+ * solid-white when [filled]) on the live preview, so controls stay legible on any
+ * background without dropping a themed surface over the camera. Pill shape, >=48dp
+ * tap target.
+ */
+@Composable
+private fun OverlayPillButton(
+    text: String,
+    onClick: () -> Unit,
+    filled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val container = if (filled) Color.White else Color.White.copy(alpha = 0.18f)
+    val content = if (filled) Color.Black else Color.White
+    Box(
+        modifier = modifier
+            .heightIn(min = AppSpacing.touchTarget)
+            .clip(PillShape)
+            .background(container)
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.cardPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = content, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/** Translucent-white circular icon control for the camera overlay (>=48dp). */
+@Composable
+private fun OverlayIconPill(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(AppSpacing.touchTarget)
+            .alpha(if (enabled) 1f else 0.4f)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.18f))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = Color.White)
     }
 }
 

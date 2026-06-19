@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -19,16 +17,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +43,9 @@ import androidx.health.connect.client.PermissionController
 import com.silverbp.android.R
 import com.silverbp.android.core.db.SleepLogEntity
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.ForgePrimary
@@ -125,8 +123,8 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.coach_log_sleep_title)) },
+            AppTopBar(
+                title = stringResource(R.string.coach_log_sleep_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
@@ -176,18 +174,16 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
-                        Button(
+                        ExpressivePrimaryButton(
+                            text = stringResource(R.string.coach_sleep_sync_grant),
                             onClick = {
                                 val bridge = ServiceLocator.healthConnectBridge
                                 permLauncher.launch(
                                     bridge.sleepReadPermissions + bridge.backgroundReadPermissions,
                                 )
                             },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(AppSpacing.cardCorner),
-                        ) { Text(stringResource(R.string.coach_sleep_sync_grant)) }
+                            fillWidth = true,
+                        )
                     }
                     is SleepSyncResult.Synced -> Text(
                         stringResource(R.string.coach_sleep_sync_synced, status.nights),
@@ -204,24 +200,20 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
                     )
                     null -> Unit
                 }
-                OutlinedButton(
+                ExpressiveSecondaryButton(
+                    text = stringResource(
+                        if (syncing) R.string.coach_sleep_syncing
+                        else R.string.coach_sleep_sync_button,
+                    ),
                     onClick = doSync,
+                    icon = Icons.Filled.Sync,
                     enabled = !syncing,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(AppSpacing.cardCorner),
-                ) {
-                    Text(
-                        stringResource(
-                            if (syncing) R.string.coach_sleep_syncing
-                            else R.string.coach_sleep_sync_button,
-                        ),
-                    )
-                }
+                    fillWidth = true,
+                )
             }
 
-            Button(
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.coach_log_save),
                 onClick = {
                     scope.launch {
                         repo.upsertSleep(
@@ -235,17 +227,8 @@ fun CoachLogSleepScreen(onClose: () -> Unit) {
                         onClose()
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(AppSpacing.cardCorner),
-            ) {
-                Text(
-                    stringResource(R.string.coach_log_save),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+                fillWidth = true,
+            )
         }
     }
 }

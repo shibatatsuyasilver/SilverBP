@@ -12,11 +12,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,13 +22,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -63,8 +58,14 @@ import com.silverbp.android.core.WeightReading
 import com.silverbp.android.core.WeightSource
 import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.HeroCard
+import com.silverbp.android.ui.components.HeroForeground
+import com.silverbp.android.ui.components.HeroForegroundDim
 import com.silverbp.android.ui.components.HeightPickerField
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.SwitchListRow
 import com.silverbp.android.ui.components.WeightPickerField
 import com.silverbp.android.ui.components.YearPickerField
 import com.silverbp.android.ui.theme.AppSpacing
@@ -289,16 +290,12 @@ private fun ConsentStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        OnboardingHeroIcon(icon = Icons.Filled.Favorite)
-        Text(
-            stringResource(R.string.onboarding_welcome_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            stringResource(R.string.onboarding_welcome_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // FIRST IMPRESSION — a full-width gradient hero opens onboarding, framing
+        // the welcome title/body in white-on-gradient (mirrors the Today hero).
+        OnboardingHero(
+            icon = Icons.Filled.Favorite,
+            title = stringResource(R.string.onboarding_welcome_title),
+            body = stringResource(R.string.onboarding_welcome_body),
         )
         StandardCard {
             Text(
@@ -319,23 +316,21 @@ private fun ConsentStep(
             }
         }
         Spacer(Modifier.weight(1f))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = AppSpacing.tight),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(checked = consentChecked, onCheckedChange = onConsentChange)
-            Spacer(Modifier.size(AppSpacing.itemGap))
-            Text(
-                stringResource(R.string.onboarding_accept),
-                style = MaterialTheme.typography.bodyMedium,
+        // Privacy-policy acceptance toggle — the canonical SwitchListRow, wrapped
+        // in a StandardCard so it reads as a settings-style affordance.
+        StandardCard(contentPadding = AppSpacing.tight) {
+            SwitchListRow(
+                title = stringResource(R.string.onboarding_accept),
+                checked = consentChecked,
+                onCheckedChange = onConsentChange,
             )
         }
-        OnboardingHeroButton(
-            label = stringResource(R.string.onboarding_continue),
+        ExpressivePrimaryButton(
+            text = stringResource(R.string.onboarding_continue),
             onClick = onContinue,
             enabled = consentChecked,
+            fillWidth = true,
+            icon = Icons.AutoMirrored.Filled.ArrowForward,
         )
     }
 }
@@ -367,20 +362,14 @@ private fun NotificationsStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        OnboardingHeroIcon(icon = Icons.Filled.Notifications)
-        Text(
-            stringResource(R.string.onboarding_notifications_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            stringResource(R.string.onboarding_notifications_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        OnboardingHero(
+            icon = Icons.Filled.Notifications,
+            title = stringResource(R.string.onboarding_notifications_title),
+            body = stringResource(R.string.onboarding_notifications_body),
         )
         Spacer(Modifier.weight(1f))
-        OnboardingHeroButton(
-            label = stringResource(R.string.onboarding_notifications_grant),
+        ExpressivePrimaryButton(
+            text = stringResource(R.string.onboarding_notifications_grant),
             onClick = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -389,6 +378,7 @@ private fun NotificationsStep(
                 }
             },
             enabled = true,
+            fillWidth = true,
         )
         TextButton(
             onClick = onContinue,
@@ -413,16 +403,10 @@ private fun NicknameStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        OnboardingHeroIcon(icon = Icons.Filled.PersonOutline)
-        Text(
-            stringResource(R.string.onboarding_nickname_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            stringResource(R.string.onboarding_nickname_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        OnboardingHero(
+            icon = Icons.Filled.PersonOutline,
+            title = stringResource(R.string.onboarding_nickname_title),
+            body = stringResource(R.string.onboarding_nickname_subtitle),
         )
         StandardCard {
             OutlinedTextField(
@@ -440,10 +424,11 @@ private fun NicknameStep(
 
         Spacer(Modifier.weight(1f))
 
-        OnboardingHeroButton(
-            label = stringResource(R.string.onboarding_done),
+        ExpressivePrimaryButton(
+            text = stringResource(R.string.onboarding_done),
             onClick = onDone,
             enabled = !saving,
+            fillWidth = true,
         )
         TextButton(
             onClick = onSkip,
@@ -497,16 +482,9 @@ private fun ProfileStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(AppSpacing.itemGap))
-        Text(
-            stringResource(R.string.onboarding_profile_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            stringResource(R.string.onboarding_profile_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        OnboardingStepHeader(
+            title = stringResource(R.string.onboarding_profile_title),
+            subtitle = stringResource(R.string.onboarding_profile_subtitle),
         )
         StandardCard {
             // All three are wheel pickers (tap the value to open). Each is optional —
@@ -534,11 +512,12 @@ private fun ProfileStep(
             }
         }
         Spacer(Modifier.weight(1f))
-        OnboardingHeroButton(
-            label = stringResource(R.string.onboarding_goal_next),
+        ExpressivePrimaryButton(
+            text = stringResource(R.string.onboarding_goal_next),
             onClick = onNext,
             // Leaving the step is always allowed — every field is optional.
             enabled = true,
+            fillWidth = true,
         )
         TextButton(
             onClick = onSkip,
@@ -581,27 +560,21 @@ private fun GoalSelectionStep(
             .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
-        Spacer(Modifier.size(AppSpacing.itemGap))
-        Text(
-            title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        OnboardingStepHeader(title = title, subtitle = subtitle)
         StandardCard {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+            ) {
                 chips()
             }
         }
         Spacer(Modifier.weight(1f))
-        OnboardingHeroButton(
-            label = nextLabel,
+        ExpressivePrimaryButton(
+            text = nextLabel,
             onClick = onNext,
             enabled = nextEnabled && !saving,
+            fillWidth = true,
         )
         TextButton(
             onClick = onBack,
@@ -629,10 +602,10 @@ private fun PrimaryGoalStep(
         onNext = onNext,
     ) {
         PrimaryGoal.entries.forEach { goal ->
-            FilterChip(
+            ExpressiveFilterChip(
                 selected = selected == goal,
                 onClick = { onSelect(goal) },
-                label = { Text(stringResource(goal.labelRes)) },
+                label = stringResource(goal.labelRes),
             )
         }
     }
@@ -654,10 +627,10 @@ private fun ExperienceStep(
         onNext = onNext,
     ) {
         ExperienceLevel.entries.forEach { level ->
-            FilterChip(
+            ExpressiveFilterChip(
                 selected = selected == level,
                 onClick = { onSelect(level) },
-                label = { Text(stringResource(level.labelRes)) },
+                label = stringResource(level.labelRes),
             )
         }
     }
@@ -679,10 +652,10 @@ private fun AvailabilityStep(
         onNext = onNext,
     ) {
         WeeklyAvailability.OPTIONS.forEach { days ->
-            FilterChip(
+            ExpressiveFilterChip(
                 selected = selected == days,
                 onClick = { onSelect(days) },
-                label = { Text(stringResource(R.string.onboarding_availability_days, days)) },
+                label = stringResource(R.string.onboarding_availability_days, days),
             )
         }
     }
@@ -706,67 +679,82 @@ private fun TrainingStyleStep(
         saving = saving,
     ) {
         TrainingStyle.entries.forEach { style ->
-            FilterChip(
+            ExpressiveFilterChip(
                 selected = selected == style,
                 onClick = { onSelect(style) },
-                label = { Text(stringResource(style.labelRes)) },
+                label = stringResource(style.labelRes),
             )
         }
     }
 }
 
 /**
- * Tinted brand "hero" icon tile heading an onboarding step — a rounded
- * primary-tinted square with a centred icon, mirroring the empty-state tiles in
- * the Today card family. Pure styling; no state.
+ * First-impression hero header for the welcome / notifications / nickname steps —
+ * the prominent gradient [HeroCard] carrying a tinted icon tile plus the step's
+ * title and body in white-on-gradient. Mirrors the Today hero so onboarding shares
+ * the app's flagship surface. Pure styling; no state.
  */
 @Composable
-private fun OnboardingHeroIcon(
+private fun OnboardingHero(
     icon: ImageVector,
+    title: String,
+    body: String,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .size(56.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(30.dp),
-            tint = MaterialTheme.colorScheme.primary,
+    HeroCard(modifier = modifier) {
+        // Translucent white icon tile reading on the gradient (icon-tile = one
+        // fixed on-hero colour, never a metric accent).
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(AppSpacing.cardCorner - 4.dp))
+                .background(HeroForeground.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(30.dp),
+                tint = HeroForeground,
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = HeroForeground,
+        )
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodyMedium,
+            color = HeroForegroundDim,
         )
     }
 }
 
 /**
- * Full-width lime "hero" primary action used to advance each onboarding step
- * (Continue / Done / Next). Pure styling wrapper around [Button] — preserves the
- * caller's onClick/enabled wiring exactly.
+ * Plain title + subtitle header for the detail / goal-profile steps (no hero).
+ * Keeps the headlineMedium / onSurfaceVariant pairing used across the screen.
  */
 @Composable
-private fun OnboardingHeroButton(
-    label: String,
-    onClick: () -> Unit,
-    enabled: Boolean,
+private fun OnboardingStepHeader(
+    title: String,
+    subtitle: String,
     modifier: Modifier = Modifier,
 ) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.secondary,
-            contentColor = MaterialTheme.colorScheme.onSecondary,
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         Text(
-            label,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            title,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

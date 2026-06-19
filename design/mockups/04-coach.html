@@ -1,0 +1,106 @@
+<!-- @dsCard group="Screens" name="教練 Coach" subtitle="Task + module rings + narration" -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SilverBP · 教練</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+</head>
+<body>
+<div class="frame">
+  <div class="cap">教練 · Coach<small>今日任務 + 模組進度環 + 教練回饋</small></div>
+  <div class="phone"><div class="screen">
+
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="ico"><svg class="i"><use href="#signal"/></svg><svg class="i"><use href="#wifi"/></svg><svg class="i"><use href="#battery"/></svg></span>
+    </div>
+
+    <div class="topbar">
+      <span class="title" style="font:var(--headline-s);font-weight:700">生活方式教練</span>
+    </div>
+
+    <div class="body">
+      <!-- today task -->
+      <div class="hero" style="background:linear-gradient(145deg,#7C5CFF,#4A2EC0)">
+        <div class="hlabel">今日任務</div>
+        <div class="headline-s" style="font-weight:700;margin:8px 0 4px;position:relative;z-index:1">今天來散步 20 分鐘</div>
+        <div class="body-m" style="color:var(--on-hero-dim);position:relative;z-index:1">飯後走一走,有助於血壓穩定</div>
+        <div class="bar" style="margin:16px 0 8px;background:rgba(255,255,255,0.25);position:relative;z-index:1"><span style="width:60%;background:#fff"></span></div>
+        <div class="row" style="justify-content:space-between;position:relative;z-index:1">
+          <span class="label-m" style="color:var(--on-hero-dim)">12 / 20 分鐘</span>
+          <button class="btn lime sm"><svg><use href="#directions_run"/></svg>去散步</button>
+        </div>
+      </div>
+
+      <!-- module rings -->
+      <div class="section-h">本週進度</div>
+      <div class="col2">
+        <div class="metric" style="text-align:center">
+          <div class="ring" style="--p:80;--ringc:var(--mod-exercise);margin:0 auto 12px"><div class="hole">80%</div></div>
+          <div class="title-m" style="font-weight:600">運動</div>
+          <div class="body-m muted">4 / 5 次</div>
+        </div>
+        <div class="metric" style="text-align:center">
+          <div class="ring" style="--p:60;--ringc:var(--mod-diet);margin:0 auto 12px"><div class="hole">60%</div></div>
+          <div class="title-m" style="font-weight:600">飲食</div>
+          <div class="body-m muted">3 / 5 天</div>
+        </div>
+      </div>
+      <div class="col2" style="margin-top:14px">
+        <div class="metric" style="text-align:center">
+          <div class="ring" style="--p:43;--ringc:var(--mod-sleep);margin:0 auto 12px"><div class="hole">43%</div></div>
+          <div class="title-m" style="font-weight:600">睡眠</div>
+          <div class="body-m muted">3 / 7 天</div>
+        </div>
+        <div class="metric" style="text-align:center">
+          <div class="ring" style="--p:100;--ringc:var(--mod-medication);margin:0 auto 12px"><div class="hole">100%</div></div>
+          <div class="title-m" style="font-weight:600">服藥</div>
+          <div class="body-m muted">7 / 7 天</div>
+        </div>
+      </div>
+
+      <!-- weekly trend -->
+      <div class="section-h">本週趨勢</div>
+      <div class="card" style="margin-top:0">
+        <svg viewBox="0 0 320 90" style="width:100%;height:90px">
+          <polyline fill="none" stroke="var(--line-sbp)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+            points="6,40 52,34 98,48 144,30 190,38 236,26 282,32 314,28"/>
+          <polyline fill="none" stroke="var(--line-dbp)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+            points="6,68 52,64 98,70 144,60 190,66 236,58 282,62 314,60"/>
+        </svg>
+        <div class="row" style="gap:18px;margin-top:8px">
+          <span class="mcat"><span class="dot" style="background:var(--line-sbp)"></span>收縮壓</span>
+          <span class="mcat"><span class="dot" style="background:var(--line-dbp)"></span>舒張壓</span>
+        </div>
+      </div>
+
+      <!-- plan / report -->
+      <div class="card" style="margin-top:16px">
+        <button class="btn outline block" style="margin-bottom:12px"><svg><use href="#description"/></svg>查看本週計畫</button>
+        <button class="btn outline block"><svg><use href="#bar_chart"/></svg>查看本週報告</button>
+      </div>
+
+      <!-- narration -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">教練回饋 <button class="iconbtn" style="width:36px;height:36px"><svg><use href="#expand_more"/></svg></button></div>
+        <div class="body-l muted">這週運動很穩定,做得很好!血壓在傍晚略高,建議晚餐少一點鹽,睡前放鬆一下。服藥全勤,繼續保持 👏</div>
+      </div>
+
+    </div><!-- /body -->
+
+    <div class="navbar">
+      <div class="nav-item"><span class="pill"><svg><use href="#home"/></svg></span><span class="nlabel">今日</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#bar_chart"/></svg></span><span class="nlabel">數據</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#directions_run"/></svg></span><span class="nlabel">運動</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#restaurant"/></svg></span><span class="nlabel">飲食</span></div>
+      <div class="nav-item sel"><span class="pill"><svg><use href="#favorite"/></svg></span><span class="nlabel">教練</span></div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

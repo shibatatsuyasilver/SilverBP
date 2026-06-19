@@ -1,0 +1,108 @@
+<!-- @dsCard group="Screens" name="今日 Today" subtitle="Dashboard · hero + metrics" -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SilverBP · 今日</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+</head>
+<body>
+<div class="frame">
+  <div class="cap">今日 · Today<small>每日總覽 — hero 血壓卡 + 雙指標磁貼</small></div>
+  <div class="phone"><div class="screen">
+
+    <!-- status bar -->
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="ico">
+        <svg class="i"><use href="#signal"/></svg>
+        <svg class="i"><use href="#wifi"/></svg>
+        <svg class="i"><use href="#battery"/></svg>
+      </span>
+    </div>
+
+    <!-- top app bar -->
+    <div class="topbar">
+      <button class="iconbtn"><svg><use href="#settings"/></svg></button>
+      <span class="title">今日</span>
+      <div class="actions">
+        <span class="mchip"><span class="avatar" style="background:#6C4CF1">陳</span></span>
+        <button class="iconbtn gold"><svg><use href="#crown"/></svg></button>
+        <button class="iconbtn"><svg><use href="#add_circle"/></svg></button>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="greeting">早安,陳先生 <span class="wave">👋</span></div>
+
+      <!-- BP hero -->
+      <div class="hero">
+        <div class="hrow">
+          <span class="hlabel">血壓 · 08:30</span>
+          <span class="statchip"><span class="dot" style="background:var(--cat-normal)"></span>正常</span>
+        </div>
+        <div class="big">120<span class="sep">/</span>80<span class="unit">mmHg</span></div>
+        <span class="pulse"><svg><use href="#favorite"/></svg>脈搏 72 bpm</span>
+      </div>
+
+      <div class="spacer-m"></div>
+
+      <!-- glucose + weight metrics -->
+      <div class="col2">
+        <div class="metric">
+          <div class="mhead">
+            <span class="tile glucose"><svg class="i"><use href="#water_drop"/></svg></span>
+            <span class="mname">血糖</span>
+            <span class="mtime">07:15</span>
+          </div>
+          <div class="mval">5.4<span class="unit">mmol/L</span></div>
+          <div class="mcat"><span class="dot" style="background:var(--cat-normal)"></span>正常</div>
+        </div>
+
+        <div class="metric">
+          <div class="mhead">
+            <span class="tile weight"><svg class="i"><use href="#scale"/></svg></span>
+            <span class="mname">體重</span>
+            <span class="mtime">昨天</span>
+          </div>
+          <div class="mval">68.5<span class="unit">公斤</span></div>
+          <div class="mcat"><span class="dot" style="background:var(--cat-normal)"></span>正常 · BMI 22.8</div>
+        </div>
+      </div>
+
+      <div class="spacer-m"></div>
+
+      <!-- pro tip -->
+      <div class="card">
+        <div class="row" style="align-items:flex-start; gap:14px">
+          <span class="tile gold" style="width:44px;height:44px;border-radius:14px;flex:0 0 auto">
+            <svg class="i" style="width:24px;height:24px"><use href="#lightbulb"/></svg>
+          </span>
+          <div>
+            <div class="title-m" style="font-weight:700;margin-bottom:4px">小提醒</div>
+            <div class="body-m muted">你的血壓看起來很健康,維持每天同一時間量測的習慣。</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /body -->
+
+    <!-- chat FAB -->
+    <button class="fab"><svg><use href="#chat"/></svg>助理</button>
+
+    <!-- bottom nav -->
+    <div class="navbar">
+      <div class="nav-item sel"><span class="pill"><svg><use href="#home"/></svg></span><span class="nlabel">今日</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#bar_chart"/></svg></span><span class="nlabel">數據</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#directions_run"/></svg></span><span class="nlabel">運動</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#restaurant"/></svg></span><span class="nlabel">飲食</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#favorite"/></svg></span><span class="nlabel">教練</span></div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

@@ -7,19 +7,22 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -33,12 +36,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +57,15 @@ import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.backup.auto.AutoBackupFrequency
 import com.silverbp.android.backup.auto.GoogleDriveBackupClient
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.NavListRow
+import com.silverbp.android.ui.components.SegmentedControl
+import com.silverbp.android.ui.components.SettingsGroup
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.MetricAccent
 
 /**
  * 單一進入點 — 匯出、匯入、檢視恢復碼、自動備份四個流程都在這頁,以子對話框/區塊切換.
@@ -124,8 +132,8 @@ fun BackupScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.backup_screen_title)) },
+            AppTopBar(
+                title = stringResource(R.string.backup_screen_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.backup_back))
@@ -138,204 +146,216 @@ fun BackupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(inner)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             Text(
                 stringResource(R.string.backup_intro_description),
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-
-            HorizontalDivider()
 
             // ============================================================
             // 自動備份 (Google Drive)
             // ============================================================
 
-            Text(stringResource(R.string.backup_auto_section_title), style = MaterialTheme.typography.titleMedium)
-            Text(
-                stringResource(R.string.backup_auto_section_help),
-                style = MaterialTheme.typography.bodySmall,
-            )
+            StandardCard(title = stringResource(R.string.backup_auto_section_title)) {
+                Text(
+                    stringResource(R.string.backup_auto_section_help),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.backup_auto_account_label), style = MaterialTheme.typography.labelMedium)
-                    Text(
-                        if (hasAccount) accountEmail
-                        else stringResource(R.string.backup_auto_account_unlinked),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                if (hasAccount) {
-                    OutlinedButton(onClick = { accountMenuOpen = true }) {
-                        Text(stringResource(R.string.backup_auto_switch_account))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.backup_auto_account_label), style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            if (hasAccount) accountEmail
+                            else stringResource(R.string.backup_auto_account_unlinked),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
-                    DropdownMenu(
-                        expanded = accountMenuOpen,
-                        onDismissRequest = { accountMenuOpen = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.backup_auto_switch_account)) },
+                    if (hasAccount) {
+                        ExpressiveSecondaryButton(
+                            text = stringResource(R.string.backup_auto_switch_account),
+                            onClick = { accountMenuOpen = true },
+                        )
+                        DropdownMenu(
+                            expanded = accountMenuOpen,
+                            onDismissRequest = { accountMenuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.backup_auto_switch_account)) },
+                                onClick = {
+                                    accountMenuOpen = false
+                                    runWithRecoveryGate(GateTarget.ConnectGoogle) { vm.startGoogleConnect() }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.backup_auto_disconnect)) },
+                                onClick = {
+                                    accountMenuOpen = false
+                                    dialog = Dialog.DisconnectConfirm
+                                },
+                            )
+                        }
+                    } else {
+                        ExpressiveSecondaryButton(
+                            text = stringResource(R.string.backup_auto_connect_button),
                             onClick = {
-                                accountMenuOpen = false
                                 runWithRecoveryGate(GateTarget.ConnectGoogle) { vm.startGoogleConnect() }
                             },
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.backup_auto_disconnect)) },
-                            onClick = {
-                                accountMenuOpen = false
-                                dialog = Dialog.DisconnectConfirm
-                            },
-                        )
-                    }
-                } else {
-                    OutlinedButton(onClick = {
-                        runWithRecoveryGate(GateTarget.ConnectGoogle) { vm.startGoogleConnect() }
-                    }) {
-                        Text(stringResource(R.string.backup_auto_connect_button))
                     }
                 }
-            }
 
-            // Frequency selector
-            Text(stringResource(R.string.backup_auto_frequency_label), style = MaterialTheme.typography.labelMedium)
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val options = listOf(
-                    AutoBackupFrequency.Off to R.string.backup_auto_freq_off,
-                    AutoBackupFrequency.Daily to R.string.backup_auto_freq_daily,
-                    AutoBackupFrequency.Weekly to R.string.backup_auto_freq_weekly,
-                    AutoBackupFrequency.Monthly to R.string.backup_auto_freq_monthly,
+                // Frequency selector
+                Text(stringResource(R.string.backup_auto_frequency_label), style = MaterialTheme.typography.labelMedium)
+                val freqOptions = listOf(
+                    AutoBackupFrequency.Off,
+                    AutoBackupFrequency.Daily,
+                    AutoBackupFrequency.Weekly,
+                    AutoBackupFrequency.Monthly,
                 )
-                options.forEachIndexed { index, (freqOption, labelRes) ->
-                    // 「關閉」永遠可選 — 即使沒帳號或沒恢復碼也應該能把已啟用的排程關掉.
-                    val itemEnabled = autoControlsEnabled || freqOption == AutoBackupFrequency.Off
-                    SegmentedButton(
-                        selected = frequency == freqOption,
-                        onClick = {
-                            if (freqOption == AutoBackupFrequency.Off) {
-                                vm.setFrequency(AutoBackupFrequency.Off)
-                            } else {
-                                runWithRecoveryGate(GateTarget.SetFrequency(freqOption)) {
-                                    vm.setFrequency(freqOption)
-                                }
+                val freqLabels = listOf(
+                    stringResource(R.string.backup_auto_freq_off),
+                    stringResource(R.string.backup_auto_freq_daily),
+                    stringResource(R.string.backup_auto_freq_weekly),
+                    stringResource(R.string.backup_auto_freq_monthly),
+                )
+                SegmentedControl(
+                    options = freqLabels,
+                    selectedIndex = freqOptions.indexOf(frequency).coerceAtLeast(0),
+                    onSelect = { index ->
+                        val freqOption = freqOptions[index]
+                        if (freqOption == AutoBackupFrequency.Off) {
+                            // 「關閉」永遠可選 — 即使沒帳號或沒恢復碼也應該能把已啟用的排程關掉.
+                            vm.setFrequency(AutoBackupFrequency.Off)
+                        } else if (autoControlsEnabled) {
+                            runWithRecoveryGate(GateTarget.SetFrequency(freqOption)) {
+                                vm.setFrequency(freqOption)
                             }
-                        },
-                        enabled = itemEnabled,
-                        shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                    ) { Text(stringResource(labelRes)) }
-                }
-            }
-
-            OutlinedButton(
-                onClick = {
-                    runWithRecoveryGate(GateTarget.BackupNow) { vm.backupNow() }
-                },
-                enabled = autoControlsEnabled && !autoBackupRunning,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    if (autoBackupRunning) stringResource(R.string.backup_auto_running)
-                    else stringResource(R.string.backup_auto_run_now)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            }
 
-            // Status row
-            val statusText = when {
-                autoBackupRunning -> stringResource(R.string.backup_auto_running)
-                lastError.isNotBlank() ->
-                    stringResource(R.string.backup_auto_status_failure, lastError)
-                lastBackupAt > 0L ->
-                    stringResource(R.string.backup_auto_status_success, formatTimestamp(lastBackupAt))
-                else -> stringResource(R.string.backup_auto_status_never)
-            }
-            val statusColor = when {
-                lastError.isNotBlank() && lastErrorAt >= lastBackupAt ->
-                    MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
-            Text(statusText, style = MaterialTheme.typography.bodySmall, color = statusColor)
+                ExpressivePrimaryButton(
+                    text = if (autoBackupRunning) stringResource(R.string.backup_auto_running)
+                    else stringResource(R.string.backup_auto_run_now),
+                    onClick = {
+                        runWithRecoveryGate(GateTarget.BackupNow) { vm.backupNow() }
+                    },
+                    icon = Icons.Filled.Backup,
+                    enabled = autoControlsEnabled && !autoBackupRunning,
+                    fillWidth = true,
+                )
 
-            if (!autoControlsEnabled) {
+                // Status row
+                val statusText = when {
+                    autoBackupRunning -> stringResource(R.string.backup_auto_running)
+                    lastError.isNotBlank() ->
+                        stringResource(R.string.backup_auto_status_failure, lastError)
+                    lastBackupAt > 0L ->
+                        stringResource(R.string.backup_auto_status_success, formatTimestamp(lastBackupAt))
+                    else -> stringResource(R.string.backup_auto_status_never)
+                }
+                val statusColor = when {
+                    lastError.isNotBlank() && lastErrorAt >= lastBackupAt ->
+                        MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Text(statusText, style = MaterialTheme.typography.bodySmall, color = statusColor)
+
+                if (!autoControlsEnabled) {
+                    Text(
+                        stringResource(R.string.backup_auto_disabled_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Text(
-                    stringResource(R.string.backup_auto_disabled_hint),
+                    stringResource(R.string.backup_auto_drive_warning),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(
-                stringResource(R.string.backup_auto_drive_warning),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            HorizontalDivider()
 
             // ============================================================
             // 匯出加密備份 (manual SAF flow — unchanged)
             // ============================================================
 
-            Text(stringResource(R.string.backup_export_encrypted_title), style = MaterialTheme.typography.titleMedium)
-            Button(
-                onClick = { dialog = Dialog.Export },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.backup_export_button)) }
-            Text(
-                stringResource(R.string.backup_export_first_time_note),
-                style = MaterialTheme.typography.bodySmall,
-            )
-
-            HorizontalDivider()
+            StandardCard(title = stringResource(R.string.backup_export_encrypted_title)) {
+                ExpressivePrimaryButton(
+                    text = stringResource(R.string.backup_export_button),
+                    onClick = { dialog = Dialog.Export },
+                    icon = Icons.Filled.FileUpload,
+                    fillWidth = true,
+                )
+                Text(
+                    stringResource(R.string.backup_export_first_time_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             // ============================================================
             // 從備份還原 (SAF + new Drive restore)
             // ============================================================
 
-            Text(stringResource(R.string.backup_restore_title), style = MaterialTheme.typography.titleMedium)
-            Button(
-                onClick = { dialog = Dialog.Import },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.backup_import_button)) }
-            if (hasAccount) {
-                OutlinedButton(
-                    onClick = {
-                        vm.refreshDriveListings()
-                        dialog = Dialog.DriveRestore
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.backup_drive_restore_button)) }
+            StandardCard(title = stringResource(R.string.backup_restore_title)) {
+                ExpressivePrimaryButton(
+                    text = stringResource(R.string.backup_import_button),
+                    onClick = { dialog = Dialog.Import },
+                    icon = Icons.Filled.FileDownload,
+                    fillWidth = true,
+                )
+                if (hasAccount) {
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.backup_drive_restore_button),
+                        onClick = {
+                            vm.refreshDriveListings()
+                            dialog = Dialog.DriveRestore
+                        },
+                        icon = Icons.Filled.CloudDownload,
+                        fillWidth = true,
+                    )
+                }
+                Text(
+                    stringResource(R.string.backup_restore_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Text(
-                stringResource(R.string.backup_restore_description),
-                style = MaterialTheme.typography.bodySmall,
-            )
-
-            HorizontalDivider()
 
             // ============================================================
             // 恢復碼管理 (existing)
             // ============================================================
 
-            Text(stringResource(R.string.backup_recovery_management_title), style = MaterialTheme.typography.titleMedium)
-            OutlinedButton(
-                onClick = { dialog = Dialog.ViewRecovery },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = vm.storedRecoveryCode() != null,
-            ) { Text(stringResource(R.string.backup_recovery_view_again)) }
-            OutlinedButton(
-                onClick = { dialog = Dialog.RotateRecovery },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.backup_recovery_regenerate)) }
-            Text(
-                stringResource(R.string.backup_recovery_regenerate_warning),
-                style = MaterialTheme.typography.bodySmall,
-            )
+            SettingsGroup(title = stringResource(R.string.backup_recovery_management_title)) {
+                // Mirrors the old `enabled = vm.storedRecoveryCode() != null` gate:
+                // no row to tap until a recovery code actually exists.
+                if (hasRecoveryCode) {
+                    NavListRow(
+                        icon = Icons.Filled.Key,
+                        iconTint = MetricAccent.Glucose,
+                        title = stringResource(R.string.backup_recovery_view_again),
+                        onClick = { dialog = Dialog.ViewRecovery },
+                    )
+                }
+                NavListRow(
+                    icon = Icons.Filled.Refresh,
+                    iconTint = MetricAccent.Weight,
+                    title = stringResource(R.string.backup_recovery_regenerate),
+                    subtitle = stringResource(R.string.backup_recovery_regenerate_warning),
+                    onClick = { dialog = Dialog.RotateRecovery },
+                )
+            }
 
             // 進度狀態
             val activePhase: BackupManager.Phase? = when {
@@ -466,27 +486,25 @@ private sealed class GateTarget {
 
 @Composable
 private fun PhaseRow(phase: BackupManager.Phase) {
-    Spacer(Modifier.size(8.dp))
-    HorizontalDivider()
-    when (phase) {
-        is BackupManager.Phase.Collecting -> {
-            Text(stringResource(R.string.backup_phase_collecting, phase.recordCount))
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-        is BackupManager.Phase.Encoding -> {
-            Text(stringResource(R.string.backup_phase_encoding))
-            LinearProgressIndicator(progress = { phase.progress }, modifier = Modifier.fillMaxWidth())
-        }
-        BackupManager.Phase.Encrypting -> {
-            Text(stringResource(R.string.backup_phase_encrypting))
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-        BackupManager.Phase.Writing -> {
-            Text(stringResource(R.string.backup_phase_writing))
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-        is BackupManager.Phase.Success -> {
-            Column {
+    StandardCard {
+        when (phase) {
+            is BackupManager.Phase.Collecting -> {
+                Text(stringResource(R.string.backup_phase_collecting, phase.recordCount))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            is BackupManager.Phase.Encoding -> {
+                Text(stringResource(R.string.backup_phase_encoding))
+                LinearProgressIndicator(progress = { phase.progress }, modifier = Modifier.fillMaxWidth())
+            }
+            BackupManager.Phase.Encrypting -> {
+                Text(stringResource(R.string.backup_phase_encrypting))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            BackupManager.Phase.Writing -> {
+                Text(stringResource(R.string.backup_phase_writing))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            is BackupManager.Phase.Success -> {
                 Text(stringResource(R.string.backup_phase_success, phase.recordCount, formatSize(phase.byteCount)))
                 if (phase.skippedCount > 0) {
                     Text(
@@ -496,14 +514,14 @@ private fun PhaseRow(phase: BackupManager.Phase) {
                     )
                 }
             }
+            is BackupManager.Phase.Failure -> {
+                Text(
+                    stringResource(R.string.backup_phase_failure, phase.error.localizedMessage ?: (phase.error::class.simpleName ?: "")),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            BackupManager.Phase.Idle -> Unit
         }
-        is BackupManager.Phase.Failure -> {
-            Text(
-                stringResource(R.string.backup_phase_failure, phase.error.localizedMessage ?: (phase.error::class.simpleName ?: "")),
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-        BackupManager.Phase.Idle -> Unit
     }
 }
 

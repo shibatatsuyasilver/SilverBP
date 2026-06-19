@@ -18,13 +18,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.insights.charts.DaypartCategoryHeatmap
 import com.silverbp.android.ui.insights.charts.DistributionDonut
@@ -161,11 +159,11 @@ private fun CompareMemberChips(
     ) {
         members.forEach { member ->
             val name = member.name.ifBlank { stringResource(R.string.member_me) }
-            FilterChip(
+            ExpressiveFilterChip(
+                label = name,
                 selected = member.id in selected,
                 onClick = { onToggle(member.id) },
-                label = { Text(name, style = MaterialTheme.typography.labelMedium) },
-                leadingIcon = { ColorDot(member.color) },
+                leadingDotColor = member.color,
             )
         }
     }
@@ -177,17 +175,13 @@ private fun CompareMetricToggle(metric: TrendMetric, onSelect: (TrendMetric) -> 
         TrendMetric.Systolic to stringResource(R.string.compare_metric_systolic),
         TrendMetric.Diastolic to stringResource(R.string.compare_metric_diastolic),
     )
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { idx, (value, label) ->
-            SegmentedButton(
-                selected = value == metric,
-                onClick = { onSelect(value) },
-                shape = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
-            ) {
-                Text(label, style = MaterialTheme.typography.labelMedium)
-            }
-        }
-    }
+    val selectedIndex = options.indexOfFirst { it.first == metric }.coerceAtLeast(0)
+    SegmentedControl(
+        options = options.map { it.second },
+        selectedIndex = selectedIndex,
+        onSelect = { onSelect(options[it].first) },
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -214,10 +208,10 @@ private fun RangeChips(current: InsightsRange, onSelect: (InsightsRange) -> Unit
         horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         pairs.forEach { (r, label) ->
-            FilterChip(
+            ExpressiveFilterChip(
+                label = label,
                 selected = current == r,
                 onClick = { onSelect(r) },
-                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
             )
         }
     }

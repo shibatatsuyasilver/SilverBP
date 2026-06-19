@@ -16,12 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -55,12 +55,15 @@ import com.silverbp.android.R
 import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
+import com.silverbp.android.ui.components.ExpressiveAssistChip
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.formatGlucoseValue
+import com.silverbp.android.ui.components.glucoseCategoryLabel
 import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
 import com.silverbp.android.ui.components.measureContextLabel
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.MetricAccent
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -259,15 +262,9 @@ private fun GlucoseDaySectionCard(
     StandardCard(
         title = group.date.format(dateFmt),
         titleTrailing = {
-            AssistChip(
+            ExpressiveAssistChip(
+                label = stringResource(R.string.history_readings_count, group.readings.size),
                 onClick = {},
-                label = {
-                    Text(
-                        stringResource(R.string.history_readings_count, group.readings.size),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                },
-                colors = AssistChipDefaults.assistChipColors(),
             )
         },
         verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
@@ -307,7 +304,7 @@ private fun GlucoseRow(
 ) {
     val classifier = remember { GlucoseClassifier() }
     val cat = classifier.classify(reading.valueMgdl, reading.measureContext)
-    val color = glucoseColorFor(cat)
+    val categoryColor = glucoseColorFor(cat)
     val fmt = remember {
         DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
             .withZone(java.time.ZoneId.systemDefault())
@@ -315,38 +312,78 @@ private fun GlucoseRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = AppSpacing.touchTarget + 26.dp)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .semantics(mergeDescendants = true) { role = Role.Button }
-            .padding(vertical = 12.dp),
+            .padding(vertical = AppSpacing.itemGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                stringResource(
-                    R.string.glucose_value_unit,
-                    formatGlucoseValue(reading.valueMgdl, unit),
-                    unitLabel,
-                ),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+        // LEADING: the metric's fixed accent icon tile (never varies by category) —
+        // same MetricAccent.Glucose drop tile as the unified timeline row.
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MetricAccent.Glucose.copy(alpha = 0.20f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.WaterDrop,
+                contentDescription = null,
+                tint = MetricAccent.Glucose,
+                modifier = Modifier.size(26.dp),
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        }
+
+        Spacer(Modifier.size(AppSpacing.itemGap + AppSpacing.tight))
+
+        // MIDDLE: value + unit, category dot + label, measure context.
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    measureContextLabel(reading.measureContext),
-                    style = MaterialTheme.typography.bodySmall,
+                    formatGlucoseValue(reading.valueMgdl, unit),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.size(AppSpacing.tight))
+                Text(
+                    unitLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 2.dp),
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(categoryColor),
+                )
+                Spacer(Modifier.size(AppSpacing.tight + 2.dp))
+                Text(
+                    glucoseCategoryLabel(cat),
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.size(8.dp))
                 Text(
-                    fmt.format(reading.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
+                    " · ${measureContextLabel(reading.measureContext)}",
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-        Spacer(Modifier.size(8.dp))
+
+        Spacer(Modifier.size(AppSpacing.itemGap))
+
+        // TRAILING: time then chevron, inline at the row's end.
+        Text(
+            fmt.format(reading.timestamp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.size(AppSpacing.tight))
         Icon(
             Icons.AutoMirrored.Filled.NavigateNext,
             contentDescription = stringResource(R.string.a11y_view_reading_details),

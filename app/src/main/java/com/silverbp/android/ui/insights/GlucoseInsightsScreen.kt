@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +44,7 @@ import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.MeasureContext
+import com.silverbp.android.ui.components.ExpressiveFilterChip
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.formatGlucoseValue
 import com.silverbp.android.ui.components.glucoseCategoryLabel
@@ -114,10 +114,10 @@ private fun GlucoseRangeChips(current: InsightsRange, onSelect: (InsightsRange) 
         horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         pairs.forEach { (r, label) ->
-            FilterChip(
+            ExpressiveFilterChip(
+                label = label,
                 selected = current == r,
                 onClick = { onSelect(r) },
-                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
             )
         }
     }

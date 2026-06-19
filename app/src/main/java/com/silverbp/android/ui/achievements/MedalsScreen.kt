@@ -25,7 +25,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -44,8 +43,10 @@ import com.silverbp.android.achievements.AchievementEvaluator
 import com.silverbp.android.achievements.AchievementStats
 import com.silverbp.android.achievements.MedalCategory
 import com.silverbp.android.achievements.MedalKind
+import com.silverbp.android.ui.components.AppTopBar
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -62,8 +63,8 @@ fun MedalsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.medal_screen_title)) },
+            AppTopBar(
+                title = stringResource(R.string.medal_screen_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -82,13 +83,13 @@ fun MedalsScreen(
         ) {
             if (!state.hasHealthConnect) {
                 StandardCard(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Filled.Lock,
                             contentDescription = null,
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(AppSpacing.sectionGap + AppSpacing.tight + 2.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.size(AppSpacing.itemGap))
@@ -167,11 +168,15 @@ private fun EarnedCountChip(
     total: Int,
     numberFormat: NumberFormat,
 ) {
+    val complete = total > 0 && earned >= total
     Box(
         modifier = Modifier
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 5.dp),
+            .clip(PillShape)
+            .background(
+                if (complete) MaterialTheme.colorScheme.tertiaryContainer
+                else MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+            .padding(horizontal = AppSpacing.itemGap + AppSpacing.tight, vertical = AppSpacing.tight + 1.dp),
     ) {
         Text(
             stringResource(
@@ -181,7 +186,8 @@ private fun EarnedCountChip(
             ),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (complete) MaterialTheme.colorScheme.onTertiaryContainer
+            else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -214,7 +220,10 @@ private fun MedalGridTile(
         modifier = modifier
             .heightIn(min = 188.dp)
             .clip(RoundedCornerShape(AppSpacing.cardCorner))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(
+                if (isUnlocked) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+                else MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
             .padding(AppSpacing.itemGap + AppSpacing.tight),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
@@ -225,7 +234,7 @@ private fun MedalGridTile(
             if (!isUnlocked) {
                 Box(
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(AppSpacing.sectionGap + AppSpacing.itemGap + AppSpacing.tight)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surface),
                     contentAlignment = Alignment.Center,
@@ -233,7 +242,7 @@ private fun MedalGridTile(
                     Icon(
                         Icons.Filled.Lock,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(AppSpacing.sectionGap),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -259,8 +268,9 @@ private fun MedalGridTile(
                     dateFormat.format(Instant.ofEpochMilli(unlockedAtMillis!!)),
                 ),
                 style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.tertiary,
             )
         } else {
             val (cur, target) = currentAndTarget(medal, stats)

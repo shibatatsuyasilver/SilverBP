@@ -22,19 +22,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -62,8 +59,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.billing.Entitlement
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.paywall.PaywallViewModel
 import com.silverbp.android.ui.paywall.openManageSubscription
+import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.PremiumGold
 
 /** Design-system "Normal" green (#34C759) for the unlocked-state check marks. */
@@ -116,9 +116,9 @@ fun PremiumScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(padding)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = AppSpacing.screenH)
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             PremiumHero(isPremium = isPremium)
 
@@ -131,7 +131,7 @@ fun PremiumScreen(
     }
 }
 
-/** Centred lime crown + headline. Subtitle changes between upsell and active. */
+/** Centred gold crown halo + headline. Subtitle changes between upsell and active. */
 @Composable
 private fun PremiumHero(isPremium: Boolean) {
     Column(
@@ -140,17 +140,24 @@ private fun PremiumHero(isPremium: Boolean) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Spacer(Modifier.height(8.dp))
+        // Radial gold halo behind the crown — mirrors the mockup's
+        // radial-gradient(circle, gold 28%, transparent 70%) hero glow.
         Box(
             modifier = Modifier
-                .size(96.dp)
-                .background(PremiumGold.copy(alpha = 0.18f), CircleShape),
+                .size(100.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(PremiumGold.copy(alpha = 0.28f), Color.Transparent),
+                    ),
+                    shape = CircleShape,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Filled.WorkspacePremium,
                 contentDescription = null,
                 tint = PremiumGold,
-                modifier = Modifier.size(52.dp),
+                modifier = Modifier.size(54.dp),
             )
         }
         Text(
@@ -265,27 +272,20 @@ private fun UpsellState(
             }
 
             // Lime hero CTA (matches the app's primary onboarding button).
-            Button(
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.paywall_subscribe),
                 onClick = {
                     val plan = when (effectiveSelected) {
                         state.yearly?.basePlanId -> state.yearly
                         state.monthly?.basePlanId -> state.monthly
                         else -> null
-                    } ?: return@Button
+                    } ?: return@ExpressiveSecondaryButton
                     context.findActivity()?.let { vm.launchPurchase(it, plan) }
                 },
                 enabled = effectiveSelected != null,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = MaterialTheme.colorScheme.onSecondary,
-                ),
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-            ) {
-                Text(
-                    stringResource(R.string.paywall_subscribe),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                )
-            }
+                fillWidth = true,
+                modifier = Modifier.height(60.dp),
+            )
         }
     }
 
@@ -337,23 +337,11 @@ private fun BenefitsCard(
     title: String? = null,
     checkTint: Color = MaterialTheme.colorScheme.primary,
 ) {
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+    StandardCard(
+        title = title,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            if (title != null) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            benefits.forEach { BenefitRow(it, checkTint) }
-        }
+        benefits.forEach { BenefitRow(it, checkTint) }
     }
 }
 
@@ -364,10 +352,10 @@ private fun BenefitRow(text: String, tint: Color) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
-            Icons.Filled.Check,
+            Icons.Filled.CheckCircle,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(24.dp),
         )
         Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
     }
@@ -376,7 +364,8 @@ private fun BenefitRow(text: String, tint: Color) {
 /**
  * A selectable price card — same a11y posture as the paywall sheet's: [selectable]
  * with [Role.RadioButton], a single merged contentDescription (plan + price) so the
- * badges/price aren't read piecemeal (audit M31).
+ * badges/price aren't read piecemeal (audit M31). When [selected] it gains a 2dp
+ * primary inset stroke, mirroring the mockup's `box-shadow:inset 0 0 0 2px primary`.
  */
 @Composable
 private fun PlanCard(
@@ -388,47 +377,78 @@ private fun PlanCard(
     onSelect: () -> Unit,
 ) {
     val cardCd = stringResource(R.string.paywall_plan_card_cd, planLabel, priceText)
-    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-    OutlinedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .border(
-                width = if (selected) 2.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(16.dp),
-            )
-            .semantics(mergeDescendants = true) {
-                this.selected = selected
-                contentDescription = cardCd
+    val shape = MaterialTheme.shapes.large
+    val selectModifier = Modifier
+        .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+        .then(
+            if (selected) {
+                Modifier.border(width = 2.dp, color = MaterialTheme.colorScheme.primary, shape = shape)
+            } else {
+                Modifier
             },
-        shape = RoundedCornerShape(16.dp),
+        )
+        .semantics(mergeDescendants = true) {
+            this.selected = selected
+            contentDescription = cardCd
+        }
+    StandardCard(
+        modifier = selectModifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        planLabel,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (bestValue) PlanChip(stringResource(R.string.paywall_plan_best_value))
+                }
                 Text(
-                    planLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (bestValue) PlanChip(stringResource(R.string.paywall_plan_best_value))
-            }
-            Text(priceText, style = MaterialTheme.typography.headlineSmall)
-            if (freeTrial) {
-                Text(
-                    stringResource(R.string.paywall_plan_free_trial),
+                    priceText,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (freeTrial) {
+                    Text(
+                        stringResource(R.string.paywall_plan_free_trial),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
+            PlanRadio(selected = selected)
+        }
+    }
+}
+
+/** The mockup's trailing radio dot — filled ring when [selected], hollow otherwise. */
+@Composable
+private fun PlanRadio(selected: Boolean) {
+    val ring = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    Box(
+        modifier = Modifier
+            .size(22.dp)
+            .border(width = 2.dp, color = ring, shape = CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+            )
         }
     }
 }

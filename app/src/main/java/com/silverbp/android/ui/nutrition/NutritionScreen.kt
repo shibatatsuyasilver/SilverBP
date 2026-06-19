@@ -27,18 +27,13 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -66,6 +61,9 @@ import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.settings.BarcodeRegion
 import com.silverbp.android.ui.coach.components.GoalRing
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
 import com.silverbp.android.ui.components.ModelLoadBanner
 import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.components.StandardCard
@@ -118,9 +116,7 @@ fun NutritionScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = {
-                Text(stringResource(R.string.tab_nutrition), fontWeight = FontWeight.SemiBold)
-            })
+            AppTopBar(title = stringResource(R.string.tab_nutrition))
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -142,19 +138,19 @@ fun NutritionScreen(
                     if (readiness.phase is ModelLoadPhase.Idle ||
                         readiness.phase is ModelLoadPhase.Failed
                     ) {
-                        Button(
+                        ExpressivePrimaryButton(
+                            text = stringResource(R.string.nutrition_download_model_cta),
                             onClick = {
                                 requestModelDownloadPermission { vm.downloadModel() }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.nutrition_download_model_cta))
-                        }
+                            fillWidth = true,
+                        )
                     }
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
-                    Button(
+                    ExpressivePrimaryButton(
+                        text = stringResource(R.string.nutrition_photo_short),
                         onClick = {
                             val granted = ContextCompat.checkSelfPermission(
                                 context, Manifest.permission.CAMERA,
@@ -165,36 +161,22 @@ fun NutritionScreen(
                                 cameraPermission.launch(Manifest.permission.CAMERA)
                             }
                         },
+                        icon = Icons.Filled.PhotoCamera,
                         enabled = readiness.ready,
-                        modifier = Modifier.weight(1f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = MaterialTheme.colorScheme.onSecondary,
-                        ),
-                    ) {
-                        Icon(Icons.Filled.PhotoCamera, null)
-                        Spacer(Modifier.size(AppSpacing.tight))
-                        Text(
-                            stringResource(R.string.nutrition_photo_short),
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
+                        modifier = Modifier.weight(1f),
+                    )
                     if (barcodeSupported) {
-                        Button(
+                        ExpressiveSecondaryButton(
+                            text = stringResource(R.string.nutrition_scan_barcode),
                             onClick = onOpenBarcode,
-                            modifier = Modifier.weight(1f).height(56.dp),
-                        ) {
-                            Icon(Icons.Filled.QrCodeScanner, null)
-                            Spacer(Modifier.size(AppSpacing.tight))
-                            Text(
-                                stringResource(R.string.nutrition_scan_barcode),
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
+                            icon = Icons.Filled.QrCodeScanner,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
-                    OutlinedButton(
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.nutrition_pick_gallery),
                         onClick = {
                             gallery.launch(
                                 androidx.activity.result.PickVisualMediaRequest(
@@ -202,30 +184,20 @@ fun NutritionScreen(
                                 )
                             )
                         },
+                        icon = Icons.Filled.PhotoLibrary,
                         enabled = readiness.ready,
                         modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Filled.PhotoLibrary, null)
-                        Spacer(Modifier.size(AppSpacing.tight))
-                        Text(stringResource(R.string.nutrition_pick_gallery))
-                    }
-                    OutlinedButton(
+                    )
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.nutrition_add_manual),
                         onClick = { vm.stageManual(); onOpenConfirmNew() },
+                        icon = Icons.Filled.Edit,
                         modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Filled.Edit, null)
-                        Spacer(Modifier.size(AppSpacing.tight))
-                        Text(stringResource(R.string.nutrition_add_manual))
-                    }
+                    )
                 }
 
-                Text(
-                    stringResource(R.string.nutrition_recent_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
                 if (state.recent.isEmpty()) {
-                    StandardCard {
+                    StandardCard(title = stringResource(R.string.nutrition_recent_title)) {
                         Text(
                             stringResource(R.string.nutrition_today_empty),
                             style = MaterialTheme.typography.bodyMedium,
@@ -233,7 +205,7 @@ fun NutritionScreen(
                         )
                     }
                 } else {
-                    StandardCard {
+                    StandardCard(title = stringResource(R.string.nutrition_recent_title)) {
                         state.recent.take(20).forEachIndexed { idx, log ->
                             MealRow(log) { onOpenConfirmEdit(log.id.toString()) }
                             if (idx < state.recent.take(20).size - 1) Spacer(Modifier.height(AppSpacing.tight))
@@ -256,13 +228,15 @@ fun NutritionScreen(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(AppSpacing.sectionGap))
-                    Button(onClick = { vm.resetCapture(); onOpenConfirmNew() }) {
-                        Text(stringResource(R.string.nutrition_manual_entry))
-                    }
+                    ExpressivePrimaryButton(
+                        text = stringResource(R.string.nutrition_manual_entry),
+                        onClick = { vm.resetCapture(); onOpenConfirmNew() },
+                    )
                     Spacer(Modifier.height(AppSpacing.itemGap))
-                    OutlinedButton(onClick = { vm.resetCapture() }) {
-                        Text(stringResource(R.string.cancel))
-                    }
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { vm.resetCapture() },
+                    )
                 }
                 NutritionCapturePhase.NeedsModel -> CaptureOverlay {
                     val modelPhase by ServiceLocator.modelLoadStatus.phase
@@ -291,27 +265,31 @@ fun NutritionScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Spacer(Modifier.height(AppSpacing.itemGap))
-                            Button(onClick = { vm.resetCapture() }) {
-                                Text(stringResource(R.string.nutrition_done))
-                            }
+                            ExpressivePrimaryButton(
+                                text = stringResource(R.string.nutrition_done),
+                                onClick = { vm.resetCapture() },
+                            )
                         }
                         is ModelLoadPhase.Downloading, ModelLoadPhase.Loading -> Unit
                         else -> {
-                            Button(onClick = {
-                                requestModelDownloadPermission { vm.downloadModel() }
-                            }) {
-                                Text(stringResource(R.string.nutrition_download_model_cta))
-                            }
+                            ExpressivePrimaryButton(
+                                text = stringResource(R.string.nutrition_download_model_cta),
+                                onClick = {
+                                    requestModelDownloadPermission { vm.downloadModel() }
+                                },
+                            )
                         }
                     }
                     Spacer(Modifier.height(AppSpacing.itemGap))
-                    OutlinedButton(onClick = { vm.resetCapture(); onOpenConfirmNew() }) {
-                        Text(stringResource(R.string.nutrition_manual_entry))
-                    }
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.nutrition_manual_entry),
+                        onClick = { vm.resetCapture(); onOpenConfirmNew() },
+                    )
                     Spacer(Modifier.height(AppSpacing.tight))
-                    OutlinedButton(onClick = { vm.resetCapture() }) {
-                        Text(stringResource(R.string.cancel))
-                    }
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { vm.resetCapture() },
+                    )
                 }
                 NutritionCapturePhase.ModelLoading -> CaptureOverlay {
                     val modelPhase by ServiceLocator.modelLoadStatus.phase
@@ -338,18 +316,21 @@ fun NutritionScreen(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Spacer(Modifier.height(AppSpacing.itemGap))
-                        Button(onClick = { vm.resetCapture() }) {
-                            Text(stringResource(R.string.nutrition_done))
-                        }
+                        ExpressivePrimaryButton(
+                            text = stringResource(R.string.nutrition_done),
+                            onClick = { vm.resetCapture() },
+                        )
                     }
                     Spacer(Modifier.height(AppSpacing.itemGap))
-                    OutlinedButton(onClick = { vm.resetCapture(); onOpenConfirmNew() }) {
-                        Text(stringResource(R.string.nutrition_manual_entry))
-                    }
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.nutrition_manual_entry),
+                        onClick = { vm.resetCapture(); onOpenConfirmNew() },
+                    )
                     Spacer(Modifier.height(AppSpacing.tight))
-                    OutlinedButton(onClick = { vm.resetCapture() }) {
-                        Text(stringResource(R.string.cancel))
-                    }
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { vm.resetCapture() },
+                    )
                 }
                 NutritionCapturePhase.Idle -> Unit
             }

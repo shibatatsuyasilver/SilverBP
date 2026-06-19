@@ -16,12 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -54,11 +57,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.HypertensionGuideline
-import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.MetricAccent
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -187,39 +192,58 @@ private fun DaySectionCard(
     onEdit: (BpReading) -> Unit,
     onLongPress: (BpReading) -> Unit,
 ) {
+    // Day header: relative/absolute day title + count, then one surface card per
+    // reading — mirroring the unified history timeline idiom.
     val dateFmt = DateTimeFormatter.ofPattern(stringResource(R.string.history_date_format), Locale.getDefault())
-    StandardCard(
-        title = group.date.format(dateFmt),
-        titleTrailing = {
-            AssistChip(
-                onClick = {},
-                label = {
-                    Text(
-                        stringResource(R.string.history_readings_count, group.readings.size),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                },
-                colors = AssistChipDefaults.assistChipColors(),
-            )
-        },
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
-    ) {
-        Text(
-            stringResource(R.string.history_day_mean, group.meanSystolic, group.meanDiastolic),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val today = remember { LocalDate.now() }
+    val dateLabel = when (group.date) {
+        today -> stringResource(R.string.range_today)
+        else -> group.date.format(dateFmt)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+        DaySectionHeader(
+            title = dateLabel,
+            count = group.readings.size,
+            meanText = stringResource(R.string.history_day_mean, group.meanSystolic, group.meanDiastolic),
         )
-        group.readings.forEachIndexed { idx, reading ->
+        group.readings.forEach { reading ->
             ReadingRow(
                 reading = reading,
                 guideline = guideline,
                 onClick = { onEdit(reading) },
                 onLongClick = { onLongPress(reading) },
             )
-            if (idx < group.readings.size - 1) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
         }
+    }
+}
+
+/** Day-group header: day title on the left, mean + "N 筆" count on the right. */
+@Composable
+private fun DaySectionHeader(title: String, count: Int, meanText: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = AppSpacing.tight, top = AppSpacing.tight, bottom = AppSpacing.tight),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                meanText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            stringResource(R.string.history_readings_count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -237,44 +261,117 @@ private fun ReadingRow(
         DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
             .withZone(java.time.ZoneId.systemDefault())
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val pulseText = reading.pulse?.let { stringResource(R.string.history_reading_pulse, it) }
+    TimelineRecordRow(
+        icon = Icons.Filled.Favorite,
+        tint = MetricAccent.Bp,
+        valueText = "${reading.systolic} / ${reading.diastolic}",
+        categoryText = categoryLabel(cat),
+        categoryColor = color,
+        contextText = pulseText,
+        timeText = fmt.format(reading.timestamp),
+        onClick = onClick,
+        onLongClick = onLongClick,
+    )
+}
+
+/**
+ * The shared visual chrome for one BP record, styled as a surface card to match the
+ * unified history timeline: a leading [MetricAccent.Bp] heart tile, the big value,
+ * a category dot + label, and a trailing time + chevron. The icon tile always uses
+ * the BP accent (never the reading's category colour).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TimelineRecordRow(
+    icon: ImageVector,
+    tint: Color,
+    valueText: String,
+    categoryText: String,
+    categoryColor: Color,
+    contextText: String?,
+    timeText: String,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "${reading.systolic} / ${reading.diastolic}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                reading.pulse?.let {
-                    Text(
-                        stringResource(R.string.history_reading_pulse, it),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                }
-                Text(
-                    fmt.format(reading.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = AppSpacing.touchTarget + 26.dp)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .semantics(mergeDescendants = true) { role = Role.Button }
+                .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // LEADING: the BP accent icon tile (never varies by category).
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tint.copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(26.dp),
                 )
             }
+
+            Spacer(Modifier.size(AppSpacing.itemGap + AppSpacing.tight))
+
+            // MIDDLE: value, category dot + label.
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    valueText,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(categoryColor),
+                    )
+                    Spacer(Modifier.size(AppSpacing.tight + 2.dp))
+                    Text(
+                        categoryText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (contextText != null) {
+                        Text(
+                            " · $contextText",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
+
+            // TRAILING: time then chevron, inline at the row's end.
+            Text(
+                timeText,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.size(AppSpacing.tight))
+            Icon(
+                Icons.AutoMirrored.Filled.NavigateNext,
+                contentDescription = stringResource(R.string.a11y_view_reading_details),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
-        Spacer(Modifier.size(8.dp))
-        Icon(
-            Icons.AutoMirrored.Filled.NavigateNext,
-            contentDescription = stringResource(R.string.a11y_view_reading_details),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

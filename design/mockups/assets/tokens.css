@@ -1,0 +1,189 @@
+/* =====================================================================
+   SilverBP — Material 3 Expressive Design Tokens
+   ---------------------------------------------------------------------
+   This file is the SPEC. The Android Compose theme (ui/theme/Color.kt,
+   Type.kt, Shape.kt, Motion.kt, Spacing.kt) must mirror these values.
+   sp -> px and dp -> px are treated 1:1 for the web mockups.
+
+   Default theme = DARK (dark-first, like the app). Add class="light"
+   on <html> or a container to switch to the light scheme.
+   ===================================================================== */
+
+:root {
+  /* ---- Brand ---- */
+  --brand-purple: #6C4CF1;   /* primary */
+  --brand-lime:   #C2F24A;   /* secondary / CTA fill (dark theme) */
+  --brand-gold:   #F5C84B;   /* tertiary / premium */
+
+  /* ---- Category colors (clinical, identical in both themes, never themed) ---- */
+  --cat-normal:      #34C759; /* 正常 */
+  --cat-elevated:    #FFCC00; /* 偏高 */
+  --cat-stage1:      #FF9500; /* 第一期 */
+  --cat-stage2:      #FF3B30; /* 第二期 */
+  --cat-crisis:      #AF52DE; /* 危象 */
+  --cat-hypotension: #007AFF; /* 偏低 */
+  --line-sbp: #FF453A;        /* 收縮壓 trend */
+  --line-dbp: #2E8BFF;        /* 舒張壓 trend */
+
+  /* ---- Coach module colors ---- */
+  --mod-exercise:   #6C4CF1;
+  --mod-diet:       #2FB873;
+  --mod-sleep:      #3B82F6;
+  --mod-medication: #EC4899;
+
+  /* Canonical per-metric ICON accent — same icon = same colour on every screen */
+  --accent-bp:      #FF453A;   /* 血壓 heart */
+  --accent-glucose: #15B5B0;   /* 血糖 water drop */
+  --accent-weight:  #5C6BC0;   /* 體重 scale */
+
+  /* ===== Typography scale (emphasized + senior-legible) ===== */
+  --font-sans: "Noto Sans TC", "PingFang TC", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+
+  --display-l: 700 64px/1.06 var(--font-sans);
+  --display-m: 600 48px/1.08 var(--font-sans);
+  --display-s: 700 38px/1.12 var(--font-sans);
+  --headline-l: 700 30px/1.18 var(--font-sans);
+  --headline-m: 700 26px/1.20 var(--font-sans);
+  --headline-s: 600 22px/1.25 var(--font-sans);
+  --title-l: 600 20px/1.30 var(--font-sans);
+  --title-m: 600 18px/1.35 var(--font-sans);
+  --body-l: 400 17px/1.45 var(--font-sans);
+  --body-m: 400 15px/1.45 var(--font-sans);
+  --label-l: 600 16px/1.25 var(--font-sans);
+  --label-m: 500 13px/1.25 var(--font-sans);
+  --label-s: 500 12px/1.20 var(--font-sans);
+
+  /* ===== Shape scale ===== */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 20px;
+  --r-lg: 28px;
+  --r-xl: 36px;
+  --r-pill: 999px;
+  --r-hero: 28px;
+
+  /* ===== Spacing ===== */
+  --sp-xs: 4px;
+  --sp-s: 8px;
+  --sp-m: 12px;
+  --sp-l: 16px;
+  --sp-xl: 20px;
+  --sp-xxl: 24px;
+  --screen-h: 20px;     /* horizontal screen padding (bumped 16 -> 20) */
+  --touch: 48px;        /* minimum tap target */
+
+  /* ===== Motion (spring-like) ===== */
+  --ease-default: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.26, 0.5, 1);   /* gentle overshoot */
+  --ease-snappy:  cubic-bezier(0.3, 0, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-default: 280ms;
+  --dur-slow: 440ms;
+
+  /* ===== Elevation (shadows) ===== */
+  --shadow-card: 0 2px 10px rgba(0,0,0,0.30);
+  --shadow-hero: 0 12px 34px rgba(108,76,241,0.36);
+  --shadow-fab:  0 8px 22px rgba(108,76,241,0.42);
+}
+
+/* ===================== DARK THEME (default) ===================== */
+:root {
+  --primary: #6C4CF1;
+  --on-primary: #FFFFFF;
+  --primary-container: #3A2E78;
+  --on-primary-container: #E7DEFF;
+
+  --secondary: #C2F24A;            /* lime — fill only, dark on-color */
+  --on-secondary: #10131A;
+  --secondary-container: #2E3B12;
+  --on-secondary-container: #DDF5A8;
+
+  --tertiary: #F5C84B;             /* gold */
+  --on-tertiary: #2A1F00;
+  --tertiary-container: #5A4600;
+  --on-tertiary-container: #FFE08A;
+
+  --background: #0E0F13;
+  --on-background: #ECECF3;
+
+  --surface: #14151A;
+  --surface-dim: #0E0F13;
+  --surface-bright: #34373F;
+  --surface-c-lowest: #0B0C10;
+  --surface-c-low: #1A1C22;
+  --surface-c: #1F2128;
+  --surface-c-high: #25272F;
+  --surface-c-highest: #2A2D36;
+  --on-surface: #ECECF3;
+  --on-surface-variant: #B6BAC6;
+
+  --outline: #3A3E4A;
+  --outline-variant: #2A2D36;
+
+  --error: #FF5247;
+  --on-error: #FFFFFF;
+  --error-container: #5C1410;
+  --on-error-container: #FFD9D5;
+
+  /* hero gradient */
+  --hero-from: #7350EE;
+  --hero-to: #4A2EC0;
+  --on-hero: #FFFFFF;
+  --on-hero-dim: rgba(255,255,255,0.82);
+
+  /* status bar text color on screen bg */
+  --sysbar: #ECECF3;
+  color-scheme: dark;
+}
+
+/* ===================== LIGHT THEME ===================== */
+.light {
+  --primary: #6C4CF1;
+  --on-primary: #FFFFFF;
+  --primary-container: #E7DEFF;
+  --on-primary-container: #21005D;
+
+  --secondary: #186C4B;            /* deep green — readable on white */
+  --on-secondary: #FFFFFF;
+  --secondary-container: #A4F3CA;
+  --on-secondary-container: #00513A;
+
+  --tertiary: #8A6D00;
+  --on-tertiary: #FFFFFF;
+  --tertiary-container: #FFE08A;
+  --on-tertiary-container: #2A1F00;
+
+  --background: #F4F2F9;
+  --on-background: #1B1A21;
+
+  --surface: #FFFFFF;
+  --surface-dim: #E4E0EC;
+  --surface-bright: #FFFFFF;
+  --surface-c-lowest: #FFFFFF;
+  --surface-c-low: #F7F2FA;
+  --surface-c: #F2ECF7;
+  --surface-c-high: #ECE6F3;
+  --surface-c-highest: #E6E0EE;
+  --on-surface: #1B1A21;
+  --on-surface-variant: #605E68;
+
+  --outline: #7C7984;
+  --outline-variant: #C7C3D0;
+
+  --error: #C00F18;
+  --on-error: #FFFFFF;
+  --error-container: #FFDAD6;
+  --on-error-container: #410002;
+
+  --hero-from: #7350EE;
+  --hero-to: #5B3FE0;
+  --on-hero: #FFFFFF;
+  --on-hero-dim: rgba(255,255,255,0.86);
+
+  --sysbar: #1B1A21;
+  --shadow-card: 0 2px 12px rgba(33,31,39,0.10);
+  --shadow-hero: 0 14px 36px rgba(108,76,241,0.30);
+  --shadow-fab:  0 8px 22px rgba(108,76,241,0.34);
+  color-scheme: light;
+}

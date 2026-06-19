@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,7 +47,6 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.CameraMoveStartedReason
-import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -59,6 +59,10 @@ import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.exercise.RunState
 import com.silverbp.android.exercise.SessionLive
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 
 @Composable
 fun ExerciseSessionScreen(
@@ -103,7 +107,7 @@ fun ExerciseSessionScreen(
             )
         }
 
-        SessionStats(live!!)
+        SessionStats(live!!, accent = colorForKind(live!!.kind))
 
         SessionControls(
             isPaused = live!!.runState != RunState.Running,
@@ -119,22 +123,26 @@ fun ExerciseSessionScreen(
 @Composable
 private fun SessionErrorScreen(onClose: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(AppSpacing.screenH),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            stringResource(R.string.exercise_location_permission_title),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            stringResource(R.string.exercise_location_denied),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = onClose) {
-            Text(stringResource(R.string.cancel))
+        StandardCard {
+            Text(
+                stringResource(R.string.exercise_location_permission_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                stringResource(R.string.exercise_location_denied),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.cancel),
+                onClick = onClose,
+                fillWidth = true,
+            )
         }
     }
 }
@@ -263,40 +271,60 @@ private fun SessionMap(live: SessionLive, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SessionStats(live: SessionLive) {
-    androidx.compose.foundation.layout.Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+private fun SessionStats(live: SessionLive, accent: Color) {
+    // Big live metric readouts in an Expressive card. The leading accent stripe
+    // carries the activity-type identity colour (ExerciseColors), NOT MetricAccent.
+    StandardCard(
+        modifier = Modifier.padding(
+            start = AppSpacing.screenH,
+            end = AppSpacing.screenH,
+            top = AppSpacing.itemGap,
+        ),
+        accent = accent,
     ) {
-        StatCell(
-            value = ExerciseMath.formatDistance(live.accumulatedDistanceMeters),
-            label = stringResource(R.string.exercise_distance),
-        )
-        StatCell(
-            value = ExerciseMath.formatDuration(live.activeDurationMillis),
-            label = stringResource(R.string.exercise_duration),
-        )
-        StatCell(
-            value = ExerciseMath.formatPace(live.paceSecPerKm),
-            label = stringResource(R.string.exercise_pace),
-        )
-        // Cycling has no step sensor; omit the steps cell so it doesn't show 0.
-        if (live.kind != ActivityKind.Cycling) {
+        androidx.compose.foundation.layout.Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
             StatCell(
-                value = (live.stepCount ?: 0).toString(),
-                label = stringResource(R.string.exercise_steps),
+                value = ExerciseMath.formatDistance(live.accumulatedDistanceMeters),
+                label = stringResource(R.string.exercise_distance),
             )
+            StatCell(
+                value = ExerciseMath.formatDuration(live.activeDurationMillis),
+                label = stringResource(R.string.exercise_duration),
+            )
+            StatCell(
+                value = ExerciseMath.formatPace(live.paceSecPerKm),
+                label = stringResource(R.string.exercise_pace),
+            )
+            // Cycling has no step sensor; omit the steps cell so it doesn't show 0.
+            if (live.kind != ActivityKind.Cycling) {
+                StatCell(
+                    value = (live.stepCount ?: 0).toString(),
+                    label = stringResource(R.string.exercise_steps),
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun StatCell(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.titleLarge)
-        Text(label, style = MaterialTheme.typography.labelSmall)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+    ) {
+        Text(
+            value,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -310,35 +338,41 @@ private fun SessionControls(
     androidx.compose.foundation.layout.Row(
         Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Button(
-            onClick = if (isPaused) onResume else onPause,
-            modifier = Modifier
-                .weight(1f)
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary,
+            .padding(
+                start = AppSpacing.screenH,
+                end = AppSpacing.screenH,
+                top = AppSpacing.itemGap,
+                bottom = AppSpacing.screenV,
             ),
-        ) {
-            Icon(if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause, null)
-            Spacer(Modifier.size(8.dp))
-            Text(stringResource(if (isPaused) R.string.exercise_resume else R.string.exercise_pause))
-        }
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+    ) {
+        // Pause/resume — Expressive lime CTA with the signature press shape-morph.
+        ExpressiveSecondaryButton(
+            text = stringResource(if (isPaused) R.string.exercise_resume else R.string.exercise_pause),
+            onClick = if (isPaused) onResume else onPause,
+            icon = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+            modifier = Modifier.weight(1f),
+            fillWidth = true,
+        )
+        // Stop — destructive, so it keeps the error role (not an Expressive CTA
+        // colour). Restyled to the same 56dp Expressive pill shape + tokens.
         Button(
             onClick = onStop,
+            shape = PillShape,
             modifier = Modifier
                 .weight(1f)
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.error,
-                contentColor = Color.White,
+                contentColor = MaterialTheme.colorScheme.onError,
             ),
         ) {
             Icon(Icons.Filled.Stop, null)
-            Spacer(Modifier.size(8.dp))
-            Text(stringResource(R.string.exercise_stop))
+            Spacer(Modifier.size(AppSpacing.itemGap))
+            Text(
+                stringResource(R.string.exercise_stop),
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }

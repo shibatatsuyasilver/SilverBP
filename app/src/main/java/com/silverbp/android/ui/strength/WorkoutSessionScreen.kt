@@ -2,6 +2,7 @@ package com.silverbp.android.ui.strength
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +15,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,8 +51,14 @@ import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.strength.LiveExercise
 import com.silverbp.android.strength.SetLog
 import com.silverbp.android.strength.StrengthRunState
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.HeroCard
+import com.silverbp.android.ui.components.HeroForeground
+import com.silverbp.android.ui.components.HeroLabel
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 import kotlinx.coroutines.delay
 
 @Composable
@@ -115,6 +122,7 @@ fun WorkoutSessionScreen(
         Text(
             current.exercise.name,
             style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
         )
 
         SetsCard(
@@ -129,6 +137,7 @@ fun WorkoutSessionScreen(
             value = workout.note,
             onValueChange = vm::addNote,
             label = { Text(stringResource(R.string.strength_session_notes_hint)) },
+            shape = RoundedCornerShape(AppSpacing.cardCorner),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -139,10 +148,11 @@ fun WorkoutSessionScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            OutlinedButton(
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.strength_session_skip),
                 onClick = { vm.skipExercise(current.exercise.id) },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.strength_session_skip)) }
+                fillWidth = true,
+            )
         }
 
         NavRow(
@@ -152,25 +162,14 @@ fun WorkoutSessionScreen(
             onNext = { vm.setCurrentIndex(workout.currentIndex + 1) },
         )
 
-        Button(
-            onClick = {
-                // Marks the run Finished; the Finished forward above then
-                // navigates to the summary — single navigation path.
-                vm.finish()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(AppSpacing.cardCorner),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-            ),
-        ) {
-            Text(
-                stringResource(R.string.strength_session_finish),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            )
-        }
+        ExpressivePrimaryButton(
+            // Marks the run Finished; the Finished forward above then
+            // navigates to the summary — single navigation path.
+            text = stringResource(R.string.strength_session_finish),
+            onClick = { vm.finish() },
+            icon = Icons.Filled.Done,
+            fillWidth = true,
+        )
 
         Spacer(Modifier.height(AppSpacing.itemGap))
     }
@@ -182,29 +181,41 @@ private fun ProgressHeader(
     totalSets: Int,
     elapsedMillis: Long,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(R.string.strength_session_progress, completedSets, totalSets),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                ExerciseMath.formatDuration(elapsedMillis),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    HeroCard {
+        HeroLabel(
+            text = stringResource(R.string.strength_session_progress, completedSets, totalSets),
+            trailing = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(HeroForeground.copy(alpha = 0.18f))
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Timer,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = HeroForeground,
+                    )
+                    Spacer(Modifier.size(7.dp))
+                    Text(
+                        ExerciseMath.formatDuration(elapsedMillis),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = HeroForeground,
+                    )
+                }
+            },
+        )
         LinearProgressIndicator(
             progress = { if (totalSets == 0) 0f else completedSets.toFloat() / totalSets },
+            color = HeroForeground,
+            trackColor = HeroForeground.copy(alpha = 0.24f),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp)
-                .clip(RoundedCornerShape(AppSpacing.tight)),
+                .clip(PillShape),
         )
     }
 }
@@ -234,9 +245,9 @@ private fun SetRow(
     val rowModifier = if (set.isCompleted) {
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(AppSpacing.tight * 3))
+            .clip(RoundedCornerShape(AppSpacing.cardCorner))
             .background(MaterialTheme.colorScheme.secondaryContainer)
-            .padding(horizontal = AppSpacing.itemGap, vertical = AppSpacing.tight)
+            .padding(horizontal = AppSpacing.cardPadding, vertical = AppSpacing.itemGap + AppSpacing.tight)
     } else {
         Modifier.fillMaxWidth()
     }
@@ -267,23 +278,34 @@ private fun SetRow(
             )
         }
         if (set.isCompleted) {
-            TextButton(
-                onClick = { onToggleComplete(set.setNumber, false) },
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ),
+            // Completed status chip; tap to undo (keeps the toggle callback).
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f))
+                    .clickable { onToggleComplete(set.setNumber, false) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
             ) {
-                Icon(Icons.Filled.Check, null)
-                Spacer(Modifier.size(AppSpacing.tight))
-                Text(stringResource(R.string.strength_session_completed_set))
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Spacer(Modifier.size(AppSpacing.tight + AppSpacing.tight))
+                Text(
+                    stringResource(R.string.strength_session_completed_set),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
             }
         } else {
-            Button(
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.strength_session_complete_set),
                 onClick = { onToggleComplete(set.setNumber, true) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                ),
-            ) { Text(stringResource(R.string.strength_session_complete_set)) }
+            )
         }
     }
 }
@@ -307,6 +329,7 @@ private fun SetInput(onAddSet: (reps: Int, weightKg: Double?) -> Unit) {
                 label = { Text(stringResource(R.string.strength_session_reps)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
                 modifier = Modifier.weight(1f),
             )
             OutlinedTextField(
@@ -315,20 +338,23 @@ private fun SetInput(onAddSet: (reps: Int, weightKg: Double?) -> Unit) {
                 label = { Text(stringResource(R.string.strength_session_weight)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
                 modifier = Modifier.weight(1f),
             )
         }
-        Button(
+        ExpressivePrimaryButton(
+            text = stringResource(R.string.strength_session_add_set),
             onClick = {
-                val r = reps.toIntOrNull() ?: return@Button
-                if (r <= 0) return@Button
+                val r = reps.toIntOrNull() ?: return@ExpressivePrimaryButton
+                if (r <= 0) return@ExpressivePrimaryButton
                 onAddSet(r, weight.toDoubleOrNull())
                 reps = ""
                 weight = ""
             },
+            icon = Icons.Filled.Add,
             enabled = reps.toIntOrNull()?.let { it > 0 } == true,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.strength_session_add_set)) }
+            fillWidth = true,
+        )
     }
 }
 
@@ -343,16 +369,18 @@ private fun NavRow(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
-        OutlinedButton(
+        ExpressiveSecondaryButton(
+            text = stringResource(R.string.strength_session_prev),
             onClick = onPrev,
             enabled = canPrev,
             modifier = Modifier.weight(1f),
-        ) { Text(stringResource(R.string.strength_session_prev)) }
-        OutlinedButton(
+        )
+        ExpressiveSecondaryButton(
+            text = stringResource(R.string.strength_session_next),
             onClick = onNext,
             enabled = canNext,
             modifier = Modifier.weight(1f),
-        ) { Text(stringResource(R.string.strength_session_next)) }
+        )
     }
 }
 

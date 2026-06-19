@@ -26,31 +26,59 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = ForgeLightOnSecondary,
     secondaryContainer = ForgeLightSecondaryContainer,
     onSecondaryContainer = ForgeLightOnSecondaryContainer,
+    tertiary = ForgeLightTertiary,
+    onTertiary = ForgeLightOnTertiary,
+    tertiaryContainer = ForgeLightTertiaryContainer,
+    onTertiaryContainer = ForgeLightOnTertiaryContainer,
     background = ForgeLightBackground,
     onBackground = ForgeLightOnBackground,
     surface = ForgeLightSurface,
     onSurface = ForgeLightOnSurface,
     surfaceVariant = ForgeLightSurfaceVariant,
     onSurfaceVariant = ForgeLightOnSurfaceVariant,
+    surfaceContainerLowest = ForgeLightSurfaceContainerLowest,
+    surfaceContainerLow = ForgeLightSurfaceContainerLow,
     surfaceContainer = ForgeLightSurfaceContainer,
     surfaceContainerHigh = ForgeLightSurfaceContainerHigh,
+    surfaceContainerHighest = ForgeLightSurfaceContainerHighest,
     outline = ForgeLightOutline,
     outlineVariant = ForgeLightOutlineVariant,
     error = ForgeLightError,
     onError = ForgeLightOnError,
+    errorContainer = ForgeLightErrorContainer,
+    onErrorContainer = ForgeLightOnErrorContainer,
 )
 
 private val DarkColorScheme = darkColorScheme(
     primary = ForgePrimary,
     onPrimary = ForgeOnPrimary,
+    primaryContainer = ForgePrimaryContainer,
+    onPrimaryContainer = ForgeOnPrimaryContainer,
     secondary = ForgeSecondary,
     onSecondary = ForgeOnSecondary,
+    secondaryContainer = ForgeSecondaryContainer,
+    onSecondaryContainer = ForgeOnSecondaryContainer,
+    tertiary = ForgeTertiary,
+    onTertiary = ForgeOnTertiary,
+    tertiaryContainer = ForgeTertiaryContainer,
+    onTertiaryContainer = ForgeOnTertiaryContainer,
     background = ForgeBackground,
+    onBackground = ForgeOnSurface,
     surface = ForgeSurface,
-    surfaceVariant = ForgeSurfaceVariant,
     onSurface = ForgeOnSurface,
+    surfaceVariant = ForgeSurfaceVariant,
     onSurfaceVariant = ForgeOnSurfaceVariant,
+    surfaceContainerLowest = ForgeSurfaceContainerLowest,
+    surfaceContainerLow = ForgeSurfaceContainerLow,
+    surfaceContainer = ForgeSurfaceContainer,
+    surfaceContainerHigh = ForgeSurfaceContainerHigh,
+    surfaceContainerHighest = ForgeSurfaceContainerHighest,
     outline = ForgeOutline,
+    outlineVariant = ForgeOutlineVariant,
+    error = ForgeError,
+    onError = ForgeOnError,
+    errorContainer = ForgeErrorContainer,
+    onErrorContainer = ForgeOnErrorContainer,
 )
 
 @Composable
@@ -91,8 +119,13 @@ fun SilverBpTheme(
         }
     }
 
+    // The Expressive look is built on STABLE M3: our own AppShapes + emphasized
+    // Typography + container/tertiary colors. MaterialExpressiveTheme / MotionScheme
+    // are `internal` in the material3 version this BOM resolves, so spring motion and
+    // shape-morph are applied per-component (ui/components) via AppMotion instead.
     MaterialTheme(
         colorScheme = colorScheme,
+        shapes = AppShapes,
         typography = Typography,
         content = content
     )

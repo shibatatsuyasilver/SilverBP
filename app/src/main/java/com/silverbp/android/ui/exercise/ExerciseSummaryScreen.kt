@@ -3,19 +3,17 @@ package com.silverbp.android.ui.exercise
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -29,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,7 +46,10 @@ import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.exercise.RoutePoint
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.exercise.components.StatsCard
+import com.silverbp.android.ui.theme.AppSpacing
 
 @Composable
 fun ExerciseSummaryScreen(
@@ -80,12 +82,13 @@ fun ExerciseSummaryScreen(
             .fillMaxSize()
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
         Text(
             stringResource(R.string.exercise_summary_title),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
         )
 
         if (points.size >= 2) {
@@ -93,7 +96,7 @@ fun ExerciseSummaryScreen(
                 Modifier
                     .fillMaxWidth()
                     .height(220.dp)
-                    .clip(RoundedCornerShape(16.dp)),
+                    .clip(RoundedCornerShape(AppSpacing.cardCorner)),
             ) {
                 StaticRouteMap(session, points, modifier = Modifier.fillMaxSize())
             }
@@ -111,35 +114,40 @@ fun ExerciseSummaryScreen(
             showSteps = session.kind != ActivityKind.Cycling,
         )
 
-        OutlinedTextField(
-            value = note,
-            onValueChange = { note = it },
-            label = { Text(stringResource(R.string.exercise_note_hint)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        StandardCard(title = stringResource(R.string.exercise_note_hint)) {
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                label = { Text(stringResource(R.string.exercise_note_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         PostWorkoutBpCard(
             hasRecentPostBp = hasRecentPostBp,
             onMeasureBp = onMeasureBp,
         )
 
-        androidx.compose.foundation.layout.Row(
+        Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         ) {
             OutlinedButton(
                 onClick = { vm.discard(onDiscard) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                shape = RoundedCornerShape(AppSpacing.cardCorner),
                 enabled = !saving,
             ) { Text(stringResource(R.string.exercise_discard)) }
-            Button(
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.exercise_save),
                 onClick = { vm.save(note, onSaved) },
                 modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Check,
                 enabled = !saving,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colorForKind(session.kind),
-                ),
-            ) { Text(stringResource(R.string.exercise_save)) }
+                fillWidth = true,
+            )
         }
     }
 }

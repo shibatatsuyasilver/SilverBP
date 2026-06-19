@@ -2,6 +2,22 @@ package com.silverbp.android.ui.exercise
 
 import androidx.compose.ui.graphics.Color
 import com.silverbp.android.exercise.ActivityKind
+import com.silverbp.android.ui.coach.ModuleKey
+
+// Per-coach-module ring tints — these identify a lifestyle module (not a metric),
+// so they intentionally do NOT come from MetricAccent. Mirror the --mod-* tokens
+// in design/mockups/assets/tokens.css.
+private val ModExerciseColor = Color(0xFF6C4CF1)    // 運動 — brand purple
+private val ModDietColor = Color(0xFF2FB873)        // 飲食 — green
+private val ModSleepColor = Color(0xFF3B82F6)       // 睡眠 — blue
+private val ModMedicationColor = Color(0xFFEC4899)  // 服藥 — pink
+
+fun colorForModule(key: ModuleKey): Color = when (key) {
+    ModuleKey.Exercise -> ModExerciseColor
+    ModuleKey.Diet -> ModDietColor
+    ModuleKey.Sleep -> ModSleepColor
+    ModuleKey.Medication -> ModMedicationColor
+}
 
 private val WalkingColor = Color(0xFF2E7D32)  // green 800
 private val RunningColor = Color(0xFFD32F2F)  // red 700

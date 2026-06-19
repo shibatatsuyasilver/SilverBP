@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +47,8 @@ import com.silverbp.android.core.db.MedicationEntity
 import com.silverbp.android.core.db.MedicationKind
 import com.silverbp.android.core.db.MedicationScheduleEntity
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.ForgePrimary
@@ -107,8 +107,8 @@ fun CoachLogMedicationScreen(onClose: () -> Unit, onManage: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.coach_log_medication_title)) },
+            AppTopBar(
+                title = stringResource(R.string.coach_log_medication_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -221,7 +221,7 @@ private fun EmptyState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.size(AppSpacing.sectionGap))
-            Button(onClick = onCta) { Text(cta) }
+            ExpressivePrimaryButton(text = cta, onClick = onCta)
         }
     }
 }

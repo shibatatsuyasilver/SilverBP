@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -49,6 +47,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.strength.BodyPart
 import com.silverbp.android.strength.ExerciseCatalogItem
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressiveFilterChip
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 
@@ -67,8 +67,8 @@ fun LibraryScreen(
             // row already labels it). Only a standalone route passes onBack, which
             // restores the title + back arrow.
             if (onBack != null) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.strength_library_title)) },
+                AppTopBar(
+                    title = stringResource(R.string.strength_library_title),
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
@@ -104,29 +104,31 @@ fun LibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
                 verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
             ) {
-                FilterChip(
+                ExpressiveFilterChip(
+                    label = stringResource(R.string.strength_filter_all),
                     selected = state.bodyPart == null && !state.savedOnly,
                     onClick = {
                         vm.setSavedOnly(false)
                         vm.setBodyPart(null)
                     },
-                    label = { Text(stringResource(R.string.strength_filter_all)) },
                 )
                 BodyPart.entries.forEach { part ->
-                    FilterChip(
+                    ExpressiveFilterChip(
+                        label = stringResource(part.labelRes),
                         selected = state.bodyPart == part && !state.savedOnly,
                         onClick = {
                             vm.setSavedOnly(false)
                             vm.setBodyPart(if (state.bodyPart == part) null else part)
                         },
-                        label = { Text(stringResource(part.labelRes)) },
                     )
                 }
-                FilterChip(
+                ExpressiveFilterChip(
+                    label = stringResource(R.string.strength_saved),
                     selected = state.savedOnly,
                     onClick = { vm.setSavedOnly(!state.savedOnly) },
-                    leadingIcon = { Icon(Icons.Filled.Star, null) },
-                    label = { Text(stringResource(R.string.strength_saved)) },
+                    // The strength favourite tag is an identity colour (StrengthColors),
+                    // surfaced here as the chip's leading dot.
+                    leadingDotColor = FavoriteTagColor,
                 )
             }
 
@@ -136,7 +138,13 @@ fun LibraryScreen(
                         .fillMaxSize()
                         .padding(AppSpacing.screenH),
                     contentAlignment = Alignment.Center,
-                ) { Text(stringResource(R.string.strength_library_empty)) }
+                ) {
+                    Text(
+                        stringResource(R.string.strength_library_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 StandardCard(
                     modifier = Modifier
@@ -149,7 +157,7 @@ fun LibraryScreen(
                 ) {
                     LazyColumn(
                         Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 12.dp),
+                        contentPadding = PaddingValues(bottom = AppSpacing.itemGap),
                     ) {
                         itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
                             if (index > 0) {

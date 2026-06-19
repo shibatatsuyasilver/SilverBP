@@ -10,14 +10,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +41,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.backup.BackupViewModel
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 
@@ -117,46 +116,61 @@ fun LinkAccountScreen(
                 .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV * 2),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
-            Spacer(Modifier.size(AppSpacing.itemGap))
-            OnboardingHeroIcon(icon = Icons.Filled.Backup)
-            Text(
-                stringResource(R.string.login_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                stringResource(R.string.login_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (error) {
-                Text(
-                    stringResource(R.string.login_error),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
+            Spacer(Modifier.weight(1f))
+
+            // Centred hero card: a brand-tinted icon tile, the title and body, and
+            // (when sign-in is in flight) an inline spinner. The CTA + skip sit
+            // below the card so the hero stays a self-contained focal block.
+            StandardCard {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                ) {
+                    OnboardingHeroIcon(icon = Icons.Filled.Backup)
+                    Spacer(Modifier.size(AppSpacing.tight))
+                    Text(
+                        stringResource(R.string.login_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        stringResource(R.string.login_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    if (error) {
+                        Text(
+                            stringResource(R.string.login_error),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    if (signingIn && !error) {
+                        Spacer(Modifier.size(AppSpacing.tight))
+                        CircularProgressIndicator()
+                        Text(
+                            stringResource(R.string.login_signing_in),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.weight(1f))
 
-            if (signingIn && !error) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                Text(
-                    stringResource(R.string.login_signing_in),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                OnboardingHeroButton(
-                    label = stringResource(
+            if (!(signingIn && !error)) {
+                ExpressivePrimaryButton(
+                    text = stringResource(
                         if (error) R.string.login_retry else R.string.login_button
                     ),
                     onClick = { signIn() },
-                    enabled = true,
+                    fillWidth = true,
                 )
                 // Soft-gate escape hatch: a user without Play Services / network /
                 // a Google account would otherwise be permanently stuck here. Skip
@@ -206,36 +220,6 @@ private fun OnboardingHeroIcon(
             contentDescription = null,
             modifier = Modifier.size(30.dp),
             tint = MaterialTheme.colorScheme.primary,
-        )
-    }
-}
-
-/**
- * Full-width lime "hero" primary action, matching the onboarding flow's primary
- * button (see [OnboardingNicknameScreen]). Pure styling wrapper around [Button];
- * preserves the caller's onClick/enabled wiring exactly.
- */
-@Composable
-private fun OnboardingHeroButton(
-    label: String,
-    onClick: () -> Unit,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.secondary,
-            contentColor = MaterialTheme.colorScheme.onSecondary,
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
         )
     }
 }

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +47,7 @@ import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.UserSettingsRepository
+import com.silverbp.android.ui.components.ExpressiveFilterChip
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.smoothLinePath
 import com.silverbp.android.ui.components.weightCategoryLabel
@@ -115,10 +115,10 @@ private fun WeightRangeChips(current: InsightsRange, onSelect: (InsightsRange) -
         horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         pairs.forEach { (r, label) ->
-            FilterChip(
+            ExpressiveFilterChip(
+                label = label,
                 selected = current == r,
                 onClick = { onSelect(r) },
-                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
             )
         }
     }

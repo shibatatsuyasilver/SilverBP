@@ -70,14 +70,11 @@ import com.silverbp.android.ui.components.glucoseColorFor
 import com.silverbp.android.ui.components.glucoseUnitLabel
 import com.silverbp.android.ui.components.measureContextLabel
 import com.silverbp.android.ui.theme.AppSpacing
-import com.silverbp.android.ui.theme.BpRedSbp
+import com.silverbp.android.ui.theme.MetricAccent
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-/** Teal type-hue for the 血糖 (glucose) icon tile, mirroring the iOS timeline. */
-private val GlucoseTileTint = Color(0xFF15B5B0)
 
 /**
  * Unified, member-scoped history (紀錄 segment of the Data hub). One card per
@@ -407,26 +404,25 @@ private fun TimelineRecordRow(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(AppSpacing.cardCorner),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        shadowElevation = 1.dp,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 74.dp)
+                .heightIn(min = AppSpacing.touchTarget + 26.dp)
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .semantics(mergeDescendants = true) { role = Role.Button }
-                .padding(horizontal = AppSpacing.cardPadding, vertical = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // LEADING: tinted type-icon tile.
+            // LEADING: the metric's fixed accent icon tile (never varies by
+            // category) — same idiom and ~20% alpha fill as the Today MetricCard.
             Box(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(tint.copy(alpha = 0.14f)),
+                    .background(tint.copy(alpha = 0.20f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -437,7 +433,7 @@ private fun TimelineRecordRow(
                 )
             }
 
-            Spacer(Modifier.size(AppSpacing.screenH))
+            Spacer(Modifier.size(AppSpacing.itemGap + AppSpacing.tight))
 
             // MIDDLE: type label, value + unit, category dot + label.
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -449,14 +445,15 @@ private fun TimelineRecordRow(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         valueText,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (unitText.isNotEmpty()) {
                         Spacer(Modifier.size(AppSpacing.tight))
                         Text(
                             unitText,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 2.dp),
                         )
@@ -465,21 +462,20 @@ private fun TimelineRecordRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(9.dp)
+                            .size(8.dp)
                             .clip(CircleShape)
                             .background(categoryColor),
                     )
-                    Spacer(Modifier.size(AppSpacing.itemGap))
+                    Spacer(Modifier.size(AppSpacing.tight + 2.dp))
                     Text(
                         categoryText,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (contextText != null) {
-                        Spacer(Modifier.size(AppSpacing.itemGap))
                         Text(
-                            contextText,
-                            style = MaterialTheme.typography.bodySmall,
+                            " · $contextText",
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -488,19 +484,18 @@ private fun TimelineRecordRow(
 
             Spacer(Modifier.size(AppSpacing.itemGap))
 
-            // TRAILING: time over a chevron.
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(AppSpacing.tight)) {
-                Text(
-                    timeText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Icon(
-                    Icons.AutoMirrored.Filled.NavigateNext,
-                    contentDescription = stringResource(R.string.a11y_view_reading_details),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            // TRAILING: time then chevron, inline at the row's end (mockup idiom).
+            Text(
+                timeText,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.size(AppSpacing.tight))
+            Icon(
+                Icons.AutoMirrored.Filled.NavigateNext,
+                contentDescription = stringResource(R.string.a11y_view_reading_details),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -521,7 +516,7 @@ private fun BpReadingRow(
     val pulseText = reading.pulse?.let { stringResource(R.string.history_reading_pulse, it) }
     TimelineRecordRow(
         icon = Icons.Filled.Favorite,
-        tint = BpRedSbp,
+        tint = MetricAccent.Bp,
         typeLabel = stringResource(R.string.combined_section_bp),
         valueText = "${reading.systolic} / ${reading.diastolic}",
         unitText = "",
@@ -551,7 +546,7 @@ private fun GlucoseReadingRow(
     }
     TimelineRecordRow(
         icon = Icons.Filled.WaterDrop,
-        tint = GlucoseTileTint,
+        tint = MetricAccent.Glucose,
         typeLabel = stringResource(R.string.combined_section_glucose),
         valueText = formatGlucoseValue(reading.valueMgdl, unit),
         unitText = unitLabel,

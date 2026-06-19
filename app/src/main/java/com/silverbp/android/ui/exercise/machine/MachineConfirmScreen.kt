@@ -3,21 +3,23 @@ package com.silverbp.android.ui.exercise.machine
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,11 +29,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.exercise.ActivityKind
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 
@@ -58,10 +62,8 @@ fun MachineConfirmScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(stringResource(R.string.machine_confirm_title), fontWeight = FontWeight.SemiBold)
-                },
+            AppTopBar(
+                title = stringResource(R.string.machine_confirm_title),
                 navigationIcon = {
                     TextButton(onClick = { vm.discard(onCancel) }) { Text(stringResource(R.string.cancel)) }
                 },
@@ -86,10 +88,10 @@ fun MachineConfirmScreen(
             StandardCard(title = stringResource(R.string.machine_field_kind)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.tight)) {
                     ActivityKind.machineKinds.forEach { kind ->
-                        FilterChip(
+                        ExpressiveFilterChip(
+                            label = stringResource(machineKindLabelRes(kind)),
                             selected = s.kind == kind,
                             onClick = { vm.update { it.copy(kind = kind) } },
-                            label = { Text(stringResource(machineKindLabelRes(kind))) },
                         )
                     }
                 }
@@ -134,10 +136,10 @@ fun MachineConfirmScreen(
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.tight),
                 ) {
                     DistanceUnit.entries.forEach { unit ->
-                        FilterChip(
+                        ExpressiveFilterChip(
+                            label = stringResource(unitLabelRes(unit)),
                             selected = s.distanceUnit == unit,
                             onClick = { vm.update { it.copy(distanceUnit = unit) } },
-                            label = { Text(stringResource(unitLabelRes(unit))) },
                         )
                     }
                 }
@@ -186,6 +188,19 @@ fun MachineConfirmScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+
+            // Prominent primary save — the Expressive CTA mirrors the TopAppBar
+            // save action (same vm.save call), giving the senior user a big,
+            // obvious confirmation target at the end of the form.
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.save),
+                onClick = { vm.save(onSaved) },
+                enabled = !saving,
+                icon = Icons.Filled.Check,
+                fillWidth = true,
+            )
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
         }
     }
 }

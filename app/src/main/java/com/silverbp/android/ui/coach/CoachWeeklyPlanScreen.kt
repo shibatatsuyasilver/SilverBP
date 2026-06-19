@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.coach
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,13 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -27,7 +27,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -42,7 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressiveAssistChip
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.exercise.colorForModule
 import com.silverbp.android.ui.theme.AppSpacing
 import java.time.DayOfWeek
 import java.time.format.TextStyle
@@ -58,8 +61,8 @@ fun CoachWeeklyPlanScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.coach_weekly_plan_title)) },
+            AppTopBar(
+                title = stringResource(R.string.coach_weekly_plan_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -109,14 +112,14 @@ private fun DayCard(
     onSkip: (taskId: String, skipped: Boolean) -> Unit,
 ) {
     // Today's card sits on the (opaque, theme-defined) surfaceVariant so it reads
-    // as the active day without changing any layout or behaviour.
-    val containerColor = if (isToday) {
-        MaterialTheme.colorScheme.surfaceVariant
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
+    // as the active day without changing any layout or behaviour. Other days use
+    // the StandardCard default (surfaceContainer).
     StandardCard(
-        containerColor = containerColor,
+        containerColor = if (isToday) {
+            MaterialTheme.colorScheme.surfaceVariant
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        },
         verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -128,15 +131,9 @@ private fun DayCard(
             )
             if (isToday) {
                 Spacer(Modifier.size(AppSpacing.itemGap))
-                AssistChip(
+                ExpressiveAssistChip(
+                    label = stringResource(R.string.coach_weekly_plan_today),
                     onClick = {},
-                    label = {
-                        Text(
-                            stringResource(R.string.coach_weekly_plan_today),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(),
                 )
             }
         }
@@ -193,11 +190,22 @@ private fun TaskRow(
                     MaterialTheme.colorScheme.onSurface
                 },
             )
-            Text(
-                stringResource(moduleLabelRes(task.moduleKey)),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Module label with its lifestyle-module identity dot (NOT MetricAccent —
+            // these are coach modules, tinted by colorForModule on the module key).
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(9.dp)
+                        .clip(CircleShape)
+                        .background(colorForModule(task.moduleKey)),
+                )
+                Spacer(Modifier.size(AppSpacing.tight + 2.dp))
+                Text(
+                    stringResource(moduleLabelRes(task.moduleKey)),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (task.skipped) {
                 Text(
                     stringResource(R.string.coach_weekly_plan_skipped),

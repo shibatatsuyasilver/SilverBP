@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,10 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -36,9 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -71,12 +65,17 @@ import com.silverbp.android.core.Member
 import com.silverbp.android.core.PartOfDay
 import com.silverbp.android.core.Posture
 import com.silverbp.android.core.Source
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.HeroCard
+import com.silverbp.android.ui.components.HeroForeground
+import com.silverbp.android.ui.components.HeroForegroundDim
+import com.silverbp.android.ui.components.HeroLabel
+import com.silverbp.android.ui.components.HeroPulsePill
+import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.member.MemberPalette
 import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.BpRedSbp
-import com.silverbp.android.ui.theme.ForgePrimary
-import com.silverbp.android.ui.theme.PrimaryDark
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -290,27 +289,16 @@ fun ConfirmReadingScreen(
                 )
             }
 
-            // Prominent primary save — a large filled button that mirrors the
+            // Prominent primary save — the Expressive CTA that mirrors the
             // TopAppBar save action (same vm.save call), giving the senior user a
             // big, obvious confirmation target at the end of the form.
-            Button(
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.save),
                 onClick = { vm.save(onSaved) },
                 enabled = draft.isValid && !saving,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                shape = RoundedCornerShape(AppSpacing.cardCorner),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) {
-                Text(
-                    stringResource(R.string.save),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+                icon = Icons.Filled.Check,
+                fillWidth = true,
+            )
 
             Spacer(Modifier.size(AppSpacing.itemGap))
         }
@@ -342,10 +330,13 @@ fun ConfirmReadingScreen(
 }
 
 /**
- * HERO — the current S/D (and pulse) draft values shown as a vivid indigo-gradient
- * card (ForgePrimary → PrimaryDark), mirroring the Today screen's BpHeroCard so the
- * verify/edit step reads as the same reading the user just captured. Pure display
- * of the draft; all editing happens in the NumberFields below.
+ * HERO — the current S/D (and pulse) draft values shown in the shared [HeroCard]
+ * gradient surface, mirroring the Today screen's BP hero so the verify/edit step
+ * reads as the same reading the user just captured. Pure display of the draft;
+ * all editing happens in the NumberFields below.
+ *
+ * Empty values (0) render as an em-dash so the hero still parses while the user
+ * is filling in a brand-new manual reading.
  */
 @Composable
 private fun BpValueHero(
@@ -353,54 +344,27 @@ private fun BpValueHero(
     diastolic: Int,
     pulse: Int?,
 ) {
-    val onHero = Color.White
-    val onHeroDim = Color.White.copy(alpha = 0.85f)
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(AppSpacing.heroCorner))
-            .background(Brush.linearGradient(colors = listOf(ForgePrimary, PrimaryDark)))
-            .padding(AppSpacing.cardPadding),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+    HeroCard {
+        HeroLabel(text = stringResource(R.string.confirm_reading_section_reading))
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(
-                text = stringResource(R.string.confirm_reading_section_reading),
-                style = MaterialTheme.typography.labelLarge,
-                color = onHeroDim,
+                text = "${if (systolic == 0) "—" else systolic} / ${if (diastolic == 0) "—" else diastolic}",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = HeroForeground,
             )
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = "${if (systolic == 0) "—" else systolic} / ${if (diastolic == 0) "—" else diastolic}",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = onHero,
-                )
-                Text(
-                    stringResource(R.string.mmhg),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = onHeroDim,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-            }
-            pulse?.takeIf { it > 0 }?.let {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.18f))
-                        .padding(horizontal = 14.dp, vertical = 7.dp),
-                ) {
-                    Text(
-                        "${stringResource(R.string.pulse)} $it",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = onHero,
-                    )
-                }
-            }
+            Text(
+                stringResource(R.string.mmhg),
+                style = MaterialTheme.typography.bodyMedium,
+                color = HeroForegroundDim,
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
+        }
+        pulse?.takeIf { it > 0 }?.let {
+            HeroPulsePill(text = "${stringResource(R.string.pulse)} $it")
         }
     }
 }
@@ -545,28 +509,29 @@ private fun ConfidenceRow(confidence: Double) {
             confidence >= 0.60 -> Color(0xFFFF9500)
             else -> MaterialTheme.colorScheme.error
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             (1..5).forEach { i ->
                 val filled = confidence * 5 >= i.toDouble() - 0.5
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(14.dp)
                         .clip(CircleShape)
-                        .background(if (filled) color else MaterialTheme.colorScheme.surfaceVariant),
+                        .background(if (filled) color else MaterialTheme.colorScheme.surfaceContainerHighest),
                 )
-                Spacer(Modifier.size(4.dp))
             }
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(6.dp))
             Text(
                 "${(confidence * 100).toInt()}%",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun <T> SegmentedRow(
     title: String,
@@ -575,19 +540,18 @@ private fun <T> SegmentedRow(
     onSelect: (T) -> Unit,
 ) {
     Column {
-        Text(title, style = MaterialTheme.typography.labelMedium)
-        Spacer(Modifier.size(4.dp))
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            options.forEachIndexed { idx, (value, label) ->
-                SegmentedButton(
-                    selected = value == selected,
-                    onClick = { onSelect(value) },
-                    shape = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
-                ) {
-                    Text(label, style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.size(AppSpacing.itemGap))
+        val selectedIndex = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
+        SegmentedControl(
+            options = options.map { it.second },
+            selectedIndex = selectedIndex,
+            onSelect = { idx -> onSelect(options[idx].first) },
+        )
     }
 }
 

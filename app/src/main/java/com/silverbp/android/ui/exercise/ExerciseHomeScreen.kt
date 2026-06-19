@@ -1,5 +1,6 @@
 package com.silverbp.android.ui.exercise
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,20 +21,20 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Rowing
 import androidx.compose.material.icons.filled.Stairs
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -60,11 +62,16 @@ import com.silverbp.android.exercise.RunState
 import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.strength.StrengthWorkoutSession
 import com.silverbp.android.ui.achievements.MedalUnlockBannerHost
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.exercise.components.ExerciseTrendsCard
 import com.silverbp.android.ui.exercise.components.MedalShowcaseCard
 import com.silverbp.android.ui.exercise.components.RecentSessionsCard
 import com.silverbp.android.ui.exercise.components.TodayStepsCard
+import com.silverbp.android.ui.theme.AppMotion
 import com.silverbp.android.ui.theme.AppSpacing
 import java.time.Instant
 import java.time.ZoneId
@@ -73,12 +80,13 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 /** Sub-sections of the training hub hosted inside the Exercise tab. */
-private enum class HubSection(val labelRes: Int) {
-    Plan(R.string.hub_section_plan),
-    Library(R.string.hub_section_library),
-    History(R.string.hub_section_history),
+private enum class HubSection(val labelRes: Int, val icon: ImageVector) {
+    Plan(R.string.hub_section_plan, Icons.Filled.CalendarMonth),
+    Library(R.string.hub_section_library, Icons.AutoMirrored.Filled.List),
+    History(R.string.hub_section_history, Icons.Filled.History),
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseHomeScreen(
     onStartSession: () -> Unit,
@@ -105,66 +113,76 @@ fun ExerciseHomeScreen(
         onPauseOrDispose { }
     }
 
-    Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            if (recoverable != null) {
-                // Finished 檢查點:運動已停止、只差摘要頁儲存就被殺 — 不需重新
-                // 追蹤,因此不請求位置權限,直接還原並導向摘要頁儲存或捨棄。
-                val finished = recoverable!!.runState == RunState.Finished
-                Box(Modifier.padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap)) {
-                    RecoverSessionCard(
-                        // 缺精確位置權限時先請求;授權後才還原並開啟運動畫面,
-                        // 拒絕則 onReady 不觸發,檢查點原封不動留待重試。
-                        locationDenied = !finished && recoverPerm.locationDenied,
-                        onResume = {
-                            if (finished) {
-                                vm.resumeRecoverable()
-                                onOpenSummary()
-                            } else {
-                                requestRecoverPerm {
+    Scaffold(
+        topBar = { AppTopBar(title = stringResource(R.string.tab_exercise)) },
+    ) { padding ->
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                if (recoverable != null) {
+                    // Finished 檢查點:運動已停止、只差摘要頁儲存就被殺 — 不需重新
+                    // 追蹤,因此不請求位置權限,直接還原並導向摘要頁儲存或捨棄。
+                    val finished = recoverable!!.runState == RunState.Finished
+                    Box(Modifier.padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap)) {
+                        RecoverSessionCard(
+                            // 缺精確位置權限時先請求;授權後才還原並開啟運動畫面,
+                            // 拒絕則 onReady 不觸發,檢查點原封不動留待重試。
+                            locationDenied = !finished && recoverPerm.locationDenied,
+                            onResume = {
+                                if (finished) {
                                     vm.resumeRecoverable()
-                                    onStartSession()
+                                    onOpenSummary()
+                                } else {
+                                    requestRecoverPerm {
+                                        vm.resumeRecoverable()
+                                        onStartSession()
+                                    }
                                 }
-                            }
-                        },
-                        onDiscard = vm::discardRecoverable,
-                        onOpenSettings = recoverPerm::openAppSettings,
-                    )
+                            },
+                            onDiscard = vm::discardRecoverable,
+                            onOpenSettings = recoverPerm::openAppSettings,
+                        )
+                    }
                 }
-            }
-            SecondaryTabRow(selectedTabIndex = section) {
-                HubSection.entries.forEachIndexed { idx, s ->
-                    Tab(
-                        selected = section == idx,
-                        onClick = { section = idx },
-                        text = { Text(stringResource(s.labelRes)) },
+
+                SegmentedControl(
+                    options = HubSection.entries.map { stringResource(it.labelRes) },
+                    selectedIndex = section,
+                    onSelect = { section = it },
+                    leadingIcons = HubSection.entries.map { it.icon },
+                    modifier = Modifier.padding(
+                        horizontal = AppSpacing.screenH,
+                        vertical = AppSpacing.itemGap,
+                    ),
+                )
+
+                when (HubSection.entries[section]) {
+                    HubSection.Plan -> PlanSection(
+                        state = state,
+                        vm = vm,
+                        onStartSession = onStartSession,
+                        onCaptureMachine = onCaptureMachine,
+                        onOpenMedals = onOpenMedals,
+                        onMeasureBp = onMeasureBp,
+                    )
+                    HubSection.Library -> StrengthLibrarySection(
+                        onStartStrengthSession = onStartStrengthSession,
+                    )
+                    HubSection.History -> HistorySection(
+                        state = state,
+                        onOpenDetail = onOpenDetail,
                     )
                 }
             }
 
-            when (HubSection.entries[section]) {
-                HubSection.Plan -> PlanSection(
-                    state = state,
-                    vm = vm,
-                    onStartSession = onStartSession,
-                    onCaptureMachine = onCaptureMachine,
-                    onOpenMedals = onOpenMedals,
-                    onMeasureBp = onMeasureBp,
-                )
-                HubSection.Library -> StrengthLibrarySection(
-                    onStartStrengthSession = onStartStrengthSession,
-                )
-                HubSection.History -> HistorySection(
-                    state = state,
-                    onOpenDetail = onOpenDetail,
-                )
-            }
+            MedalUnlockBannerHost(
+                onTap = onOpenMedals,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
         }
-
-        MedalUnlockBannerHost(
-            onTap = onOpenMedals,
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
     }
 }
 
@@ -182,29 +200,33 @@ private fun RecoverSessionCard(
         )
         // 使用者已拒絕位置權限:無法還原 GPS 紀錄,引導至系統設定。
         if (locationDenied) {
-            Spacer(Modifier.height(AppSpacing.tight))
             Text(
                 stringResource(R.string.exercise_recover_location_denied),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
             )
         }
-        Spacer(Modifier.height(AppSpacing.tight))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         ) {
-            OutlinedButton(onClick = onDiscard, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.exercise_discard))
-            }
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.exercise_discard),
+                onClick = onDiscard,
+                modifier = Modifier.weight(1f),
+            )
             if (locationDenied) {
-                OutlinedButton(onClick = onOpenSettings, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.exercise_settings_open_app_settings))
-                }
+                ExpressivePrimaryButton(
+                    text = stringResource(R.string.exercise_settings_open_app_settings),
+                    onClick = onOpenSettings,
+                    modifier = Modifier.weight(1f),
+                )
             } else {
-                Button(onClick = onResume, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.exercise_resume))
-                }
+                ExpressivePrimaryButton(
+                    text = stringResource(R.string.exercise_resume),
+                    onClick = onResume,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -245,30 +267,21 @@ private fun PlanSection(
     ) {
         // Pick a cardio kind (2×2 tiles), then start. Machine kinds are logged via
         // the camera card below; strength is started from the 動作庫 tab.
-        CardioKindGrid(selected = selectedKind, onSelect = { selectedKind = it })
-        Button(
-            onClick = {
-                scope.launch {
-                    // BP gate: ALLOW starts directly; CAUTION/BLOCK confirm via dialog.
-                    when (val gate = evaluateWorkoutBpGate()) {
-                        WorkoutBpGate.Allow -> startCardio(selectedKind)
-                        else -> pendingCardio = selectedKind to gate
+        StandardCard(title = stringResource(R.string.hub_start_exercise)) {
+            CardioKindGrid(selected = selectedKind, onSelect = { selectedKind = it })
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.hub_start_exercise),
+                icon = Icons.Filled.PlayArrow,
+                fillWidth = true,
+                onClick = {
+                    scope.launch {
+                        // BP gate: ALLOW starts directly; CAUTION/BLOCK confirm via dialog.
+                        when (val gate = evaluateWorkoutBpGate()) {
+                            WorkoutBpGate.Allow -> startCardio(selectedKind)
+                            else -> pendingCardio = selectedKind to gate
+                        }
                     }
-                }
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-        ) {
-            Icon(Icons.Filled.PlayArrow, null)
-            Spacer(Modifier.size(AppSpacing.itemGap))
-            Text(
-                stringResource(R.string.hub_start_exercise),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                },
             )
         }
 
@@ -299,7 +312,7 @@ private fun PlanSection(
             onSelectRange = vm::setRange,
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppSpacing.itemGap))
     }
 
     pendingCardio?.let { (kind, gate) ->
@@ -349,15 +362,10 @@ private fun TodayTaskCard(state: ExerciseHomeUiState) {
 /** Entry card for logging a gym-machine workout from a console photo (OCR). */
 @Composable
 private fun MachineCaptureCard(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(AppSpacing.cardCorner),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    StandardCard(onClick = onClick) {
         Row(
-            modifier = Modifier.padding(AppSpacing.cardPadding),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         ) {
             Box(
                 modifier = Modifier
@@ -372,7 +380,6 @@ private fun MachineCaptureCard(onClick: () -> Unit) {
                     modifier = Modifier.size(24.dp),
                 )
             }
-            Spacer(Modifier.size(AppSpacing.itemGap))
             Column(Modifier.weight(1f)) {
                 Text(
                     stringResource(R.string.machine_card_title),
@@ -394,7 +401,8 @@ private fun MachineCaptureCard(onClick: () -> Unit) {
     }
 }
 
-/** 2×2 grid of GPS-trackable cardio kinds; the selected tile is filled indigo. */
+/** 2×2 grid of GPS-trackable cardio kinds; the selected tile is filled with its
+ *  activity-identity colour ([colorForKind]). */
 @Composable
 private fun CardioKindGrid(selected: ActivityKind, onSelect: (ActivityKind) -> Unit) {
     // Explicit order to match the design: 步行 / 健走 / 跑步 / 腳踏車.
@@ -427,9 +435,16 @@ private fun CardioKindTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val container = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-    val iconTint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
-    val textColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    // Activity identity colour (NOT a metric accent): the selected tile fills with
+    // the kind's colour; unselected tiles tint the icon with it on a surface card.
+    val kindColor = colorForKind(kind)
+    val container by animateColorAsState(
+        targetValue = if (selected) kindColor else MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = AppMotion.springDefault(),
+        label = "cardioTileContainer",
+    )
+    val iconTint = if (selected) Color.White else kindColor
+    val textColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
     Card(
         onClick = onClick,
         modifier = modifier.height(88.dp),
@@ -468,6 +483,7 @@ private fun HistorySection(
         Text(
             stringResource(R.string.hub_history_cardio),
             style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
         )
         RecentSessionsCard(
             sessions = state.recent,
@@ -477,10 +493,11 @@ private fun HistorySection(
         Text(
             stringResource(R.string.hub_history_strength),
             style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
         )
         StrengthHistoryCard(sessions = state.strengthSessions)
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppSpacing.itemGap))
     }
 }
 
@@ -543,20 +560,17 @@ private fun labelResForKind(kind: ActivityKind): Int = when (kind) {
 
 @Composable
 private fun PermissionHint(denied: Boolean, onOpenSettings: () -> Unit) {
-    StandardCard {
-        Text(
-            stringResource(R.string.exercise_location_permission_title),
-            style = MaterialTheme.typography.titleSmall,
-        )
+    StandardCard(title = stringResource(R.string.exercise_location_permission_title)) {
         Text(
             if (denied) stringResource(R.string.exercise_location_denied)
             else stringResource(R.string.exercise_location_permission_body),
             style = MaterialTheme.typography.bodyMedium,
         )
         if (denied) {
-            OutlinedButton(onClick = onOpenSettings) {
-                Text(stringResource(R.string.exercise_settings_open_app_settings))
-            }
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.exercise_settings_open_app_settings),
+                onClick = onOpenSettings,
+            )
         }
     }
 }

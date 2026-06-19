@@ -6,12 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -26,6 +25,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.history.UnifiedHistoryFilterAction
 import com.silverbp.android.ui.history.UnifiedHistoryScreen
 import com.silverbp.android.ui.history.UnifiedHistoryViewModel
@@ -34,6 +35,7 @@ import com.silverbp.android.ui.insights.InsightsScreen
 import com.silverbp.android.ui.insights.WeightInsightsScreen
 import com.silverbp.android.ui.member.MemberSwitcherChip
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.MetricAccent
 
 /** Segments of the Data (數據) tab, mirroring iOS DataHubView's [紀錄][分析] picker. */
 private enum class DataSection(val labelRes: Int) {
@@ -46,10 +48,10 @@ private enum class DataSection(val labelRes: Int) {
  * across both types (owner decision §4), so this switch lives inside 分析 — where
  * the BP and glucose charts genuinely can't merge — rather than at the top level.
  */
-private enum class MeasureType(val labelRes: Int) {
-    Bp(R.string.measure_bp),
-    Glucose(R.string.measure_glucose),
-    Weight(R.string.measure_weight),
+private enum class MeasureType(val labelRes: Int, val accent: androidx.compose.ui.graphics.Color) {
+    Bp(R.string.measure_bp, MetricAccent.Bp),
+    Glucose(R.string.measure_glucose, MetricAccent.Glucose),
+    Weight(R.string.measure_weight, MetricAccent.Weight),
 }
 
 /**
@@ -105,23 +107,20 @@ fun DataHubScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            SingleChoiceSegmentedButtonRow(
+            SegmentedControl(
+                options = DataSection.entries.map { stringResource(it.labelRes) },
+                selectedIndex = section,
+                onSelect = { section = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.tight),
-            ) {
-                DataSection.entries.forEachIndexed { idx, s ->
-                    SegmentedButton(
-                        selected = section == idx,
-                        onClick = { section = idx },
-                        shape = SegmentedButtonDefaults.itemShape(index = idx, count = DataSection.entries.size),
-                    ) {
-                        Text(stringResource(s.labelRes))
-                    }
-                }
-            }
+                leadingIcons = listOf(
+                    Icons.AutoMirrored.Filled.List,
+                    Icons.Filled.BarChart,
+                ),
+            )
 
-            // 血壓 | 血糖 type switch — only meaningful for 分析 (charts can't merge).
+            // 血壓 | 血糖 | 體重 type switch — only meaningful for 分析 (charts can't merge).
             if (active == DataSection.Insights) {
                 Row(
                     modifier = Modifier
@@ -130,10 +129,11 @@ fun DataHubScreen(
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
                 ) {
                     MeasureType.entries.forEachIndexed { idx, m ->
-                        FilterChip(
+                        ExpressiveFilterChip(
+                            label = stringResource(m.labelRes),
                             selected = insightsMeasure == idx,
                             onClick = { insightsMeasure = idx },
-                            label = { Text(stringResource(m.labelRes)) },
+                            leadingDotColor = m.accent,
                         )
                     }
                 }

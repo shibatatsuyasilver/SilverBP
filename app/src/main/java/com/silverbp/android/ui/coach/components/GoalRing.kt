@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -16,13 +17,15 @@ import androidx.compose.ui.unit.dp
  * Compact circular progress ring with a percent label centered.
  *
  * Used by [ModuleCard] to summarise per-module weekly adherence. The ring
- * track uses surfaceVariant; the active arc uses primary.
+ * track uses surfaceVariant; the active arc uses [color] (defaults to primary
+ * so existing callers are unchanged — Coach passes the per-module tint).
  */
 @Composable
 fun GoalRing(
     ratio: Float,
     modifier: Modifier = Modifier,
     sizeDp: Int = 56,
+    color: Color = MaterialTheme.colorScheme.primary,
 ) {
     val safeRatio = ratio.coerceIn(0f, 1f)
     Box(
@@ -32,7 +35,7 @@ fun GoalRing(
         CircularProgressIndicator(
             progress = { safeRatio },
             modifier = Modifier.size(sizeDp.dp),
-            color = MaterialTheme.colorScheme.primary,
+            color = color,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             strokeWidth = ProgressIndicatorDefaults.CircularStrokeWidth,
         )

@@ -28,9 +28,6 @@ import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -87,6 +84,10 @@ import com.silverbp.android.settings.AppLanguage
 import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.settings.LocaleHelper
 import com.silverbp.android.ui.coach.formatTime
+import com.silverbp.android.ui.components.NavListRow
+import com.silverbp.android.ui.components.RadioListRow
+import com.silverbp.android.ui.components.SettingsDivider
+import com.silverbp.android.ui.components.SettingsGroup
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.member.MemberEditorSheet
 import com.silverbp.android.ui.theme.AppSpacing
@@ -179,24 +180,19 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             // Appearance — app color theme (System / Light / Dark)
-            StandardCard(title = stringResource(R.string.settings_appearance_title)) {
-                AppThemeMode.entries.forEach { mode ->
+            SettingsGroup(title = stringResource(R.string.settings_appearance_title)) {
+                AppThemeMode.entries.forEachIndexed { index, mode ->
                     val labelRes = when (mode) {
                         AppThemeMode.System -> R.string.settings_theme_system
                         AppThemeMode.Light -> R.string.settings_theme_light
                         AppThemeMode.Dark -> R.string.settings_theme_dark
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = state.appThemeMode == mode,
-                            onClick = { vm.setAppThemeMode(mode) },
-                        )
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(labelRes))
-                    }
+                    if (index > 0) SettingsDivider()
+                    RadioListRow(
+                        title = stringResource(labelRes),
+                        selected = state.appThemeMode == mode,
+                        onClick = { vm.setAppThemeMode(mode) },
+                    )
                 }
             }
 
@@ -204,25 +200,20 @@ fun SettingsScreen(
             // The value is read from LocaleManager, not `state` (it isn't persisted
             // in DataStore); selecting one recreates the Activity so this recomposes
             // with the new current language.
-            StandardCard(title = stringResource(R.string.settings_language_section)) {
+            SettingsGroup(title = stringResource(R.string.settings_language_section)) {
                 val currentLang = LocaleHelper.current(context)
-                AppLanguage.entries.forEach { lang ->
+                AppLanguage.entries.forEachIndexed { index, lang ->
                     val labelRes = when (lang) {
                         AppLanguage.System -> R.string.settings_language_system
                         AppLanguage.English -> R.string.settings_language_english
                         AppLanguage.TraditionalChinese -> R.string.settings_language_zh_tw
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = currentLang == lang,
-                            onClick = { vm.setAppLanguage(context, lang) },
-                        )
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(labelRes))
-                    }
+                    if (index > 0) SettingsDivider()
+                    RadioListRow(
+                        title = stringResource(labelRes),
+                        selected = currentLang == lang,
+                        onClick = { vm.setAppLanguage(context, lang) },
+                    )
                 }
             }
 
@@ -231,11 +222,12 @@ fun SettingsScreen(
             // findable without digging into family-member management. (1) a row that
             // opens MemberEditorSheet for the owner; (2) the coach nickname; (3) the
             // app-wide weight unit.
-            StandardCard(title = stringResource(R.string.weight_profile_title)) {
+            SettingsGroup(title = stringResource(R.string.weight_profile_title)) {
                 // Tappable nav row → owner profile editor (icon tile + title +
                 // subtitle + chevron), mirroring the Today/History entry rows.
-                SettingsNavRow(
+                NavListRow(
                     icon = Icons.Filled.Person,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.member_edit_self),
                     subtitle = stringResource(R.string.weight_profile_hint),
                     onClick = {
@@ -248,69 +240,68 @@ fun SettingsScreen(
                     },
                 )
 
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                SettingsDivider()
 
                 // Coach nickname — how the coach addresses the user (mirrors
                 // onboarding capture). Stored in UserSettings (DataStore), so it
                 // stays an inline field rather than the member-editor sheet.
-                Text(
-                    stringResource(R.string.settings_user_nickname_label),
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.size(4.dp))
-                OutlinedTextField(
-                    value = state.userNickname,
-                    onValueChange = { vm.setUserNickname(it) },
-                    placeholder = {
-                        Text(stringResource(R.string.settings_user_nickname_placeholder))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-                Text(
-                    stringResource(R.string.settings_user_nickname_help),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                    Text(
+                        stringResource(R.string.settings_user_nickname_label),
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    OutlinedTextField(
+                        value = state.userNickname,
+                        onValueChange = { vm.setUserNickname(it) },
+                        placeholder = {
+                            Text(stringResource(R.string.settings_user_nickname_placeholder))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Text(
+                        stringResource(R.string.settings_user_nickname_help),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
 
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                SettingsDivider()
 
                 // App-wide weight display unit (kg/lb). Canonical storage is kg;
                 // this only changes rendering. Mirrors the App-language radio idiom.
                 Text(
                     stringResource(R.string.weight_unit_setting),
                     fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 )
-                WeightUnitRow(
-                    selected = state.weightUnit,
-                    label = stringResource(R.string.weight_unit_kg),
-                    raw = "kg",
-                    onSelect = { vm.setWeightUnit(it) },
+                RadioListRow(
+                    title = stringResource(R.string.weight_unit_kg),
+                    selected = state.weightUnit == "kg",
+                    onClick = { vm.setWeightUnit("kg") },
                 )
-                WeightUnitRow(
-                    selected = state.weightUnit,
-                    label = stringResource(R.string.weight_unit_lb),
-                    raw = "lb",
-                    onSelect = { vm.setWeightUnit(it) },
+                RadioListRow(
+                    title = stringResource(R.string.weight_unit_lb),
+                    selected = state.weightUnit == "lb",
+                    onClick = { vm.setWeightUnit("lb") },
                 )
             }
 
             // Hypertension guideline
-            StandardCard(title = stringResource(R.string.guideline_section)) {
-                HypertensionGuideline.entries.forEach { g ->
+            SettingsGroup(title = stringResource(R.string.guideline_section)) {
+                HypertensionGuideline.entries.forEachIndexed { index, g ->
                     val labelRes = when (g) {
                         HypertensionGuideline.Taiwan2022 -> R.string.guideline_taiwan2022
                         HypertensionGuideline.AccAha2017 -> R.string.guideline_acc_aha_2017
                         HypertensionGuideline.Esh2023 -> R.string.guideline_esh_2023
                         HypertensionGuideline.Jnc8 -> R.string.guideline_jnc_8
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = state.guideline == g, onClick = { vm.setGuideline(g) })
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(labelRes))
-                    }
+                    if (index > 0) SettingsDivider()
+                    RadioListRow(
+                        title = stringResource(labelRes),
+                        selected = state.guideline == g,
+                        onClick = { vm.setGuideline(g) },
+                    )
                 }
             }
 
@@ -693,30 +684,6 @@ private fun SettingsIconTile(icon: ImageVector, tint: Color) {
             modifier = Modifier.size(24.dp),
             tint = tint,
         )
-    }
-}
-
-@Composable
-private fun WeightUnitRow(
-    selected: String,
-    label: String,
-    raw: String,
-    onSelect: (String) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(
-                selected = selected == raw,
-                role = androidx.compose.ui.semantics.Role.RadioButton,
-                onClick = { onSelect(raw) },
-            )
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected == raw, onClick = { onSelect(raw) })
-        Spacer(Modifier.size(8.dp))
-        Text(label)
     }
 }
 

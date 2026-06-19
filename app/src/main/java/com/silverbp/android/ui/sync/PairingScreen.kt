@@ -25,22 +25,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,6 +71,11 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.silverbp.android.R
 import com.silverbp.android.sync.pairing.QrPairingPayload
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.theme.AppSpacing
 import java.util.concurrent.Executors
 
 /**
@@ -95,11 +99,14 @@ fun PairingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.pairing_title)) },
+            AppTopBar(
+                title = stringResource(R.string.pairing_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.Done, contentDescription = stringResource(R.string.pairing_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.pairing_back),
+                        )
                     }
                 },
             )
@@ -152,47 +159,58 @@ private fun PickerStage(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(AppSpacing.screenH),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            imageVector = Icons.Default.Lock,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(72.dp),
-        )
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.pairing_subtitle),
-            style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = stringResource(R.string.pairing_wifi_note),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(32.dp))
-        Button(
+        StandardCard {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+                Spacer(Modifier.height(AppSpacing.sectionGap))
+                Text(
+                    text = stringResource(R.string.pairing_subtitle),
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(AppSpacing.itemGap))
+                Text(
+                    text = stringResource(R.string.pairing_wifi_note),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Spacer(Modifier.height(AppSpacing.sectionGap))
+        ExpressivePrimaryButton(
+            text = stringResource(R.string.pairing_show_qr),
             onClick = onShowQr,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Default.QrCode, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.pairing_show_qr))
-        }
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(
+            icon = Icons.Default.QrCode,
+            fillWidth = true,
+        )
+        Spacer(Modifier.height(AppSpacing.itemGap))
+        ExpressiveSecondaryButton(
+            text = stringResource(R.string.pairing_scan_qr),
             onClick = onScan,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Default.QrCodeScanner, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.pairing_scan_qr))
-        }
+            icon = Icons.Default.QrCodeScanner,
+            fillWidth = true,
+        )
     }
 }
 
@@ -201,24 +219,32 @@ private fun ShowQrStage(qrUrl: String, status: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(AppSpacing.screenH),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text = stringResource(R.string.pairing_scan_instruction),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(16.dp))
-        QrImage(text = qrUrl, sizeDp = 240)
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = status,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+        StandardCard {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.pairing_scan_instruction),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(AppSpacing.sectionGap))
+                QrImage(text = qrUrl, sizeDp = 240)
+                Spacer(Modifier.height(AppSpacing.sectionGap))
+                Text(
+                    text = status,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
     }
 }
 
@@ -243,18 +269,26 @@ private fun ScanQrStage(onScanned: (String) -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(AppSpacing.screenH),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                stringResource(R.string.pairing_camera_permission),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) {
-                Text(stringResource(R.string.pairing_grant_permission))
+            StandardCard {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        stringResource(R.string.pairing_camera_permission),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(AppSpacing.sectionGap))
+                    ExpressivePrimaryButton(
+                        text = stringResource(R.string.pairing_grant_permission),
+                        onClick = { launcher.launch(Manifest.permission.CAMERA) },
+                    )
+                }
             }
         }
         return
@@ -271,64 +305,66 @@ private fun ConfirmSasStage(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(AppSpacing.screenH),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text = if (asJoiner) stringResource(R.string.pairing_verify_code_joiner) else stringResource(R.string.pairing_verify_code_host),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(24.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(vertical = 24.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = outcome.sas,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-            )
+        StandardCard {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = if (asJoiner) stringResource(R.string.pairing_verify_code_joiner) else stringResource(R.string.pairing_verify_code_host),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(AppSpacing.sectionGap))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.large)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = outcome.sas,
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                Spacer(Modifier.height(AppSpacing.sectionGap))
+                Text(
+                    text = stringResource(R.string.pairing_mitm_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(AppSpacing.itemGap))
+                Text(
+                    text = stringResource(R.string.pairing_peer, outcome.peerDeviceId),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
         }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.pairing_mitm_warning),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(AppSpacing.sectionGap))
         Row(modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(
+            ExpressiveSecondaryButton(
+                text = stringResource(R.string.pairing_numbers_differ),
                 onClick = { onResult(false) },
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
-            ) {
-                Text(stringResource(R.string.pairing_numbers_differ))
-            }
-            Spacer(Modifier.width(12.dp))
-            Button(
+            )
+            Spacer(Modifier.width(AppSpacing.itemGap))
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.pairing_numbers_match),
                 onClick = { onResult(true) },
                 modifier = Modifier.weight(1f),
-            ) {
-                Text(stringResource(R.string.pairing_numbers_match))
-            }
+            )
         }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.pairing_peer, outcome.peerDeviceId),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.outline,
-        )
     }
 }
 
@@ -337,17 +373,17 @@ private fun SyncingStage(peerDeviceId: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(AppSpacing.screenH),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        androidx.compose.material3.CircularProgressIndicator()
-        Spacer(Modifier.height(16.dp))
+        CircularProgressIndicator()
+        Spacer(Modifier.height(AppSpacing.sectionGap))
         Text(
             stringResource(R.string.pairing_syncing),
             style = MaterialTheme.typography.titleMedium,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppSpacing.itemGap))
         Text(
             peerDeviceId,
             style = MaterialTheme.typography.bodySmall,
@@ -362,38 +398,55 @@ private fun DoneStage(peerDeviceId: String, syncedCount: Int, onClose: () -> Uni
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(AppSpacing.screenH),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            imageVector = Icons.Default.Done,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(64.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            stringResource(R.string.pairing_complete),
-            style = MaterialTheme.typography.titleLarge,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            if (syncedCount > 0) stringResource(R.string.pairing_synced_count, syncedCount) else stringResource(R.string.pairing_already_synced),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            peerDeviceId,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontFamily = FontFamily.Monospace,
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onClose) {
-            Text(stringResource(R.string.pairing_done))
+        StandardCard {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Done,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+                Spacer(Modifier.height(AppSpacing.itemGap))
+                Text(
+                    stringResource(R.string.pairing_complete),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Spacer(Modifier.height(AppSpacing.tight))
+                Text(
+                    if (syncedCount > 0) stringResource(R.string.pairing_synced_count, syncedCount) else stringResource(R.string.pairing_already_synced),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(AppSpacing.itemGap))
+                Text(
+                    peerDeviceId,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
         }
+        Spacer(Modifier.height(AppSpacing.sectionGap))
+        ExpressivePrimaryButton(
+            text = stringResource(R.string.pairing_done),
+            onClick = onClose,
+        )
     }
 }
 
@@ -402,19 +455,27 @@ private fun ErrorStage(message: String, onRetry: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(AppSpacing.screenH),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.pairing_retry))
+        StandardCard {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(AppSpacing.sectionGap))
+                ExpressivePrimaryButton(
+                    text = stringResource(R.string.pairing_retry),
+                    onClick = onRetry,
+                )
+            }
         }
     }
 }
@@ -431,6 +492,7 @@ private fun QrImage(text: String, sizeDp: Int) {
         contentDescription = stringResource(R.string.pairing_qr_cd),
         modifier = Modifier
             .size(sizeDp.dp)
+            .clip(RoundedCornerShape(AppSpacing.cardCorner))
             .background(androidx.compose.ui.graphics.Color.White)
             .padding(8.dp),
     )

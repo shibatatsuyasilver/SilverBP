@@ -1,0 +1,132 @@
+<!-- @dsCard group="Screens" name="數據 · 分析" subtitle="Insights · charts + stats" -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SilverBP · 分析</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+</head>
+<body>
+<div class="frame">
+  <div class="cap">數據 · 分析<small>趨勢線 + 分級分布 + 統計卡</small></div>
+  <div class="phone"><div class="screen">
+
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="ico"><svg class="i"><use href="#signal"/></svg><svg class="i"><use href="#wifi"/></svg><svg class="i"><use href="#battery"/></svg></span>
+    </div>
+
+    <div class="topbar">
+      <span class="title">數據</span>
+      <div class="actions"><span class="mchip"><span class="avatar" style="background:#6C4CF1">陳</span></span></div>
+    </div>
+
+    <div class="body">
+      <!-- segmented -->
+      <div class="segmented" style="margin:6px 0 16px">
+        <button class="seg"><svg><use href="#chat_bubble"/></svg>紀錄</button>
+        <button class="seg sel"><svg><use href="#bar_chart"/></svg>分析</button>
+      </div>
+
+      <!-- measurement type chips -->
+      <div class="row" style="gap:8px;margin-bottom:14px">
+        <span class="chip sel">血壓</span>
+        <span class="chip">血糖</span>
+        <span class="chip">體重</span>
+      </div>
+
+      <!-- range chips -->
+      <div class="row" style="gap:8px;margin-bottom:18px">
+        <span class="chip">7天</span>
+        <span class="chip sel">30天</span>
+        <span class="chip">90天</span>
+        <span class="chip">全部</span>
+      </div>
+
+      <!-- stats -->
+      <div class="row" style="gap:12px">
+        <div class="card flat" style="flex:1;text-align:center;padding:16px 8px;margin-top:0">
+          <div class="label-m muted">平均</div>
+          <div class="title-l" style="font-weight:700;margin-top:4px">124/82</div>
+        </div>
+        <div class="card flat" style="flex:1;text-align:center;padding:16px 8px;margin-top:0">
+          <div class="label-m muted">SD</div>
+          <div class="title-l" style="font-weight:700;margin-top:4px">12.3</div>
+        </div>
+        <div class="card flat" style="flex:1;text-align:center;padding:16px 8px;margin-top:0">
+          <div class="label-m muted">ARV</div>
+          <div class="title-l" style="font-weight:700;margin-top:4px">15.8</div>
+        </div>
+      </div>
+
+      <!-- trend chart -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">血壓趨勢</div>
+        <svg viewBox="0 0 320 165" style="width:100%;height:170px">
+          <defs>
+            <linearGradient id="sbpFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--line-sbp)" stop-opacity="0.28"/>
+              <stop offset="1" stop-color="var(--line-sbp)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <!-- normal zone band -->
+          <rect x="0" y="74" width="320" height="46" fill="var(--cat-normal)" opacity="0.12"/>
+          <line x1="0" y1="74" x2="320" y2="74" stroke="var(--cat-normal)" stroke-width="1" stroke-dasharray="4 5" opacity="0.5"/>
+          <line x1="0" y1="120" x2="320" y2="120" stroke="var(--cat-normal)" stroke-width="1" stroke-dasharray="4 5" opacity="0.5"/>
+          <!-- SBP area + line -->
+          <path d="M10,50 L53,44 L96,58 L139,40 L182,52 L225,36 L268,46 L310,42 L310,165 L10,165 Z" fill="url(#sbpFill)"/>
+          <polyline fill="none" stroke="var(--line-sbp)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+            points="10,50 53,44 96,58 139,40 182,52 225,36 268,46 310,42"/>
+          <!-- DBP line -->
+          <polyline fill="none" stroke="var(--line-dbp)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+            points="10,112 53,108 96,116 139,102 182,110 225,100 268,106 310,104"/>
+          <g fill="var(--line-sbp)"><circle cx="139" cy="40" r="4"/><circle cx="225" cy="36" r="4"/></g>
+        </svg>
+        <div class="row" style="gap:18px;margin-top:8px">
+          <span class="mcat"><span class="dot" style="background:var(--line-sbp)"></span>收縮壓</span>
+          <span class="mcat"><span class="dot" style="background:var(--line-dbp)"></span>舒張壓</span>
+          <span class="mcat" style="margin-left:auto"><span class="dot" style="background:var(--cat-normal);opacity:.5"></span>正常區間</span>
+        </div>
+      </div>
+
+      <!-- distribution donut -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">分級分布</div>
+        <div class="row" style="gap:20px">
+          <div style="width:120px;height:120px;border-radius:50%;flex:0 0 auto;background:conic-gradient(var(--cat-normal) 0 58%, var(--cat-elevated) 58% 78%, var(--cat-stage1) 78% 93%, var(--cat-stage2) 93% 100%);display:flex;align-items:center;justify-content:center">
+            <div style="width:78px;height:78px;border-radius:50%;background:var(--surface-c);display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div class="title-l" style="font-weight:700">58%</div>
+              <div class="label-s muted">正常</div>
+            </div>
+          </div>
+          <div style="flex:1">
+            <div class="mcat" style="justify-content:space-between;margin-bottom:10px"><span><span class="dot" style="background:var(--cat-normal)"></span> 正常</span><b>58%</b></div>
+            <div class="mcat" style="justify-content:space-between;margin-bottom:10px"><span><span class="dot" style="background:var(--cat-elevated)"></span> 偏高</span><b>20%</b></div>
+            <div class="mcat" style="justify-content:space-between;margin-bottom:10px"><span><span class="dot" style="background:var(--cat-stage1)"></span> 第一期</span><b>15%</b></div>
+            <div class="mcat" style="justify-content:space-between"><span><span class="dot" style="background:var(--cat-stage2)"></span> 第二期</span><b>7%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spacer-l"></div>
+      <button class="btn outline block"><svg><use href="#description"/></svg>PDF 報告</button>
+
+    </div><!-- /body -->
+
+    <button class="fab"><svg><use href="#chat"/></svg>助理</button>
+
+    <div class="navbar">
+      <div class="nav-item"><span class="pill"><svg><use href="#home"/></svg></span><span class="nlabel">今日</span></div>
+      <div class="nav-item sel"><span class="pill"><svg><use href="#bar_chart"/></svg></span><span class="nlabel">數據</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#directions_run"/></svg></span><span class="nlabel">運動</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#restaurant"/></svg></span><span class="nlabel">飲食</span></div>
+      <div class="nav-item"><span class="pill"><svg><use href="#favorite"/></svg></span><span class="nlabel">教練</span></div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

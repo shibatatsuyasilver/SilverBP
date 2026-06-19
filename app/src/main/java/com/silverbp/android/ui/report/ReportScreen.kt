@@ -6,38 +6,34 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.sharing.sharePdf
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
+import com.silverbp.android.ui.theme.AppSpacing
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportScreen(
     onClose: () -> Unit = {},
@@ -51,8 +47,8 @@ fun ReportScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.report_screen_title)) },
+            AppTopBar(
+                title = stringResource(R.string.report_screen_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
@@ -62,20 +58,22 @@ fun ReportScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = AppSpacing.screenH),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
             RangeChips(state.range, vm::setRange)
 
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        stringResource(R.string.report_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(stringResource(R.string.report_range_count, state.readings.size), style = MaterialTheme.typography.bodyMedium)
-                }
+            StandardCard(
+                title = stringResource(R.string.report_title),
+            ) {
+                Text(
+                    stringResource(R.string.report_range_count, state.readings.size),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             // Premium tiering note (Phase 3): the free summary PDF is never
@@ -83,41 +81,35 @@ fun ReportScreen(
             // Premium add-on and offers an upgrade. Hidden when premium (which is
             // always the case while PREMIUM_ENFORCED=false → zero behaviour change).
             if (!state.isPremium) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(
-                            stringResource(R.string.gate_pdf_detail_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            stringResource(R.string.gate_pdf_detail_body),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                        TextButton(onClick = { paywall.show(GateReason.PdfDetail) }) {
-                            Text(stringResource(R.string.gate_upgrade_cta))
-                        }
+                StandardCard(
+                    title = stringResource(R.string.gate_pdf_detail_title),
+                ) {
+                    Text(
+                        stringResource(R.string.gate_pdf_detail_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = { paywall.show(GateReason.PdfDetail) }) {
+                        Text(stringResource(R.string.gate_upgrade_cta))
                     }
                 }
             }
 
-            Button(
-                onClick = { vm.generate { /* file ready in state */ } },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = state.readings.isNotEmpty() && !state.isGenerating,
-            ) {
-                if (state.isGenerating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Text("  ${stringResource(R.string.generate_report)}…")
-                } else {
-                    Icon(Icons.Filled.Description, null)
-                    Text("  ${stringResource(R.string.generate_report)}")
-                }
+            if (state.isGenerating) {
+                ExpressivePrimaryButton(
+                    text = "${stringResource(R.string.generate_report)}…",
+                    onClick = {},
+                    enabled = false,
+                    fillWidth = true,
+                )
+            } else {
+                ExpressivePrimaryButton(
+                    text = stringResource(R.string.generate_report),
+                    onClick = { vm.generate { /* file ready in state */ } },
+                    icon = Icons.Filled.Description,
+                    enabled = state.readings.isNotEmpty(),
+                    fillWidth = true,
+                )
             }
 
             state.errorMessage?.let { error ->
@@ -129,18 +121,19 @@ fun ReportScreen(
             }
 
             state.generatedFile?.let { file ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(file.name, style = MaterialTheme.typography.bodySmall)
-                        Text(stringResource(R.string.report_file_size_kb, file.length() / 1024), style = MaterialTheme.typography.labelSmall)
-                        Button(
-                            onClick = { context.sharePdf(file) },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        ) {
-                            Icon(Icons.Filled.Share, null)
-                            Text("  ${stringResource(R.string.share)}")
-                        }
-                    }
+                StandardCard {
+                    Text(file.name, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(R.string.report_file_size_kb, file.length() / 1024),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.share),
+                        onClick = { context.sharePdf(file) },
+                        icon = Icons.Filled.Share,
+                        fillWidth = true,
+                    )
                 }
             }
         }
@@ -156,12 +149,15 @@ private fun RangeChips(current: ReportRange, onSelect: (ReportRange) -> Unit) {
         ReportRange.Last90 to stringResource(R.string.range_90d),
         ReportRange.AllTime to stringResource(R.string.range_all),
     )
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+    ) {
         pairs.forEach { (r, label) ->
-            FilterChip(
+            ExpressiveFilterChip(
+                label = label,
                 selected = current == r,
                 onClick = { onSelect(r) },
-                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
             )
         }
     }

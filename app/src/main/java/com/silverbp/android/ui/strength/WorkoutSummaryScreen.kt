@@ -6,14 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -33,9 +32,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.exercise.ExerciseMath
 import com.silverbp.android.strength.DifficultyFeedback
+import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.exercise.PostWorkoutBpCard
 import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 
 /**
  * System back deliberately stays unhandled here: it leaves the Finished
@@ -86,6 +88,7 @@ fun WorkoutSummaryScreen(
             Text(
                 stringResource(R.string.strength_summary_total_sets, live.completedSets),
                 style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 stringResource(
@@ -93,6 +96,7 @@ fun WorkoutSummaryScreen(
                     ExerciseMath.formatDuration(System.currentTimeMillis() - live.startedAtMillis),
                 ),
                 style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -106,19 +110,19 @@ fun WorkoutSummaryScreen(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         ) {
-            DifficultyOption(
+            ExpressiveFilterChip(
                 label = stringResource(R.string.strength_summary_too_easy),
                 selected = selected == DifficultyFeedback.TooEasy,
                 onClick = { selected = DifficultyFeedback.TooEasy },
                 modifier = Modifier.weight(1f),
             )
-            DifficultyOption(
+            ExpressiveFilterChip(
                 label = stringResource(R.string.strength_summary_just_right),
                 selected = selected == DifficultyFeedback.JustRight,
                 onClick = { selected = DifficultyFeedback.JustRight },
                 modifier = Modifier.weight(1f),
             )
-            DifficultyOption(
+            ExpressiveFilterChip(
                 label = stringResource(R.string.strength_summary_too_hard),
                 selected = selected == DifficultyFeedback.TooHard,
                 onClick = { selected = DifficultyFeedback.TooHard },
@@ -139,49 +143,17 @@ fun WorkoutSummaryScreen(
                 onClick = { vm.discard(onDiscard) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(AppSpacing.cardCorner),
+                    .heightIn(min = 56.dp),
+                shape = PillShape,
                 enabled = !saving,
             ) { Text(stringResource(R.string.strength_summary_discard)) }
-            Button(
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.strength_summary_save),
                 onClick = { selected?.let { vm.save(it, onSaved) } },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(AppSpacing.cardCorner),
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Check,
                 enabled = !saving && selected != null,
-            ) { Text(stringResource(R.string.strength_summary_save)) }
-        }
-    }
-}
-
-@Composable
-private fun DifficultyOption(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val shape = RoundedCornerShape(AppSpacing.cardCorner)
-    if (selected) {
-        Button(
-            onClick = onClick,
-            modifier = modifier.height(56.dp),
-            shape = shape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-        ) {
-            Text(label, fontWeight = FontWeight.SemiBold)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            modifier = modifier.height(56.dp),
-            shape = shape,
-        ) {
-            Text(label)
+            )
         }
     }
 }

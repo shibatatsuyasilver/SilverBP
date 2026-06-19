@@ -10,29 +10,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -55,7 +51,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.silverbp.android.R
-import com.silverbp.android.nutrition.FoodLog
 import com.silverbp.android.nutrition.MealType
 import com.silverbp.android.nutrition.NutrimentBasis
 import com.silverbp.android.nutrition.NutritionDatabase
@@ -63,13 +58,14 @@ import com.silverbp.android.nutrition.Portion
 import com.silverbp.android.nutrition.SodiumLevel
 import com.silverbp.android.nutrition.compute
 import com.silverbp.android.recognition.ExtractedFoodItem
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
 import java.io.File
 import kotlin.math.roundToInt
-
-/** Amber caution colour for the "sodium hard to estimate" note. */
-private val SodiumCaution = Color(0xFFEF6C00)
 
 @Composable
 fun NutritionConfirmScreen(
@@ -121,26 +117,26 @@ private fun RecognizedMealContent(
         kcal += c.kcal; sodLo += c.sodiumLowMg; sodHi += c.sodiumHighMg; matched++
     }
 
+    fun saveMeal() {
+        vm.saveRecognizedMeal(
+            meal,
+            portions.toMap(),
+            excluded.filterValues { it }.keys,
+            onSaved,
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(stringResource(R.string.nutrition_confirm_new_title), fontWeight = FontWeight.SemiBold)
-                },
+            AppTopBar(
+                title = stringResource(R.string.nutrition_confirm_new_title),
                 navigationIcon = {
                     TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
                 },
                 actions = {
                     TextButton(
                         enabled = matched > 0 && !isSaving,
-                        onClick = {
-                            vm.saveRecognizedMeal(
-                                meal,
-                                portions.toMap(),
-                                excluded.filterValues { it }.keys,
-                                onSaved,
-                            )
-                        },
+                        onClick = { saveMeal() },
                     ) {
                         Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)
                     }
@@ -210,6 +206,19 @@ private fun RecognizedMealContent(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            // Prominent primary save — the Expressive CTA mirrors the TopAppBar
+            // save action (same saveMeal call), giving a big, obvious confirmation
+            // target at the end of the form.
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.save),
+                onClick = { saveMeal() },
+                enabled = matched > 0 && !isSaving,
+                icon = Icons.Filled.Check,
+                fillWidth = true,
+            )
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
         }
     }
 }
@@ -265,17 +274,11 @@ private fun RecognizedItemCard(
         if (excluded) return@StandardCard
 
         if (rec != null) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                Portion.entries.forEachIndexed { i, p ->
-                    SegmentedButton(
-                        selected = portion == p,
-                        onClick = { onPortion(p) },
-                        shape = SegmentedButtonDefaults.itemShape(index = i, count = Portion.entries.size),
-                    ) {
-                        Text(portionLabel(p, rec.defaultPortionGrams))
-                    }
-                }
-            }
+            SegmentedControl(
+                options = Portion.entries.map { portionLabel(it, rec.defaultPortionGrams) },
+                selectedIndex = Portion.entries.indexOf(portion).coerceAtLeast(0),
+                onSelect = { i -> onPortion(Portion.entries[i]) },
+            )
             val c = rec.compute(portion)
             Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap)) {
                 Macro(stringResource(R.string.nutrition_macro_kcal), stringResource(R.string.nutrition_kcal_short, c.kcal.roundToInt()))
@@ -296,7 +299,7 @@ private fun RecognizedItemCard(
                     Text(
                         stringResource(R.string.nutrition_sodium_uncertain_note),
                         style = MaterialTheme.typography.bodySmall,
-                        color = SodiumCaution,
+                        color = MaterialTheme.colorScheme.tertiary,
                     )
                 }
             }
@@ -352,16 +355,11 @@ private fun FlatConfirmContent(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
-                            if (isEditing) R.string.nutrition_confirm_edit_title
-                            else R.string.nutrition_confirm_new_title
-                        ),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
+            AppTopBar(
+                title = stringResource(
+                    if (isEditing) R.string.nutrition_confirm_edit_title
+                    else R.string.nutrition_confirm_new_title
+                ),
                 navigationIcon = {
                     TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
                 },
@@ -430,7 +428,7 @@ private fun FlatConfirmContent(
                 NutrimentBasis.Per100g -> Text(
                     stringResource(R.string.nutrition_barcode_per_100g_hint),
                     style = MaterialTheme.typography.bodySmall,
-                    color = SodiumCaution,
+                    color = MaterialTheme.colorScheme.tertiary,
                 )
                 NutrimentBasis.ScaledPer100g -> Text(
                     stringResource(R.string.nutrition_barcode_scaled_serving_hint),
@@ -443,10 +441,10 @@ private fun FlatConfirmContent(
             StandardCard(title = stringResource(R.string.nutrition_meal_label)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
                     MealType.entries.forEach { mt ->
-                        FilterChip(
+                        ExpressiveFilterChip(
                             selected = d.mealType == mt,
                             onClick = { vm.update { it.copy(mealType = mt) } },
-                            label = { Text(stringResource(mealTypeLabel(mt))) },
+                            label = stringResource(mealTypeLabel(mt)),
                         )
                     }
                 }
@@ -460,10 +458,10 @@ private fun FlatConfirmContent(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
                     SodiumLevel.entries.forEach { lvl ->
-                        FilterChip(
+                        ExpressiveFilterChip(
                             selected = d.sodiumLevel == lvl,
                             onClick = { vm.update { it.copy(sodiumLevel = lvl) } },
-                            label = { Text(stringResource(sodiumLevelLabel(lvl))) },
+                            label = stringResource(sodiumLevelLabel(lvl)),
                         )
                     }
                 }
@@ -518,6 +516,19 @@ private fun FlatConfirmContent(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            // Prominent primary save — the Expressive CTA mirrors the TopAppBar
+            // save action (same vm.save call) for a big, obvious confirmation
+            // target at the end of the form.
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.save),
+                onClick = { vm.save(onSaved) },
+                enabled = d.description.isNotBlank() && !isSaving,
+                icon = Icons.Filled.Check,
+                fillWidth = true,
+            )
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
         }
     }
 

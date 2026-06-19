@@ -1,0 +1,55 @@
+<!-- @dsCard group="Screens" name="助理 Chat" subtitle="AI bubbles + input bar" -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SilverBP · 助理</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+</head>
+<body>
+<div class="frame">
+  <div class="cap">助理 · Chat<small>以你的健康紀錄回答 — 對話氣泡 + 輸入列</small></div>
+  <div class="phone"><div class="screen">
+
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="ico"><svg class="i"><use href="#signal"/></svg><svg class="i"><use href="#wifi"/></svg><svg class="i"><use href="#battery"/></svg></span>
+    </div>
+
+    <div class="topbar">
+      <button class="iconbtn"><svg><use href="#menu"/></svg></button>
+      <span class="title">助理</span>
+      <button class="iconbtn"><svg><use href="#add"/></svg></button>
+    </div>
+
+    <div class="body" style="padding-bottom:16px">
+      <div class="chatlist">
+        <div class="bubble bot">嗨,陳先生 👋 想了解什麼?可以問我血壓、運動或徽章。</div>
+        <div class="bubble me">我最新的血壓是多少?</div>
+        <div class="bubble bot">你最新一筆血壓是 <b>120 / 80 mmHg</b>(今天 08:30),屬於<b>正常</b>範圍 ✅<br>脈搏 72 bpm,看起來很穩定。</div>
+        <div class="bubble me">那本週平均呢?</div>
+        <div class="bubble bot">本週平均 <b>124 / 82 mmHg</b>,共 9 筆。比上週略低一點,維持得很好 👍 建議繼續每天同一時間量測。</div>
+      </div>
+
+      <!-- suggestion chips -->
+      <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:16px">
+        <span class="chip assist">上次運動表現如何?</span>
+        <span class="chip assist">我達成了什麼徽章?</span>
+      </div>
+    </div>
+
+    <!-- input bar -->
+    <div class="inputbar">
+      <button class="iconbtn"><svg><use href="#add"/></svg></button>
+      <button class="iconbtn"><svg><use href="#mic"/></svg></button>
+      <span class="field">輸入訊息…</span>
+      <button class="sendbtn"><svg><use href="#send"/></svg></button>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

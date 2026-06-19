@@ -22,12 +22,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -41,7 +38,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.viewinterop.AndroidView
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.PillShape
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -146,10 +149,11 @@ fun BarcodeScanScreen(
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(Modifier.size(16.dp))
-                Button(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }) {
-                    Text(stringResource(R.string.retry))
-                }
+                Spacer(Modifier.size(AppSpacing.sectionGap))
+                OverlayPillButton(
+                    text = stringResource(R.string.retry),
+                    onClick = { permLauncher.launch(Manifest.permission.CAMERA) },
+                )
             }
         }
 
@@ -169,12 +173,10 @@ fun BarcodeScanScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = AppSpacing.itemGap, vertical = AppSpacing.tight),
             verticalAlignment = Alignment.Top,
         ) {
-            TextButton(onClick = onClose) {
-                Text(stringResource(R.string.cancel), color = Color.White)
-            }
+            OverlayPillButton(text = stringResource(R.string.cancel), onClick = onClose)
         }
 
         // Lookup / not-found / error overlay
@@ -202,18 +204,55 @@ fun BarcodeScanScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Spacer(Modifier.size(16.dp))
-                    Button(onClick = { vm.manualWithBarcode(onResult) }) {
-                        Text(stringResource(R.string.nutrition_manual_entry))
-                    }
-                    Spacer(Modifier.size(8.dp))
-                    OutlinedButton(onClick = { vm.rescan() }) {
-                        Text(stringResource(R.string.nutrition_barcode_rescan))
-                    }
+                    Spacer(Modifier.size(AppSpacing.sectionGap))
+                    OverlayPillButton(
+                        text = stringResource(R.string.nutrition_manual_entry),
+                        onClick = { vm.manualWithBarcode(onResult) },
+                    )
+                    Spacer(Modifier.size(AppSpacing.itemGap))
+                    OverlayPillButton(
+                        text = stringResource(R.string.nutrition_barcode_rescan),
+                        onClick = { vm.rescan() },
+                        filled = false,
+                    )
                 }
             }
             else -> Unit
         }
+    }
+}
+
+/**
+ * Translucent-white overlay pill for the camera-immersion controls — drawn on the
+ * black preview, so it stays white/translucent (no themed surface over the camera).
+ * [filled] = subtle white fill (primary actions); else a white hairline outline.
+ */
+@Composable
+private fun OverlayPillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    filled: Boolean = true,
+) {
+    val skin = if (filled) {
+        Modifier.background(Color.White.copy(alpha = 0.18f), PillShape)
+    } else {
+        Modifier.border(1.dp, Color.White.copy(alpha = 0.6f), PillShape)
+    }
+    Box(
+        modifier = modifier
+            .clip(PillShape)
+            .then(skin)
+            .heightIn(min = AppSpacing.touchTarget)
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.cardPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
+        )
     }
 }
 

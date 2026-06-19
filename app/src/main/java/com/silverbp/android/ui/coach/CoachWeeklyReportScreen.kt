@@ -25,8 +25,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -40,6 +38,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.coach.WeeklyReport
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
@@ -59,8 +59,8 @@ fun CoachWeeklyReportScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.coach_weekly_report_title)) },
+            AppTopBar(
+                title = stringResource(R.string.coach_weekly_report_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -108,9 +108,12 @@ fun CoachWeeklyReportScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(onClick = { paywall.show(GateReason.AiCoach) }) {
-                        Text(stringResource(R.string.gate_upgrade_cta))
-                    }
+                    ExpressivePrimaryButton(
+                        text = stringResource(R.string.gate_upgrade_cta),
+                        onClick = { paywall.show(GateReason.AiCoach) },
+                        icon = Icons.Filled.AutoAwesome,
+                        fillWidth = true,
+                    )
                 }
             } else {
                 StandardCard {

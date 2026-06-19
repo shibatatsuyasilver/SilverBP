@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -25,15 +24,12 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -52,6 +48,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.R
 import com.silverbp.android.core.Member
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.paywall.GateReason
 import com.silverbp.android.ui.paywall.LocalPaywallController
 import com.silverbp.android.ui.theme.AppSpacing
@@ -117,8 +116,8 @@ fun MemberManagementScreen(onClose: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.member_manage_title)) },
+            AppTopBar(
+                title = stringResource(R.string.member_manage_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -130,7 +129,9 @@ fun MemberManagementScreen(onClose: () -> Unit) {
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.member_add),
+                icon = Icons.Filled.Add,
                 onClick = {
                     // SINGLE PREMIUM GATE POINT (Phase 3). Free allows only the
                     // owner; adding ANY further member needs Premium. With
@@ -139,13 +140,11 @@ fun MemberManagementScreen(onClose: () -> Unit) {
                     // member is NOT gated — that path is in MemberRow.onEdit.
                     if (!entitlements.isPremium()) {
                         paywall.show(GateReason.AddMember)
-                        return@ExtendedFloatingActionButton
+                        return@ExpressivePrimaryButton
                     }
                     editing = null
                     showEditor = true
                 },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text(stringResource(R.string.member_add)) },
             )
         },
     ) { padding ->
@@ -272,23 +271,15 @@ private fun MemberRow(
     onEdit: () -> Unit,
     onArchive: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(AppSpacing.cardCorner),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        shadowElevation = 1.dp,
+    StandardCard(
+        contentPadding = AppSpacing.itemGap,
+        accent = MemberPalette.colorFor(member.colorIndex),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 80.dp)
-                .padding(
-                    start = AppSpacing.cardPadding,
-                    end = AppSpacing.itemGap,
-                    top = AppSpacing.itemGap,
-                    bottom = AppSpacing.itemGap,
-                ),
+                .padding(start = AppSpacing.itemGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MemberAvatar(member)
@@ -364,23 +355,15 @@ private fun OwnerBadge() {
  */
 @Composable
 private fun ArchivedMemberRow(member: Member, onUnarchive: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(AppSpacing.cardCorner),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        shadowElevation = 1.dp,
+    StandardCard(
+        contentPadding = AppSpacing.itemGap,
+        accent = MemberPalette.colorFor(member.colorIndex).copy(alpha = 0.40f),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 72.dp)
-                .padding(
-                    start = AppSpacing.cardPadding,
-                    end = AppSpacing.itemGap,
-                    top = AppSpacing.itemGap,
-                    bottom = AppSpacing.itemGap,
-                ),
+                .padding(start = AppSpacing.itemGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MemberAvatar(member, dimmed = true)

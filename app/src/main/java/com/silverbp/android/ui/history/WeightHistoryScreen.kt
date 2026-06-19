@@ -1,6 +1,7 @@
 package com.silverbp.android.ui.history
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,12 +15,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,40 +42,24 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
 import com.silverbp.android.core.WeightReading
-import com.silverbp.android.core.WeightRepository
 import com.silverbp.android.core.WeightUnit
-import com.silverbp.android.core.member.CurrentMemberStore
-import com.silverbp.android.di.ServiceLocator
-import com.silverbp.android.settings.UserSettingsRepository
-import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import com.silverbp.android.ui.theme.MetricAccent
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.util.UUID
 
 /**
  * Member-scoped weight history, the [GlucoseHistoryScreen] sibling adapted for
@@ -122,7 +108,7 @@ fun WeightHistoryScreen(
                 key = { idx -> "weight-group-${state.grouped[idx].date}" },
             ) { groupIdx ->
                 val group = state.grouped[groupIdx]
-                WeightDaySectionCard(
+                WeightDaySection(
                     group = group,
                     unit = state.unit,
                     onEdit = { reading -> onEdit(reading.id.toString()) },
@@ -253,37 +239,35 @@ private fun WeightFilterMenu(
     }
 }
 
+/**
+ * One calendar day's weight readings: a relative/absolute day header with the
+ * day's mean + count, then a surface-card row per reading. Mirrors the
+ * [UnifiedHistoryScreen] day-section idiom so the measurement types read
+ * consistently.
+ */
 @Composable
-private fun WeightDaySectionCard(
+private fun WeightDaySection(
     group: WeightDayGroup,
     unit: WeightUnit,
     onEdit: (WeightReading) -> Unit,
     onLongPress: (WeightReading) -> Unit,
 ) {
     val dateFmt = DateTimeFormatter.ofPattern(stringResource(R.string.history_date_format), Locale.getDefault())
+    val today = remember { LocalDate.now() }
+    val dateLabel = when (group.date) {
+        today -> stringResource(R.string.range_today)
+        today.minusDays(1) -> stringResource(R.string.combined_history_yesterday)
+        else -> group.date.format(dateFmt)
+    }
     val unitLabel = weightUnitLabel(unit)
-    StandardCard(
-        title = group.date.format(dateFmt),
-        titleTrailing = {
-            AssistChip(
-                onClick = {},
-                label = {
-                    Text(
-                        stringResource(R.string.history_readings_count, group.readings.size),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                },
-                colors = AssistChipDefaults.assistChipColors(),
-            )
-        },
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
-    ) {
-        Text(
-            "${formatWeightValue(group.meanKg, unit)} $unitLabel",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
+        WeightDayHeader(
+            title = dateLabel,
+            count = group.readings.size,
+            meanText = "${formatWeightValue(group.meanKg, unit)} $unitLabel",
         )
-        group.readings.forEachIndexed { idx, reading ->
+        group.readings.forEach { reading ->
             WeightRow(
                 reading = reading,
                 unit = unit,
@@ -291,13 +275,45 @@ private fun WeightDaySectionCard(
                 onClick = { onEdit(reading) },
                 onLongClick = { onLongPress(reading) },
             )
-            if (idx < group.readings.size - 1) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
         }
     }
 }
 
+/** Day-group header: relative/absolute day title, the day's mean, and "N 筆" count. */
+@Composable
+private fun WeightDayHeader(title: String, count: Int, meanText: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = AppSpacing.tight, top = AppSpacing.tight, bottom = AppSpacing.tight),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            "$meanText · ",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            stringResource(R.string.history_readings_count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * One weight reading as a surface card, mirroring the [UnifiedHistoryScreen]
+ * TimelineRecordRow: a leading [MetricAccent.Weight] scale tile, the big value +
+ * unit, and a trailing time + chevron. BMI band is a per-reading concern keyed on
+ * the member's height (handled on the confirm screen) and is not part of this
+ * list's state, so no category dot is shown here.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WeightRow(
@@ -311,33 +327,78 @@ private fun WeightRow(
         DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
             .withZone(java.time.ZoneId.systemDefault())
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "${formatWeightValue(reading.valueKg, unit)} $unitLabel",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = AppSpacing.touchTarget + 26.dp)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .semantics(mergeDescendants = true) { role = Role.Button }
+                .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // LEADING: the metric's fixed accent icon tile (never varies by
+            // category) — same idiom and ~20% alpha fill as the Today MetricCard.
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MetricAccent.Weight.copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.MonitorWeight,
+                    contentDescription = null,
+                    tint = MetricAccent.Weight,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+
+            Spacer(Modifier.size(AppSpacing.itemGap + AppSpacing.tight))
+
+            // MIDDLE: type label then value + unit.
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(R.string.measure_weight),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        formatWeightValue(reading.valueKg, unit),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.size(AppSpacing.tight))
+                    Text(
+                        unitLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 2.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.size(AppSpacing.itemGap))
+
+            // TRAILING: time then chevron, inline at the row's end (mockup idiom).
             Text(
                 fmt.format(reading.timestamp),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.size(AppSpacing.tight))
+            Icon(
+                Icons.AutoMirrored.Filled.NavigateNext,
+                contentDescription = stringResource(R.string.a11y_view_reading_details),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Spacer(Modifier.size(8.dp))
-        Icon(
-            Icons.AutoMirrored.Filled.NavigateNext,
-            contentDescription = stringResource(R.string.a11y_view_reading_details),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

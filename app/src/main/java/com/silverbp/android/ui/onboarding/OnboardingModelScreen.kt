@@ -1,7 +1,5 @@
 package com.silverbp.android.ui.onboarding
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -19,15 +16,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +49,9 @@ import com.silverbp.android.recognition.DeviceCapabilities.RecommendedBackend
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.ui.components.ExpressiveAssistChip
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.ExpressiveSecondaryButton
 import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
@@ -217,9 +214,10 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
                 onSelect = { selected = RecognitionBackend.Cloud },
             ) {
                 if (selected == RecognitionBackend.Cloud) {
-                    OutlinedButton(onClick = { uriHandler.openUri(AI_STUDIO_KEY_URL) }) {
-                        Text(stringResource(R.string.onboarding_model_cloud_get_key))
-                    }
+                    ExpressiveSecondaryButton(
+                        text = stringResource(R.string.onboarding_model_cloud_get_key),
+                        onClick = { uriHandler.openUri(AI_STUDIO_KEY_URL) },
+                    )
                     OutlinedTextField(
                         value = apiKey,
                         onValueChange = { apiKey = it; keyError = false },
@@ -252,10 +250,11 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
             }
 
             Spacer(Modifier.size(AppSpacing.itemGap))
-            OnboardingHeroButton(
-                label = stringResource(R.string.onboarding_model_confirm),
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.onboarding_model_confirm),
                 onClick = { onContinue() },
                 enabled = true,
+                fillWidth = true,
             )
             TextButton(
                 onClick = { applyAndFinish(RecognitionBackend.Local, download = false) },
@@ -279,36 +278,33 @@ private fun OptionCard(
     onSelect: () -> Unit,
     extra: @Composable () -> Unit = {},
 ) {
-    // Selected card: brand-tinted fill + a primary outline so the chosen backend
-    // reads at a glance for older eyes (mirrors the card family's selection idiom).
-    val cardModifier = if (selected) {
-        Modifier
-            .clip(RoundedCornerShape(AppSpacing.cardCorner))
-            .border(
-                width = 2.dp,
-                color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(AppSpacing.cardCorner),
-            )
-            .clickable { onSelect() }
-    } else {
-        Modifier.clickable { onSelect() }
-    }
+    // Selectable StandardCard: the whole card is tappable (onClick), and the
+    // chosen backend reads at a glance via a brand-tinted fill + the leading
+    // RadioButton — mirrors the AI-backend chooser pattern. surfaceContainer
+    // fill when idle keeps the unselected options calm for older eyes.
     StandardCard(
-        modifier = cardModifier,
+        onClick = onSelect,
         containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
-        else MaterialTheme.colorScheme.surface,
+        else MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
         ) {
-            RadioButton(selected = selected, onClick = onSelect)
-            Spacer(Modifier.size(AppSpacing.itemGap))
+            RadioButton(
+                selected = selected,
+                onClick = onSelect,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                    unselectedColor = MaterialTheme.colorScheme.outline,
+                ),
+            )
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.tight)) {
                 if (recommended) {
-                    AssistChip(
+                    ExpressiveAssistChip(
+                        label = stringResource(R.string.onboarding_model_recommended),
                         onClick = onSelect,
-                        label = { Text(stringResource(R.string.onboarding_model_recommended)) },
                     )
                 }
                 Text(
@@ -349,36 +345,6 @@ private fun OnboardingHeroIcon(
             contentDescription = null,
             modifier = Modifier.size(30.dp),
             tint = MaterialTheme.colorScheme.primary,
-        )
-    }
-}
-
-/**
- * Full-width lime "hero" primary action, matching the onboarding flow's primary
- * button (see [OnboardingNicknameScreen]). Pure styling wrapper around [Button];
- * preserves the caller's onClick/enabled wiring exactly.
- */
-@Composable
-private fun OnboardingHeroButton(
-    label: String,
-    onClick: () -> Unit,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.secondary,
-            contentColor = MaterialTheme.colorScheme.onSecondary,
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
         )
     }
 }

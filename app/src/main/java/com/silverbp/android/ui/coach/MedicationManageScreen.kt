@@ -1,33 +1,33 @@
 package com.silverbp.android.ui.coach
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +47,12 @@ import com.silverbp.android.core.db.MedicationEntity
 import com.silverbp.android.core.db.MedicationKind
 import com.silverbp.android.core.db.MedicationScheduleEntity
 import com.silverbp.android.di.ServiceLocator
-import com.silverbp.android.ui.components.SectionCard
+import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.SettingsDivider
+import com.silverbp.android.ui.components.SettingsGroup
+import com.silverbp.android.ui.theme.AppSpacing
+import com.silverbp.android.ui.theme.ForgePrimary
 import kotlinx.coroutines.launch
 
 /**
@@ -75,8 +80,8 @@ fun MedicationManageScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.medication_manage_title)) },
+            AppTopBar(
+                title = stringResource(R.string.medication_manage_title),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -86,14 +91,6 @@ fun MedicationManageScreen(
                     }
                 },
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAddNew) {
-                Icon(
-                    Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.medication_add),
-                )
-            }
         },
     ) { padding ->
         if (meds.isEmpty()) {
@@ -106,22 +103,32 @@ fun MedicationManageScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
         ) {
+            // Add CTA — Expressive primary button mirroring the restyled flagship's
+            // list-header actions (replaces the old plain FloatingActionButton).
+            item(key = "add-cta") {
+                ExpressivePrimaryButton(
+                    text = stringResource(R.string.medication_add),
+                    onClick = onAddNew,
+                    icon = Icons.Filled.Add,
+                    fillWidth = true,
+                )
+            }
+
             val medsList = medsByKind[MedicationKind.MEDICATION].orEmpty()
             if (medsList.isNotEmpty()) {
                 item(key = "section-medications") {
-                    SectionCard(stringResource(R.string.medication_section_medications)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            medsList.forEach { med ->
-                                MedicationRow(
-                                    med = med,
-                                    schedules = schedulesByMed[med.id].orEmpty(),
-                                    onEdit = { onEdit(med.id) },
-                                    onDelete = { pendingDelete = med },
-                                )
-                            }
+                    SettingsGroup(stringResource(R.string.medication_section_medications)) {
+                        medsList.forEachIndexed { index, med ->
+                            if (index > 0) SettingsDivider()
+                            MedicationRow(
+                                med = med,
+                                schedules = schedulesByMed[med.id].orEmpty(),
+                                onEdit = { onEdit(med.id) },
+                                onDelete = { pendingDelete = med },
+                            )
                         }
                     }
                 }
@@ -129,16 +136,15 @@ fun MedicationManageScreen(
             val supplementsList = medsByKind[MedicationKind.SUPPLEMENT].orEmpty()
             if (supplementsList.isNotEmpty()) {
                 item(key = "section-supplements") {
-                    SectionCard(stringResource(R.string.medication_section_supplements)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            supplementsList.forEach { med ->
-                                MedicationRow(
-                                    med = med,
-                                    schedules = schedulesByMed[med.id].orEmpty(),
-                                    onEdit = { onEdit(med.id) },
-                                    onDelete = { pendingDelete = med },
-                                )
-                            }
+                    SettingsGroup(stringResource(R.string.medication_section_supplements)) {
+                        supplementsList.forEachIndexed { index, med ->
+                            if (index > 0) SettingsDivider()
+                            MedicationRow(
+                                med = med,
+                                schedules = schedulesByMed[med.id].orEmpty(),
+                                onEdit = { onEdit(med.id) },
+                                onDelete = { pendingDelete = med },
+                            )
                         }
                     }
                 }
@@ -149,16 +155,15 @@ fun MedicationManageScreen(
             }
             otherKinds.forEach { (kind, list) ->
                 item(key = "section-$kind") {
-                    SectionCard(kind) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            list.forEach { med ->
-                                MedicationRow(
-                                    med = med,
-                                    schedules = schedulesByMed[med.id].orEmpty(),
-                                    onEdit = { onEdit(med.id) },
-                                    onDelete = { pendingDelete = med },
-                                )
-                            }
+                    SettingsGroup(kind) {
+                        list.forEachIndexed { index, med ->
+                            if (index > 0) SettingsDivider()
+                            MedicationRow(
+                                med = med,
+                                schedules = schedulesByMed[med.id].orEmpty(),
+                                onEdit = { onEdit(med.id) },
+                                onDelete = { pendingDelete = med },
+                            )
                         }
                     }
                 }
@@ -197,18 +202,21 @@ private fun EmptyState(padding: PaddingValues, onAddNew: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
-            .padding(24.dp),
+            .padding(AppSpacing.screenH),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 stringResource(R.string.medication_manage_empty),
                 style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.size(12.dp))
-            Button(onClick = onAddNew) {
-                Text(stringResource(R.string.medication_add))
-            }
+            Spacer(Modifier.size(AppSpacing.sectionGap))
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.medication_add),
+                onClick = onAddNew,
+                icon = Icons.Filled.Add,
+            )
         }
     }
 }
@@ -220,51 +228,69 @@ private fun MedicationRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = AppSpacing.touchTarget)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        // Leading tinted module-identity tile (服藥 = ForgePrimary), mirroring the
+        // Coach medication log rows so the medication family stays one colour.
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(ForgePrimary.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Icon(
+                Icons.Filled.Medication,
+                contentDescription = null,
+                tint = ForgePrimary,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                med.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (med.dose.isNotBlank()) {
                 Text(
-                    med.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (med.dose.isNotBlank()) {
-                    Text(
-                        med.dose,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                val summary = formatScheduleSummary(schedules)
-                if (summary.isNotEmpty()) {
-                    Text(
-                        summary,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Text(
-                        stringResource(R.string.medication_no_schedules),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            IconButton(onClick = onEdit) {
-                Icon(
-                    Icons.Filled.Edit,
-                    contentDescription = stringResource(R.string.medication_edit_title),
+                    med.dose,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.delete),
+            val summary = formatScheduleSummary(schedules)
+            if (summary.isNotEmpty()) {
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    stringResource(R.string.medication_no_schedules),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        IconButton(onClick = onEdit) {
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = stringResource(R.string.medication_edit_title),
+            )
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.delete),
+            )
         }
     }
 }

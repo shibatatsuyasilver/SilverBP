@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,11 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bloodtype
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -37,12 +34,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -66,6 +61,13 @@ import com.silverbp.android.core.GlucoseCategory
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.MeasureContext
 import com.silverbp.android.core.Member
+import com.silverbp.android.ui.components.ExpressivePrimaryButton
+import com.silverbp.android.ui.components.HeroCard
+import com.silverbp.android.ui.components.HeroForeground
+import com.silverbp.android.ui.components.HeroForegroundDim
+import com.silverbp.android.ui.components.HeroLabel
+import com.silverbp.android.ui.components.HeroStatusPill
+import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.member.MemberPalette
 import com.silverbp.android.ui.paywall.GateReason
@@ -122,7 +124,7 @@ fun ConfirmGlucoseScreen(
 
     Scaffold(
         topBar = {
-            androidx.compose.material3.TopAppBar(
+            TopAppBar(
                 title = { Text(titleText) },
                 navigationIcon = {
                     TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
@@ -228,26 +230,16 @@ fun ConfirmGlucoseScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            // Prominent primary save — large filled button mirroring the TopAppBar
-            // save action (same vm.save call) for an obvious senior-friendly target.
-            Button(
+            // Prominent primary save — the Expressive CTA that mirrors the
+            // TopAppBar save action (same vm.save call), giving the senior user a
+            // big, obvious confirmation target at the end of the form.
+            ExpressivePrimaryButton(
+                text = stringResource(R.string.glucose_save),
                 onClick = { vm.save(onSaved) },
                 enabled = draft.isValid && !saving,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                shape = RoundedCornerShape(AppSpacing.cardCorner),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) {
-                Text(
-                    stringResource(R.string.glucose_save),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+                icon = Icons.Filled.Check,
+                fillWidth = true,
+            )
 
             Spacer(Modifier.size(AppSpacing.itemGap))
         }
@@ -291,9 +283,13 @@ fun ConfirmGlucoseScreen(
 }
 
 /**
- * HERO — the captured glucose value, its unit, and the live category, shown as a
- * StandardCard with a tinted drop-icon tile mirroring the Today screen's glucose
- * mini card. Pure display of the draft; editing happens in the ValueRow below.
+ * HERO — the captured glucose value, its unit, and the live category, shown in the
+ * shared [HeroCard] gradient surface, mirroring the Today screen's glucose hero so
+ * the verify/edit step reads as the same reading the user just captured. Pure
+ * display of the draft; editing happens in the ValueRow below.
+ *
+ * The live category is surfaced as a [HeroStatusPill] whose dot keeps the category
+ * colour (status colour = dot/label only). Empty values render as an em-dash.
  */
 @Composable
 private fun GlucoseValueHero(
@@ -301,65 +297,40 @@ private fun GlucoseValueHero(
     unit: GlucoseUnit,
     category: GlucoseCategory?,
 ) {
-    val tint = category?.let { categoryColor(it) } ?: MaterialTheme.colorScheme.primary
     val unitLabel = stringResource(
         when (unit) {
             GlucoseUnit.Mgdl -> R.string.glucose_unit_mgdl
             GlucoseUnit.Mmol -> R.string.glucose_unit_mmol
         },
     )
-    StandardCard(cornerRadius = AppSpacing.heroCorner) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(tint.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Bloodtype,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = tint,
-                )
-            }
-            Spacer(Modifier.size(AppSpacing.sectionGap))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = valueText.ifBlank { "—" },
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        unitLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
+    HeroCard {
+        HeroLabel(
+            text = stringResource(R.string.glucose_value_label),
+            trailing = category?.let {
+                {
+                    HeroStatusPill(
+                        text = stringResource(categoryLabelRes(it)),
+                        dotColor = categoryColor(it),
                     )
                 }
-                category?.let {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(categoryColor(it)),
-                        )
-                        Spacer(Modifier.size(6.dp))
-                        Text(
-                            stringResource(categoryLabelRes(it)),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = categoryColor(it),
-                        )
-                    }
-                }
-            }
+            },
+        )
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = valueText.ifBlank { "—" },
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = HeroForeground,
+            )
+            Text(
+                unitLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = HeroForegroundDim,
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
         }
     }
 }
@@ -403,7 +374,6 @@ private fun ValueRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UnitToggleRow(unit: GlucoseUnit, onSelect: (GlucoseUnit) -> Unit) {
     Row(
@@ -415,25 +385,20 @@ private fun UnitToggleRow(unit: GlucoseUnit, onSelect: (GlucoseUnit) -> Unit) {
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
         )
-        SingleChoiceSegmentedButtonRow {
-            val options = listOf(
-                GlucoseUnit.Mgdl to stringResource(R.string.glucose_unit_mgdl),
-                GlucoseUnit.Mmol to stringResource(R.string.glucose_unit_mmol),
-            )
-            options.forEachIndexed { idx, (value, label) ->
-                SegmentedButton(
-                    selected = value == unit,
-                    onClick = { onSelect(value) },
-                    shape = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
-                ) {
-                    Text(label, style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
+        val options = listOf(
+            GlucoseUnit.Mgdl to stringResource(R.string.glucose_unit_mgdl),
+            GlucoseUnit.Mmol to stringResource(R.string.glucose_unit_mmol),
+        )
+        val selectedIndex = options.indexOfFirst { it.first == unit }.coerceAtLeast(0)
+        SegmentedControl(
+            options = options.map { it.second },
+            selectedIndex = selectedIndex,
+            onSelect = { idx -> onSelect(options[idx].first) },
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ContextPicker(selected: MeasureContext, onSelect: (MeasureContext) -> Unit) {
     val options = listOf(
@@ -443,17 +408,13 @@ private fun ContextPicker(selected: MeasureContext, onSelect: (MeasureContext) -
         MeasureContext.Bedtime to stringResource(R.string.context_bedtime),
         MeasureContext.Random to stringResource(R.string.context_random),
     )
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { idx, (value, label) ->
-            SegmentedButton(
-                selected = value == selected,
-                onClick = { onSelect(value) },
-                shape = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
-            ) {
-                Text(label, style = MaterialTheme.typography.labelSmall)
-            }
-        }
-    }
+    val selectedIndex = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
+    SegmentedControl(
+        options = options.map { it.second },
+        selectedIndex = selectedIndex,
+        onSelect = { idx -> onSelect(options[idx].first) },
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
