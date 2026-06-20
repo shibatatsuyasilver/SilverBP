@@ -41,6 +41,7 @@ class AutoBackupWorker(
                 else -> applicationContext.getString(R.string.backup_worker_no_account)
             }
             ServiceLocator.userSettings.recordBackupFailure(msg, System.currentTimeMillis())
+            BackupNotification.showFailure(applicationContext, msg)
             return Result.failure()
         }
 
@@ -49,10 +50,9 @@ class AutoBackupWorker(
                 is GoogleAuthClient.TokenResult.Granted -> r.accessToken
                 is GoogleAuthClient.TokenResult.NeedsConsent,
                 GoogleAuthClient.TokenResult.Cancelled -> {
-                    ServiceLocator.userSettings.recordBackupFailure(
-                        applicationContext.getString(R.string.backup_drive_revoked),
-                        System.currentTimeMillis(),
-                    )
+                    val msg = applicationContext.getString(R.string.backup_drive_revoked)
+                    ServiceLocator.userSettings.recordBackupFailure(msg, System.currentTimeMillis())
+                    BackupNotification.showFailure(applicationContext, msg)
                     return Result.failure()
                 }
             }
@@ -82,8 +82,14 @@ class AutoBackupWorker(
             ServiceLocator.userSettings.recordBackupFailure(message, System.currentTimeMillis())
             // WorkManager will exponentially back off until MAX_AUTO_RETRIES
             // attempts then mark the work failed; the UI will already show
-            // the persisted error from recordBackupFailure.
-            if (runAttemptCount < MAX_AUTO_RETRIES) Result.retry() else Result.failure()
+            // the persisted error from recordBackupFailure. Only the terminal
+            // attempt posts a notification — mid-retry attempts stay silent.
+            if (runAttemptCount < MAX_AUTO_RETRIES) {
+                Result.retry()
+            } else {
+                BackupNotification.showFailure(applicationContext, message)
+                Result.failure()
+            }
         }
     }
 

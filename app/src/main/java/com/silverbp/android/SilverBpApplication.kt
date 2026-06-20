@@ -2,6 +2,7 @@ package com.silverbp.android
 
 import android.app.Application
 import com.silverbp.android.achievements.MedalNotifier
+import com.silverbp.android.backup.auto.BackupNotification
 import com.silverbp.android.billing.EntitlementRevalidationScheduler
 import com.silverbp.android.coach.CoachNotifier
 import com.silverbp.android.coach.CoachReminderScheduler
@@ -36,6 +37,7 @@ class SilverBpApplication : Application() {
         MedalNotifier.createChannel(this)
         CoachNotifier.createChannels(this)
         ModelDownloadNotification.createChannel(this)
+        BackupNotification.createChannel(this)
         DeviceCapabilities.logFingerprint()
         // If the Gemma 3n .task file already exists in filesDir/models/,
         // kick a background preload so capture isn't blocked. No-op
@@ -47,6 +49,7 @@ class SilverBpApplication : Application() {
         appScope.launch { reconcileHealthConnect() }
         appScope.launch { reconcileCoach() }
         appScope.launch { reconcileEntitlement() }
+        appScope.launch { reconcileAutoBackup() }
 
         // Watcher fires anomaly notifications in real time as the user logs
         // new readings; lives for the app process's lifetime.
@@ -104,6 +107,20 @@ class SilverBpApplication : Application() {
     private suspend fun reconcileEntitlement() {
         runCatching { ServiceLocator.entitlementManager.queryPurchasesOnStartup() }
         EntitlementRevalidationScheduler.schedule(this)
+    }
+
+    /**
+     * Mirror [reconcileCoach] for Google Drive auto-backup: re-register the
+     * periodic WorkManager schedule on every cold start to match the persisted
+     * `autoBackupFrequency`. WorkManager survives normal process death and
+     * reboots on its own, but a force-stop / OEM task-killer cancels the work
+     * with nothing to restore it — this is that restore path (KEEP, so a
+     * healthy schedule is left untouched). Equivalent to iOS re-submitting its
+     * backup BGTask in `SilverBPApp.init()`.
+     */
+    private suspend fun reconcileAutoBackup() {
+        val s = runCatching { ServiceLocator.userSettings.flow.first() }.getOrNull() ?: return
+        ServiceLocator.autoBackupScheduler.reconcile(s.autoBackupFrequency)
     }
 
     /**

@@ -586,10 +586,19 @@
     <string name="backup_auto_status_failure">上次備份失敗: %1$s</string>
     <string name="backup_auto_running">備份中…</string>
     <string name="backup_auto_disabled_hint">請先連結 Google 帳號並建立恢復碼才能開啟自動備份.</string>
+    <string name="backup_auto_disabled_no_account">請先連結 Google 帳號才能開啟自動備份.</string>
+    <string name="backup_auto_disabled_needs_recovery">請先建立恢復碼，即可選擇備份頻率或立即備份.</string>
     <string name="backup_auto_drive_warning">提醒: 解除安裝 App 會讓 Drive 上的備份檔被 Google 清掉. 請務必另外抄寫恢復碼.</string>
     <string name="backup_auto_recovery_required_title">需要恢復碼</string>
     <string name="backup_auto_recovery_required_msg">自動備份的加密金鑰由恢復碼推導. 換新手機要還原時必須輸入這串字元, 請先完成恢復碼設定.</string>
     <string name="backup_auto_recovery_required_continue">繼續設定恢復碼</string>
+    <!-- 自動備份失敗通知 + 背景可靠性提示 -->
+    <string name="backup_notif_channel">備份狀態</string>
+    <string name="backup_notif_channel_desc">自動備份失敗時通知您.</string>
+    <string name="backup_notif_failure_title">自動備份失敗</string>
+    <string name="backup_battery_opt_title">允許背景備份</string>
+    <string name="backup_battery_opt_msg">要讓自動備份依排程執行, 請將 SilverBP 排除在電池最佳化之外. 否則系統可能在 App 進入背景時停止備份.</string>
+    <string name="backup_battery_opt_confirm">前往設定</string>
 
     <!-- 首次登入閘門:稍後再說 -->
     <string name="login_skip">稍後再說</string>

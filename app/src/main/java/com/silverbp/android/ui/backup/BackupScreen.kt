@@ -1,5 +1,9 @@
 package com.silverbp.android.ui.backup
 
+import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -102,7 +106,6 @@ fun BackupScreen(
     val lastErrorAt = userSettings?.lastBackupErrorAtMs ?: 0L
     val hasAccount = accountEmail.isNotBlank()
     val hasRecoveryCode = vm.storedRecoveryCode() != null
-    val autoControlsEnabled = hasAccount && hasRecoveryCode
 
     // Launcher for Google consent IntentSender. ViewModel parks the sender in
     // pendingConsentIntent; the LaunchedEffect below kicks it off, and we
@@ -128,6 +131,17 @@ fun BackupScreen(
             gateTarget = target
             dialog = Dialog.RecoveryGate
         }
+    }
+
+    // Enabling a non-Off cadence persists + schedules it, then nudges the user
+    // to exempt the app from battery optimization. Without the exemption, OEM
+    // task-killers (common in TW: Xiaomi/OPPO/Samsung/Asus) silently cancel the
+    // periodic WorkManager job in the background.
+    fun enableFrequency(freq: AutoBackupFrequency) {
+        vm.setFrequency(freq)
+        val pm = context.getSystemService(PowerManager::class.java)
+        val exempt = pm?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+        if (!exempt) dialog = Dialog.BatteryOpt
     }
 
     Scaffold(
@@ -236,9 +250,9 @@ fun BackupScreen(
                         if (freqOption == AutoBackupFrequency.Off) {
                             // 「關閉」永遠可選 — 即使沒帳號或沒恢復碼也應該能把已啟用的排程關掉.
                             vm.setFrequency(AutoBackupFrequency.Off)
-                        } else if (autoControlsEnabled) {
+                        } else if (hasAccount) {
                             runWithRecoveryGate(GateTarget.SetFrequency(freqOption)) {
-                                vm.setFrequency(freqOption)
+                                enableFrequency(freqOption)
                             }
                         }
                     },
@@ -252,7 +266,7 @@ fun BackupScreen(
                         runWithRecoveryGate(GateTarget.BackupNow) { vm.backupNow() }
                     },
                     icon = Icons.Filled.Backup,
-                    enabled = autoControlsEnabled && !autoBackupRunning,
+                    enabled = hasAccount && !autoBackupRunning,
                     fillWidth = true,
                 )
 
@@ -272,9 +286,14 @@ fun BackupScreen(
                 }
                 Text(statusText, style = MaterialTheme.typography.bodySmall, color = statusColor)
 
-                if (!autoControlsEnabled) {
+                if (!hasAccount || !hasRecoveryCode) {
+                    val disabledHint = if (!hasAccount) {
+                        R.string.backup_auto_disabled_no_account
+                    } else {
+                        R.string.backup_auto_disabled_needs_recovery
+                    }
                     Text(
-                        stringResource(R.string.backup_auto_disabled_hint),
+                        stringResource(disabledHint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -415,7 +434,7 @@ fun BackupScreen(
                     dialog = Dialog.None
                     when (target) {
                         GateTarget.ConnectGoogle -> vm.startGoogleConnect()
-                        is GateTarget.SetFrequency -> vm.setFrequency(target.freq)
+                        is GateTarget.SetFrequency -> enableFrequency(target.freq)
                         GateTarget.BackupNow -> vm.backupNow()
                         null -> Unit
                     }
@@ -463,6 +482,35 @@ fun BackupScreen(
                     dialog = Dialog.None
                 },
             )
+            Dialog.BatteryOpt -> AlertDialog(
+                onDismissRequest = { dialog = Dialog.None },
+                title = { Text(stringResource(R.string.backup_battery_opt_title)) },
+                text = { Text(stringResource(R.string.backup_battery_opt_msg)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        dialog = Dialog.None
+                        // Prefer the battery-optimization whitelist screen (no
+                        // permission, Play-policy-safe); fall back to this app's
+                        // details page if the OEM doesn't expose it.
+                        val opened = runCatching {
+                            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        }.isSuccess
+                        if (!opened) {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.fromParts("package", context.packageName, null),
+                                    )
+                                )
+                            }
+                        }
+                    }) { Text(stringResource(R.string.backup_battery_opt_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { dialog = Dialog.None }) { Text(stringResource(R.string.cancel)) }
+                },
+            )
         }
     }
 }
@@ -476,6 +524,7 @@ private enum class Dialog {
     RecoveryGate,
     DisconnectConfirm,
     DriveRestore,
+    BatteryOpt,
 }
 
 private sealed class GateTarget {

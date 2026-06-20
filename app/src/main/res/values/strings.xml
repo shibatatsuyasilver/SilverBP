@@ -586,10 +586,19 @@
     <string name="backup_auto_status_failure">Last backup failed: %1$s</string>
     <string name="backup_auto_running">Backing up…</string>
     <string name="backup_auto_disabled_hint">Link a Google account and set up a recovery code before enabling auto-backup.</string>
+    <string name="backup_auto_disabled_no_account">Link a Google account before enabling auto-backup.</string>
+    <string name="backup_auto_disabled_needs_recovery">Set up a recovery code to choose a backup frequency or back up now.</string>
     <string name="backup_auto_drive_warning">Note: uninstalling SilverBP removes backups from Drive (Google policy). Keep a written copy of your recovery code.</string>
     <string name="backup_auto_recovery_required_title">Recovery code required</string>
     <string name="backup_auto_recovery_required_msg">The auto-backup encryption key is derived from the recovery code. You must enter it on a new device to restore — please finish setting up the recovery code first.</string>
     <string name="backup_auto_recovery_required_continue">Continue to recovery code setup</string>
+    <!-- Auto-backup failure notification + background-reliability prompt -->
+    <string name="backup_notif_channel">Backup status</string>
+    <string name="backup_notif_channel_desc">Alerts when an automatic backup fails.</string>
+    <string name="backup_notif_failure_title">Auto-backup failed</string>
+    <string name="backup_battery_opt_title">Allow background backups</string>
+    <string name="backup_battery_opt_msg">To run automatic backups on schedule, exempt SilverBP from battery optimization. Otherwise the system may stop backups while the app is in the background.</string>
+    <string name="backup_battery_opt_confirm">Open settings</string>
 
     <!-- First-launch Google sign-in gate: skip-for-now action -->
     <string name="login_skip">Maybe later</string>
