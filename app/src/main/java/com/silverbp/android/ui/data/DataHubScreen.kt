@@ -2,7 +2,8 @@ package com.silverbp.android.ui.data
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -63,7 +64,7 @@ private enum class MeasureType(val labelRes: Int, val accent: androidx.compose.u
  * multi-member compare mode, unchanged) and the [GlucoseInsightsScreen]. The member
  * switcher scopes both segments. History stays prominently reachable here.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DataHubScreen(
     onEditReading: (String) -> Unit,
@@ -122,11 +123,12 @@ fun DataHubScreen(
 
             // 血壓 | 血糖 | 體重 type switch — only meaningful for 分析 (charts can't merge).
             if (active == DataSection.Insights) {
-                Row(
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.itemGap),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
                 ) {
                     MeasureType.entries.forEachIndexed { idx, m ->
                         ExpressiveFilterChip(
