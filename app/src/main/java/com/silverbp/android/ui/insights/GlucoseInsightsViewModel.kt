@@ -11,30 +11,32 @@ import com.silverbp.android.core.MeasureContext
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.UserSettingsRepository
+import com.silverbp.android.ui.history.DataRangeFilterStore
+import com.silverbp.android.ui.history.DateRange
+import com.silverbp.android.ui.history.matchesGlucose
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Glucose analytics state for [GlucoseInsightsScreen].
  *
  * Single-member only this phase (glucose compare mode is deferred — see the KDoc
- * on [GlucoseInsightsViewModel]). Reuses the BP [InsightsRange] enum for the
- * 7/30/90/All chips. [readings] is range-filtered + time-sorted for the trend
+ * on [GlucoseInsightsViewModel]). Uses the shared [DataRangeFilterStore] / [DateRange]
+ * filter (連動 with 紀錄) for the date-range chips. [readings] is range-filtered + time-sorted for the trend
  * chart; [contextDistribution] backs the timing-distribution chart; the three
  * headline stats mirror the roadmap §4-5 summary (fasting mean, after-meal mean,
  * low-event count). All values are canonical mg/dL; the screen renders them in
  * [unit].
  */
 data class GlucoseInsightsUiState(
-    val range: InsightsRange = InsightsRange.Last30,
+    val range: DateRange = DateRange.All,
     val readings: List<GlucoseReading> = emptyList(),
     /** Mean of fasting + before-meal readings (mg/dL), or null when none in range. */
     val fastingMeanMgdl: Double? = null,
@@ -51,7 +53,7 @@ data class GlucoseInsightsUiState(
 
 /**
  * Member-scoped glucose insights, the BP [InsightsViewModel] sibling. Follows the
- * selected member ([CurrentMemberStore]) and the chosen [InsightsRange].
+ * selected member ([CurrentMemberStore]) and the shared [DateRange] filter.
  *
  * **Compare mode is deferred for glucose this phase** (roadmap §4-3 marks compare
  * as optional-if-trivial): glucose classification keys on [MeasureContext], not a
@@ -65,14 +67,15 @@ class GlucoseInsightsViewModel(
     private val repo: GlucoseRepository = ServiceLocator.glucoseRepository,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
+    private val rangeStore: DataRangeFilterStore = ServiceLocator.dataRangeFilterStore,
 ) : ViewModel() {
 
-    private val rangeFlow = MutableStateFlow(InsightsRange.Last30)
+    // Date range shared with 紀錄 + the other 分析 screens via [DataRangeFilterStore].
     private val unitFlow = settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) }
 
     val state: StateFlow<GlucoseInsightsUiState> = combine(
         currentMember.flow.flatMapLatest { repo.observeAll(it) },
-        rangeFlow,
+        rangeStore.range,
         unitFlow,
     ) { all, range, unit ->
         val summary = computeGlucoseInsights(all, range)
@@ -90,7 +93,7 @@ class GlucoseInsightsViewModel(
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GlucoseInsightsUiState())
 
-    fun setRange(r: InsightsRange) { rangeFlow.value = r }
+    fun setRange(r: DateRange) { rangeStore.set(r) }
 }
 
 /** Pure glucose analytics, mirroring [computeMemberInsights] for BP. No Android deps. */
@@ -103,9 +106,13 @@ data class GlucoseSummary(
     val categoryDistribution: Map<GlucoseCategory, Int> = emptyMap(),
 )
 
-fun computeGlucoseInsights(all: List<GlucoseReading>, range: InsightsRange): GlucoseSummary {
-    val cutoff = range.days?.let { Instant.now().minus(it, ChronoUnit.DAYS) }
-    val filtered = if (cutoff == null) all else all.filter { it.timestamp.isAfter(cutoff) }
+fun computeGlucoseInsights(
+    all: List<GlucoseReading>,
+    range: DateRange,
+    today: LocalDate = LocalDate.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
+): GlucoseSummary {
+    val filtered = all.filter { range.matchesGlucose(it, today, zone) }
     val classifier = GlucoseClassifier()
 
     val fasting = filtered.filter {

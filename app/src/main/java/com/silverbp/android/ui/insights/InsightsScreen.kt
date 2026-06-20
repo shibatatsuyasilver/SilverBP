@@ -38,6 +38,7 @@ import com.silverbp.android.R
 import com.silverbp.android.ui.components.ExpressiveFilterChip
 import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.history.DateRange
 import com.silverbp.android.ui.insights.charts.DaypartCategoryHeatmap
 import com.silverbp.android.ui.insights.charts.DistributionDonut
 import com.silverbp.android.ui.insights.charts.MultiMemberDistribution
@@ -68,7 +69,6 @@ fun InsightsScreen(
         if (state.compareMode) {
             CompareMemberChips(state.activeMembers, state.selectedMemberIds, vm::toggleMember)
         }
-        RangeChips(state.range, vm::setRange)
         StatsCards(state)
 
         if (state.compareMode && !compareReady) {
@@ -192,28 +192,6 @@ private fun CompareHint() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun RangeChips(current: InsightsRange, onSelect: (InsightsRange) -> Unit) {
-    val pairs = listOf(
-        InsightsRange.Last7 to stringResource(R.string.range_7d),
-        InsightsRange.Last30 to stringResource(R.string.range_30d),
-        InsightsRange.Last90 to stringResource(R.string.range_90d),
-        InsightsRange.All to stringResource(R.string.range_all),
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenH),
-        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
-    ) {
-        pairs.forEach { (r, label) ->
-            ExpressiveFilterChip(
-                label = label,
-                selected = current == r,
-                onClick = { onSelect(r) },
-            )
-        }
     }
 }
 

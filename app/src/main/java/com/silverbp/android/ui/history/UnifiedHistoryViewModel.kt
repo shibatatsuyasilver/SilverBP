@@ -73,9 +73,11 @@ class UnifiedHistoryViewModel(
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
+    private val rangeStore: DataRangeFilterStore = ServiceLocator.dataRangeFilterStore,
 ) : ViewModel() {
 
-    private val rangeFlow = MutableStateFlow(DateRange.All)
+    // Date range is shared with the 分析 segment via [DataRangeFilterStore] ("連動共用");
+    // sort stays local to the 紀錄 list (charts have no sort concept).
     private val sortFlow = MutableStateFlow(SortOrder.Newest)
 
     // The selected member's own guideline (roadmap §3-1); falls back to the
@@ -95,7 +97,7 @@ class UnifiedHistoryViewModel(
             currentMember.flow.flatMapLatest { bpRepo.observeAll(it) },
             currentMember.flow.flatMapLatest { glucoseRepo.observeAll(it) },
         ) { bp, glucose -> bp to glucose },
-        rangeFlow,
+        rangeStore.range,
         sortFlow,
         guidelineFlow,
         glucoseUnitFlow,
@@ -141,7 +143,7 @@ class UnifiedHistoryViewModel(
         .catch { emit(UnifiedHistoryUiState(isLoading = false, error = true)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UnifiedHistoryUiState())
 
-    fun setRange(r: DateRange) { rangeFlow.value = r }
+    fun setRange(r: DateRange) { rangeStore.set(r) }
     fun setSort(s: SortOrder) { sortFlow.value = s }
 
     fun deleteBp(id: UUID) {

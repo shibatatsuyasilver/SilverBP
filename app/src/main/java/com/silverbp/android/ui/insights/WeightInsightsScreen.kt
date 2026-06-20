@@ -47,14 +47,15 @@ import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.UserSettingsRepository
-import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.history.DataRangeFilterStore
+import com.silverbp.android.ui.history.DateRange
+import com.silverbp.android.ui.history.matchesWeight
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.smoothLinePath
 import com.silverbp.android.ui.components.weightCategoryLabel
 import com.silverbp.android.ui.components.weightColorFor
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -62,8 +63,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 /**
@@ -86,7 +87,6 @@ fun WeightInsightsScreen(
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
         Spacer(Modifier.height(AppSpacing.itemGap))
-        WeightRangeChips(state.range, vm::setRange)
         WeightSummaryCards(state)
 
         ChartCard(stringResource(R.string.weight_trend_title)) {
@@ -99,28 +99,6 @@ fun WeightInsightsScreen(
         }
 
         Spacer(Modifier.height(24.dp))
-    }
-}
-
-@Composable
-private fun WeightRangeChips(current: InsightsRange, onSelect: (InsightsRange) -> Unit) {
-    val pairs = listOf(
-        InsightsRange.Last7 to stringResource(R.string.range_7d),
-        InsightsRange.Last30 to stringResource(R.string.range_30d),
-        InsightsRange.Last90 to stringResource(R.string.range_90d),
-        InsightsRange.All to stringResource(R.string.range_all),
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenH),
-        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
-    ) {
-        pairs.forEach { (r, label) ->
-            ExpressiveFilterChip(
-                label = label,
-                selected = current == r,
-                onClick = { onSelect(r) },
-            )
-        }
     }
 }
 
@@ -349,13 +327,13 @@ private fun formatWeightChange(changeKg: Double, unit: WeightUnit, unitLabel: St
 
 /**
  * Weight analytics state for [WeightInsightsScreen]. Single-member only this phase.
- * Reuses the BP [InsightsRange] enum for the 7/30/90/All chips. [readings] is
+ * Uses the shared [DateRange] filter (連動 with 紀錄) for the date-range chips. [readings] is
  * range-filtered + time-sorted for the trend chart; all weights are canonical kg
  * and the screen renders them in [unit]. [latestBmi] / [targetWeightKg] derive
  * from the member's profile (height / target), so both are null until set.
  */
 data class WeightInsightsUiState(
-    val range: InsightsRange = InsightsRange.Last30,
+    val range: DateRange = DateRange.All,
     val readings: List<WeightReading> = emptyList(),
     /** Latest in-range weight (kg), or null when the range is empty. */
     val latestKg: Double? = null,
@@ -372,7 +350,7 @@ data class WeightInsightsUiState(
 
 /**
  * Member-scoped weight insights, the glucose [GlucoseInsightsViewModel] sibling.
- * Follows the selected member ([CurrentMemberStore]) and the chosen [InsightsRange].
+ * Follows the selected member ([CurrentMemberStore]) and the shared [DateRange] filter.
  *
  * **Compare mode is out of scope this phase** (per the Phase 5 contract): weight's
  * BMI/category is a per-member concern keyed on the member's height, and a faithful
@@ -388,9 +366,10 @@ class WeightInsightsViewModel(
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
+    private val rangeStore: DataRangeFilterStore = ServiceLocator.dataRangeFilterStore,
 ) : ViewModel() {
 
-    private val rangeFlow = MutableStateFlow(InsightsRange.Last30)
+    // Date range shared with 紀錄 + the other 分析 screens via [DataRangeFilterStore].
     private val unitFlow = settings.flow.map { WeightUnit.fromRaw(it.weightUnit) }
 
     // Readings paired with the member's profile (height for BMI, target for the
@@ -404,7 +383,7 @@ class WeightInsightsViewModel(
 
     val state: StateFlow<WeightInsightsUiState> = combine(
         memberWeightFlow,
-        rangeFlow,
+        rangeStore.range,
         unitFlow,
     ) { (all, heightCm, targetKg), range, unit ->
         val summary = computeWeightInsights(all, range, heightCm)
@@ -422,7 +401,7 @@ class WeightInsightsViewModel(
         .catch { emit(WeightInsightsUiState(isLoading = false, error = true)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WeightInsightsUiState())
 
-    fun setRange(r: InsightsRange) { rangeFlow.value = r }
+    fun setRange(r: DateRange) { rangeStore.set(r) }
 }
 
 /** Pure weight analytics, mirroring [computeGlucoseInsights]. No Android deps. */
@@ -435,11 +414,12 @@ data class WeightSummary(
 
 fun computeWeightInsights(
     all: List<WeightReading>,
-    range: InsightsRange,
+    range: DateRange,
     heightCm: Int?,
+    today: LocalDate = LocalDate.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
 ): WeightSummary {
-    val cutoff = range.days?.let { Instant.now().minus(it, ChronoUnit.DAYS) }
-    val filtered = (if (cutoff == null) all else all.filter { it.timestamp.isAfter(cutoff) })
+    val filtered = all.filter { range.matchesWeight(it, today, zone) }
         .sortedBy { it.timestamp }
     val first = filtered.firstOrNull()?.valueKg
     val latest = filtered.lastOrNull()?.valueKg

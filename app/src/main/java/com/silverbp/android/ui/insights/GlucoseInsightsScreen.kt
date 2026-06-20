@@ -44,7 +44,7 @@ import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.MeasureContext
-import com.silverbp.android.ui.components.ExpressiveFilterChip
+import com.silverbp.android.ui.history.DateRange
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.components.formatGlucoseValue
 import com.silverbp.android.ui.components.glucoseCategoryLabel
@@ -73,7 +73,6 @@ fun GlucoseInsightsScreen(
         verticalArrangement = Arrangement.spacedBy(AppSpacing.sectionGap),
     ) {
         Spacer(Modifier.height(AppSpacing.itemGap))
-        GlucoseRangeChips(state.range, vm::setRange)
         GlucoseStatsCards(state)
 
         ChartCard(stringResource(R.string.glucose_trend_title)) {
@@ -98,28 +97,6 @@ fun GlucoseInsightsScreen(
             modifier = Modifier.padding(horizontal = AppSpacing.screenH),
         )
         Spacer(Modifier.height(24.dp))
-    }
-}
-
-@Composable
-private fun GlucoseRangeChips(current: InsightsRange, onSelect: (InsightsRange) -> Unit) {
-    val pairs = listOf(
-        InsightsRange.Last7 to stringResource(R.string.range_7d),
-        InsightsRange.Last30 to stringResource(R.string.range_30d),
-        InsightsRange.Last90 to stringResource(R.string.range_90d),
-        InsightsRange.All to stringResource(R.string.range_all),
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenH),
-        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
-    ) {
-        pairs.forEach { (r, label) ->
-            ExpressiveFilterChip(
-                label = label,
-                selected = current == r,
-                onClick = { onSelect(r) },
-            )
-        }
     }
 }
 

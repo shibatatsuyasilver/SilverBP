@@ -40,6 +40,7 @@ import com.silverbp.android.strength.ExerciseLibraryRepository
 import com.silverbp.android.strength.StrengthSeed
 import com.silverbp.android.strength.StrengthWorkoutLiveStore
 import com.silverbp.android.strength.StrengthWorkoutRepository
+import com.silverbp.android.ui.history.DataRangeFilterStore
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.backup.BackupManager
 import com.silverbp.android.backup.auto.AutoBackupScheduler
@@ -128,6 +129,13 @@ object ServiceLocator {
     val currentMemberStore: CurrentMemberStore by lazy {
         CurrentMemberStore(context, memberRepository)
     }
+
+    /**
+     * Shared in-memory date-range filter for the Data hub, so the 紀錄 and 分析
+     * segments stay in sync ("連動共用"). In-memory (not persisted), mirroring the
+     * previously non-persisted 紀錄 filter.
+     */
+    val dataRangeFilterStore: DataRangeFilterStore by lazy { DataRangeFilterStore() }
 
     val bpRepository: BpRepository by lazy {
         BpRepository(

@@ -24,8 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
+import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.components.ExpressiveFilterChip
 import com.silverbp.android.ui.components.SegmentedControl
 import com.silverbp.android.ui.history.UnifiedHistoryFilterAction
@@ -87,6 +89,8 @@ fun DataHubScreen(
     var insightsMeasure by remember { mutableIntStateOf(MeasureType.Bp.ordinal) }
     val active = DataSection.entries[section]
     val activeInsightsMeasure = MeasureType.entries[insightsMeasure]
+    // Shared 紀錄/分析 date range; the 分析 funnel reads + writes it directly.
+    val sharedRange by ServiceLocator.dataRangeFilterStore.range.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -94,9 +98,14 @@ fun DataHubScreen(
                 title = { Text(stringResource(R.string.tab_data), fontWeight = FontWeight.SemiBold) },
                 actions = {
                     MemberSwitcherChip(onManageMembers = onManageMembers)
-                    // The unified list's range/sort filter; only in the 紀錄 segment.
+                    // 紀錄 gets the range+sort funnel; 分析 gets the same funnel but
+                    // range-only (charts have no sort). Both write the shared range.
                     if (active == DataSection.Records) {
                         UnifiedHistoryFilterAction(unifiedHistoryVm)
+                    } else {
+                        DataRangeFilterAction(sharedRange) {
+                            ServiceLocator.dataRangeFilterStore.set(it)
+                        }
                     }
                 },
             )

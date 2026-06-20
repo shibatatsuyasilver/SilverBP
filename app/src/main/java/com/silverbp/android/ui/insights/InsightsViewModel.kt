@@ -15,6 +15,8 @@ import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.UserSettingsRepository
+import com.silverbp.android.ui.history.DataRangeFilterStore
+import com.silverbp.android.ui.history.DateRange
 import com.silverbp.android.ui.member.MemberPalette
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,14 +27,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import java.util.UUID
-
-enum class InsightsRange(val days: Long?) {
-    Last7(7), Last30(30), Last90(90), All(null);
-}
 
 /** Which series the comparison trend line plots (roadmap: SBP/DBP toggle). */
 enum class TrendMetric { Systolic, Diastolic }
@@ -84,7 +81,7 @@ data class ActiveMember(
 )
 
 data class InsightsUiState(
-    val range: InsightsRange = InsightsRange.Last30,
+    val range: DateRange = DateRange.All,
     val readings: List<BpReading> = emptyList(),
     val meanSystolic: Double = 0.0,
     val meanDiastolic: Double = 0.0,
@@ -115,9 +112,10 @@ class InsightsViewModel(
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val members: MemberRepository = ServiceLocator.memberRepository,
+    private val rangeStore: DataRangeFilterStore = ServiceLocator.dataRangeFilterStore,
 ) : ViewModel() {
 
-    private val rangeFlow = MutableStateFlow(InsightsRange.Last30)
+    // Date range is shared with the 紀錄 segment via [DataRangeFilterStore] ("連動共用").
 
     // --- compare state: local, transient (NOT persisted — analysis-page view) ---
     private val compareModeFlow = MutableStateFlow(false)
@@ -138,7 +136,7 @@ class InsightsViewModel(
     // --- single-member state (compare OFF). Behaviour identical to pre-compare. ---
     private val singleState: StateFlow<InsightsUiState> = combine(
         currentMember.flow.flatMapLatest { repo.observeAll(it) },
-        rangeFlow,
+        rangeStore.range,
         guidelineFlow,
     ) { all, range, guideline ->
         val insights = computeMemberInsights(all, range, guideline)
@@ -162,7 +160,7 @@ class InsightsViewModel(
     private val seriesState: StateFlow<List<MemberSeries>> = combine(
         members.observeActive(),
         selectedMemberIdsFlow,
-        rangeFlow,
+        rangeStore.range,
     ) { active, selected, range ->
         // Selected members in stable active order; ignore ids that have left the
         // active set (archived/deleted) so a stale selection never shows a ghost.
@@ -222,7 +220,7 @@ class InsightsViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InsightsUiState())
 
-    fun setRange(r: InsightsRange) { rangeFlow.value = r }
+    fun setRange(r: DateRange) { rangeStore.set(r) }
 
     /**
      * Turn comparison mode on/off. Turning it ON with an empty selection seeds
@@ -254,11 +252,12 @@ class InsightsViewModel(
  */
 fun computeMemberInsights(
     all: List<BpReading>,
-    range: InsightsRange,
+    range: DateRange,
     guideline: HypertensionGuideline,
+    today: LocalDate = LocalDate.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
 ): MemberInsights {
-    val cutoff = range.days?.let { Instant.now().minus(it, ChronoUnit.DAYS) }
-    val filtered = if (cutoff == null) all else all.filter { it.timestamp.isAfter(cutoff) }
+    val filtered = all.filter { range.matches(it, today, zone) }
     val sys = filtered.map { it.systolic.toDouble() }
     val dia = filtered.map { it.diastolic.toDouble() }
     // Bucket morning/evening by the reading's actual local time, not the
@@ -300,7 +299,9 @@ fun computeMemberInsights(
 internal fun buildSeries(
     ordered: List<Member>,
     perMember: List<List<BpReading>>,
-    range: InsightsRange,
+    range: DateRange,
+    today: LocalDate = LocalDate.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
 ): List<MemberSeries> {
     val used = mutableSetOf<Color>()
     return ordered.mapIndexed { index, member ->
@@ -323,6 +324,8 @@ internal fun buildSeries(
                 // Each member classifies with their OWN guideline (per-member
                 // thresholds, e.g. CKD/diabetes) — carried directly on the row.
                 guideline = member.guideline,
+                today = today,
+                zone = zone,
             ),
         )
     }

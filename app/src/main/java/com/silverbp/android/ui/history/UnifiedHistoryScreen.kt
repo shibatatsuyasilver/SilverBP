@@ -263,29 +263,7 @@ private fun UnifiedFilterMenu(
     onSort: (SortOrder) -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.history_filter_date), style = MaterialTheme.typography.labelSmall) },
-            onClick = {},
-            enabled = false,
-        )
-        val ranges = listOf(
-            DateRange.All to R.string.range_all,
-            DateRange.Today to R.string.range_today,
-            DateRange.ThisWeek to R.string.range_this_week,
-            DateRange.ThisMonth to R.string.range_this_month,
-            DateRange.Last30 to R.string.range_last_30,
-            DateRange.Last90 to R.string.range_last_90,
-        )
-        ranges.forEach { (range, labelRes) ->
-            DropdownMenuItem(
-                text = { Text(stringResource(labelRes)) },
-                leadingIcon = { RadioButton(selected = currentRange == range, onClick = null) },
-                onClick = {
-                    onRange(range)
-                    onDismiss()
-                },
-            )
-        }
+        DateRangeMenuItems(currentRange = currentRange, onRange = onRange, onDismiss = onDismiss)
         HorizontalDivider()
         DropdownMenuItem(
             text = { Text(stringResource(R.string.history_filter_sort), style = MaterialTheme.typography.labelSmall) },
@@ -305,6 +283,43 @@ private fun UnifiedFilterMenu(
                 },
             )
         }
+    }
+}
+
+/**
+ * Shared date-range section for the Data hub filter menus. Both the 紀錄 funnel
+ * ([UnifiedFilterMenu], which appends a sort section) and the 分析 funnel
+ * ([com.silverbp.android.ui.data.DataRangeFilterAction], range-only) render the
+ * SAME options from here so the two segments stay identical. Emitted inside a
+ * [DropdownMenu] content scope.
+ */
+@Composable
+internal fun DateRangeMenuItems(
+    currentRange: DateRange,
+    onRange: (DateRange) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.history_filter_date), style = MaterialTheme.typography.labelSmall) },
+        onClick = {},
+        enabled = false,
+    )
+    listOf(
+        DateRange.All to R.string.range_all,
+        DateRange.Today to R.string.range_today,
+        DateRange.ThisWeek to R.string.range_this_week,
+        DateRange.ThisMonth to R.string.range_this_month,
+        DateRange.Last30 to R.string.range_last_30,
+        DateRange.Last90 to R.string.range_last_90,
+    ).forEach { (range, labelRes) ->
+        DropdownMenuItem(
+            text = { Text(stringResource(labelRes)) },
+            leadingIcon = { RadioButton(selected = currentRange == range, onClick = null) },
+            onClick = {
+                onRange(range)
+                onDismiss()
+            },
+        )
     }
 }
 

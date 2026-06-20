@@ -4,6 +4,7 @@ import com.silverbp.android.core.BpCategory
 import com.silverbp.android.core.BpReading
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.Member
+import com.silverbp.android.ui.history.DateRange
 import com.silverbp.android.ui.member.MemberPalette
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -33,12 +34,12 @@ class InsightsViewModelTest {
     }
 
     @Test
-    fun `computeMemberInsights filters by range cutoff`() {
+    fun `computeMemberInsights filters by date range`() {
         val all = listOf(
-            reading(120, 80, hoursAgo = 1),       // inside 7-day window
-            reading(140, 90, hoursAgo = 24 * 10), // 10 days ago — outside Last7
+            reading(120, 80, hoursAgo = 1),       // within the last 30 days
+            reading(140, 90, hoursAgo = 24 * 40), // 40 days ago — outside Last30
         )
-        val insights = computeMemberInsights(all, InsightsRange.Last7, HypertensionGuideline.Taiwan2022)
+        val insights = computeMemberInsights(all, DateRange.Last30, HypertensionGuideline.Taiwan2022)
         assertEquals(1, insights.readings.size)
         assertEquals(120.0, insights.meanSystolic, 1e-9)
     }
@@ -49,7 +50,7 @@ class InsightsViewModelTest {
             reading(120, 80, hoursAgo = 1),
             reading(140, 90, hoursAgo = 24 * 100),
         )
-        val insights = computeMemberInsights(all, InsightsRange.All, HypertensionGuideline.Taiwan2022)
+        val insights = computeMemberInsights(all, DateRange.All, HypertensionGuideline.Taiwan2022)
         assertEquals(2, insights.readings.size)
         assertEquals(130.0, insights.meanSystolic, 1e-9)
         assertEquals(85.0, insights.meanDiastolic, 1e-9)
@@ -62,7 +63,7 @@ class InsightsViewModelTest {
             reading(132, 84, hoursAgo = 30),
             reading(145, 92, hoursAgo = 50),
         )
-        val range = InsightsRange.All
+        val range = DateRange.All
         val guideline = HypertensionGuideline.Taiwan2022
         val insights = computeMemberInsights(all, range, guideline)
 
@@ -84,8 +85,8 @@ class InsightsViewModelTest {
     fun `computeMemberInsights classifies with the supplied guideline`() {
         // 135/85 is Stage1 under Taiwan2022 (>=130) but Elevated under Esh2023 (>=130 dia 85).
         val all = listOf(reading(135, 85, hoursAgo = 1))
-        val taiwan = computeMemberInsights(all, InsightsRange.All, HypertensionGuideline.Taiwan2022)
-        val esh = computeMemberInsights(all, InsightsRange.All, HypertensionGuideline.Esh2023)
+        val taiwan = computeMemberInsights(all, DateRange.All, HypertensionGuideline.Taiwan2022)
+        val esh = computeMemberInsights(all, DateRange.All, HypertensionGuideline.Esh2023)
         assertEquals(1, taiwan.distribution[BpCategory.Stage1])
         assertEquals(1, esh.distribution[BpCategory.Elevated])
     }
@@ -94,7 +95,7 @@ class InsightsViewModelTest {
     fun `computeMemberInsights morningSurge null when a daypart is empty`() {
         // Only morning readings → evening set empty → surge null.
         val all = listOf(reading(140, 90, hoursAgo = 0, atHour = 7))
-        val insights = computeMemberInsights(all, InsightsRange.All, HypertensionGuideline.Taiwan2022)
+        val insights = computeMemberInsights(all, DateRange.All, HypertensionGuideline.Taiwan2022)
         assertNull(insights.morningSurge)
     }
 
@@ -102,7 +103,7 @@ class InsightsViewModelTest {
     fun `buildSeries keeps distinct colours when colorIndex differs`() {
         val a = member(colorIndex = 0)
         val b = member(colorIndex = 1)
-        val series = buildSeries(listOf(a, b), listOf(emptyList(), emptyList()), InsightsRange.All)
+        val series = buildSeries(listOf(a, b), listOf(emptyList(), emptyList()), DateRange.All)
         assertEquals(MemberPalette.colorFor(0), series[0].color)
         assertEquals(MemberPalette.colorFor(1), series[1].color)
     }
@@ -112,7 +113,7 @@ class InsightsViewModelTest {
         // Both members carry colorIndex 0 → second must be reassigned away from it.
         val a = member(colorIndex = 0)
         val b = member(colorIndex = 0)
-        val series = buildSeries(listOf(a, b), listOf(emptyList(), emptyList()), InsightsRange.All)
+        val series = buildSeries(listOf(a, b), listOf(emptyList(), emptyList()), DateRange.All)
         assertEquals(MemberPalette.colorFor(0), series[0].color)
         assertNotEquals(series[0].color, series[1].color)
         // Reassigned to the first still-unused palette colour (index 1).
@@ -127,7 +128,7 @@ class InsightsViewModelTest {
         val series = buildSeries(
             listOf(a, b, c),
             listOf(emptyList(), emptyList(), emptyList()),
-            InsightsRange.All,
+            DateRange.All,
         )
         // First keeps its own; the next two take the first two unused palette slots.
         assertEquals(MemberPalette.colorFor(2), series[0].color)
@@ -146,7 +147,7 @@ class InsightsViewModelTest {
         val series = buildSeries(
             listOf(taiwanMember, eshMember),
             listOf(readings, readings),
-            InsightsRange.All,
+            DateRange.All,
         )
         assertEquals(1, series[0].insights.distribution[BpCategory.Stage1])
         assertEquals(1, series[1].insights.distribution[BpCategory.Elevated])
@@ -156,7 +157,7 @@ class InsightsViewModelTest {
     fun `buildSeries carries identity fields raw for the screen to localize`() {
         val owner = member(colorIndex = 0, displayName = "", isOwner = true)
         val named = member(colorIndex = 1, displayName = "Mom", isOwner = false)
-        val series = buildSeries(listOf(owner, named), listOf(emptyList(), emptyList()), InsightsRange.All)
+        val series = buildSeries(listOf(owner, named), listOf(emptyList(), emptyList()), DateRange.All)
         // Owner name stays blank (screen applies the localized "Me" fallback).
         assertEquals("", series[0].name)
         assert(series[0].isOwner)
