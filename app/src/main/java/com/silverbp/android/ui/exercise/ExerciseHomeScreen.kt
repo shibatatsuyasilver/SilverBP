@@ -41,7 +41,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +53,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.R
-import com.silverbp.android.coach.WorkoutBpGate
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
@@ -77,7 +75,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlinx.coroutines.launch
 
 /** Sub-sections of the training hub hosted inside the Exercise tab. */
 private enum class HubSection(val labelRes: Int, val icon: ImageVector) {
@@ -166,7 +163,6 @@ fun ExerciseHomeScreen(
                         onStartSession = onStartSession,
                         onCaptureMachine = onCaptureMachine,
                         onOpenMedals = onOpenMedals,
-                        onMeasureBp = onMeasureBp,
                     )
                     HubSection.Library -> StrengthLibrarySection(
                         onStartStrengthSession = onStartStrengthSession,
@@ -239,17 +235,12 @@ private fun PlanSection(
     onStartSession: () -> Unit,
     onCaptureMachine: () -> Unit,
     onOpenMedals: () -> Unit,
-    onMeasureBp: () -> Unit,
 ) {
     val (perm, requestPerm) = rememberExercisePermissionState()
     val achievementState by ServiceLocator.achievementStore.state.collectAsStateWithLifecycle()
     val settings by ServiceLocator.userSettings.flow
         .collectAsStateWithLifecycle(initialValue = UserSettings())
-    val scope = rememberCoroutineScope()
     var selectedKind by remember { mutableStateOf(ActivityKind.Walking) }
-    // Cardio kind + non-ALLOW gate awaiting the user's confirmation dialog.
-    // ALLOW never lands here — it starts directly (no dialog).
-    var pendingCardio by remember { mutableStateOf<Pair<ActivityKind, WorkoutBpGate>?>(null) }
 
     fun startCardio(kind: ActivityKind) {
         requestPerm {
@@ -274,13 +265,7 @@ private fun PlanSection(
                 icon = Icons.Filled.PlayArrow,
                 fillWidth = true,
                 onClick = {
-                    scope.launch {
-                        // BP gate: ALLOW starts directly; CAUTION/BLOCK confirm via dialog.
-                        when (val gate = evaluateWorkoutBpGate()) {
-                            WorkoutBpGate.Allow -> startCardio(selectedKind)
-                            else -> pendingCardio = selectedKind to gate
-                        }
-                    }
+                    startCardio(selectedKind)
                 },
             )
         }
@@ -313,21 +298,6 @@ private fun PlanSection(
         )
 
         Spacer(Modifier.height(AppSpacing.itemGap))
-    }
-
-    pendingCardio?.let { (kind, gate) ->
-        WorkoutBpGateDialog(
-            gate = gate,
-            onProceed = {
-                pendingCardio = null
-                startCardio(kind)
-            },
-            onMeasure = {
-                pendingCardio = null
-                onMeasureBp()
-            },
-            onDismiss = { pendingCardio = null },
-        )
     }
 }
 
