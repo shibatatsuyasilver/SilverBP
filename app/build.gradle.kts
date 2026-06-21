@@ -183,6 +183,9 @@ dependencies {
     implementation(libs.maps.compose)
     implementation(libs.maps.compose.utils)
     implementation(libs.play.services.maps)
+    // OpenStreetMap renderer — standard Android 2D tile drawing, NOT Google's GL
+    // renderer, so the live map never hits the new-renderer black-screen bug.
+    implementation(libs.osmdroid)
     implementation(libs.play.services.location)
 
     // Google auth + Drive auto-backup (encrypted .sbpbk → Drive appDataFolder).

@@ -89,17 +89,23 @@ class LocationTrackingService : LifecycleService() {
             ACTION_RESTORE -> {
                 // liveStore already holds the checkpoint-recovered (Paused)
                 // session; re-attach GPS/steps without creating a new session.
-                // 若位置權限在背景被撤銷,fail safe:直接停止,保留檢查點讓使用者
-                // 授權後重試,而非讓 startForeground 在 Android 14+ 拋出例外崩潰。
                 // Finished 檢查點(只等摘要頁儲存)不會由 Controller 啟動本服務;
                 // 萬一仍收到,無事可追蹤(也不得要求位置權限),直接停止。
                 val live = liveStore.flow.value
                 if (!trackingStarted && live != null) {
-                    if (live.runState != RunState.Finished && hasFineLocation()) {
-                        beginTracking()
-                        liveStore.persist()
-                    } else {
-                        stopSelf()
+                    when {
+                        live.runState == RunState.Finished -> stopSelf()
+                        hasFineLocation() -> {
+                            beginTracking()
+                            liveStore.persist()
+                        }
+                        else -> {
+                            // 位置權限在背景被撤銷:對齊 ACTION_START 的處理,surface
+                            // 錯誤讓 session 畫面顯示原因(而非靜默 stopSelf 留下空白
+                            // 地圖/彈回首頁)。setError 也會清掉半還原的 live 狀態。
+                            liveStore.setError(LiveError.LocationPermissionRevoked)
+                            stopSelf()
+                        }
                     }
                 }
             }

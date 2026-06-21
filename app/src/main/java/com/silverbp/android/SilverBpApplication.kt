@@ -1,6 +1,8 @@
 package com.silverbp.android
 
 import android.app.Application
+import android.util.Log
+import com.google.android.gms.maps.MapsInitializer
 import com.silverbp.android.achievements.MedalNotifier
 import com.silverbp.android.backup.auto.BackupNotification
 import com.silverbp.android.billing.EntitlementRevalidationScheduler
@@ -33,6 +35,17 @@ class SilverBpApplication : Application() {
         ServiceLocator.init(this)
         // Begin observing process foreground/background for the app-lock gate.
         ServiceLocator.lockManager.attach()
+
+        // Pin the LEGACY Google Maps renderer. Play services silently migrates
+        // apps to the new ("LATEST") renderer, which renders a BLACK map on some
+        // GPUs/ROMs (observed on vivo V2562 / Android 16 / Adreno: no auth
+        // failure, Maps SDK + GPU init fine, but the map's TextureView presents
+        // an empty buffer → black). LEGACY renders correctly there. Must run
+        // before the first MapView is created, so it lives here in onCreate.
+        // The callback logs which renderer Play services actually granted.
+        MapsInitializer.initialize(this, MapsInitializer.Renderer.LEGACY) { renderer ->
+            Log.i("SilverBpApplication", "[Maps] renderer in use: $renderer")
+        }
         ExerciseNotification.createChannel(this)
         MedalNotifier.createChannel(this)
         CoachNotifier.createChannels(this)

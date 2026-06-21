@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,9 +40,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.exercise.RunState
 import com.silverbp.android.legal.CURRENT_PRIVACY_POLICY_VERSION
 import com.silverbp.android.ui.achievements.MedalsScreen
 import com.silverbp.android.ui.capture.CaptureScreen
@@ -158,6 +163,30 @@ fun AppNavHost() {
                 }
             }
         }
+    }
+
+    // Reopening the app mid-run must land back on the live tracking map, not on
+    // whatever tab the back stack happened to hold. Observe the *process* (not
+    // per-activity) foreground transition via ProcessLifecycleOwner: on each
+    // app-foreground, if a non-Finished session is live in the store and we're
+    // not already on it, route there. A user with an active GPS session has long
+    // since finished onboarding, so no gate check is needed. Cold start after a
+    // kill is a no-op here (the store is empty until the notification deep-link
+    // self-heals it), so this never fights the HOME start destination.
+    DisposableEffect(Unit) {
+        val owner = ProcessLifecycleOwner.get()
+        val observer = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_START) return@LifecycleEventObserver
+            val live = ServiceLocator.exerciseLiveStore.flow.value ?: return@LifecycleEventObserver
+            if (live.runState != RunState.Finished &&
+                rootNav.currentDestination?.route != Routes.EXERCISE_SESSION
+            ) {
+                rootNav.popBackStack(Routes.HOME, inclusive = false)
+                rootNav.navigate(Routes.EXERCISE_SESSION)
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
     }
 
     NavHost(navController = rootNav, startDestination = Routes.HOME) {

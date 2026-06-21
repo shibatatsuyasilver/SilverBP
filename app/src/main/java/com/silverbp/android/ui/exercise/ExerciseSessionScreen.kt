@@ -1,23 +1,29 @@
 package com.silverbp.android.ui.exercise
 
-import android.annotation.SuppressLint
 import android.view.WindowManager
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
@@ -29,31 +35,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.CameraMoveStartedReason
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.Polyline
-import com.google.maps.android.compose.rememberCameraPositionState
 import com.silverbp.android.R
 import com.silverbp.android.exercise.ActivityKind
 import com.silverbp.android.exercise.ExerciseMath
@@ -82,40 +75,56 @@ fun ExerciseSessionScreen(
     }
 
     if (live == null) {
-        // No active session — service may have failed to start. Bounce back.
-        LaunchedEffect(Unit) { onClose() }
+        // No live session in memory. This is the notification deep-link landing
+        // after a process kill cleared the singleton store — rehydrate from the
+        // on-disk checkpoint and re-attach the service before bouncing. Only a
+        // genuinely empty recovery (no checkpoint) falls through to onClose, so
+        // tapping the ongoing-run notification reliably returns to the live map.
+        var attempted by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            if (!attempted) {
+                attempted = true
+                vm.attemptRestoreFromCheckpoint(onNothing = onClose)
+            }
+        }
+        SessionLoading()
         return
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Box(
+    val current = live!!
+    Box(modifier = Modifier.fillMaxSize()) {
+        SessionMap(
+            live = current,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        SessionStats(
+            live = current,
+            accent = colorForKind(current.kind),
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-        ) {
-            SessionMap(
-                live = live!!,
-                modifier = Modifier.fillMaxSize(),
-            )
-            GpsSignalBanner(
-                live = live!!,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 12.dp),
-            )
-        }
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        )
 
-        SessionStats(live!!, accent = colorForKind(live!!.kind))
-
+        GpsSignalBanner(
+            live = current,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 92.dp),
+        )
         SessionControls(
-            isPaused = live!!.runState != RunState.Running,
+            isPaused = current.runState != RunState.Running,
             onPause = vm::pause,
             onResume = vm::resume,
             onStop = {
                 if (vm.stop()) onFinished()
             },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = AppSpacing.screenH, vertical = AppSpacing.screenV),
         )
     }
 }
@@ -179,130 +188,104 @@ private fun GpsSignalBanner(live: SessionLive, modifier: Modifier = Modifier) {
 
 private const val GPS_STALE_THRESHOLD_MS = 15_000L
 
-private const val FOLLOW_ZOOM = 17f
-
-@SuppressLint("MissingPermission")
 @Composable
 private fun SessionMap(live: SessionLive, modifier: Modifier = Modifier) {
-    val pathPoints = live.routePoints.map { LatLng(it.lat, it.lon) }
-    val context = LocalContext.current
-    val cameraState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(
-            pathPoints.firstOrNull() ?: LatLng(25.0330, 121.5654), // Taipei 101 default
-            FOLLOW_ZOOM,
-        )
-    }
-    val liveLatest by rememberUpdatedState(live)
-    var followCamera by rememberSaveable { mutableStateOf(true) }
-
-    // Seed the camera with last-known location so the first frame centers on the
-    // user instead of the Taipei 101 fallback while waiting for the first GPS sample.
-    LaunchedEffect(Unit) {
-        if (liveLatest.routePoints.isNotEmpty()) return@LaunchedEffect
-        LocationServices.getFusedLocationProviderClient(context)
-            .lastLocation
-            .addOnSuccessListener { loc ->
-                if (loc != null && liveLatest.routePoints.isEmpty()) {
-                    cameraState.position = CameraPosition.fromLatLngZoom(
-                        LatLng(loc.latitude, loc.longitude),
-                        FOLLOW_ZOOM,
-                    )
-                }
-            }
-    }
-
-    LaunchedEffect(pathPoints.size, followCamera) {
-        if (!followCamera) return@LaunchedEffect
-        val last = pathPoints.lastOrNull() ?: return@LaunchedEffect
-        cameraState.animate(
-            CameraUpdateFactory.newLatLngZoom(last, FOLLOW_ZOOM),
-            durationMs = 600,
-        )
-    }
-
-    LaunchedEffect(cameraState.isMoving) {
-        if (cameraState.isMoving &&
-            cameraState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE
-        ) {
-            followCamera = false
-        }
-    }
-
+    // Live street map via osmdroid (OpenStreetMap): standard 2D tile drawing,
+    // NOT Google's GL renderer, so streets render on every device and never hit
+    // the new-renderer black-screen bug. The toggle switches to an offline,
+    // tiles-free route view ([RouteCanvasMap]) for when there's no data signal.
+    var offlineRoute by rememberSaveable { mutableStateOf(false) }
     Box(modifier) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraState,
-            properties = MapProperties(isMyLocationEnabled = true),
-            uiSettings = MapUiSettings(
-                myLocationButtonEnabled = false,
-                zoomControlsEnabled = false,
-                mapToolbarEnabled = false,
-                compassEnabled = false,
-            ),
-        ) {
-            if (pathPoints.size >= 2) {
-                Polyline(
-                    points = pathPoints,
-                    color = colorForKind(live.kind),
-                    width = 14f,
-                )
-            }
-            pathPoints.firstOrNull()?.let { start ->
-                Marker(state = MarkerState(position = start), title = "Start")
-            }
-            pathPoints.lastOrNull()?.let { current ->
-                Marker(state = MarkerState(position = current), title = "Now")
-            }
+        if (offlineRoute) {
+            RouteCanvasMap(live, Modifier.fillMaxSize())
+        } else {
+            OsmRouteMap(live, Modifier.fillMaxSize())
         }
-        if (!followCamera) {
-            SmallFloatingActionButton(
-                onClick = { followCamera = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp),
+        SmallFloatingActionButton(
+            onClick = { offlineRoute = !offlineRoute },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .navigationBarsPadding()
+                .padding(start = 16.dp, bottom = 104.dp),
+        ) {
+            Icon(
+                imageVector = if (offlineRoute) Icons.Filled.Map else Icons.Filled.Timeline,
+                contentDescription = stringResource(
+                    if (offlineRoute) R.string.exercise_show_map else R.string.exercise_show_route,
+                ),
+            )
+        }
+        if (!offlineRoute && live.routePoints.isEmpty()) {
+            Surface(
+                modifier = Modifier.align(Alignment.Center),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                shape = MaterialTheme.shapes.small,
+                tonalElevation = 4.dp,
             ) {
-                Icon(
-                    Icons.Filled.MyLocation,
-                    contentDescription = stringResource(R.string.exercise_recenter),
+                Text(
+                    text = stringResource(R.string.exercise_waiting_gps),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
     }
 }
 
+/** Centered spinner while we rehydrate an orphaned session from its checkpoint. */
 @Composable
-private fun SessionStats(live: SessionLive, accent: Color) {
-    // Big live metric readouts in an Expressive card. The leading accent stripe
-    // carries the activity-type identity colour (ExerciseColors), NOT MetricAccent.
-    StandardCard(
-        modifier = Modifier.padding(
-            start = AppSpacing.screenH,
-            end = AppSpacing.screenH,
-            top = AppSpacing.itemGap,
-        ),
-        accent = accent,
+private fun SessionLoading() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
-        androidx.compose.foundation.layout.Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun SessionStats(live: SessionLive, accent: Color, modifier: Modifier = Modifier) {
+    // One floating overlay over the full-screen map. This replaces the old lower
+    // card section so the session reads as a single live map, not stacked screens.
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = 6.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(42.dp)
+                    .background(accent, PillShape),
+            )
             StatCell(
                 value = ExerciseMath.formatDistance(live.accumulatedDistanceMeters),
                 label = stringResource(R.string.exercise_distance),
+                modifier = Modifier.weight(1f),
             )
             StatCell(
                 value = ExerciseMath.formatDuration(live.activeDurationMillis),
                 label = stringResource(R.string.exercise_duration),
+                modifier = Modifier.weight(1f),
             )
             StatCell(
                 value = ExerciseMath.formatPace(live.paceSecPerKm),
                 label = stringResource(R.string.exercise_pace),
+                modifier = Modifier.weight(1f),
             )
             // Cycling has no step sensor; omit the steps cell so it doesn't show 0.
             if (live.kind != ActivityKind.Cycling) {
                 StatCell(
                     value = (live.stepCount ?: 0).toString(),
                     label = stringResource(R.string.exercise_steps),
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -310,20 +293,25 @@ private fun SessionStats(live: SessionLive, accent: Color) {
 }
 
 @Composable
-private fun StatCell(value: String, label: String) {
+private fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
     Column(
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
             value,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
         )
         Text(
             label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
         )
     }
 }
@@ -334,16 +322,10 @@ private fun SessionControls(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    androidx.compose.foundation.layout.Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(
-                start = AppSpacing.screenH,
-                end = AppSpacing.screenH,
-                top = AppSpacing.itemGap,
-                bottom = AppSpacing.screenV,
-            ),
+    Row(
+        modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
     ) {
         // Pause/resume — Expressive lime CTA with the signature press shape-morph.
