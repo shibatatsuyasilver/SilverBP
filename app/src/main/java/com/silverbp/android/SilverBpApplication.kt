@@ -74,15 +74,20 @@ class SilverBpApplication : Application() {
      * schedule with the user's `enableCoach` toggle on every cold start so a
      * setting change made while the app was killed takes effect. Also kicks
      * off any HC backfill that's been opted into.
+     *
+     * Medication reminders are decoupled from `enableCoach` — they are a core BP
+     * feature — so they are reconciled unconditionally (and before the settings
+     * read, so a transient settings-load failure can't drop them). The scheduler
+     * itself no-ops when no enabled schedule exists, so this is safe for users
+     * with no medications.
      */
     private suspend fun reconcileCoach() {
+        MedicationReminderScheduler.scheduleAll(this)
         val s = runCatching { ServiceLocator.userSettings.flow.first() }.getOrNull() ?: return
         if (s.enableCoach) {
             CoachReminderScheduler.scheduleAll(this)
-            MedicationReminderScheduler.scheduleAll(this)
         } else {
             CoachReminderScheduler.cancelAll(this)
-            MedicationReminderScheduler.cancelAllSuspend(this)
         }
         // Best-effort backfill on every cold start when opted-in. Workers
         // self-no-op when permissions are revoked, so an unconditional kick

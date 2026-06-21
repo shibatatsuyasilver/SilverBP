@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +47,7 @@ import com.silverbp.android.core.db.MedicationKind
 import com.silverbp.android.core.db.MedicationScheduleEntity
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.ui.components.AppTopBar
+import com.silverbp.android.ui.components.CheckCircle
 import com.silverbp.android.ui.components.ExpressivePrimaryButton
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
@@ -289,13 +289,19 @@ private fun DoseRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.size(AppSpacing.itemGap))
-            Switch(
+            Spacer(Modifier.size(AppSpacing.tight))
+            val checkCd = if (local) {
+                "${row.medication.name} ${stringResource(R.string.coach_log_medication_taken)}"
+            } else {
+                "${row.medication.name} ${stringResource(R.string.medication_action_taken)}"
+            }
+            CheckCircle(
                 checked = local,
                 onCheckedChange = {
                     local = it
                     onChange(it)
                 },
+                contentDescription = checkCd,
             )
         }
     }

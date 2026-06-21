@@ -599,6 +599,10 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
             // Both "今天 N 筆" affordances open the unified Data-tab history.
             onViewBpHistory = openHistory,
             onViewGlucoseHistory = openHistory,
+            // Medication card: "管理" opens the manage list; the first-run empty
+            // CTA jumps straight to the new-medication editor.
+            onManageMedications = { rootNav.navigate(Routes.COACH_MANAGE_MEDICATIONS) },
+            onAddMedication = { rootNav.navigate(Routes.COACH_EDIT_MEDICATION_NEW) },
         )
     }
     composable(TabDestination.Coach.route) {

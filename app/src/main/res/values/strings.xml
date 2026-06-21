@@ -192,7 +192,7 @@
     <string name="exercise_notification_idle_action_continue">Keep going</string>
     <string name="exercise_notification_idle_action_finish">Finish &amp; save</string>
     <string name="settings_manage_medications_button">Manage medications</string>
-    <string name="settings_manage_medications_hint">Add, edit, or remove the medications and supplements the coach tracks.</string>
+    <string name="settings_manage_medications_hint">Add, edit, or remove your medications and supplements, and set dose reminders.</string>
     <string name="exercise_location_permission_title">Location permission required</string>
     <string name="exercise_location_permission_body">SilverBP needs precise location to record your walk/run path.</string>
     <string name="exercise_location_denied">Location permission denied — cannot record your path.</string>
@@ -372,6 +372,15 @@
     <string name="medication_reminder_notification_title">Time to take %1$s</string>
     <string name="medication_reminder_notification_body">Scheduled for %1$s. Tap to log it.</string>
     <string name="medication_reminder_notification_body_with_dose">%1$s scheduled for %2$s. Tap to log it.</string>
+
+    <!-- Today home medication card -->
+    <string name="today_meds_title">Medications</string>
+    <string name="today_meds_empty_title">Medication reminders</string>
+    <string name="today_meds_empty_subtitle">Add your medications and times so you never miss a dose.</string>
+    <string name="today_meds_progress">%1$d of %2$d today</string>
+    <string name="today_meds_morning">Morning</string>
+    <string name="today_meds_afternoon">Afternoon</string>
+    <string name="today_meds_evening">Evening</string>
 
     <!-- Coach notification channels -->
     <string name="coach_channel_daily">Coach daily reminders</string>

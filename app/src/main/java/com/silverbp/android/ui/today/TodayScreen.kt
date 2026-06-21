@@ -136,6 +136,12 @@ fun TodayScreen(
     onLogWeight: () -> Unit = {},
     onEditWeight: (String) -> Unit = {},
     onViewWeightHistory: () -> Unit = {},
+    // Medication module on Today (owner UX: meds were too buried in Settings).
+    // onManageMedications opens the manage/edit list; onAddMedication jumps
+    // straight to the new-medication editor for the first-run empty CTA. Defaults
+    // are no-ops so previews / partial wiring still compile.
+    onManageMedications: () -> Unit = {},
+    onAddMedication: () -> Unit = {},
     vm: TodayViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -257,6 +263,19 @@ fun TodayScreen(
                             modifier = Modifier.weight(1f),
                         )
                     }
+
+                    // Medication module — Apple Health-style "用藥" card. First-run
+                    // shows an "add medication" CTA; once set up it lists today's
+                    // doses with check-circles. Placed below the daily readings so
+                    // it reads as the day's to-do after the numbers.
+                    TodayMedicationCard(
+                        meds = state.todayMeds,
+                        hasMedications = state.hasMedications,
+                        onToggle = vm::toggleDose,
+                        onManage = onManageMedications,
+                        onAdd = onAddMedication,
+                        modifier = Modifier.padding(horizontal = AppSpacing.screenH),
+                    )
 
                     // Pro-tip is keyed off today's latest BP reading's classification,
                     // placed below the unified card. Hidden when there's no BP today

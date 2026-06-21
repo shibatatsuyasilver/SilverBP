@@ -192,7 +192,7 @@
     <string name="exercise_notification_idle_action_continue">繼續</string>
     <string name="exercise_notification_idle_action_finish">結束並保存</string>
     <string name="settings_manage_medications_button">管理服藥</string>
-    <string name="settings_manage_medications_hint">新增、編輯或刪除教練追蹤的藥物與保健食品。</string>
+    <string name="settings_manage_medications_hint">新增、編輯或刪除藥物與保健食品,並設定服藥提醒。</string>
     <string name="exercise_location_permission_title">需要位置權限</string>
     <string name="exercise_location_permission_body">SilverBP 需要精確位置才能記錄您的走路/跑步路徑。</string>
     <string name="exercise_location_denied">GPS 權限被拒,無法記錄路徑。</string>
@@ -372,6 +372,15 @@
     <string name="medication_reminder_notification_title">該服用 %1$s 了</string>
     <string name="medication_reminder_notification_body">預定時間 %1$s。點擊以記錄。</string>
     <string name="medication_reminder_notification_body_with_dose">%1$s 預定時間 %2$s。點擊以記錄。</string>
+
+    <!-- Today home medication card -->
+    <string name="today_meds_title">用藥</string>
+    <string name="today_meds_empty_title">用藥提醒</string>
+    <string name="today_meds_empty_subtitle">新增藥物與服藥時間,準時用藥不遺漏。</string>
+    <string name="today_meds_progress">今天 %1$d / %2$d</string>
+    <string name="today_meds_morning">上午</string>
+    <string name="today_meds_afternoon">下午</string>
+    <string name="today_meds_evening">晚上</string>
 
     <!-- Coach notification channels -->
     <string name="coach_channel_daily">教練每日提醒</string>

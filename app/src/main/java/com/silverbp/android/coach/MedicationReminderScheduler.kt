@@ -92,13 +92,6 @@ object MedicationReminderScheduler {
         for (row in rows) scheduleOne(context, row.id)
     }
 
-    /** Cancel every queued reminder. Used when Coach is disabled globally. */
-    suspend fun cancelAllSuspend(context: Context) {
-        val wm = WorkManager.getInstance(context)
-        val rows = ServiceLocator.database.medicationScheduleDao().all()
-        for (row in rows) wm.cancelUniqueWork(uniqueNameFor(row.id))
-    }
-
     fun cancelForSchedule(context: Context, scheduleId: String) {
         WorkManager.getInstance(context).cancelUniqueWork(uniqueNameFor(scheduleId))
     }

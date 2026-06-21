@@ -6,7 +6,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.silverbp.android.R
 import com.silverbp.android.di.ServiceLocator
-import kotlinx.coroutines.flow.first
 
 /**
  * Fires once per scheduled (day-of-week × time) instant. After posting the
@@ -14,10 +13,10 @@ import kotlinx.coroutines.flow.first
  * [MedicationReminderScheduler.scheduleOne] — this is the canonical "alarm
  * style" pattern with WorkManager.
  *
- * Resilience: a stale schedule (deleted while the worker was queued) returns
- * `success` without notifying. A user-disabled-Coach run also no-ops; the
- * cold-start reconciler in `SilverBpApplication` cancels everything when the
- * toggle is off, so this is just a safety net.
+ * Medication reminders are independent of the Coach master toggle — they fire
+ * whenever an enabled schedule exists, even with Coach turned off (a BP app's
+ * core feature). Resilience: a stale schedule (deleted while the worker was
+ * queued) returns `success` without notifying.
  */
 class MedicationReminderWorker(
     appContext: Context,
@@ -27,8 +26,6 @@ class MedicationReminderWorker(
     override suspend fun doWork(): Result {
         val scheduleId = inputData.getString(MedicationReminderScheduler.KEY_SCHEDULE_ID)
             ?: return Result.success()
-        val settings = runCatching { ServiceLocator.userSettings.flow.first() }.getOrNull()
-        if (settings?.enableCoach != true) return Result.success()
 
         return runCatching {
             val schedule = ServiceLocator.database.medicationScheduleDao().findById(scheduleId)

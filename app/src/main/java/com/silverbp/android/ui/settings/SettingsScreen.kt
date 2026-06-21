@@ -342,18 +342,20 @@ fun SettingsScreen(
                         onEnable = { vm.onDietGrantResult(it) },
                         onDisable = vm::disableDietTracking,
                     )
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    // Medication management entry point: the Coach tab's
-                    // medication module card only appears once at least one
-                    // medication has an active schedule, so without this row
-                    // a first-time user has no UI path to add medication #1.
-                    SettingsNavRow(
-                        icon = Icons.Filled.Medication,
-                        title = stringResource(R.string.settings_manage_medications_button),
-                        subtitle = stringResource(R.string.settings_manage_medications_hint),
-                        onClick = onOpenManageMedications,
-                    )
                 }
+            }
+
+            // Medication management — decoupled from the Coach master toggle so
+            // it's always reachable (medication tracking + reminders are a core BP
+            // feature that works with Coach off). The primary entry is now the
+            // Today home card; this is the everyday "edit my medications" path.
+            StandardCard(title = stringResource(R.string.medication_manage_title)) {
+                SettingsNavRow(
+                    icon = Icons.Filled.Medication,
+                    title = stringResource(R.string.settings_manage_medications_button),
+                    subtitle = stringResource(R.string.settings_manage_medications_hint),
+                    onClick = onOpenManageMedications,
+                )
             }
 
             // Coach daily reminder — time + weekday selection. Defaults reproduce
