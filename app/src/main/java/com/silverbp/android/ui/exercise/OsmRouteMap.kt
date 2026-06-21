@@ -1,6 +1,8 @@
 package com.silverbp.android.ui.exercise
 
+import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Point
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -25,7 +27,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
 import java.io.File
 
@@ -69,7 +71,9 @@ fun OsmRouteMap(live: SessionLive, modifier: Modifier = Modifier) {
         MapView(context, provider).apply {
             setMultiTouchControls(true)
             setUseDataConnection(true)
-            controller.setZoom(17.0)
+            minZoomLevel = LIVE_MAP_MIN_ZOOM
+            maxZoomLevel = LIVE_MAP_MAX_ZOOM
+            controller.setZoom(LIVE_MAP_FOLLOW_ZOOM)
             // Taipei 101 default until the first GPS fix recenters the camera.
             controller.setCenter(GeoPoint(25.0330, 121.5654))
         }
@@ -112,22 +116,13 @@ fun OsmRouteMap(live: SessionLive, modifier: Modifier = Modifier) {
                     )
                 }
                 points.firstOrNull()?.let { start ->
-                    mv.overlays.add(
-                        Marker(mv).apply {
-                            position = start
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                            title = "起點"
-                        }
-                    )
+                    mv.overlays.add(RouteMarkerOverlay(start, accentArgb, MarkerKind.Start))
                 }
                 points.lastOrNull()?.let { now ->
-                    mv.overlays.add(
-                        Marker(mv).apply {
-                            position = now
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            title = "目前位置"
-                        }
-                    )
+                    mv.overlays.add(RouteMarkerOverlay(now, accentArgb, MarkerKind.Current))
+                    if (mv.zoomLevelDouble < LIVE_MAP_FOLLOW_ZOOM - 0.1) {
+                        mv.controller.setZoom(LIVE_MAP_FOLLOW_ZOOM)
+                    }
                     mv.controller.animateTo(now)
                 }
                 mv.invalidate()
@@ -144,3 +139,50 @@ fun OsmRouteMap(live: SessionLive, modifier: Modifier = Modifier) {
         )
     }
 }
+
+private enum class MarkerKind { Start, Current }
+
+private class RouteMarkerOverlay(
+    private val position: GeoPoint,
+    private val accentArgb: Int,
+    private val kind: MarkerKind,
+) : Overlay() {
+    private val point = Point()
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+
+        mapView.projection.toPixels(position, point)
+        val density = mapView.resources.displayMetrics.density
+        val x = point.x.toFloat()
+        val y = point.y.toFloat()
+
+        if (kind == MarkerKind.Current) {
+            fillPaint.color = 0xFFFFFFFF.toInt()
+            canvas.drawCircle(x, y, 12f * density, fillPaint)
+            strokePaint.color = 0x66000000
+            strokePaint.strokeWidth = 1.5f * density
+            canvas.drawCircle(x, y, 12f * density, strokePaint)
+            fillPaint.color = accentArgb
+            canvas.drawCircle(x, y, 7f * density, fillPaint)
+        } else {
+            fillPaint.color = 0xFFFFFFFF.toInt()
+            canvas.drawCircle(x, y, 8f * density, fillPaint)
+            strokePaint.color = accentArgb
+            strokePaint.strokeWidth = 3f * density
+            canvas.drawCircle(x, y, 8f * density, strokePaint)
+        }
+    }
+}
+
+private const val LIVE_MAP_FOLLOW_ZOOM = 19.2
+private const val LIVE_MAP_MIN_ZOOM = 16.0
+private const val LIVE_MAP_MAX_ZOOM = 20.0
