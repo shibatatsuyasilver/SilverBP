@@ -191,8 +191,6 @@
     <string name="exercise_notification_idle_body">Paused for %1$d minutes — keep going or finish and save?</string>
     <string name="exercise_notification_idle_action_continue">Keep going</string>
     <string name="exercise_notification_idle_action_finish">Finish &amp; save</string>
-    <string name="settings_manage_medications_button">Manage medications</string>
-    <string name="settings_manage_medications_hint">Add, edit, or remove your medications and supplements, and set dose reminders.</string>
     <string name="exercise_location_permission_title">Location permission required</string>
     <string name="exercise_location_permission_body">SilverBP needs precise location to record your walk/run path.</string>
     <string name="exercise_location_denied">Location permission denied — cannot record your path.</string>

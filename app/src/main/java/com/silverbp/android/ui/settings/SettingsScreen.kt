@@ -24,7 +24,6 @@ import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Tune
@@ -101,7 +100,6 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onClose: () -> Unit = {},
     onOpenSyncPairing: () -> Unit = {},
-    onOpenManageMedications: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
     onOpenAdvanced: () -> Unit = {},
     onOpenManageMembers: () -> Unit = {},
@@ -343,19 +341,6 @@ fun SettingsScreen(
                         onDisable = vm::disableDietTracking,
                     )
                 }
-            }
-
-            // Medication management — decoupled from the Coach master toggle so
-            // it's always reachable (medication tracking + reminders are a core BP
-            // feature that works with Coach off). The primary entry is now the
-            // Today home card; this is the everyday "edit my medications" path.
-            StandardCard(title = stringResource(R.string.medication_manage_title)) {
-                SettingsNavRow(
-                    icon = Icons.Filled.Medication,
-                    title = stringResource(R.string.settings_manage_medications_button),
-                    subtitle = stringResource(R.string.settings_manage_medications_hint),
-                    onClick = onOpenManageMedications,
-                )
             }
 
             // Coach daily reminder — time + weekday selection. Defaults reproduce

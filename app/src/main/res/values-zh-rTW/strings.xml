@@ -191,8 +191,6 @@
     <string name="exercise_notification_idle_body">已暫停 %1$d 分鐘，要繼續還是結束保存？</string>
     <string name="exercise_notification_idle_action_continue">繼續</string>
     <string name="exercise_notification_idle_action_finish">結束並保存</string>
-    <string name="settings_manage_medications_button">管理服藥</string>
-    <string name="settings_manage_medications_hint">新增、編輯或刪除藥物與保健食品,並設定服藥提醒。</string>
     <string name="exercise_location_permission_title">需要位置權限</string>
     <string name="exercise_location_permission_body">SilverBP 需要精確位置才能記錄您的走路/跑步路徑。</string>
     <string name="exercise_location_denied">GPS 權限被拒,無法記錄路徑。</string>

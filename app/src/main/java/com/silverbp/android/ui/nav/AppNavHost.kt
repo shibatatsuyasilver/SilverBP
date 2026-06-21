@@ -379,7 +379,6 @@ fun AppNavHost() {
             SettingsScreen(
                 onClose = { rootNav.popBackStack(Routes.HOME, inclusive = false) },
                 onOpenSyncPairing = { rootNav.navigate(Routes.SYNC_PAIRING) },
-                onOpenManageMedications = { rootNav.navigate(Routes.COACH_MANAGE_MEDICATIONS) },
                 onOpenBackup = { rootNav.navigate(Routes.BACKUP) },
                 onOpenAdvanced = { rootNav.navigate(Routes.SETTINGS_ADVANCED) },
                 onOpenManageMembers = { rootNav.navigate(Routes.MEMBER_MANAGE) },
