@@ -76,13 +76,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
 import com.silverbp.android.coach.DayOfWeekMask
-import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.Member
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.AppLanguage
 import com.silverbp.android.settings.AppThemeMode
 import com.silverbp.android.settings.LocaleHelper
 import com.silverbp.android.ui.coach.formatTime
+import com.silverbp.android.ui.components.GuidelineStandard
 import com.silverbp.android.ui.components.NavListRow
 import com.silverbp.android.ui.components.RadioListRow
 import com.silverbp.android.ui.components.SettingsDivider
@@ -121,6 +121,9 @@ fun SettingsScreen(
     var profileOwner by remember { mutableStateOf<Member?>(null) }
     var showProfileEditor by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
+    // The standard the user tapped but hasn't confirmed yet; non-null shows the
+    // switch-confirmation dialog.
+    var pendingStandard by remember { mutableStateOf<GuidelineStandard?>(null) }
     // Core Health Connect permissions the master toggle requests in one sheet:
     //   • steps READ      — medals / step backfill
     //   • exercise WRITE  — finished workouts (+route) mirror to HC
@@ -285,20 +288,20 @@ fun SettingsScreen(
                 )
             }
 
-            // Hypertension guideline
+            // Hypertension guideline. The four guidelines collapse into two
+            // standards (identical thresholds within each pair), so we show two
+            // options. Tapping the *other* standard opens a confirmation dialog
+            // (pendingStandard) that spells out the differing threshold and that
+            // every reading is re-graded — switching silently would change every
+            // reading's category/color with no explanation.
             SettingsGroup(title = stringResource(R.string.guideline_section)) {
-                HypertensionGuideline.entries.forEachIndexed { index, g ->
-                    val labelRes = when (g) {
-                        HypertensionGuideline.Taiwan2022 -> R.string.guideline_taiwan2022
-                        HypertensionGuideline.AccAha2017 -> R.string.guideline_acc_aha_2017
-                        HypertensionGuideline.Esh2023 -> R.string.guideline_esh_2023
-                        HypertensionGuideline.Jnc8 -> R.string.guideline_jnc_8
-                    }
+                val currentStandard = GuidelineStandard.of(state.guideline)
+                GuidelineStandard.entries.forEachIndexed { index, std ->
                     if (index > 0) SettingsDivider()
                     RadioListRow(
-                        title = stringResource(labelRes),
-                        selected = state.guideline == g,
-                        onClick = { vm.setGuideline(g) },
+                        title = stringResource(std.labelRes),
+                        selected = std == currentStandard,
+                        onClick = { if (std != currentStandard) pendingStandard = std },
                     )
                 }
             }
@@ -569,6 +572,33 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    // Confirm a guideline switch and explain its effect before applying it.
+    pendingStandard?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingStandard = null },
+            title = { Text(stringResource(R.string.guideline_switch_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.guideline_switch_body, target.elevatedThreshold, target.threshold),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.setGuideline(target.representative)
+                    pendingStandard = null
+                }) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingStandard = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     // Open-data attribution (TFDA requires it; ODbL for Open Food Facts).

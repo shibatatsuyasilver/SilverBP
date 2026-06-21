@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.silverbp.android.R
 import com.silverbp.android.core.HypertensionGuideline
 import com.silverbp.android.core.Member
+import com.silverbp.android.ui.components.GuidelineStandard
 import com.silverbp.android.ui.components.HeightPickerField
 import com.silverbp.android.ui.components.WeightPickerField
 import com.silverbp.android.ui.components.YearPickerField
@@ -262,23 +263,25 @@ fun MemberEditorSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                 )
-                HypertensionGuideline.entries.forEach { g ->
-                    val labelRes = when (g) {
-                        HypertensionGuideline.Taiwan2022 -> R.string.guideline_taiwan2022
-                        HypertensionGuideline.AccAha2017 -> R.string.guideline_acc_aha_2017
-                        HypertensionGuideline.Esh2023 -> R.string.guideline_esh_2023
-                        HypertensionGuideline.Jnc8 -> R.string.guideline_jnc_8
-                    }
+                // The four guidelines collapse into two equivalent standards; show
+                // two options. The member's stored guideline maps to its standard,
+                // and tapping the other standard writes that standard's
+                // representative — an in-group value is left untouched.
+                val currentStandard = GuidelineStandard.of(guideline)
+                GuidelineStandard.entries.forEach { std ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { guideline = g }
+                            .clickable { if (std != currentStandard) guideline = std.representative }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        RadioButton(selected = guideline == g, onClick = { guideline = g })
+                        RadioButton(
+                            selected = std == currentStandard,
+                            onClick = { if (std != currentStandard) guideline = std.representative },
+                        )
                         Spacer(Modifier.size(8.dp))
-                        Text(stringResource(labelRes))
+                        Text(stringResource(std.labelRes))
                     }
                 }
             }

@@ -59,13 +59,18 @@ class PdfReportRenderer(private val context: Context) {
         // tests keep the original report. The cover gains a glucose summary and,
         // when [includeDetail], a glucose detail table follows the BP table.
         glucoseReadings: List<GlucoseReading> = emptyList(),
+        // Guideline used to bucket the category-distribution donut, so the report
+        // agrees with how the app categorizes the same member's readings. Resolved
+        // by the caller as member.guideline ?: user setting. Defaults to Taiwan
+        // 2022 so existing callers / tests keep their previous output.
+        guideline: HypertensionGuideline = HypertensionGuideline.Taiwan2022,
     ): File {
         val doc = PdfDocument()
         try {
             drawCover(doc, readings, from, to, memberName, glucoseReadings)
             // Charts page (premium-only, same gate as the detail tables). Mirrors
             // iOS page order: cover → charts → BP table → glucose table → disclaimer.
-            if (includeDetail && readings.isNotEmpty()) drawChartsPage(doc, readings)
+            if (includeDetail && readings.isNotEmpty()) drawChartsPage(doc, readings, guideline)
             if (includeDetail && readings.isNotEmpty()) drawTable(doc, readings)
             if (includeDetail && glucoseReadings.isNotEmpty()) drawGlucoseTable(doc, glucoseReadings)
             drawDisclaimer(doc)
@@ -185,7 +190,7 @@ class PdfReportRenderer(private val context: Context) {
     private val seriesRed = Color.parseColor("#FFFF3B30")
     private val seriesBlue = Color.parseColor("#FF007AFF")
 
-    private fun drawChartsPage(doc: PdfDocument, readings: List<BpReading>) {
+    private fun drawChartsPage(doc: PdfDocument, readings: List<BpReading>, guideline: HypertensionGuideline) {
         val page = doc.startPage(pageInfo(2))
         val canvas = page.canvas
         val title = Paint().apply {
@@ -194,17 +199,34 @@ class PdfReportRenderer(private val context: Context) {
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
+        val caption = Paint().apply { isAntiAlias = true; color = Color.DKGRAY; textSize = 10f }
 
         // 1) BP trend (title at top margin, chart below it).
         canvas.drawText(context.getString(R.string.pdf_chart_trend_title), 60f, 80f, title)
         drawTrendChart(canvas, readings, left = 60f, top = 100f, width = (pageWidth - 120).toFloat(), height = 300f)
 
-        // 2) Category distribution donut.
+        // 2) Category distribution donut. The caption names the guideline the
+        // buckets were classified by — the distribution shifts with the guideline,
+        // so a doctor must know which one produced it.
         canvas.drawText(context.getString(R.string.pdf_chart_distribution_title), 60f, 440f, title)
-        drawDistributionDonut(canvas, readings, left = 60f, top = 460f, width = (pageWidth - 120).toFloat(), height = 280f)
+        canvas.drawText(
+            context.getString(R.string.pdf_chart_distribution_basis, guidelineName(guideline)),
+            60f, 455f, caption,
+        )
+        drawDistributionDonut(canvas, readings, guideline, left = 60f, top = 460f, width = (pageWidth - 120).toFloat(), height = 280f)
 
         doc.finishPage(page)
     }
+
+    /** Localized guideline name for the chart caption. */
+    private fun guidelineName(g: HypertensionGuideline): String = context.getString(
+        when (g) {
+            HypertensionGuideline.Taiwan2022 -> R.string.guideline_taiwan2022
+            HypertensionGuideline.AccAha2017 -> R.string.guideline_acc_aha_2017
+            HypertensionGuideline.Esh2023 -> R.string.guideline_esh_2023
+            HypertensionGuideline.Jnc8 -> R.string.guideline_jnc_8
+        },
+    )
 
     private fun drawTrendChart(
         canvas: Canvas,
@@ -318,14 +340,16 @@ class PdfReportRenderer(private val context: Context) {
     private fun drawDistributionDonut(
         canvas: Canvas,
         readings: List<BpReading>,
+        guideline: HypertensionGuideline,
         left: Float,
         top: Float,
         width: Float,
         height: Float,
     ) {
-        // Taiwan 2022 thresholds — same classifier the report disclaimer references
-        // and what local clinicians expect.
-        val cls = GuidelineClassifier(HypertensionGuideline.Taiwan2022)
+        // Classify by the member's resolved guideline so the donut matches the
+        // categories the app shows for the same readings (the caption on the
+        // charts page names which guideline this is).
+        val cls = GuidelineClassifier(guideline)
         val buckets = readings.groupingBy { cls.classify(it.systolic, it.diastolic) }.eachCount()
 
         // Canonical category order + palette + label (omit empty categories).

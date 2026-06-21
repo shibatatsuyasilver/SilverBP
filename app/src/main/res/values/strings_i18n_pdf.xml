@@ -13,6 +13,7 @@
     <!-- Charts page (mirrors iOS report: BP trend line + category distribution donut). -->
     <string name="pdf_chart_trend_title">Blood pressure trend</string>
     <string name="pdf_chart_distribution_title">Category distribution</string>
+    <string name="pdf_chart_distribution_basis">Classified by %1$s</string>
     <string name="pdf_chart_legend_systolic">Systolic</string>
     <string name="pdf_chart_legend_diastolic">Diastolic</string>
     <string name="pdf_chart_cat_normal">Normal</string>

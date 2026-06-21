@@ -11,6 +11,7 @@ import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,6 +57,7 @@ class ReportViewModel(
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val entitlements: EntitlementManager = ServiceLocator.entitlementManager,
     private val glucoseRepo: GlucoseRepository = ServiceLocator.glucoseRepository,
+    private val settings: UserSettingsRepository = ServiceLocator.userSettings,
 ) : ViewModel() {
 
     private val rangeFlow = MutableStateFlow(ReportRange.Last30)
@@ -131,6 +133,13 @@ class ReportViewModel(
                         ?.takeIf { it.isNotBlank() }
                         ?: ServiceLocator.context.getString(R.string.member_me)
                 }
+                // Classify the report's distribution chart by the member's own
+                // guideline, falling back to the owner's setting — same resolution
+                // as Today/History/Insights (roadmap §3-1) so the PDF agrees with
+                // what the user sees in-app.
+                val guideline =
+                    runCatching { members.findById(UUID.fromString(memberId)) }.getOrNull()?.guideline
+                        ?: settings.flow.first().guideline
                 // Premium tiering (Phase 3): free tier gets cover summary +
                 // disclaimer only; Premium gets the full per-reading table. The
                 // free summary is NEVER blocked. With PREMIUM_ENFORCED=false this
@@ -143,6 +152,7 @@ class ReportViewModel(
                         memberName = name,
                         includeDetail = entitlements.isPremium(),
                         glucoseReadings = glucoseReadings,
+                        guideline = guideline,
                     )
                 generatedFlow.value = file
                 onReady(file)

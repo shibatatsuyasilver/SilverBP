@@ -13,6 +13,7 @@
     <!-- 圖表頁 (對齊 iOS 報告:血壓趨勢折線 + 分級分布甜甜圈)。 -->
     <string name="pdf_chart_trend_title">血壓趨勢</string>
     <string name="pdf_chart_distribution_title">分級分布</string>
+    <string name="pdf_chart_distribution_basis">分級依據:%1$s</string>
     <string name="pdf_chart_legend_systolic">收縮壓</string>
     <string name="pdf_chart_legend_diastolic">舒張壓</string>
     <string name="pdf_chart_cat_normal">正常</string>

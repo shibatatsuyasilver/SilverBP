@@ -65,6 +65,10 @@
     <string name="guideline_acc_aha_2017">ACC/AHA 2017</string>
     <string name="guideline_esh_2023">ESH 2023</string>
     <string name="guideline_jnc_8">JNC 8</string>
+    <string name="guideline_standard_130_80">130/80 mmHg (Taiwan 2022 / ACC/AHA 2017)</string>
+    <string name="guideline_standard_140_90">140/90 mmHg (JNC 8 / ESH 2023)</string>
+    <string name="guideline_switch_title">Switch hypertension guideline?</string>
+    <string name="guideline_switch_body">After switching, the category thresholds become:\n• Elevated: from %1$s\n• High blood pressure: from %2$s\n\nAll your past and future readings are re-graded and re-colored using this standard. The reading values themselves don\'t change.</string>
     <string name="integration_section">Integrations</string>
     <string name="health_connect">Health Connect</string>
     <string name="about_section">About</string>

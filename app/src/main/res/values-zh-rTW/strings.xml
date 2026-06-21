@@ -65,6 +65,10 @@
     <string name="guideline_acc_aha_2017">ACC/AHA 2017</string>
     <string name="guideline_esh_2023">ESH 2023</string>
     <string name="guideline_jnc_8">JNC 8</string>
+    <string name="guideline_standard_130_80">130/80 mmHg(台灣 2022・ACC/AHA 2017)</string>
+    <string name="guideline_standard_140_90">140/90 mmHg(JNC 8・ESH 2023)</string>
+    <string name="guideline_switch_title">切換高血壓指引?</string>
+    <string name="guideline_switch_body">切換後,血壓分級門檻如下:\n• 偏高:%1$s 起\n• 高血壓:%2$s 起\n\n您過去與未來的所有血壓紀錄都會改以此標準重新分級與標示顏色;紀錄的數值本身不會改變。</string>
     <string name="integration_section">整合</string>
     <string name="health_connect">Health Connect</string>
     <string name="about_section">關於</string>
