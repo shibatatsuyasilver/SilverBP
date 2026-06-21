@@ -103,13 +103,17 @@ fun OsmRouteMap(live: SessionLive, modifier: Modifier = Modifier) {
             factory = { mapView },
             modifier = Modifier.fillMaxSize(),
             update = { mv ->
+                val density = mv.resources.displayMetrics.density
                 mv.overlays.clear()
                 if (points.size >= 2) {
                     mv.overlays.add(
                         Polyline(mv).apply {
                             setPoints(points)
                             outlinePaint.color = accentArgb
-                            outlinePaint.strokeWidth = 14f
+                            // Density-scaled so the route reads consistently with
+                            // the markers (which also scale by density) across DPIs,
+                            // instead of the old hardcoded 14px (thin on hi-DPI).
+                            outlinePaint.strokeWidth = 5f * density
                             outlinePaint.strokeCap = Paint.Cap.ROUND
                             outlinePaint.strokeJoin = Paint.Join.ROUND
                         }
@@ -183,6 +187,11 @@ private class RouteMarkerOverlay(
     }
 }
 
-private const val LIVE_MAP_FOLLOW_ZOOM = 19.2
+// MAPNIK's deepest real tile is z19 @256px (no @2x/retina source exists in
+// osmdroid). Keep the follow zoom AND the max zoom pinned to 19.0 so every
+// drawn tile is native data rendered 1:1: at a fractional zoom (e.g. 19.2)
+// osmdroid bitmap-stretches the z19 tile ~15%, and past z19 it fabricates
+// z20 by upscaling z19 2x via MapTileApproximater — both look low-res/blurry.
+private const val LIVE_MAP_FOLLOW_ZOOM = 19.0
 private const val LIVE_MAP_MIN_ZOOM = 16.0
-private const val LIVE_MAP_MAX_ZOOM = 20.0
+private const val LIVE_MAP_MAX_ZOOM = 19.0
