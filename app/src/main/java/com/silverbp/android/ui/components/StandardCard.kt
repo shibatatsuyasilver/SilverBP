@@ -67,6 +67,11 @@ fun StandardCard(
     title: String? = null,
     titleTrailing: (@Composable () -> Unit)? = null,
     contentPadding: Dp = AppSpacing.cardPadding,
+    // Extra start inset for the title only, on top of [contentPadding]. Used by
+    // groups that deliberately run a small [contentPadding] (so rows/dividers sit
+    // close to the card edges) but still want the heading to line up with the
+    // rows' own inner padding instead of hugging the card edge.
+    titleStartPadding: Dp = 0.dp,
     cornerRadius: Dp = LargeCardCorner,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(AppSpacing.itemGap),
@@ -100,6 +105,7 @@ fun StandardCard(
             title = title,
             titleTrailing = titleTrailing,
             contentPadding = contentPadding,
+            titleStartPadding = titleStartPadding,
             accent = accent,
             verticalArrangement = verticalArrangement,
             content = content,
@@ -128,6 +134,7 @@ private fun StandardCardBody(
     title: String?,
     titleTrailing: (@Composable () -> Unit)?,
     contentPadding: Dp,
+    titleStartPadding: Dp,
     accent: Color?,
     verticalArrangement: Arrangement.Vertical,
     content: @Composable ColumnScope.() -> Unit,
@@ -151,7 +158,9 @@ private fun StandardCardBody(
         ) {
             if (title != null) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = titleStartPadding),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(

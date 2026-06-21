@@ -234,6 +234,11 @@ fun SettingsGroup(
         modifier = modifier,
         title = title,
         contentPadding = 6.dp,
+        // Line the heading up with the row labels, not the card edge: rows add a
+        // 14.dp inner inset (RowPadding) on top of the 6.dp content padding, so
+        // 6 + 14 = 20.dp lands the title flush with them (and matches a plain
+        // StandardCard title's inset).
+        titleStartPadding = 14.dp,
         verticalArrangement = Arrangement.spacedBy(0.dp),
         content = content,
     )
