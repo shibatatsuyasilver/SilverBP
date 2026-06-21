@@ -11,14 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Bloodtype
-import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -29,7 +27,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -367,54 +364,48 @@ private fun BpHeroCard(
     }
 }
 
-/** Friendly "今天還沒記錄 · 記一筆" placeholder occupying the BP hero's slot. */
+/**
+ * Friendly "今天還沒記錄 · 記一筆" placeholder that KEEPS the BP hero's identity:
+ * the same indigo-gradient [HeroCard] as the populated hero, not a plain bar. This
+ * is the §-design fix — the empty state used to collapse into a [StandardCard] row,
+ * which clashed with the compact glucose/weight cards below ("three different
+ * shapes"). Now the hero stays the hero in both states: a "血壓" label up top and a
+ * "今天還沒記錄" line with a white "記一筆" pill ([onRecord]) at the foot.
+ */
 @Composable
 private fun BpHeroEmptyCard(
     onRecord: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recordCd = stringResource(R.string.today_record_bp_a11y)
-    StandardCard(
-        modifier = modifier,
-        cornerRadius = AppSpacing.heroCorner,
-    ) {
+    HeroCard(modifier = modifier) {
+        HeroLabel(text = stringResource(R.string.today_section_bp))
+        // A little height so the empty hero reads as a hero block, not a thin bar.
+        Spacer(Modifier.height(AppSpacing.itemGap))
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
+            Text(
+                stringResource(R.string.today_empty_today),
+                style = MaterialTheme.typography.titleMedium,
+                color = HeroForegroundDim,
+                modifier = Modifier.weight(1f),
+            )
+            // White "記一筆" pill — dark-indigo text on white reads clearly on the
+            // gradient and mirrors the populated hero's white status chip.
+            Text(
+                text = stringResource(R.string.today_record_one),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = PrimaryDark,
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MetricAccent.Bp.copy(alpha = 0.20f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.MonitorHeart,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MetricAccent.Bp,
-                )
-            }
-            Spacer(Modifier.size(AppSpacing.itemGap))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.today_section_bp),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    stringResource(R.string.today_empty_today),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            TextButton(
-                onClick = onRecord,
-                modifier = Modifier.semantics { contentDescription = recordCd },
-            ) {
-                Text(stringResource(R.string.today_record_one))
-            }
+                    .clip(CircleShape)
+                    .background(HeroForeground)
+                    .clickable(onClick = onRecord)
+                    .semantics { contentDescription = recordCd }
+                    .padding(horizontal = 18.dp, vertical = 9.dp),
+            )
         }
     }
 }
