@@ -84,6 +84,15 @@
         <uses-native-library android:name="libOpenCL-car.so" android:required="false" />
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
 
+        <!-- The Maps SDK's LEGACY renderer (pinned in SilverBpApplication to dodge
+             the new-renderer black-screen bug) runs MapsDynamite code that still
+             references the Apache HTTP classes removed from the boot classpath on
+             API 28+. Without this declaration the live/summary GoogleMap crashes
+             with ClassNotFoundException: org.apache.http.ProtocolVersion the moment
+             it starts fetching tiles. required=false keeps installs working on
+             devices that lack the optional library. -->
+        <uses-library android:name="org.apache.http.legacy" android:required="false" />
+
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />

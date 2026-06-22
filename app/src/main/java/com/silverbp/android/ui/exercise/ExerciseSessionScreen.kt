@@ -65,6 +65,7 @@ fun ExerciseSessionScreen(
 ) {
     val live by vm.state.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
+    val useCanvas by vm.liveMapUseCanvas.collectAsStateWithLifecycle()
     KeepScreenOn()
 
     if (error != null) {
@@ -95,6 +96,8 @@ fun ExerciseSessionScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         SessionMap(
             live = current,
+            useCanvas = useCanvas,
+            onToggleCanvas = vm::setLiveMapUseCanvas,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -189,33 +192,40 @@ private fun GpsSignalBanner(live: SessionLive, modifier: Modifier = Modifier) {
 private const val GPS_STALE_THRESHOLD_MS = 15_000L
 
 @Composable
-private fun SessionMap(live: SessionLive, modifier: Modifier = Modifier) {
-    // Live street map via osmdroid (OpenStreetMap): standard 2D tile drawing,
-    // NOT Google's GL renderer, so streets render on every device and never hit
-    // the new-renderer black-screen bug. The toggle switches to an offline,
-    // tiles-free route view ([RouteCanvasMap]) for when there's no data signal.
-    var offlineRoute by rememberSaveable { mutableStateOf(false) }
+private fun SessionMap(
+    live: SessionLive,
+    useCanvas: Boolean,
+    onToggleCanvas: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Live street map via Google Maps (maps-compose) — the same stack as the
+    // post-workout summary map ([StaticRouteMap]). The toggle switches to a
+    // GL-free, tiles-free route view ([RouteCanvasMap]): the safety net for the
+    // new-renderer black-screen bug on some GPUs/ROMs (vivo / Android 16 /
+    // Adreno) and for when there's no data signal. The choice is persisted
+    // per-device by [ExerciseSessionViewModel], so a user who hits the black map
+    // flips once and stays on the route view across sessions.
     Box(modifier) {
-        if (offlineRoute) {
+        if (useCanvas) {
             RouteCanvasMap(live, Modifier.fillMaxSize())
         } else {
-            OsmRouteMap(live, Modifier.fillMaxSize())
+            GoogleLiveRouteMap(live, Modifier.fillMaxSize())
         }
         SmallFloatingActionButton(
-            onClick = { offlineRoute = !offlineRoute },
+            onClick = { onToggleCanvas(!useCanvas) },
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .navigationBarsPadding()
                 .padding(start = 16.dp, bottom = 104.dp),
         ) {
             Icon(
-                imageVector = if (offlineRoute) Icons.Filled.Map else Icons.Filled.Timeline,
+                imageVector = if (useCanvas) Icons.Filled.Map else Icons.Filled.Timeline,
                 contentDescription = stringResource(
-                    if (offlineRoute) R.string.exercise_show_map else R.string.exercise_show_route,
+                    if (useCanvas) R.string.exercise_show_map else R.string.exercise_show_route,
                 ),
             )
         }
-        if (!offlineRoute && live.routePoints.isEmpty()) {
+        if (!useCanvas && live.routePoints.isEmpty()) {
             Surface(
                 modifier = Modifier.align(Alignment.Center),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),

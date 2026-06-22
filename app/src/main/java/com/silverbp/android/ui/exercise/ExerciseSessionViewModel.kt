@@ -8,8 +8,12 @@ import com.silverbp.android.exercise.ExerciseSessionLiveStore
 import com.silverbp.android.exercise.LiveError
 import com.silverbp.android.exercise.RunState
 import com.silverbp.android.exercise.SessionLive
+import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -21,6 +25,7 @@ import kotlinx.coroutines.withContext
 class ExerciseSessionViewModel(
     private val controller: ExerciseController = ServiceLocator.exerciseController,
     private val liveStore: ExerciseSessionLiveStore = ServiceLocator.exerciseLiveStore,
+    private val userSettings: UserSettingsRepository = ServiceLocator.userSettings,
 ) : ViewModel() {
 
     val state: StateFlow<SessionLive?> = liveStore.flow
@@ -29,6 +34,20 @@ class ExerciseSessionViewModel(
     val error: StateFlow<LiveError?> = liveStore.error
 
     fun clearError() = liveStore.setError(null)
+
+    /**
+     * Device-local toggle: when true the session map renders the GL-free
+     * [RouteCanvasMap] instead of [GoogleLiveRouteMap]. The safety net for the
+     * new-renderer black-screen bug — persisted so a user who flips it once stays
+     * on the route view across sessions. See [UserSettings.liveMapUseCanvas].
+     */
+    val liveMapUseCanvas: StateFlow<Boolean> = userSettings.flow
+        .map { it.liveMapUseCanvas }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun setLiveMapUseCanvas(useCanvas: Boolean) {
+        viewModelScope.launch { userSettings.setLiveMapUseCanvas(useCanvas) }
+    }
 
     /**
      * Deep-linked here (e.g. notification tap) after a process kill emptied the

@@ -218,4 +218,16 @@ data class UserSettings(
      * builds. See the DEBUG card in SettingsScreen.
      */
     val debugPremiumOverride: String? = null,
+
+    /**
+     * Device-local rendering fallback for the live exercise map: when true the
+     * session screen draws the GL-free
+     * [com.silverbp.android.ui.exercise.RouteCanvasMap] instead of the Google
+     * Maps live map. It is the safety net for the new-renderer black-screen bug
+     * on some GPUs/ROMs (vivo / Android 16 / Adreno) — a user who hits the black
+     * map flips the in-session toggle once and the choice sticks across sessions.
+     * Deliberately NOT carried in settings sync (the bug is device-specific),
+     * mirroring [lastKnownEntitlement].
+     */
+    val liveMapUseCanvas: Boolean = false,
 )

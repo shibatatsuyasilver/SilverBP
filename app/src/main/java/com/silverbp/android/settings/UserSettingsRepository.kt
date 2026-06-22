@@ -91,6 +91,11 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
         // resolves its own Play account; the debug override is local-only too).
         val LAST_KNOWN_ENTITLEMENT = stringPreferencesKey("last_known_entitlement")
         val DEBUG_PREMIUM_OVERRIDE = stringPreferencesKey("debug_premium_override")
+
+        // Live-map rendering fallback (new-renderer black-screen safety net).
+        // Device-local — deliberately absent from snapshotKv/applyKvSingle so it
+        // never rides settings sync (the GPU/ROM bug is device-specific).
+        val LIVE_MAP_USE_CANVAS = booleanPreferencesKey("live_map_use_canvas")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -149,6 +154,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
             trainingStyle = prefs[Keys.TRAINING_STYLE] ?: "",
             lastKnownEntitlement = prefs[Keys.LAST_KNOWN_ENTITLEMENT] ?: "Free",
             debugPremiumOverride = prefs[Keys.DEBUG_PREMIUM_OVERRIDE],
+            liveMapUseCanvas = prefs[Keys.LIVE_MAP_USE_CANVAS] ?: false,
         )
     }
 
@@ -298,6 +304,11 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
     }
     suspend fun setAppLockTimeoutSeconds(v: Int) {
         context.dataStore.edit { it[Keys.APP_LOCK_TIMEOUT] = v.coerceIn(0, 600) }
+    }
+
+    /** Device-local live-map fallback toggle (black-screen safety net). */
+    suspend fun setLiveMapUseCanvas(v: Boolean) {
+        context.dataStore.edit { it[Keys.LIVE_MAP_USE_CANVAS] = v }
     }
 
     // ============================================================
