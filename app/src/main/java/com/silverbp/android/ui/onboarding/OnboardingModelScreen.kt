@@ -1,6 +1,7 @@
 package com.silverbp.android.ui.onboarding
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +17,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
+import androidx.annotation.StringRes
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -41,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.R
 import com.silverbp.android.core.NetworkInfo
 import com.silverbp.android.di.ServiceLocator
@@ -48,10 +52,14 @@ import com.silverbp.android.recognition.DeviceCapabilities
 import com.silverbp.android.recognition.DeviceCapabilities.RecommendedBackend
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelCatalog
+import com.silverbp.android.recognition.ModelVariant
 import com.silverbp.android.recognition.RecognitionBackend
+import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.ui.components.ExpressiveAssistChip
 import com.silverbp.android.ui.components.ExpressivePrimaryButton
 import com.silverbp.android.ui.components.ExpressiveSecondaryButton
+import com.silverbp.android.ui.components.approxSizeLabel
+import com.silverbp.android.ui.components.rememberCellularDownloadGate
 import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
@@ -89,6 +97,18 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
     var keyError by remember { mutableStateOf(false) }
     var showDownloadDialog by remember { mutableStateOf(false) }
 
+    // On-device model choice. Pre-select the RAM-appropriate variant (E4B on
+    // roomy phones, else E2B); the user can switch in the chooser below.
+    val recommendedVariantId = remember { ModelCatalog.recommended(context).id }
+    var selectedVariantId by remember { mutableStateOf(recommendedVariantId) }
+    val chosenVariant = ModelCatalog.byId(selectedVariantId)
+
+    // Cellular-download gate (toggle lives in Advanced Settings; off by default,
+    // so on a first launch over mobile data the download simply defers to Wi-Fi).
+    val settings by ServiceLocator.userSettings.flow
+        .collectAsStateWithLifecycle(initialValue = UserSettings())
+    val cellularGate = rememberCellularDownloadGate(settings.allowDownloadOverCellular)
+
     // Compute the recommendation once (AICore availability is a suspend probe).
     LaunchedEffect(Unit) {
         val rec = DeviceCapabilities.recommendBackend(context)
@@ -96,13 +116,13 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
         selected = rec.toBackend()
     }
 
-    fun applyAndFinish(backend: RecognitionBackend, download: Boolean) {
+    fun applyAndFinish(backend: RecognitionBackend, download: Boolean, allowMetered: Boolean = false) {
         scope.launch {
             val s = ServiceLocator.userSettings
             when (backend) {
                 RecognitionBackend.Local -> {
                     s.setRecognitionBackend(RecognitionBackend.Local)
-                    s.setSelectedModelId(ModelCatalog.default.id)
+                    s.setSelectedModelId(chosenVariant.id)
                 }
                 RecognitionBackend.Cloud -> {
                     s.setGeminiApiKey(apiKey.trim())
@@ -116,7 +136,7 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
             // Kick off any background model work AFTER the flag is set so the
             // HOME ModelLoadBanner reflects progress. These return immediately.
             if (backend == RecognitionBackend.Local && download) {
-                ModelBootstrap.downloadAndPreload(context, ModelCatalog.default, null)
+                ModelBootstrap.downloadAndPreload(context, chosenVariant, allowMetered = allowMetered)
             } else if (backend == RecognitionBackend.AICore) {
                 ModelBootstrap.preloadAICore(context)
             }
@@ -127,8 +147,26 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
     fun onContinue() {
         when (selected) {
             RecognitionBackend.Local ->
-                if (NetworkInfo.isOnWifi(context)) showDownloadDialog = true
-                else applyAndFinish(RecognitionBackend.Local, download = false)
+                if (!NetworkInfo.isMetered(context)) {
+                    showDownloadDialog = true
+                } else {
+                    // On mobile data: confirm when the user has allowed cellular
+                    // downloads, otherwise show the Wi-Fi-only notice and finish
+                    // without downloading (it'll be ready in Settings on Wi-Fi).
+                    cellularGate.request(
+                        approxSizeLabel(chosenVariant.approxSizeGB),
+                        onProceed = { allowMetered ->
+                            requestModelDownloadPermission {
+                                applyAndFinish(
+                                    RecognitionBackend.Local,
+                                    download = true,
+                                    allowMetered = allowMetered,
+                                )
+                            }
+                        },
+                        onBlocked = { applyAndFinish(RecognitionBackend.Local, download = false) },
+                    )
+                }
             RecognitionBackend.Cloud ->
                 if (apiKey.isBlank()) keyError = true
                 else applyAndFinish(RecognitionBackend.Cloud, download = false)
@@ -141,7 +179,14 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
         AlertDialog(
             onDismissRequest = { showDownloadDialog = false },
             title = { Text(stringResource(R.string.onboarding_model_download_title)) },
-            text = { Text(stringResource(R.string.onboarding_model_download_body)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.onboarding_model_download_body,
+                        approxSizeLabel(chosenVariant.approxSizeGB),
+                    ),
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDownloadDialog = false
@@ -195,15 +240,7 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
                 selected = selected == RecognitionBackend.Local,
                 recommended = recommended == RecommendedBackend.OnDevice,
                 onSelect = { selected = RecognitionBackend.Local },
-            ) {
-                if (selected == RecognitionBackend.Local && !NetworkInfo.isOnWifi(context)) {
-                    Text(
-                        stringResource(R.string.onboarding_model_local_wifi_needed),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            )
 
             // Cloud
             OptionCard(
@@ -247,6 +284,31 @@ fun OnboardingModelScreen(onCompleted: () -> Unit) {
                     recommended = true,
                     onSelect = { selected = RecognitionBackend.AICore },
                 )
+            }
+
+            // On-device model chooser — its own card, shown only when the
+            // on-device backend is selected. Pre-selects the RAM-appropriate
+            // variant; the user can switch.
+            if (selected == RecognitionBackend.Local) {
+                StandardCard(title = stringResource(R.string.onboarding_model_choose_variant)) {
+                    ModelCatalog.variants.forEachIndexed { index, variant ->
+                        if (index > 0) HorizontalDivider()
+                        VariantChooserRow(
+                            variant = variant,
+                            selected = selectedVariantId == variant.id,
+                            recommended = variant.id == recommendedVariantId,
+                            onSelect = { selectedVariantId = variant.id },
+                        )
+                    }
+                    if (NetworkInfo.isMetered(context) && !settings.allowDownloadOverCellular) {
+                        Spacer(Modifier.size(AppSpacing.tight))
+                        Text(
+                            stringResource(R.string.onboarding_model_local_wifi_needed),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.size(AppSpacing.itemGap))
@@ -321,6 +383,85 @@ private fun OptionCard(
             }
         }
     }
+}
+
+/**
+ * A selectable on-device model row in the onboarding picker: a leading
+ * RadioButton, the variant name + approximate download size, a "recommended"
+ * chip on the RAM-appropriate one, and the variant's one-line notes. Lighter
+ * than the Settings [com.silverbp.android.ui.settings.AdvancedSettingsScreen]
+ * row — no download/delete actions, just the choice.
+ */
+@Composable
+private fun VariantChooserRow(
+    variant: ModelVariant,
+    selected: Boolean,
+    recommended: Boolean,
+    onSelect: () -> Unit,
+) {
+    // Strip the catalog's parenthetical qualifier ("Gemma 4 E2B (Recommended)"
+    // → "Gemma 4 E2B"); onboarding shows its own RAM-based recommendation badge.
+    val name = stringResource(variant.displayNameRes).substringBefore(" (")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(vertical = AppSpacing.tight),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.itemGap),
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onSelect,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = MaterialTheme.colorScheme.primary,
+                unselectedColor = MaterialTheme.colorScheme.outline,
+            ),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.tight),
+        ) {
+            // Name (takes remaining width) + size pinned to the end on one line.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    name,
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.size(AppSpacing.tight))
+                Text(
+                    approxSizeLabel(variant.approxSizeGB),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+            if (recommended) {
+                Text(
+                    "★ " + stringResource(R.string.onboarding_model_recommended),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                stringResource(onboardingBlurbRes(variant.id)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Plain-language one-liner per variant for the onboarding chooser. */
+@StringRes
+private fun onboardingBlurbRes(variantId: String): Int = when (variantId) {
+    "gemma-4-E2B-it" -> R.string.onboarding_model_blurb_e2b
+    "gemma-4-E4B-it" -> R.string.onboarding_model_blurb_e4b
+    else -> R.string.onboarding_model_blurb_other
 }
 
 /**

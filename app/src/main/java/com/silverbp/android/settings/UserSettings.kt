@@ -62,6 +62,15 @@ data class UserSettings(
      */
     val enableSpeculativeDecoding: Boolean = true,
 
+    /**
+     * When true, the multi-GB model download is allowed to run over a metered
+     * (mobile-data) network instead of Wi-Fi only. Default OFF — downloads are
+     * gated to unmetered networks ([com.silverbp.android.recognition.ModelDownloadWorker])
+     * exactly as before. The UI still shows a per-download confirmation before
+     * spending mobile data even when this is on.
+     */
+    val allowDownloadOverCellular: Boolean = false,
+
     /** Daily step target used as the streak medal threshold. Tunable in Settings. */
     val dailyStepGoal: Int = 8000,
     /** When true, surface a system notification on medal unlock (perm-gated). */

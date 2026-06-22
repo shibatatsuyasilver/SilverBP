@@ -103,6 +103,12 @@
     <string name="model_download_notification_permission_denied">The model will keep downloading, but lock screen and live progress need notification permission.</string>
     <string name="model_delete_dialog_title">Delete this model?</string>
     <string name="model_delete_dialog_message">%1$s (about %2$.1f GB) will be permanently removed to free up space. You can download it again later.</string>
+    <string name="model_download_cellular_confirm_title">Download over mobile data?</string>
+    <string name="model_download_cellular_confirm_body">You\'re on mobile data. This download is about %1$s and may use a large part of your data plan. Continue?</string>
+    <string name="model_download_cellular_confirm_action">Download over mobile</string>
+    <string name="model_download_wifi_only_title">Wi-Fi needed</string>
+    <string name="model_download_wifi_only_body">Model downloads are set to Wi-Fi only. Connect to Wi-Fi, or turn on \"Allow download over mobile data\" in Settings.</string>
+    <string name="model_download_wifi_only_dismiss">Got it</string>
 
     <!-- Insights -->
     <string name="trend_title">Trend</string>
@@ -476,6 +482,8 @@
     <string name="settings_speculative_label">Speculative decoding (~2x faster)</string>
     <string name="settings_speculative_supported_help">MTP acceleration; turn off if you hit compatibility issues. Tap \"Apply and reload model\" above after changing.</string>
     <string name="settings_speculative_unsupported_help">The selected model (%1$s) has no MTP heads — this option is not available.</string>
+    <string name="settings_allow_cellular_download_label">Allow download over mobile data</string>
+    <string name="settings_allow_cellular_download_help">Off: models download on Wi-Fi only. On: you can download over mobile data after confirming each time.</string>
     <string name="settings_ocr_prompt_label">OCR system prompt</string>
     <string name="settings_action_reset">Reset</string>
     <string name="settings_ocr_prompt_help">Leave blank to use the built-in default prompt. Applies to the next photo — no reload needed.</string>

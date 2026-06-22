@@ -103,6 +103,12 @@
     <string name="model_download_notification_permission_denied">模型會繼續下載，但鎖屏與原子島進度需要通知權限。</string>
     <string name="model_delete_dialog_title">刪除此模型?</string>
     <string name="model_delete_dialog_message">%1$s（約 %2$.1f GB）將被永久刪除以釋放空間，你之後可以再次下載。</string>
+    <string name="model_download_cellular_confirm_title">用行動網路下載?</string>
+    <string name="model_download_cellular_confirm_body">你目前使用行動網路。這次下載約 %1$s，可能會用掉大量行動數據。要繼續嗎?</string>
+    <string name="model_download_cellular_confirm_action">用行動網路下載</string>
+    <string name="model_download_wifi_only_title">需要 Wi-Fi</string>
+    <string name="model_download_wifi_only_body">模型下載目前僅限 Wi-Fi。請連上 Wi-Fi，或到「設定」開啟「允許行動網路下載」。</string>
+    <string name="model_download_wifi_only_dismiss">知道了</string>
 
     <!-- Insights -->
     <string name="trend_title">血壓趨勢</string>
@@ -476,6 +482,8 @@
     <string name="settings_speculative_label">Speculative decoding (~2x 解碼加速)</string>
     <string name="settings_speculative_supported_help">MTP 加速;若遇相容性問題可關閉。改值後請按上方「套用並重新載入模型」。</string>
     <string name="settings_speculative_unsupported_help">目前選用的模型 (%1$s) 沒有 MTP heads,此選項暫不適用。</string>
+    <string name="settings_allow_cellular_download_label">允許行動網路下載</string>
+    <string name="settings_allow_cellular_download_help">關閉時模型只在 Wi-Fi 下載;開啟後可在每次確認後使用行動網路下載。</string>
     <string name="settings_ocr_prompt_label">OCR system prompt</string>
     <string name="settings_action_reset">重置</string>
     <string name="settings_ocr_prompt_help">留空 = 使用內建預設 prompt。下一張照片即套用,不需重新載入模型。</string>

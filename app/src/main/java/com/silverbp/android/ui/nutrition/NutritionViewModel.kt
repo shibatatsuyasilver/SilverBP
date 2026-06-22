@@ -124,10 +124,10 @@ class NutritionViewModel(
      * Progress is reported via [ServiceLocator.modelLoadStatus]; the Nutrition
      * screen observes it. Wired to the "download model" action on [NutritionCapturePhase.NeedsModel].
      */
-    fun downloadModel() {
+    fun downloadModel(allowMetered: Boolean = false) {
         viewModelScope.launch {
             val variant = ModelCatalog.byId(ServiceLocator.userSettings.flow.first().selectedModelId)
-            ModelBootstrap.downloadAndPreload(appContext, variant)
+            ModelBootstrap.downloadAndPreload(appContext, variant, allowMetered = allowMetered)
         }
     }
 

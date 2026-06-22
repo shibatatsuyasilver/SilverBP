@@ -58,13 +58,17 @@ import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.nutrition.FoodLog
 import com.silverbp.android.nutrition.MealType
 import com.silverbp.android.nutrition.SodiumLevel
+import com.silverbp.android.recognition.ModelCatalog
 import com.silverbp.android.recognition.ModelLoadPhase
 import com.silverbp.android.settings.BarcodeRegion
+import com.silverbp.android.settings.UserSettings
 import com.silverbp.android.ui.coach.components.GoalRing
 import com.silverbp.android.ui.components.AppTopBar
 import com.silverbp.android.ui.components.ExpressivePrimaryButton
 import com.silverbp.android.ui.components.ExpressiveSecondaryButton
 import com.silverbp.android.ui.components.ModelLoadBanner
+import com.silverbp.android.ui.components.approxSizeLabel
+import com.silverbp.android.ui.components.rememberCellularDownloadGate
 import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.components.StandardCard
 import com.silverbp.android.ui.theme.AppSpacing
@@ -90,6 +94,14 @@ fun NutritionScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val cameraPermissionDenied = stringResource(R.string.camera_permission_denied)
     val requestModelDownloadPermission = rememberModelDownloadPermissionGate()
+    // Gate the multi-GB model download on the active network: confirm before
+    // spending mobile data (and only when the user has opted in via Settings).
+    val downloadSettings by ServiceLocator.userSettings.flow
+        .collectAsStateWithLifecycle(initialValue = UserSettings())
+    val cellularGate = rememberCellularDownloadGate(downloadSettings.allowDownloadOverCellular)
+    val downloadSizeLabel = approxSizeLabel(
+        ModelCatalog.byId(downloadSettings.selectedModelId).approxSizeGB,
+    )
     // Barcode lookup (Open Food Facts) only pays off in well-covered regions; hide
     // it elsewhere so Taiwan users aren't misled into scanning 超商 hot food.
     val barcodeSupported = remember { BarcodeRegion.isBarcodeSupported(context) }
@@ -142,7 +154,13 @@ fun NutritionScreen(
                         ExpressivePrimaryButton(
                             text = stringResource(R.string.nutrition_download_model_cta),
                             onClick = {
-                                requestModelDownloadPermission { vm.downloadModel() }
+                                requestModelDownloadPermission {
+                                    cellularGate.request(
+                                        downloadSizeLabel,
+                                        onProceed = { allowMetered -> vm.downloadModel(allowMetered) },
+                                        onBlocked = {},
+                                    )
+                                }
                             },
                             fillWidth = true,
                         )
@@ -276,7 +294,13 @@ fun NutritionScreen(
                             ExpressivePrimaryButton(
                                 text = stringResource(R.string.nutrition_download_model_cta),
                                 onClick = {
-                                    requestModelDownloadPermission { vm.downloadModel() }
+                                    requestModelDownloadPermission {
+                                    cellularGate.request(
+                                        downloadSizeLabel,
+                                        onProceed = { allowMetered -> vm.downloadModel(allowMetered) },
+                                        onBlocked = {},
+                                    )
+                                }
                                 },
                             )
                         }

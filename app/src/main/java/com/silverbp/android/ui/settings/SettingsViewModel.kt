@@ -249,6 +249,9 @@ class SettingsViewModel(
     fun setEnableSpeculativeDecoding(v: Boolean) {
         viewModelScope.launch { repo.setEnableSpeculativeDecoding(v) }
     }
+    fun setAllowDownloadOverCellular(v: Boolean) {
+        viewModelScope.launch { repo.setAllowDownloadOverCellular(v) }
+    }
     fun setDailyStepGoal(value: Int) {
         viewModelScope.launch {
             repo.setDailyStepGoal(value)

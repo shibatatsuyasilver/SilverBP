@@ -9,8 +9,12 @@
     <string name="onboarding_model_recommended">Recommended for your phone</string>
 
     <string name="onboarding_model_local_title">On-device AI</string>
-    <string name="onboarding_model_local_desc">Runs privately on your phone. No internet or key needed. One-time ~2 GB download over Wi-Fi.</string>
+    <string name="onboarding_model_local_desc">Runs privately on your phone. No internet or key needed. One-time download over Wi-Fi.</string>
     <string name="onboarding_model_local_wifi_needed">You\'re not on Wi-Fi right now. The download will be ready in Settings once you connect to Wi-Fi.</string>
+    <string name="onboarding_model_choose_variant">Choose a model</string>
+    <string name="onboarding_model_blurb_e2b">Faster, fits most phones</string>
+    <string name="onboarding_model_blurb_e4b">More accurate, larger download</string>
+    <string name="onboarding_model_blurb_other">Same model as the iOS app</string>
 
     <string name="onboarding_model_cloud_title">Cloud AI (Google Gemini)</string>
     <string name="onboarding_model_cloud_desc">Best for older phones. Uses the internet, no large download. Needs a free Google key.</string>
@@ -26,7 +30,7 @@
     <string name="onboarding_model_confirm">Continue</string>
 
     <string name="onboarding_model_download_title">Download AI model?</string>
-    <string name="onboarding_model_download_body">This downloads about 2 GB over Wi-Fi. You can also do it later in Settings.</string>
+    <string name="onboarding_model_download_body">This downloads about %1$s over Wi-Fi. You can also do it later in Settings.</string>
     <string name="onboarding_model_download_confirm">Download now</string>
     <string name="onboarding_model_download_later">Not now</string>
 

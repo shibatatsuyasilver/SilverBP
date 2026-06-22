@@ -67,6 +67,16 @@ object DeviceCapabilities {
      */
     const val ON_DEVICE_MIN_RAM_BYTES: Long = 6L * 1024 * 1024 * 1024
 
+    /**
+     * Minimum total device RAM to *recommend* the larger Gemma E4B variant over
+     * E2B in the model picker. E4B mmaps ~3.65 GB of weights (vs ~2 GB for E2B)
+     * plus the vision encoder buffer and runtime headroom, so we only pre-select
+     * it on phones with comfortable headroom (~8 GB+). Below this the picker
+     * defaults to E2B; the user can still switch either way. See
+     * [ModelCatalog.recommended].
+     */
+    const val E4B_MIN_RAM_BYTES: Long = 8L * 1024 * 1024 * 1024
+
     /** Total physical RAM reported by the platform, in bytes (0 if unavailable). */
     fun totalRamBytes(context: Context): Long {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return 0L

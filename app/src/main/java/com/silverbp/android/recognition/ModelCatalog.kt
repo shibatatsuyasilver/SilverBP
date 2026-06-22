@@ -93,4 +93,19 @@ object ModelCatalog {
 
     val default: ModelVariant get() = variants.first()
     fun byId(id: String): ModelVariant = variants.firstOrNull { it.id == id } ?: default
+
+    /**
+     * Which release variant to pre-select for this device in the first-launch
+     * model picker: the larger E4B on phones with comfortable RAM headroom
+     * ([DeviceCapabilities.E4B_MIN_RAM_BYTES]), otherwise the smaller/faster E2B.
+     * Both are always present in [releaseVariants]; the user can still switch.
+     */
+    fun recommended(context: android.content.Context): ModelVariant {
+        val id = if (DeviceCapabilities.totalRamBytes(context) >= DeviceCapabilities.E4B_MIN_RAM_BYTES) {
+            "gemma-4-E4B-it"
+        } else {
+            "gemma-4-E2B-it"
+        }
+        return byId(id)
+    }
 }

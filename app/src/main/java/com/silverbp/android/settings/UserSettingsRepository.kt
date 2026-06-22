@@ -48,6 +48,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
         val SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
         val VISION_OVERRIDE = stringPreferencesKey("vision_backend_override")
         val SPECULATIVE_DECODING = booleanPreferencesKey("enable_speculative_decoding")
+        val ALLOW_CELLULAR_DOWNLOAD = booleanPreferencesKey("allow_cellular_download")
         val DAILY_STEP_GOAL = intPreferencesKey("daily_step_goal")
         val NOTIFY_MEDAL_UNLOCK = booleanPreferencesKey("notify_medal_unlock")
         val DID_OFFER_NOTIF_PROMPT = booleanPreferencesKey("did_offer_notif_prompt")
@@ -121,6 +122,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
                 ?.let { VisionBackendOverride.fromRaw(it) }
                 ?: VisionBackendOverride.Auto,
             enableSpeculativeDecoding = prefs[Keys.SPECULATIVE_DECODING] ?: true,
+            allowDownloadOverCellular = prefs[Keys.ALLOW_CELLULAR_DOWNLOAD] ?: false,
             dailyStepGoal = prefs[Keys.DAILY_STEP_GOAL] ?: 8000,
             notifyOnMedalUnlock = prefs[Keys.NOTIFY_MEDAL_UNLOCK] ?: true,
             didOfferNotificationPrompt = prefs[Keys.DID_OFFER_NOTIF_PROMPT] ?: false,
@@ -202,6 +204,9 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
     }
     suspend fun setEnableSpeculativeDecoding(v: Boolean) {
         context.dataStore.edit { it[Keys.SPECULATIVE_DECODING] = v }
+    }
+    suspend fun setAllowDownloadOverCellular(v: Boolean) {
+        context.dataStore.edit { it[Keys.ALLOW_CELLULAR_DOWNLOAD] = v }
     }
     suspend fun setDailyStepGoal(v: Int) {
         context.dataStore.edit { it[Keys.DAILY_STEP_GOAL] = v.coerceIn(2_000, 30_000) }
@@ -422,6 +427,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
         prefs[Keys.SKIPPED_GOOGLE_LINK]?.let { out[Keys.SKIPPED_GOOGLE_LINK.name] = KvValue.B(it) }
         prefs[Keys.MODEL_DOWNLOADED]?.let { out[Keys.MODEL_DOWNLOADED.name] = KvValue.B(it) }
         prefs[Keys.SPECULATIVE_DECODING]?.let { out[Keys.SPECULATIVE_DECODING.name] = KvValue.B(it) }
+        prefs[Keys.ALLOW_CELLULAR_DOWNLOAD]?.let { out[Keys.ALLOW_CELLULAR_DOWNLOAD.name] = KvValue.B(it) }
         prefs[Keys.NOTIFY_MEDAL_UNLOCK]?.let { out[Keys.NOTIFY_MEDAL_UNLOCK.name] = KvValue.B(it) }
         prefs[Keys.DID_OFFER_NOTIF_PROMPT]?.let { out[Keys.DID_OFFER_NOTIF_PROMPT.name] = KvValue.B(it) }
         prefs[Keys.CHAT_INCLUDE_RECORDS]?.let { out[Keys.CHAT_INCLUDE_RECORDS.name] = KvValue.B(it) }
@@ -485,6 +491,7 @@ class UserSettingsRepository(private val context: Context) : EntitlementStore {
                 Keys.SKIPPED_GOOGLE_LINK.name -> if (value is KvValue.B) prefs[Keys.SKIPPED_GOOGLE_LINK] = value.value
                 Keys.MODEL_DOWNLOADED.name -> if (value is KvValue.B) prefs[Keys.MODEL_DOWNLOADED] = value.value
                 Keys.SPECULATIVE_DECODING.name -> if (value is KvValue.B) prefs[Keys.SPECULATIVE_DECODING] = value.value
+                Keys.ALLOW_CELLULAR_DOWNLOAD.name -> if (value is KvValue.B) prefs[Keys.ALLOW_CELLULAR_DOWNLOAD] = value.value
                 Keys.NOTIFY_MEDAL_UNLOCK.name -> if (value is KvValue.B) prefs[Keys.NOTIFY_MEDAL_UNLOCK] = value.value
                 Keys.DID_OFFER_NOTIF_PROMPT.name -> if (value is KvValue.B) prefs[Keys.DID_OFFER_NOTIF_PROMPT] = value.value
                 Keys.CHAT_INCLUDE_RECORDS.name -> if (value is KvValue.B) prefs[Keys.CHAT_INCLUDE_RECORDS] = value.value

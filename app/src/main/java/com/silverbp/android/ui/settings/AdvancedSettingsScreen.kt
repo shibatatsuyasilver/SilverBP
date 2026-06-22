@@ -61,6 +61,8 @@ import com.silverbp.android.ui.components.RadioListRow
 import com.silverbp.android.ui.components.SettingsDivider
 import com.silverbp.android.ui.components.SettingsGroup
 import com.silverbp.android.ui.components.StandardCard
+import com.silverbp.android.ui.components.approxSizeLabel
+import com.silverbp.android.ui.components.rememberCellularDownloadGate
 import com.silverbp.android.ui.components.rememberModelDownloadPermissionGate
 import com.silverbp.android.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
@@ -82,6 +84,7 @@ fun AdvancedSettingsScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val modelPhase by ServiceLocator.modelLoadStatus.phase.collectAsStateWithLifecycle()
     val requestModelDownloadPermission = rememberModelDownloadPermissionGate()
+    val cellularGate = rememberCellularDownloadGate(state.allowDownloadOverCellular)
     var hfToken by remember { mutableStateOf("") }
     // Bumped after a model delete so each ModelVariantRow re-reads the disk and
     // drops its "Downloaded" chip (file existence isn't a reactive State).
@@ -173,7 +176,18 @@ fun AdvancedSettingsScreen(
                             },
                             onDownload = {
                                 requestModelDownloadPermission {
-                                    ModelBootstrap.downloadAndPreload(context, variant, hfToken.takeIf { it.isNotBlank() })
+                                    cellularGate.request(
+                                        approxSizeLabel(variant.approxSizeGB),
+                                        onProceed = { allowMetered ->
+                                            ModelBootstrap.downloadAndPreload(
+                                                context,
+                                                variant,
+                                                hfToken.takeIf { it.isNotBlank() },
+                                                allowMetered = allowMetered,
+                                            )
+                                        },
+                                        onBlocked = {},
+                                    )
                                 }
                             },
                             onDelete = { pendingDelete = variant },
@@ -205,6 +219,25 @@ fun AdvancedSettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = AppSpacing.tight),
                     )
+
+                    HorizontalDivider(Modifier.padding(vertical = AppSpacing.itemGap))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.settings_allow_cellular_download_label),
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                stringResource(R.string.settings_allow_cellular_download_help),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Switch(
+                            checked = state.allowDownloadOverCellular,
+                            onCheckedChange = { vm.setAllowDownloadOverCellular(it) },
+                        )
+                    }
                 }
 
                 StandardCard(title = stringResource(R.string.settings_model_tuning_section)) {

@@ -15,4 +15,18 @@ object NetworkInfo {
         val caps = cm.getNetworkCapabilities(network) ?: return false
         return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
+
+    /**
+     * True when the active network is metered (mobile data, or a metered Wi-Fi
+     * hotspot) — the precise complement of the WorkManager
+     * [androidx.work.NetworkType.UNMETERED] download constraint. When this is
+     * true, a download enqueued WiFi-only will sit and wait, so the UI gates a
+     * cellular download behind a user opt-in + confirmation. Defaults to true
+     * (conservative: assume metered) when connectivity can't be read.
+     */
+    fun isMetered(context: Context): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return true
+        return cm.isActiveNetworkMetered
+    }
 }

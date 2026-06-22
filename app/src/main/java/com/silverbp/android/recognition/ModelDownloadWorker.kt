@@ -111,17 +111,25 @@ class ModelDownloadWorker(
          * Enqueue (or keep) the foreground download for [variantId]. KEEP so a
          * repeat trigger never restarts an already-running download; the unique
          * work survives process death and resumes automatically.
+         *
+         * [allowMetered] relaxes the network constraint from UNMETERED (Wi-Fi /
+         * unmetered only — the default) to CONNECTED (any network, incl. mobile
+         * data). The UI sets it true only after an explicit per-download
+         * confirmation, gated behind the "allow download over mobile data"
+         * setting.
          */
         fun enqueue(
             context: Context,
             variantId: String,
             hfToken: String? = null,
             sha256: String? = null,
+            allowMetered: Boolean = false,
         ) {
             val appContext = context.applicationContext
             val hfTokenRef = ModelDownloadTokenStore.put(appContext, hfToken)
+            val networkType = if (allowMetered) NetworkType.CONNECTED else NetworkType.UNMETERED
             val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.UNMETERED)
+                .setRequiredNetworkType(networkType)
                 .build()
             val data = Data.Builder()
                 .putString(KEY_VARIANT_ID, variantId)

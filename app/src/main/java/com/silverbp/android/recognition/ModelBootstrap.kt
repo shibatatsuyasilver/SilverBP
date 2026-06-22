@@ -54,7 +54,13 @@ object ModelBootstrap {
                     } else if (downloader.hasPartialDownload(variant)) {
                         // An interrupted download left a `.part` file — resume it
                         // in the foreground worker (continues via the Range header).
-                        ModelDownloadWorker.enqueue(context.applicationContext, variant.id)
+                        // Honor the user's cellular opt-in so a resume isn't stuck
+                        // waiting for Wi-Fi when they'd already allowed mobile data.
+                        ModelDownloadWorker.enqueue(
+                            context.applicationContext,
+                            variant.id,
+                            allowMetered = settings.allowDownloadOverCellular,
+                        )
                     }
                 }
             }
@@ -119,9 +125,12 @@ object ModelBootstrap {
         variant: ModelVariant,
         hfToken: String? = null,
         sha256: String? = null,
+        allowMetered: Boolean = false,
     ) {
         ServiceLocator.modelLoadStatus.set(ModelLoadPhase.Downloading(0f, variant.id))
-        ModelDownloadWorker.enqueue(context.applicationContext, variant.id, hfToken, sha256)
+        ModelDownloadWorker.enqueue(
+            context.applicationContext, variant.id, hfToken, sha256, allowMetered,
+        )
     }
 
     /**
