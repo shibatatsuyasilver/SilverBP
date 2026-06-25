@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * Deliberately NOT persisted — matches the previously non-persisted 紀錄 filter; the
  * sharing is within-session only. The standalone per-type history view-models
- * ([HistoryViewModel] / [GlucoseHistoryViewModel] / [WeightHistoryViewModel]) keep
- * their own private range and are intentionally unaffected.
+ * ([HistoryViewModel] / [GlucoseHistoryViewModel]) keep their own private range and
+ * are intentionally unaffected.
  */
 class DataRangeFilterStore {
     private val _range = MutableStateFlow(DateRange.All)

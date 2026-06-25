@@ -10,6 +10,7 @@
     <!-- 日卡內各型別條目前的區段小標題. -->
     <string name="combined_section_bp">血壓</string>
     <string name="combined_section_glucose">血糖</string>
+    <string name="combined_section_weight">體重</string>
     <!-- 各型別單行當日摘要(筆數·平均),顯示於各區段標題下方. -->
     <string name="combined_day_bp_summary">%1$d 筆 · 平均 %2$d/%3$d</string>
     <string name="combined_day_glucose_summary">%1$d 筆 · 平均 %2$s %3$s</string>

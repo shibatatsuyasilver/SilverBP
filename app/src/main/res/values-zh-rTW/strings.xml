@@ -19,7 +19,6 @@
     <string name="no_readings">尚無讀數</string>
     <string name="capture_cta">點右上角的 + 開始記錄</string>
     <string name="settings_a11y">設定</string>
-    <string name="add_reading_a11y">新增讀數</string>
 
     <!-- Report -->
     <string name="report_screen_title">PDF 報告</string>

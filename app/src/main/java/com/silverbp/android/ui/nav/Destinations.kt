@@ -59,12 +59,6 @@ object Routes {
     fun weightConfirmEdit(id: String) = "weight/confirm/$id"
     const val ARG_WEIGHT_ID = "weightId"
 
-    // Member-scoped weight history list, opened from the Today weight card's
-    // "查看全部" affordance. Root-level so the bottom NavigationBar hides while
-    // active, like the other standalone push screens (Medals/Settings). The
-    // screen hosts tap-to-edit (→ WEIGHT_CONFIRM) and long-press delete.
-    const val WEIGHT_HISTORY = "weight/history"
-
     const val EXERCISE_SESSION = "exercise/session"
     const val EXERCISE_SUMMARY = "exercise/summary"
     fun exerciseDetail(id: String) = "exercise/detail/$id"

@@ -34,6 +34,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -77,6 +79,9 @@ fun MetricCard(
     categoryLabel: String? = null,
     onClick: (() -> Unit)? = null,
     onTimeClick: (() -> Unit)? = null,
+    onAddAnother: (() -> Unit)? = null,
+    addLabel: String? = null,
+    addCd: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -202,6 +207,34 @@ fun MetricCard(
                     )
                 }
             }
+
+            // "記一筆" — always-available "add another" affordance on a populated
+            // card so a new reading can be logged even when today already has data
+            // (the top-bar "+" was removed; 記一筆 now lives on every card). A child
+            // clickable: its tap is consumed, so the card's whole-card edit onClick
+            // does NOT also fire — same precedent as the onTimeClick header link.
+            // Kept compact (primary-tinted pill, like that link) so the side-by-side
+            // 血糖/體重 cards stay tidy.
+            if (onAddAnother != null && addLabel != null) {
+                Text(
+                    text = addLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                        .clickable(onClick = onAddAnother)
+                        .then(
+                            if (addCd != null) {
+                                Modifier.semantics { contentDescription = addCd }
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }
@@ -322,6 +355,8 @@ private fun MetricCardPreview() {
                 categoryColor = Color(0xFF34C759),
                 categoryLabel = "正常",
                 onClick = {},
+                onAddAnother = {},
+                addLabel = "記一筆",
             )
             MetricCard(
                 icon = Icons.Filled.MonitorWeight,

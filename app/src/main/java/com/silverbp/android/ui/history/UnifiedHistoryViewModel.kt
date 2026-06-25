@@ -8,6 +8,8 @@ import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseRepository
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightRepository
 import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
@@ -27,18 +29,19 @@ import java.time.ZoneId
 import java.util.UUID
 
 /**
- * One day's combined record: both the BP and the glucose readings logged on
+ * One day's combined record: the BP, glucose and weight readings logged on
  * [date], the sibling of [DayGroup]/[GlucoseDayGroup] merged into a single
- * day group (owner decision §4 — a day's record covers BOTH types). Either list
- * may be empty (the other type still anchors the day); a [CombinedDayGroup] is
- * only emitted when at least one list is non-empty. [bpMean]/[glucoseMean] are
- * null when that type has no readings for the day so the screen can hide the
+ * day group (owner decision §4 — a day's record covers all three types). Any
+ * list may be empty (another type still anchors the day); a [CombinedDayGroup]
+ * is only emitted when at least one list is non-empty. [bpMean]/[glucoseMean]
+ * are null when that type has no readings for the day so the screen can hide the
  * matching section summary.
  */
 data class CombinedDayGroup(
     val date: LocalDate,
     val bpReadings: List<BpReading>,
     val glucoseReadings: List<GlucoseReading>,
+    val weightReadings: List<WeightReading>,
     /** Day mean systolic/diastolic (rounded), or null when no BP that day. */
     val bpMean: Pair<Int, Int>?,
     /** Day mean canonical mg/dL, or null when no glucose that day. */
@@ -70,6 +73,7 @@ data class UnifiedHistoryUiState(
 class UnifiedHistoryViewModel(
     private val bpRepo: BpRepository = ServiceLocator.bpRepository,
     private val glucoseRepo: GlucoseRepository = ServiceLocator.glucoseRepository,
+    private val weightRepo: WeightRepository = ServiceLocator.weightRepository,
     private val currentMember: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val members: MemberRepository = ServiceLocator.memberRepository,
     private val settings: UserSettingsRepository = ServiceLocator.userSettings,
@@ -96,12 +100,13 @@ class UnifiedHistoryViewModel(
         combine(
             currentMember.flow.flatMapLatest { bpRepo.observeAll(it) },
             currentMember.flow.flatMapLatest { glucoseRepo.observeAll(it) },
-        ) { bp, glucose -> bp to glucose },
+            currentMember.flow.flatMapLatest { weightRepo.observeAll(it) },
+        ) { bp, glucose, weight -> Triple(bp, glucose, weight) },
         rangeStore.range,
         sortFlow,
         guidelineFlow,
         glucoseUnitFlow,
-    ) { (allBp, allGlucose), range, sort, guideline, glucoseUnit ->
+    ) { (allBp, allGlucose, allWeight), range, sort, guideline, glucoseUnit ->
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
 
@@ -111,18 +116,24 @@ class UnifiedHistoryViewModel(
         val glucoseByDate = allGlucose
             .filter { range.matchesGlucose(it, today, zone) }
             .groupBy { it.timestamp.atZone(zone).toLocalDate() }
+        val weightByDate = allWeight
+            .filter { range.matchesWeight(it, today, zone) }
+            .groupBy { it.timestamp.atZone(zone).toLocalDate() }
 
-        val groups = (bpByDate.keys + glucoseByDate.keys)
+        val groups = (bpByDate.keys + glucoseByDate.keys + weightByDate.keys)
             .map { date ->
-                // Newest-first within a day for both types when sorting newest.
+                // Newest-first within a day for all types when sorting newest.
                 val bp = (bpByDate[date] ?: emptyList())
                     .let { if (sort == SortOrder.Oldest) it.sortedBy { r -> r.timestamp } else it.sortedByDescending { r -> r.timestamp } }
                 val glucose = (glucoseByDate[date] ?: emptyList())
+                    .let { if (sort == SortOrder.Oldest) it.sortedBy { r -> r.timestamp } else it.sortedByDescending { r -> r.timestamp } }
+                val weight = (weightByDate[date] ?: emptyList())
                     .let { if (sort == SortOrder.Oldest) it.sortedBy { r -> r.timestamp } else it.sortedByDescending { r -> r.timestamp } }
                 CombinedDayGroup(
                     date = date,
                     bpReadings = bp,
                     glucoseReadings = glucose,
+                    weightReadings = weight,
                     bpMean = bp.takeIf { it.isNotEmpty() }?.let {
                         it.map { r -> r.systolic }.average().toInt() to it.map { r -> r.diastolic }.average().toInt()
                     },
@@ -162,5 +173,35 @@ class UnifiedHistoryViewModel(
     /** Re-insert a just-deleted glucose reading (Snackbar undo). */
     fun restoreGlucose(reading: GlucoseReading) {
         viewModelScope.launch { glucoseRepo.upsert(reading) }
+    }
+
+    fun deleteWeight(id: UUID) {
+        viewModelScope.launch { weightRepo.delete(id) }
+    }
+
+    /** Re-insert a just-deleted weight reading (Snackbar undo). */
+    fun restoreWeight(reading: WeightReading) {
+        viewModelScope.launch { weightRepo.upsert(reading) }
+    }
+}
+
+/**
+ * [DateRange] applied to a weight reading's timestamp (the BP variant takes a
+ * BpReading, the glucose variant a GlucoseReading). Relocated here from the
+ * former WeightHistoryViewModel when weight folded into the unified history.
+ */
+internal fun DateRange.matchesWeight(reading: WeightReading, today: LocalDate, zone: ZoneId): Boolean {
+    if (this == DateRange.All) return true
+    val d = reading.timestamp.atZone(zone).toLocalDate()
+    return when (this) {
+        DateRange.All -> true
+        DateRange.Today -> d == today
+        DateRange.ThisWeek -> {
+            val start = today.minusDays((today.dayOfWeek.value - 1).toLong())
+            !d.isBefore(start) && !d.isAfter(today)
+        }
+        DateRange.ThisMonth -> d.year == today.year && d.month == today.month
+        DateRange.Last30 -> !d.isBefore(today.minusDays(30)) && !d.isAfter(today)
+        DateRange.Last90 -> !d.isBefore(today.minusDays(90)) && !d.isAfter(today)
     }
 }
