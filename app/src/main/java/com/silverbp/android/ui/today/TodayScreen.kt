@@ -15,7 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Bloodtype
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Settings
@@ -30,9 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,12 +75,7 @@ import com.silverbp.android.ui.theme.AppSpacing
 import com.silverbp.android.ui.theme.ForgePrimary
 import com.silverbp.android.ui.theme.MetricAccent
 import com.silverbp.android.ui.theme.PrimaryDark
-import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Today tab. Owner decision §1/§2: a single unified daily-record card titled with
@@ -93,21 +85,21 @@ import java.util.Locale
  * card. Today-scoped via [TodayViewModel] (system-tz calendar day), member-scoped
  * exactly like the old cards.
  *
- * The top-right "+" opens the [AddMeasurementSheet] chooser (量血壓 / 量血糖):
- * [onCaptureBp] opens BP capture, [onCaptureGlucose] opens the meter-capture flow.
- * The unified card's per-section inline "記一筆" prompts reuse those same two
- * callbacks. Tapping a shown reading edits it via [onEditBp] / [onEditGlucose]
- * (the existing Confirm edit routes; id as a string). The "今天 N 筆" affordance
- * (a section with >1 reading today) opens that type's history via
- * [onViewBpHistory] / [onViewGlucoseHistory].
+ * Adding a reading lives on each card: every section shows a "記一筆" affordance
+ * in BOTH its empty state and its populated state ([onCaptureBp] opens BP capture,
+ * [onCaptureGlucose] the meter-capture flow, [onLogWeight] weight logging) — there
+ * is no longer a top-bar "+" chooser. Tapping a shown reading edits it via
+ * [onEditBp] / [onEditGlucose] (the existing Confirm edit routes; id as a string).
+ * The "今天 N 筆" affordance (a section with >1 reading today) opens that type's
+ * history via [onViewBpHistory] / [onViewGlucoseHistory].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(
-    // A day's record now covers both BP and glucose, so the top-right "+" is a
-    // chooser (量血壓 / 量血糖). onCaptureBp opens the BP camera; onCaptureGlucose
-    // opens the meter-capture flow. The unified card's per-section inline
-    // "記一筆" prompts reuse these same two callbacks.
+    // Each card carries its own "記一筆" in both empty and populated states (no
+    // top-bar "+" chooser): onCaptureBp opens the BP camera; onCaptureGlucose
+    // opens the meter-capture flow. The per-card inline "記一筆" prompts — empty
+    // and populated alike — reuse these same callbacks.
     onCaptureBp: () -> Unit,
     onCaptureGlucose: () -> Unit,
     onAddManual: () -> Unit,
@@ -142,9 +134,6 @@ fun TodayScreen(
     vm: TodayViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
-    // The "+" opens the record chooser (AddMeasurementSheet); this is the only
-    // state the host owns for it — the sheet renders nothing while false.
-    var showAddSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -168,23 +157,10 @@ fun TodayScreen(
                             tint = com.silverbp.android.ui.theme.PremiumGold,
                         )
                     }
-                    IconButton(onClick = { showAddSheet = true }) {
-                        Icon(
-                            Icons.Filled.AddCircle,
-                            contentDescription = stringResource(R.string.add_reading_a11y),
-                        )
-                    }
                 },
             )
         },
     ) { padding ->
-        AddMeasurementSheet(
-            visible = showAddSheet,
-            onDismiss = { showAddSheet = false },
-            onCaptureBp = onCaptureBp,
-            onCaptureGlucose = onCaptureGlucose,
-            onAddWeight = onLogWeight,
-        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -225,8 +201,8 @@ fun TodayScreen(
                 else -> {
                     // BP HERO — today's latest reading as a vivid indigo-gradient
                     // card (or a friendly inline "記一筆" prompt when none today).
-                    // Inline prompts reuse the capture callbacks (the same entry
-                    // points the "+" chooser offers).
+                    // Both states carry a "記一筆" affordance; it reuses the BP
+                    // capture callback (onCaptureBp).
                     BpHeroCard(
                         readings = state.todayBp,
                         guideline = state.guideline,
@@ -326,14 +302,17 @@ private fun BpHeroCard(
     val cat = classify(latest.systolic, latest.diastolic, guideline)
     val dotColor = colorFor(cat)
     val editCd = stringResource(R.string.today_edit_bp_a11y)
+    val recordCd = stringResource(R.string.today_record_bp_a11y)
     HeroCard(
         modifier = modifier
             .clickable { onEdit(latest.id.toString()) }
             .semantics { contentDescription = editCd },
     ) {
-        // Label + category chip.
+        // Label + category chip. Per-reading time is intentionally not shown on
+        // Today cards (owner decision) — the section is today-scoped, so the label
+        // is just the section name with the category chip trailing.
         HeroLabel(
-            text = "${stringResource(R.string.today_section_bp)} · ${timeFmt().format(latest.timestamp)}",
+            text = stringResource(R.string.today_section_bp),
             trailing = {
                 HeroStatusPill(text = categoryShortLabel(cat), dotColor = dotColor)
             },
@@ -361,6 +340,23 @@ private fun BpHeroCard(
         latest.pulse?.let {
             HeroPulsePill(text = "$it ${stringResource(R.string.bpm)}")
         }
+        // Always-available "記一筆" — reuses the empty-hero pill styling (white
+        // CircleShape + PrimaryDark text) so 記一筆 is present in BOTH states.
+        // Right-aligned at the foot; a child clickable whose tap is consumed, so
+        // the whole-card edit onClick does not also fire.
+        Text(
+            text = stringResource(R.string.today_record_one),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = PrimaryDark,
+            modifier = Modifier
+                .align(Alignment.End)
+                .clip(CircleShape)
+                .background(HeroForeground)
+                .clickable(onClick = onRecord)
+                .semantics { contentDescription = recordCd }
+                .padding(horizontal = 18.dp, vertical = 9.dp),
+        )
     }
 }
 
@@ -442,12 +438,13 @@ private fun GlucoseMiniCard(
         GlucoseClassifier().classify(latest.valueMgdl, latest.measureContext)
     }
     val editCd = stringResource(R.string.today_edit_glucose_a11y)
+    val addCd = stringResource(R.string.today_record_glucose_a11y)
+    val addLabel = stringResource(R.string.today_record_one)
     val multi = readings.size > 1
-    val timeLabel = if (multi) {
-        stringResource(R.string.today_count_today, readings.size)
-    } else {
-        timeFmt().format(latest.timestamp)
-    }
+    // Per-reading time is not shown on Today cards. The trailing slot now only
+    // carries the multi → history affordance ("今天 N 筆"); single readings show
+    // nothing there (today-scoped, so the reading is definitionally today).
+    val timeLabel = if (multi) stringResource(R.string.today_count_today, readings.size) else null
     // The icon tile uses the FIXED glucose accent; the reading's category drives
     // only the dot + label colour (glucoseColorFor). When there are multiple
     // readings today the card opens history (the old "今天 N 筆" affordance);
@@ -463,17 +460,21 @@ private fun GlucoseMiniCard(
         categoryLabel = glucoseCategoryLabel(cat),
         onClick = { onEdit(latest.id.toString()) },
         onTimeClick = if (multi) onViewHistory else null,
+        onAddAnother = onRecord,
+        addLabel = addLabel,
+        addCd = addCd,
         modifier = modifier.semantics { contentDescription = editCd },
     )
 }
 
 /**
- * 體重 compact card — the member's most-recent weight reading (latest-ever, not
- * today-scoped; see [TodayUiState.latestWeight]) styled as a [MetricMiniCard]:
- * a tinted scale-icon tile, the value + unit in the unit it was captured in
- * ([WeightReading.displayUnit]), and the BMI band dot + label when the member's
- * profile height is known. Manual entry only this phase: the empty state opens
- * manual logging via [onRecord]; the value taps through to edit via [onEdit].
+ * 體重 compact card — today's latest weigh-in (today-scoped like 血壓/血糖; see
+ * [TodayUiState.latestWeight]) styled as a [MetricMiniCard]: a tinted scale-icon
+ * tile, the value + unit in the unit it was captured in ([WeightReading.displayUnit]),
+ * and the BMI band dot + label when the member's profile height is known. When
+ * there's no weigh-in today the empty state opens manual logging via [onRecord];
+ * the value taps through to edit via [onEdit]; >1 weigh-in today shows the
+ * "今天 N 筆" history affordance via [onViewHistory].
  */
 @Composable
 private fun WeightMiniCard(
@@ -503,23 +504,32 @@ private fun WeightMiniCard(
     val category = bmi?.let { WeightGuideline.classify(it) }
     val color = category?.let { weightColorFor(it) }
     val editCd = stringResource(R.string.weight_confirm_title)
+    val addCd = stringResource(R.string.today_record_weight_a11y)
+    val addLabel = stringResource(R.string.today_record_one)
     val multi = weightCount > 1
+    // Per-reading time is not shown on Today cards. Weight is today-scoped now, so
+    // the trailing slot mirrors 血糖: "今天 N 筆" (→ history) when there's more than
+    // one weigh-in today; a single weigh-in shows nothing there.
+    val timeLabel = if (multi) stringResource(R.string.today_count_today, weightCount) else null
     // The icon tile uses the FIXED weight accent; the BMI band drives only the
     // dot + label colour (weightColorFor). When there's more than one weigh-in
-    // the card opens history (the old "查看全部" affordance); otherwise it edits
-    // the shown reading (the old card-tap behaviour).
+    // today the card opens history (the "今天 N 筆" affordance); otherwise it edits
+    // the shown reading (the card-tap behaviour).
     MetricCard(
         icon = Icons.Filled.MonitorWeight,
         accent = MetricAccent.Weight,
         title = stringResource(R.string.weight_title),
         value = formatWeightValue(latest.valueIn(unit)),
         unit = weightUnitLabel(unit),
-        time = weightRecency(latest.timestamp),
+        time = timeLabel,
         categoryColor = color,
         categoryLabel = category?.let { weightCategoryLabel(it) }
             ?: bmi?.let { "${stringResource(R.string.weight_bmi_label)} ${formatBmi(it)}" },
         onClick = { onEdit(latest.id.toString()) },
         onTimeClick = if (multi) onViewHistory else null,
+        onAddAnother = onRecord,
+        addLabel = addLabel,
+        addCd = addCd,
         modifier = modifier.semantics { contentDescription = editCd },
     )
 }
@@ -529,25 +539,6 @@ private fun greetingRes(): Int = when (LocalTime.now().hour) {
     in 0 until 12 -> R.string.today_greeting_morning
     in 12..17 -> R.string.today_greeting_afternoon
     else -> R.string.today_greeting_evening
-}
-
-/** Reading-time formatter (HH:mm, system zone). */
-private fun timeFmt(): DateTimeFormatter =
-    DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()).withZone(ZoneId.systemDefault())
-
-/**
- * Recency label for the latest weigh-in (latest-ever, not today-scoped): the
- * reading's time (HH:mm) when it's today, otherwise a short M/d date so an older
- * weigh-in doesn't masquerade as a fresh reading.
- */
-private fun weightRecency(timestamp: Instant): String {
-    val zone = ZoneId.systemDefault()
-    val date = timestamp.atZone(zone).toLocalDate()
-    return if (date == LocalDate.now(zone)) {
-        timeFmt().format(timestamp)
-    } else {
-        DateTimeFormatter.ofPattern("M/d", Locale.getDefault()).withZone(zone).format(timestamp)
-    }
 }
 
 /** Pro-tip body selected by the reading's BP classification (member's guideline). */

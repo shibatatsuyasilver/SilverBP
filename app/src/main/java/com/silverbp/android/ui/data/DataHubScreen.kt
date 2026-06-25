@@ -77,6 +77,8 @@ fun DataHubScreen(
     // Default no-op so AppNavHost compiles unchanged until the capture/confirm
     // track wires the glucose confirm-edit route.
     onEditGlucose: (String) -> Unit = {},
+    // Weight rows in the unified 紀錄 list edit via the weight confirm route.
+    onEditWeight: (String) -> Unit = {},
 ) {
     // Single UnifiedHistoryViewModel shared between the list and the TopAppBar
     // filter action so changing range/sort in the app bar drives the same list.
@@ -154,6 +156,7 @@ fun DataHubScreen(
                 DataSection.Records -> UnifiedHistoryScreen(
                     onEditBp = onEditReading,
                     onEditGlucose = onEditGlucose,
+                    onEditWeight = onEditWeight,
                     snackbarHostState = snackbarHostState,
                     modifier = Modifier.weight(1f),
                     vm = unifiedHistoryVm,

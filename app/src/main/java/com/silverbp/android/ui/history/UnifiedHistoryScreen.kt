@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,6 +62,8 @@ import com.silverbp.android.core.GlucoseClassifier
 import com.silverbp.android.core.GlucoseReading
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.HypertensionGuideline
+import com.silverbp.android.core.WeightReading
+import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.ui.components.categoryLabel
 import com.silverbp.android.ui.components.classify
 import com.silverbp.android.ui.components.colorFor
@@ -91,6 +94,7 @@ import java.util.Locale
 fun UnifiedHistoryScreen(
     onEditBp: (String) -> Unit,
     onEditGlucose: (String) -> Unit,
+    onEditWeight: (String) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
     vm: UnifiedHistoryViewModel = viewModel(),
@@ -98,6 +102,7 @@ fun UnifiedHistoryScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     var deleteBpTarget by remember { mutableStateOf<BpReading?>(null) }
     var deleteGlucoseTarget by remember { mutableStateOf<GlucoseReading?>(null) }
+    var deleteWeightTarget by remember { mutableStateOf<WeightReading?>(null) }
     val scope = rememberCoroutineScope()
     val deletedMsg = stringResource(R.string.reading_deleted)
     val undoLabel = stringResource(R.string.delete_reading_undo)
@@ -137,6 +142,8 @@ fun UnifiedHistoryScreen(
                     onLongPressBp = { reading -> deleteBpTarget = reading },
                     onEditGlucose = { reading -> onEditGlucose(reading.id.toString()) },
                     onLongPressGlucose = { reading -> deleteGlucoseTarget = reading },
+                    onEditWeight = { reading -> onEditWeight(reading.id.toString()) },
+                    onLongPressWeight = { reading -> deleteWeightTarget = reading },
                 )
             }
         }
@@ -217,6 +224,47 @@ fun UnifiedHistoryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { deleteGlucoseTarget = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    deleteWeightTarget?.let { target ->
+        val fmt = remember {
+            DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
+                .withZone(java.time.ZoneId.systemDefault())
+        }
+        val valueLabel = "${formatWeightValue(target.valueIn(target.displayUnit))} ${weightUnitLabel(target.displayUnit)}"
+        AlertDialog(
+            onDismissRequest = { deleteWeightTarget = null },
+            title = { Text(stringResource(R.string.delete_reading_confirm_title)) },
+            text = {
+                Text(
+                    "$valueLabel (${fmt.format(target.timestamp)})\n\n" +
+                        stringResource(R.string.delete_reading_confirm_message),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteWeight(target.id)
+                    deleteWeightTarget = null
+                    scope.launch {
+                        val res = snackbarHostState.showSnackbar(
+                            message = deletedMsg,
+                            actionLabel = undoLabel,
+                        )
+                        if (res == SnackbarResult.ActionPerformed) vm.restoreWeight(target)
+                    }
+                }) {
+                    Text(
+                        stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteWeightTarget = null }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -332,6 +380,8 @@ private fun CombinedDaySectionCard(
     onLongPressBp: (BpReading) -> Unit,
     onEditGlucose: (GlucoseReading) -> Unit,
     onLongPressGlucose: (GlucoseReading) -> Unit,
+    onEditWeight: (WeightReading) -> Unit,
+    onLongPressWeight: (WeightReading) -> Unit,
 ) {
     // Day header: 今天 / 昨天 / formatted date · N 筆, mirroring the iOS timeline's
     // RecordDaySectionHeader. Relative-day resolution is presentation-only (compares
@@ -343,7 +393,7 @@ private fun CombinedDaySectionCard(
         today.minusDays(1) -> stringResource(R.string.combined_history_yesterday)
         else -> group.date.format(dateFmt)
     }
-    val totalCount = group.bpReadings.size + group.glucoseReadings.size
+    val totalCount = group.bpReadings.size + group.glucoseReadings.size + group.weightReadings.size
     val unitLabel = glucoseUnitLabel(glucoseUnit)
 
     Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.itemGap)) {
@@ -367,6 +417,15 @@ private fun CombinedDaySectionCard(
                 unitLabel = unitLabel,
                 onClick = { onEditGlucose(reading) },
                 onLongClick = { onLongPressGlucose(reading) },
+            )
+        }
+
+        // Body-weight rows (no BMI band — owner decision).
+        group.weightReadings.forEach { reading ->
+            WeightReadingRow(
+                reading = reading,
+                onClick = { onEditWeight(reading) },
+                onLongClick = { onLongPressWeight(reading) },
             )
         }
     }
@@ -410,8 +469,8 @@ private fun TimelineRecordRow(
     typeLabel: String,
     valueText: String,
     unitText: String,
-    categoryText: String,
-    categoryColor: Color,
+    categoryText: String? = null,
+    categoryColor: Color? = null,
     contextText: String?,
     timeText: String,
     onClick: () -> Unit,
@@ -474,25 +533,28 @@ private fun TimelineRecordRow(
                         )
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(categoryColor),
-                    )
-                    Spacer(Modifier.size(AppSpacing.tight + 2.dp))
-                    Text(
-                        categoryText,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (contextText != null) {
+                // Category dot + label — omitted for types with no band (weight).
+                if (categoryText != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(categoryColor ?: MaterialTheme.colorScheme.onSurfaceVariant),
+                        )
+                        Spacer(Modifier.size(AppSpacing.tight + 2.dp))
                         Text(
-                            " · $contextText",
+                            categoryText,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (contextText != null) {
+                            Text(
+                                " · $contextText",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -573,3 +635,43 @@ private fun GlucoseReadingRow(
         onLongClick = onLongClick,
     )
 }
+
+@Composable
+private fun WeightReadingRow(
+    reading: WeightReading,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+) {
+    // Weight rows show no BMI band (owner decision): BMI needs the member's height
+    // and the standalone weight history never showed it either — just value + time.
+    val unit = reading.displayUnit
+    val fmt = remember {
+        DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)
+            .withZone(java.time.ZoneId.systemDefault())
+    }
+    TimelineRecordRow(
+        icon = Icons.Filled.MonitorWeight,
+        tint = MetricAccent.Weight,
+        typeLabel = stringResource(R.string.combined_section_weight),
+        valueText = formatWeightValue(reading.valueIn(unit)),
+        unitText = weightUnitLabel(unit),
+        categoryText = null,
+        categoryColor = null,
+        contextText = null,
+        timeText = fmt.format(reading.timestamp),
+        onClick = onClick,
+        onLongClick = onLongClick,
+    )
+}
+
+/** Weight value to one decimal (already in the reading's display unit). */
+private fun formatWeightValue(value: Double): String = "%.1f".format(value)
+
+/** Localized unit label (公斤 / 磅) for a [WeightUnit]. */
+@Composable
+private fun weightUnitLabel(unit: WeightUnit): String = stringResource(
+    when (unit) {
+        WeightUnit.Kg -> R.string.weight_unit_kg
+        WeightUnit.Lb -> R.string.weight_unit_lb
+    },
+)

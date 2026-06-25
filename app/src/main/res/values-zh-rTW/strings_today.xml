@@ -23,6 +23,7 @@
     <!-- inline 記錄動作的 contentDescription(audit M31)。 -->
     <string name="today_record_bp_a11y">記錄一筆血壓</string>
     <string name="today_record_glucose_a11y">記錄一筆血糖</string>
+    <string name="today_record_weight_a11y">記錄一筆體重</string>
 
     <!-- 點擊已顯示條目進入編輯的 contentDescription(audit M31)。 -->
     <string name="today_edit_bp_a11y">編輯這筆血壓</string>

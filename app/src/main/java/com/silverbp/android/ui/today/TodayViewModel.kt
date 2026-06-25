@@ -74,15 +74,14 @@ data class TodayUiState(
      */
     val hasMedications: Boolean = false,
     /**
-     * The selected member's most-recent weight reading (latest-ever, not
-     * today-scoped). Unlike BP/glucose, weight is tracked as a single hero value
-     * — a "today's weigh-in" list adds no clinical signal — so this mirrors the
-     * old latest-ever card. null = no data.
+     * The selected member's latest weight reading **for today** (today-scoped like
+     * [todayBp]/[todayGlucose] — the home card shows only today's data; older
+     * weigh-ins live in 數據 → 紀錄). null = no weigh-in today (→ empty card).
      */
     val latestWeight: WeightReading? = null,
     /**
-     * Total selected-member weight readings. Weight is latest-ever in the Today card,
-     * so this is all-history count, not today-scoped; it drives the history affordance.
+     * Today's selected-member weight readings count (today-scoped). >1 drives the
+     * "今天 N 筆" history affordance, mirroring the glucose card.
      */
     val weightCount: Int = 0,
     /**
@@ -250,24 +249,27 @@ class TodayViewModel(
         settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) },
     ) { readings, unit -> readings to unit }
 
-    // Selected member's latest weight reading, all-history count, and BMI from the
-    // member profile height. Weight is a latest-ever hero (no today-scoped list —
-    // see [TodayUiState.latestWeight]), so this follows member selection via
-    // flatMapLatest like guidelineFlow but skips the day ticker. observeAll gives
-    // the real count for the history affordance without adding repository surface.
-    private val latestWeightFlow = currentMember.flow.flatMapLatest { id ->
-        weight.observeAll(id).map { readings ->
-            val reading = readings.maxByOrNull { it.timestamp }
-            val heightCm = runCatching { members.findById(UUID.fromString(id)) }
-                .getOrNull()?.heightCm
-            val bmi = reading?.let { WeightGuideline.bmi(it.valueKg, heightCm) }
-            WeightSummary(
-                latest = reading,
-                bmi = bmi,
-                count = readings.size,
-            )
-        }
-    }
+    // Today's weight: latest weigh-in of the current day, today's count, and BMI
+    // from the member profile height. The Today/home card is today-scoped like BP
+    // and glucose (owner: home shows only today's data — older weigh-ins live in
+    // 數據 → 紀錄), so this uses the same member × dayTicker → observeRange idiom as
+    // todayBpFlow/todayGlucoseFlow. `latest` = today's most-recent weigh-in (null
+    // when none today → empty card); `count` = today's weigh-ins (drives "今天 N 筆").
+    private val latestWeightFlow =
+        combine(currentMember.flow, dayTicker) { id, date -> id to date }
+            .flatMapLatest { (id, date) ->
+                weight.observeRange(id, dayStart(date), Instant.now()).map { readings ->
+                    val reading = readings.maxByOrNull { it.timestamp }
+                    val heightCm = runCatching { members.findById(UUID.fromString(id)) }
+                        .getOrNull()?.heightCm
+                    val bmi = reading?.let { WeightGuideline.bmi(it.valueKg, heightCm) }
+                    WeightSummary(
+                        latest = reading,
+                        bmi = bmi,
+                        count = readings.size,
+                    )
+                }
+            }
 
     // Selected member's medications for today: meds + schedules + recorded doses,
     // flattened to the list of doses planned for today's day-of-week (each tagged

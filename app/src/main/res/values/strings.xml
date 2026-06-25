@@ -19,7 +19,6 @@
     <string name="no_readings">No readings yet</string>
     <string name="capture_cta">Tap + to record your first reading</string>
     <string name="settings_a11y">Settings</string>
-    <string name="add_reading_a11y">Add reading</string>
 
     <!-- Report -->
     <string name="report_screen_title">PDF Report</string>
