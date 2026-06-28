@@ -48,6 +48,8 @@ import com.silverbp.android.backup.auto.GoogleAuthClient
 import com.silverbp.android.backup.auto.GoogleDriveBackupClient
 import com.silverbp.android.billing.BillingClientWrapper
 import com.silverbp.android.billing.EntitlementManager
+import com.silverbp.android.sync.HlcClockStore
+import com.silverbp.android.sync.engine.Hlc
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -120,7 +122,13 @@ object ServiceLocator {
     val database: SilverBpDatabase by lazy { SilverBpDatabase.get(context) }
 
     /** Member (family) profiles + the single-owner invariant; anchor for the HC mirror guard. */
-    val memberRepository: MemberRepository by lazy { MemberRepository(database.memberDao(), localSyncWriter) }
+    val memberRepository: MemberRepository by lazy {
+        MemberRepository(
+            database.memberDao(),
+            localSyncWriter,
+            inTransaction = { block -> database.withTransaction { block() } },
+        )
+    }
 
     /**
      * Currently-selected member, persisted device-locally (NOT in settings sync).
@@ -269,7 +277,12 @@ object ServiceLocator {
     }
 
     val exerciseRepository: ExerciseRepository by lazy {
-        ExerciseRepository(database.exerciseDao(), healthConnectExerciseBridge, localSyncWriter) {
+        ExerciseRepository(
+            dao = database.exerciseDao(),
+            healthConnect = healthConnectExerciseBridge,
+            healthConnectEnabled = { userSettings.flow.first().enableHealthConnect },
+            localSync = localSyncWriter,
+        ) {
             achievementStore.launchRefresh()
         }
     }
@@ -494,8 +507,19 @@ object ServiceLocator {
         "android-${"%016x".format(pairingKeyStore.loadOrCreateNodeId())}"
     }
 
+    /** Durable HLC high-water store backing [syncCoordinator]'s clock (QA P0-4). */
+    val hlcClockStore: HlcClockStore by lazy { HlcClockStore(context) }
+
     val syncCoordinator: SyncCoordinator by lazy {
-        SyncCoordinator(deviceId = syncDeviceId, keyStore = pairingKeyStore)
+        SyncCoordinator(
+            deviceId = syncDeviceId,
+            keyStore = pairingKeyStore,
+            // Seed the HLC clock from the persisted high-water and keep it durable
+            // so a restart / wall-clock skew can't issue a backwards HLC and let a
+            // stale copy win the LWW gate (QA P0-4 silent multi-device data loss).
+            clockSeed = hlcClockStore.load() ?: Hlc.ZERO,
+            clockPersist = hlcClockStore::save,
+        )
     }
 
     val localSyncWriter: RoomLocalSyncWriter by lazy {

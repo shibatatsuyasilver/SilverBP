@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -86,9 +87,9 @@ fun DataHubScreen(
     // is composed via WhileSubscribed).
     val unifiedHistoryVm: UnifiedHistoryViewModel = viewModel()
     val snackbarHostState = remember { SnackbarHostState() }
-    var section by remember { mutableIntStateOf(DataSection.Records.ordinal) }
+    var section by rememberSaveable { mutableIntStateOf(DataSection.Records.ordinal) }
     // Insights-only measurement type; default BP (compare mode lives on the BP side).
-    var insightsMeasure by remember { mutableIntStateOf(MeasureType.Bp.ordinal) }
+    var insightsMeasure by rememberSaveable { mutableIntStateOf(MeasureType.Bp.ordinal) }
     val active = DataSection.entries[section]
     val activeInsightsMeasure = MeasureType.entries[insightsMeasure]
     // Shared 紀錄/分析 date range; the 分析 funnel reads + writes it directly.

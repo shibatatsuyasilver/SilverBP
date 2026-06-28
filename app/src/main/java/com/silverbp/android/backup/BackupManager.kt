@@ -11,6 +11,7 @@ import com.silverbp.android.sync.SettingsKvSyncMapper
 import com.silverbp.android.sync.engine.HlcClock
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
+import com.silverbp.android.sync.engine.SyncValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -275,18 +276,62 @@ class BackupManager(
                 if (!hasMemberRecords) {
                     ensureOwnerId()
                 }
+                // Merge 還原:把備份的「擁有者」視為本人(本機擁有者)——同一個人的
+                // 另一台裝置——讓他的血壓/用藥/血糖/體重顯示成自己的資料,而不是掛在
+                // 一個被降級的獨立成員下。非擁有者成員仍原樣匯入為獨立成員。
+                // (Replace 是整包覆蓋,iPhone 擁有者本就該成為擁有者,故不 remap。)
+                val ownerRemap: Pair<String, String>? = if (mode == ImportMode.Merge) {
+                    val backupOwnerId = records.firstOrNull {
+                        it.type == SyncEntityType.MEMBER &&
+                            (it.payload[MEMBER_IS_OWNER_TAG] as? SyncValue.Bool)?.value == true
+                    }?.pk
+                    val localOwnerId = ensureOwnerId()
+                    if (!backupOwnerId.isNullOrBlank() && localOwnerId.isNotBlank() &&
+                        backupOwnerId != localOwnerId
+                    ) {
+                        backupOwnerId to localOwnerId
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
                 for (record in records) {
+                    // 跳過備份擁有者那筆 MEMBER record——它就是本機擁有者,重匯只會
+                    // 產生一個沒有資料的降級成員。
+                    if (ownerRemap != null && record.type == SyncEntityType.MEMBER &&
+                        record.pk == ownerRemap.first
+                    ) {
+                        continue
+                    }
+                    val toApply =
+                        if (ownerRemap != null) remapMemberId(record, ownerRemap.first, ownerRemap.second)
+                        else record
                     try {
-                        sink.apply(record)
-                        hlcClock.observe(record.hlc) // 推進高水位線
+                        sink.apply(toApply)
+                        hlcClock.observe(toApply.hlc) // 推進高水位線
                         appliedCount++
                     } catch (e: CancellationException) {
                         // 取消必須往外丟,讓 withTransaction 回滾;吞掉會把剩餘
                         // record 全當成 skipped,造成靜默資料遺失.
                         throw e
                     } catch (t: Throwable) {
+                        if (mode == ImportMode.Replace) {
+                            // Replace 是「整包覆蓋」:任何「已知」record type 套用失敗,
+                            // 都代表還原會留下「已清空但只匯入一半」的殘缺狀態。往外丟讓
+                            // 整個 withTransaction 回滾,import() 的 catch 會把 phase 設成
+                            // Failure,使用者重試而不是收到一份看似成功的半套備份。
+                            // 未知/未來的 record type 不會走到這裡:wire 上不認得的型別早在
+                            // decodePayload 就被計成 skippedUnknown、不進這個迴圈,而本 build
+                            // 認得卻尚未接線的型別(如 BLOB_META)由 sink 的 dispatch else
+                            // 分支靜默略過、不丟例外 — 前向相容仍然成立。
+                            throw t
+                        }
+                        // Merge 模式維持寬鬆:單筆 record 失敗只記錄並略過,透過
+                        // Phase.Success.skippedCount 回報給 UI,不讓一筆壞 record 毀掉
+                        // 整次多裝置合併。
                         skippedCount++
-                        Log.w(TAG, "skip record ${record.type} pk=${record.pk}: $t")
+                        Log.w(TAG, "skip record ${toApply.type} pk=${toApply.pk}: $t")
                     }
                 }
             }
@@ -374,7 +419,35 @@ class BackupManager(
         db.execSQL("DELETE FROM tombstone")
     }
 
+    /**
+     * Rewrites a member-scoped record's `memberId` field from [from] to [to] —
+     * used to fold the backup owner's records into the local owner on a Merge
+     * restore. Only the four types that carry a memberId on the wire are
+     * affected; everything else (and any record whose memberId isn't [from])
+     * passes through unchanged.
+     */
+    private fun remapMemberId(record: SyncRecord, from: String, to: String): SyncRecord {
+        val tag = MEMBER_ID_TAGS[record.type] ?: return record
+        if ((record.payload[tag] as? SyncValue.Text)?.value != from) return record
+        return record.copy(payload = record.payload + (tag to SyncValue.Text(to)))
+    }
+
     companion object {
         private const val TAG = "BackupManager"
+
+        /** MemberSyncMapper's `isOwner` payload tag. */
+        private const val MEMBER_IS_OWNER_TAG = 2
+
+        /**
+         * Wire `memberId` field tag per member-scoped record type — the only four
+         * record types that carry a memberId. Used for the Merge-restore owner
+         * remap ([remapMemberId]).
+         */
+        private val MEMBER_ID_TAGS: Map<SyncEntityType, Int> = mapOf(
+            SyncEntityType.BP_READING to 17,
+            SyncEntityType.GLUCOSE_READING to 11,
+            SyncEntityType.WEIGHT_LOG to 10,
+            SyncEntityType.MEDICATION to 4,
+        )
     }
 }

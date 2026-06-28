@@ -144,6 +144,7 @@ fun ConfirmWeightScreen(
                     note = staged.note,
                     memberId = staged.memberId.ifBlank { ServiceLocator.currentMemberStore.current() },
                     photoFilename = staged.photoFilename,
+                    confidence = staged.confidence,
                 )
             } else {
                 WeightDraftUi(
@@ -295,6 +296,8 @@ fun ConfirmWeightScreen(
             WeightValueHero(
                 valueText = draft.valueText,
                 unit = draft.displayUnit,
+                showLowConfidence = draft.showLowConfidence,
+                confidencePercent = (draft.confidence * 100).toInt(),
             )
 
             StandardCard(title = stringResource(R.string.weight_value_label)) {
@@ -401,6 +404,8 @@ fun ConfirmWeightScreen(
 private fun WeightValueHero(
     valueText: String,
     unit: WeightUnit,
+    showLowConfidence: Boolean = false,
+    confidencePercent: Int = 0,
 ) {
     // The weight metric tile ALWAYS uses its MetricAccent (never a category colour).
     val tint = MetricAccent.Weight
@@ -444,7 +449,38 @@ private fun WeightValueHero(
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
+            // Low-confidence badge — only for a shaky camera/OCR read, prompting the
+            // user to double-check the value before saving (mirrors BP's confidence cue).
+            if (showLowConfidence) {
+                LowConfidenceBadge(confidencePercent)
+            }
         }
+    }
+}
+
+/** Compact error-tinted pill flagging a low-confidence OCR read; reuses R.string.confidence. */
+@Composable
+private fun LowConfidenceBadge(confidencePercent: Int) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = AppSpacing.itemGap, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            stringResource(R.string.confidence),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Text(
+            "$confidencePercent%",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
     }
 }
 
@@ -462,7 +498,17 @@ private data class WeightDraftUi(
     val memberId: String = "",
     /** Carried from a camera/OCR draft so the scale photo is saved with the reading. */
     val photoFilename: String? = null,
+    /**
+     * OCR read confidence 0–1 carried from the capture draft (manual entries are a
+     * full 1.0). Persisted with the reading and used to surface a low-confidence
+     * badge on the hero when a camera read came back shaky.
+     */
+    val confidence: Double = 1.0,
 ) {
+    /** True when this is a camera/OCR read whose confidence fell below the badge threshold. */
+    val showLowConfidence: Boolean
+        get() = source == WeightSource.Camera && confidence < WEIGHT_LOW_CONFIDENCE
+
     /** Parsed numeric value in [displayUnit], or null while empty/partial. */
     val parsedValue: Double?
         get() = valueText.replace(",", ".").toDoubleOrNull()
@@ -493,6 +539,7 @@ private data class WeightDraftUi(
         displayUnit = displayUnit,
         timestamp = timestamp,
         source = source,
+        confidence = confidence,
         note = note,
         photoFilename = photoFilename,
     )
@@ -506,6 +553,7 @@ private data class WeightDraftUi(
             note = r.note,
             memberId = r.memberId,
             photoFilename = r.photoFilename,
+            confidence = r.confidence,
         )
 
         /** One-decimal display for both units — body weight is meaningful to ~0.1. */
@@ -528,6 +576,7 @@ private val WeightDraftUiSaver: Saver<WeightDraftUi, Any> = mapSaver(
             "note" to d.note,
             "memberId" to d.memberId,
             "photo" to d.photoFilename,
+            "confidence" to d.confidence,
         )
     },
     restore = { m ->
@@ -539,9 +588,13 @@ private val WeightDraftUiSaver: Saver<WeightDraftUi, Any> = mapSaver(
             note = m["note"] as? String ?: "",
             memberId = m["memberId"] as? String ?: "",
             photoFilename = m["photo"] as? String,
+            confidence = m["confidence"] as? Double ?: 1.0,
         )
     },
 )
+
+/** Below this OCR confidence the confirm hero shows a low-confidence badge (mirrors BP). */
+private const val WEIGHT_LOW_CONFIDENCE = 0.7
 
 /** Saves a nullable [UUID] as its string form (a null editing-id is simply absent). */
 private val NullableUuidSaver: Saver<UUID?, String> = Saver(

@@ -31,4 +31,9 @@
     <string name="pairing_done">Done</string>
     <string name="pairing_retry">Retry</string>
     <string name="pairing_qr_cd">Pairing QR code</string>
+
+    <!-- Paired-devices / sync-now list (PairingScreen picker) -->
+    <string name="settings_sync_paired_devices">Paired devices</string>
+    <string name="settings_sync_now">Sync now</string>
+    <string name="settings_sync_forget">Forget</string>
 </resources>

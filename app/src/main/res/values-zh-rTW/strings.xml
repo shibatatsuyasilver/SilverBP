@@ -213,6 +213,9 @@
     <string name="exercise_recover_body">上次的運動沒有正常結束,要繼續還是捨棄?</string>
     <string name="exercise_recover_location_denied">還原 GPS 紀錄需要精確位置權限,請至設定授權後再試一次。</string>
     <string name="exercise_recent_sessions">最近紀錄</string>
+    <string name="exercise_history_all_title">全部運動紀錄</string>
+    <string name="exercise_history_view_all">查看全部 (%1$d)</string>
+    <string name="exercise_history_month_header">%1$s · %2$d 筆</string>
     <string name="exercise_summary_title">運動摘要</string>
     <string name="exercise_note_hint">備註 (選填)</string>
     <string name="exercise_delete_confirm">確定要刪除這筆紀錄嗎?</string>

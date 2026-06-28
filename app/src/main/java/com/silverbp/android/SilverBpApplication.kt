@@ -1,7 +1,9 @@
 package com.silverbp.android
 
 import android.app.Application
+import android.os.Build
 import android.util.Log
+import androidx.health.connect.client.HealthConnectClient
 import com.google.android.gms.maps.MapsInitializer
 import com.silverbp.android.achievements.MedalNotifier
 import com.silverbp.android.backup.auto.BackupNotification
@@ -18,6 +20,7 @@ import com.silverbp.android.nutrition.NutritionDatabase
 import com.silverbp.android.recognition.DeviceCapabilities
 import com.silverbp.android.recognition.ModelBootstrap
 import com.silverbp.android.recognition.ModelDownloadNotification
+import com.silverbp.android.sync.engine.Hlc
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,6 +28,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+private const val ANDROID_15_API = 35
 
 class SilverBpApplication : Application() {
 
@@ -63,6 +68,7 @@ class SilverBpApplication : Application() {
         appScope.launch { reconcileCoach() }
         appScope.launch { reconcileEntitlement() }
         appScope.launch { reconcileAutoBackup() }
+        appScope.launch { reconcileSync() }
 
         // Watcher fires anomaly notifications in real time as the user logs
         // new readings; lives for the app process's lifetime.
@@ -102,15 +108,39 @@ class SilverBpApplication : Application() {
         } else {
             CoachReminderScheduler.cancelAll(this)
         }
-        // Best-effort backfill on every cold start when opted-in. Workers
-        // self-no-op when permissions are revoked, so an unconditional kick
-        // is fine and saves us from racing with permission grant timing.
-        if (s.enableCoach && s.sleepTrackingEnabled) {
-            SleepBackfillWorker.enqueue(this)
+        // Best-effort backfill on every cold start when opted-in. The per-type
+        // read permission is re-checked inside each worker, but on Android 15+ a
+        // WorkManager job ALSO needs the background-read grant to read Health
+        // Connect at all — so gate the cold-start enqueue on it (mirroring how
+        // reconcileHealthConnect gates its background read workers) rather than
+        // kicking a worker that would silently read nothing before the gate is
+        // satisfied. The grant arrives via the Settings HC flow, which re-runs
+        // its own reconcile/enqueue when the user accepts it.
+        if (canRunBackgroundHealthConnectReads()) {
+            if (s.enableCoach && s.sleepTrackingEnabled) {
+                SleepBackfillWorker.enqueue(this)
+            }
+            if (s.enableCoach && s.dietTrackingEnabled) {
+                NutritionBackfillWorker.enqueue(this)
+            }
         }
-        if (s.enableCoach && s.dietTrackingEnabled) {
-            NutritionBackfillWorker.enqueue(this)
-        }
+    }
+
+    /**
+     * Mirror of `canRunBackgroundHealthConnectReads` in the Settings Health
+     * Connect reconcile: Android 15+ (API 35) requires the background-read
+     * permission before a WorkManager job may read Health Connect at all. Below
+     * API 35 no extra grant is needed.
+     */
+    private suspend fun canRunBackgroundHealthConnectReads(): Boolean {
+        if (Build.VERSION.SDK_INT < ANDROID_15_API) return true
+        val granted = runCatching {
+            if (HealthConnectClient.getSdkStatus(this) != HealthConnectClient.SDK_AVAILABLE) {
+                return false
+            }
+            HealthConnectClient.getOrCreate(this).permissionController.getGrantedPermissions()
+        }.getOrDefault(emptySet())
+        return granted.containsAll(ServiceLocator.healthConnectBridge.backgroundReadPermissions)
     }
 
     /**
@@ -125,6 +155,30 @@ class SilverBpApplication : Application() {
     private suspend fun reconcileEntitlement() {
         runCatching { ServiceLocator.entitlementManager.queryPurchasesOnStartup() }
         EntitlementRevalidationScheduler.schedule(this)
+    }
+
+    /**
+     * Schedule (or cancel) background LAN sync on cold start. Only registered when
+     * at least one peer is paired — pairing is currently DEBUG-only, so this is a
+     * no-op in release. Uses KEEP via [com.silverbp.android.sync.SyncScheduler] so
+     * a healthy schedule keeps its next-run anchor. The two-device rendezvous
+     * itself can only be validated on physical devices on one Wi-Fi.
+     */
+    private suspend fun reconcileSync() {
+        // Harden the HLC clock against a prefs-losing restore: a .sbpbk or system
+        // restore (or clear-data) can leave tombstones whose HLCs exceed the
+        // persisted clock seed. Fold the DB high-water into the clock here on the
+        // IO thread — before the first post-restore local write — so it can't
+        // issue a backwards HLC and silently flip the LWW gate (QA P0-4).
+        runCatching {
+            ServiceLocator.database.syncDao().maxTombstoneHlc()
+                ?.let { ServiceLocator.syncCoordinator.clock.observe(Hlc(it)) }
+        }
+        val hasPeers = runCatching {
+            ServiceLocator.database.syncDao().allDevices().isNotEmpty()
+        }.getOrDefault(false)
+        val scheduler = com.silverbp.android.sync.SyncScheduler(this)
+        if (hasPeers) scheduler.reconcile() else scheduler.cancel()
     }
 
     /**

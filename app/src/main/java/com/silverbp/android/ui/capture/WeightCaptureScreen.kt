@@ -195,7 +195,7 @@ fun WeightCaptureScreen(
         }
 
         // Phase overlay.
-        when (capture) {
+        when (val phase = capture) {
             WeightCapturePhase.Analyzing -> Box(
                 modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center,
@@ -212,7 +212,9 @@ fun WeightCaptureScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        stringResource(R.string.weight_analyze_failed),
+                        // Specific cause (no network / quota / bad key / out-of-range);
+                        // falls back to the generic "couldn't read the scale" message.
+                        phase.message.ifBlank { stringResource(R.string.weight_analyze_failed) },
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -224,7 +226,10 @@ fun WeightCaptureScreen(
                         )
                         OverlayFilledPill(
                             text = stringResource(R.string.weight_capture_manual),
-                            onClick = { vm.discardPendingDraft(); vm.resetCapture(); onManual() },
+                            // Keep the just-taken photo: route through the draft
+                            // consumer (NOT a blank form) so the staged manual draft —
+                            // with its photo — opens on the confirm screen.
+                            onClick = { vm.resetCapture(); onAnalyzed() },
                         )
                     }
                 }

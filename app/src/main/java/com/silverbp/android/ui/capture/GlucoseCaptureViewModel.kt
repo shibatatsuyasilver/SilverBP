@@ -6,11 +6,13 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.R
 import com.silverbp.android.capture.GlucoseCaptureSessionHolder
 import com.silverbp.android.core.GlucoseSource
 import com.silverbp.android.core.GlucoseUnit
 import com.silverbp.android.core.MeasureContext
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.recognition.BpExtractionError
 import com.silverbp.android.recognition.ExtractedGlucose
 import com.silverbp.android.recognition.GlucoseRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
@@ -29,6 +31,13 @@ import java.time.format.DateTimeParseException
 import java.util.UUID
 
 private const val TAG = "GlucoseCapture"
+
+/**
+ * Confidence stamped on a draft whose unit the parser had to INFER (#16). Kept
+ * strictly below ConfirmGlucoseViewModel's unit-confirmation threshold (0.7) so the
+ * confirm screen always gates an inferred unit behind an explicit confirmation.
+ */
+private const val UNIT_INFERRED_CONFIDENCE = 0.65
 
 /** Capture/analysis phase for the camera/gallery → confirm hand-off. */
 sealed interface GlucoseCapturePhase {
@@ -56,6 +65,16 @@ class GlucoseCaptureViewModel(
     val readiness = recognitionReadinessFlow(viewModelScope)
 
     fun resetCapture() { _capturePhase.value = GlucoseCapturePhase.Idle }
+
+    /**
+     * Surface a specific error message while still staging a manual draft (carrying
+     * the photo) so manual entry stays the always-available primary path. Shared by
+     * every catch arm in [analyzeBitmap] (#22).
+     */
+    private fun failToManual(photoName: String?, message: String) {
+        GlucoseCaptureSessionHolder.put(manualDraft(photoName))
+        _capturePhase.value = GlucoseCapturePhase.Error(message)
+    }
 
     /**
      * Drop any staged draft (and its orphaned photo) on the discard paths —
@@ -87,11 +106,37 @@ class GlucoseCaptureViewModel(
                     _capturePhase.value = GlucoseCapturePhase.Idle
                     onReady()
                 }
+            } catch (e: BpExtractionError.InvalidReading) {
+                // #22: out-of-range / implausible value — mirror BP's specific copy.
+                Log.i(TAG, "[Capture] glucose invalidReading ${e.reason}")
+                failToManual(photoName, appContext.getString(R.string.capture_err_invalid_reading))
+            } catch (e: BpExtractionError.LowConfidence) {
+                Log.i(TAG, "[Capture] glucose lowConfidence ${e.confidence}")
+                failToManual(
+                    photoName,
+                    appContext.getString(R.string.capture_err_low_confidence, (e.confidence * 100).toInt()),
+                )
+            } catch (e: BpExtractionError.NetworkError) {
+                Log.w(TAG, "[Capture] glucose network error")
+                failToManual(photoName, appContext.getString(R.string.capture_err_no_network))
+            } catch (e: BpExtractionError.ApiError) {
+                Log.w(TAG, "[Capture] glucose api error ${e.code}")
+                val msg = when (e.code) {
+                    429 -> appContext.getString(R.string.capture_err_quota)
+                    401, 403 -> appContext.getString(R.string.capture_err_invalid_key)
+                    else -> appContext.getString(R.string.capture_err_cloud_http, e.code)
+                }
+                failToManual(photoName, msg)
             } catch (t: Throwable) {
+                // InvalidJson / MissingFields / anything else → generic, like BP's VM.
                 Log.w(TAG, "[Capture] glucose analysis failed: ${t.message}", t)
-                // Analysis failed — still let the user log it manually with the photo.
-                GlucoseCaptureSessionHolder.put(manualDraft(photoName))
-                _capturePhase.value = GlucoseCapturePhase.Error(t.message ?: "analysis failed")
+                failToManual(
+                    photoName,
+                    appContext.getString(
+                        R.string.capture_err_generic,
+                        t.message ?: appContext.getString(R.string.err_unknown),
+                    ),
+                )
             }
         }
     }
@@ -102,7 +147,9 @@ class GlucoseCaptureViewModel(
             _capturePhase.value = GlucoseCapturePhase.Analyzing
             val bmp = withContext(Dispatchers.IO) { decodeUriWithExif(appContext, uri) }
             if (bmp == null) {
-                _capturePhase.value = GlucoseCapturePhase.Error("cannot load image")
+                // #10: this message is now rendered, so localize it like BP's loadFromUri.
+                _capturePhase.value =
+                    GlucoseCapturePhase.Error(appContext.getString(R.string.capture_err_load_photo))
                 return@launch
             }
             analyzeBitmap(bmp, onReady)
@@ -122,10 +169,17 @@ class GlucoseCaptureViewModel(
      * Build an editable draft from the OCR result. The recognizer/parser already
      * inferred the unit and calibrated confidence (unit/range cross-check); the
      * field names match the domain enums' raw strings so mapping is direct.
+     *
+     * #16: [GlucoseDraft] only carries [GlucoseDraft.confidence] (it can't hold a
+     * separate flag), so when the parser had to INFER the unit we fold that into a
+     * sub-threshold confidence — the confirm screen's single confidence gate then
+     * makes the user explicitly confirm mg/dL vs mmol/L before saving.
      */
     private fun draftFrom(e: ExtractedGlucose, photoName: String?): GlucoseDraft {
         val unit = GlucoseUnit.fromRaw(e.unit ?: GlucoseUnit.Mgdl.raw)
         val value = e.value
+        val confidence = (e.confidence ?: 1.0)
+            .let { if (e.unitInferred) minOf(it, UNIT_INFERRED_CONFIDENCE) else it }
         return GlucoseDraft(
             valueText = value?.let { GlucoseDraft.formatValue(it, unit) } ?: "",
             displayUnit = unit,
@@ -134,7 +188,7 @@ class GlucoseCaptureViewModel(
                 ?: MeasureContext.Fasting,
             timestamp = parseDeviceTimestamp(e.timestampOnDevice) ?: Instant.now(),
             source = GlucoseSource.Camera,
-            confidence = e.confidence ?: 1.0,
+            confidence = confidence,
             photoFilename = photoName,
         )
     }

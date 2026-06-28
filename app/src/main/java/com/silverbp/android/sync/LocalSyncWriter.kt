@@ -7,6 +7,16 @@ import com.silverbp.android.sync.engine.SyncEntityType
 interface LocalSyncWriter {
     fun nextHlc(): String
     suspend fun delete(type: SyncEntityType, pk: String)
+
+    /**
+     * Bump an existing row's `hlcUpdatedAt` to a fresh HLC after a local field
+     * mutation that isn't a full upsert (e.g. archive a member, complete a coach
+     * task). Without it the row keeps its old HLC, the source's incremental
+     * `recordsSince` skips it, and the edit never reaches a paired device (the
+     * LWW gate also rejects an equal-HLC inbound copy) — QA #3 "local edits never
+     * pass incremental sync".
+     */
+    suspend fun stamp(type: SyncEntityType, pk: String)
 }
 
 class RoomLocalSyncWriter(
@@ -31,6 +41,15 @@ class RoomLocalSyncWriter(
             SyncEntityType.WEIGHT_LOG ->
                 dao.deleteWeightLogWithTombstone(pk, type.tableName, hlc, deletedAt)
             else -> error("Local tombstone delete is not wired for ${type.tableName}")
+        }
+    }
+
+    override suspend fun stamp(type: SyncEntityType, pk: String) {
+        val hlc = nextHlc()
+        when (type) {
+            SyncEntityType.MEMBER -> dao.stampMemberHlc(pk, hlc)
+            SyncEntityType.COACH_TASK -> dao.stampCoachTaskHlc(pk, hlc)
+            else -> error("Local HLC stamp is not wired for ${type.tableName}")
         }
     }
 }

@@ -69,6 +69,22 @@ interface BillingGateway {
         queryActiveSubscriptions()?.let { activeEntitlementFromPurchases(it) }
 
     /**
+     * True when Play holds a PENDING (not-yet-PURCHASED) purchase for
+     * [PREMIUM_PRODUCT_ID] — a slow card / cash / family-approval payment that
+     * grants nothing yet but should be surfaced to the user as "payment pending"
+     * (finding #25) instead of the misleading "no subscription found". Inspects
+     * the raw [queryActiveSubscriptions] set filtered to OUR product (same #23
+     * choke point as [activeEntitlementFromPurchases]); a `null` query ("could
+     * not query") yields false so a transient Play hiccup never shows a spurious
+     * pending note. Never throws.
+     */
+    suspend fun queryHasPendingPremiumPurchase(): Boolean =
+        queryActiveSubscriptions()
+            ?.forPremiumProduct()
+            ?.any { it.purchaseState == Purchase.PurchaseState.PENDING }
+            ?: false
+
+    /**
      * Resolve the configured base plans / offers for "silverbp_premium". Empty
      * when Play has no products (emulator / not-yet-published) — never throws.
      */
@@ -96,7 +112,9 @@ const val PREMIUM_BASE_PLAN_MONTHLY: String = "premium-monthly"
 const val PREMIUM_BASE_PLAN_YEARLY: String = "premium-yearly"
 
 /**
- * Maps a raw Play purchase list to a resolved [Entitlement]. A purchase grants
+ * Maps a raw Play purchase list to a resolved [Entitlement]. Purchases are first
+ * filtered to OUR product (see [forPremiumProduct] / finding #23) so an unrelated
+ * subscription on the account can never grant Premium. A purchase then grants
  * Premium ONLY when its state is [Purchase.PurchaseState.PURCHASED]; PENDING
  * (slow card / cash payment) grants nothing until it later transitions to
  * PURCHASED. Acknowledgement is orthogonal — an unacknowledged PURCHASED sub is
@@ -107,7 +125,19 @@ const val PREMIUM_BASE_PLAN_YEARLY: String = "premium-yearly"
  * lives in exactly one place and is unit-tested directly.
  */
 fun activeEntitlementFromPurchases(purchases: List<Purchase>): Entitlement =
-    entitlementFromStates(purchases.map { it.purchaseState })
+    entitlementFromStates(purchases.forPremiumProduct().map { it.purchaseState })
+
+/**
+ * Keep only purchases that actually contain [PREMIUM_PRODUCT_ID] (finding #23).
+ * The Play SUBS query returns EVERY active subscription on the account, and one
+ * [Purchase] can bundle several product ids — so an unrelated sub (a future
+ * add-on, a different SKU, a purchase from a shared Play account) must NOT be
+ * allowed to grant our Premium. This is the single choke point both the
+ * entitlement resolve ([activeEntitlementFromPurchases]) and the pending check
+ * ([BillingGateway.queryHasPendingPremiumPurchase]) pass through.
+ */
+internal fun List<Purchase>.forPremiumProduct(): List<Purchase> =
+    filter { it.products.contains(PREMIUM_PRODUCT_ID) }
 
 /**
  * Pure rule (state ints only) behind [activeEntitlementFromPurchases]. Split out

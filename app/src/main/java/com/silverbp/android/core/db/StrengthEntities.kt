@@ -25,6 +25,12 @@ data class ExerciseCatalogItemEntity(
     val hlcUpdatedAt: String = "0",
 )
 
+/**
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
+ */
 @Entity(tableName = "strength_workout_session")
 data class StrengthWorkoutSessionEntity(
     @PrimaryKey val id: String,

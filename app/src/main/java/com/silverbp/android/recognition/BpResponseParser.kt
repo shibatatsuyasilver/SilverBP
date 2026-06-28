@@ -16,6 +16,14 @@ object BpResponseParser {
             throw BpExtractionError.InvalidJson
         }
         if (r.systolic == null || r.diastolic == null) throw BpExtractionError.MissingFields
+        // Physiological sanity gate: reject parses that fall outside what a cuff
+        // can measure before they ever reach the confirm screen.
+        val sys = r.systolic
+        val dia = r.diastolic
+        if (sys !in 40..300) throw BpExtractionError.InvalidReading("systolicRange")
+        if (dia !in 30..200) throw BpExtractionError.InvalidReading("diastolicRange")
+        if (sys <= dia) throw BpExtractionError.InvalidReading("systolicNotAboveDiastolic")
+        r.pulse?.let { if (it !in 20..300) throw BpExtractionError.InvalidReading("pulseRange") }
         val c = r.confidence ?: 1.0
         if (c < minimumConfidence) throw BpExtractionError.LowConfidence(c)
         return r

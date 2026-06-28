@@ -133,21 +133,29 @@ class EntitlementManager(
      * startup, by the 24 h revalidation worker, and after a purchase / "restore
      * purchases" tap. Failures are swallowed → the last-known cache stands.
      *
+     * Returns `true` only when Play was ACTUALLY queried (a CONFIRMED result was
+     * applied), `false` when it could not be reached. "Restore purchases" gates
+     * its success/empty message on this so a stale cache can't masquerade as a
+     * fresh restore (finding #24): a `false` here means "couldn't check", NOT
+     * "no subscription".
+     *
      * CRITICAL (finding #1): only a CONFIRMED query result overwrites the cache.
      * [BillingGateway.queryActiveEntitlement] returns `null` when Play could not
      * be queried (unavailable / non-OK / connection exhausted) — indistinguishable
      * from a thrown error for cache-safety purposes — and we leave the last-known
-     * tier untouched in that case. We persist a downgrade to Free ONLY on a real
-     * OK query that found zero active PURCHASED subs. This prevents a transient
-     * Play hiccup (or the 24 h worker firing on "network up, Play unreachable")
-     * from silently downgrading a paying subscriber and poisoning the cache.
+     * tier untouched in that case (returning `false`). We persist a downgrade to
+     * Free ONLY on a real OK query that found zero active PURCHASED subs. This
+     * prevents a transient Play hiccup (or the 24 h worker firing on "network up,
+     * Play unreachable") from silently downgrading a paying subscriber and
+     * poisoning the cache.
      */
-    suspend fun refresh() {
+    suspend fun refresh(): Boolean {
         val resolved = runCatching { gateway.queryActiveEntitlement() }
             .getOrNull() // thrown error → null, same as "could not query"
-            ?: return // gateway unavailable / non-OK → keep cached value
+            ?: return false // gateway unavailable / non-OK → keep cached value
         _entitlement.value = resolved
         runCatching { settings.setLastKnownEntitlement(resolved.name) }
+        return true
     }
 
     private fun parseOverride(raw: String?): Entitlement? = when (raw?.lowercase()) {

@@ -79,5 +79,8 @@
     <string name="glucose_readings_logged">已記錄 %1$d 筆血糖</string>
     <string name="glucose_trend_title">血糖趨勢</string>
     <string name="glucose_context_distribution_title">依量測時機</string>
+    <string name="glucose_unit_confirm_title">請確認單位</string>
+    <string name="glucose_unit_confirm_body">我們無法清楚辨識單位。請確認這筆讀數的單位為 %1$s,或在下方切換單位後再儲存——單位錯誤會讓數值相差約 18 倍。</string>
+    <string name="glucose_unit_confirm_action">%1$s 正確</string>
 
 </resources>

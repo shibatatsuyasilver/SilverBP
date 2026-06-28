@@ -31,9 +31,18 @@ import com.silverbp.android.sync.transport.X25519KeyPair
 class SyncCoordinator(
     private val deviceId: String,
     private val keyStore: PairingKeyStore,
+    /**
+     * Persisted HLC high-water used to seed the clock on construction, so a
+     * process restart / wall-clock skew never lets us issue an HLC below one we
+     * already used (QA P0-4 silent multi-device data loss). Defaults to
+     * [Hlc.ZERO] for tests / the transport-only unit harness.
+     */
+    clockSeed: Hlc = Hlc.ZERO,
+    /** Invoked with every issued/observed HLC so the seed stays durable. */
+    clockPersist: (Hlc) -> Unit = {},
 ) {
     val nodeId: Long = keyStore.loadOrCreateNodeId()
-    val clock: HlcClock = HlcClock(nodeId)
+    val clock: HlcClock = HlcClock(nodeId, initial = clockSeed, persist = clockPersist)
     private val staticKey: X25519KeyPair = run {
         val (priv, pub) = keyStore.loadOrCreateStaticKey()
         X25519KeyPair(privateKey = priv, publicKey = pub)

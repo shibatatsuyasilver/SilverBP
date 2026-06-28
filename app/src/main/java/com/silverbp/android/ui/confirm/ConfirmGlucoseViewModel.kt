@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,6 +33,14 @@ private const val TAG = "ConfirmGlucose"
 
 /** Per-member free-record cap before the Premium paywall (roadmap §4-6). */
 private const val FREE_GLUCOSE_LIMIT = 10
+
+/**
+ * #16 — confidence at/above which a captured glucose unit is trusted. Below it the
+ * confirm screen makes the user explicitly confirm mg/dL vs mmol/L before saving.
+ * The capture VM folds an INFERRED unit into a sub-threshold confidence, so this one
+ * gate covers both "unitInferred" and a genuinely low read confidence.
+ */
+private const val UNIT_CONFIRM_CONFIDENCE = 0.7
 
 /**
  * Backs ConfirmGlucoseScreen — the glucose analogue of [ConfirmReadingViewModel].
@@ -98,6 +107,26 @@ class ConfirmGlucoseViewModel(
      */
     private val _gateRequested = MutableStateFlow(0)
     val gateRequested: StateFlow<Int> = _gateRequested.asStateFlow()
+
+    /**
+     * #16 — set once the user has explicitly confirmed the (possibly inferred)
+     * display unit on the confirm screen. Transient like [_lowWarning] (the row is
+     * not yet persisted): a process death before save just re-asks, which is safe.
+     */
+    private val _unitConfirmed = MutableStateFlow(false)
+
+    /**
+     * #16 — true while a captured reading's unit is uncertain (inferred or low read
+     * confidence — see [UNIT_CONFIRM_CONFIDENCE]) and the user hasn't confirmed it.
+     * The screen shows an ambiguity warning and disables Save until it clears so a
+     * wrong mg/dL ↔ mmol/L (an ~18× error) can't be saved silently.
+     */
+    val needsUnitConfirmation: StateFlow<Boolean> = combine(_draft, _unitConfirmed) { d, confirmed ->
+        unitNeedsConfirmation(d, confirmed)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private fun unitNeedsConfirmation(d: GlucoseDraft, confirmed: Boolean): Boolean =
+        !confirmed && d.source == GlucoseSource.Camera && d.confidence < UNIT_CONFIRM_CONFIDENCE
 
     private var editingId: UUID? = null
 
@@ -172,8 +201,13 @@ class ConfirmGlucoseViewModel(
 
     /** Toggle the editing unit, converting the typed value so the number stays meaningful. */
     fun setUnit(unit: GlucoseUnit) {
+        // #16: explicitly choosing a unit IS the confirmation the ambiguity gate wants.
+        _unitConfirmed.value = true
         setDraft(_draft.value.convertedTo(unit))
     }
+
+    /** #16 — user acknowledged the (possibly inferred) unit shown is correct. */
+    fun confirmUnit() { _unitConfirmed.value = true }
 
     /** Single sink for draft mutations that also mirrors to the handle (M5). */
     private fun setDraft(d: GlucoseDraft) {
@@ -195,6 +229,9 @@ class ConfirmGlucoseViewModel(
      */
     fun save(onDone: () -> Unit) {
         if (_saving.value) return
+        // #16: never persist while the unit is still unconfirmed (the screen also
+        // disables Save; this is the defensive backstop).
+        if (unitNeedsConfirmation(_draft.value, _unitConfirmed.value)) return
         _saving.value = true
         _saveError.value = null
         viewModelScope.launch {

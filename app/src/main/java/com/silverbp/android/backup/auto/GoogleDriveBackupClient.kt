@@ -91,9 +91,13 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
      * cap, one page is always enough.
      */
     suspend fun listBackups(accessToken: String): List<DriveBackupFile> = withContext(Dispatchers.IO) {
+        // List by name prefix only (within the hidden appDataFolder). We do NOT
+        // require our `appProperties` tag here, so cross-platform backups — e.g.
+        // the iOS app, which uploads the same `SilverBP-Backup-*.sbpbk` files but
+        // historically without the tag — still appear in the restore picker.
+        // Deletion stays strict (see [isSilverBpBackup] / [isDeletableBackup]).
         val query = "trashed = false " +
-            "and name contains '$BACKUP_NAME_PREFIX' " +
-            "and appProperties has { key='$BACKUP_APP_PROPERTY_KEY' and value='$BACKUP_APP_PROPERTY_VALUE' }"
+            "and name contains '$BACKUP_NAME_PREFIX'"
         val url = "$API_BASE/files".toHttpUrl().newBuilder()
             .addQueryParameter("spaces", "appDataFolder")
             .addQueryParameter("q", query)
@@ -123,7 +127,7 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
                     sizeBytes = f.optString("size", "0").toLongOrNull() ?: 0L,
                     appProperties = appProperties,
                 )
-                file.takeIf { isSilverBpBackup(it.name, it.appProperties) }
+                file.takeIf { isRestorableBackup(it.name) }
             }
         }
     }
@@ -195,6 +199,25 @@ class GoogleDriveBackupClient(private val http: OkHttpClient) {
         val prefixed = if (trimmed.startsWith(BACKUP_NAME_PREFIX)) trimmed else "$BACKUP_NAME_PREFIX$trimmed"
         return if (prefixed.endsWith(BACKUP_EXTENSION)) prefixed else "$prefixed$BACKUP_EXTENSION"
     }
+
+    /**
+     * Loose identification for *listing / restoring*: any `.sbpbk` file whose
+     * name carries our prefix, regardless of the `appProperties` tag. This is
+     * what lets an iOS-created backup (same name, no tag) appear in the restore
+     * picker. The name + extension pair is specific enough inside the per-app
+     * `appDataFolder` that a false positive is effectively impossible.
+     */
+    private fun isRestorableBackup(name: String): Boolean =
+        name.startsWith(BACKUP_NAME_PREFIX) && name.endsWith(BACKUP_EXTENSION)
+
+    /**
+     * Strict identification for *deletion / retention pruning*: only files this
+     * app family positively created (carrying the `appProperties` tag) may be
+     * deleted. Guarantees we never prune or wipe a peer platform's backup (e.g.
+     * the user's iPhone backup) from the shared `appDataFolder`.
+     */
+    fun isDeletableBackup(file: DriveBackupFile): Boolean =
+        isSilverBpBackup(file.name, file.appProperties)
 
     private fun isSilverBpBackup(name: String, appProperties: Map<String, String>): Boolean =
         name.startsWith(BACKUP_NAME_PREFIX) &&

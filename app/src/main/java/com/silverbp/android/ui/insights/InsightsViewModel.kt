@@ -19,14 +19,19 @@ import com.silverbp.android.ui.history.DataRangeFilterStore
 import com.silverbp.android.ui.history.DateRange
 import com.silverbp.android.ui.member.MemberPalette
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -133,13 +138,29 @@ class InsightsViewModel(
         }
     }
 
+    // Emits the current local date and re-emits at each local midnight, so an open
+    // Insights screen recomputes its date range (e.g. DateRange.Today) when the day
+    // rolls over without waiting for a reading change. Cold — runs only while a
+    // subscribed stateIn flow combines it (WhileSubscribed below), so it is
+    // lifecycle-friendly.
+    private val todayFlow: Flow<LocalDate> = flow {
+        while (true) {
+            val zone = ZoneId.systemDefault()
+            val now = LocalDate.now(zone)
+            emit(now)
+            val nextMidnight = now.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            delay((nextMidnight - System.currentTimeMillis()).coerceAtLeast(1L))
+        }
+    }
+
     // --- single-member state (compare OFF). Behaviour identical to pre-compare. ---
     private val singleState: StateFlow<InsightsUiState> = combine(
         currentMember.flow.flatMapLatest { repo.observeAll(it) },
         rangeStore.range,
         guidelineFlow,
-    ) { all, range, guideline ->
-        val insights = computeMemberInsights(all, range, guideline)
+        todayFlow,
+    ) { all, range, guideline, today ->
+        val insights = computeMemberInsights(all, range, guideline, today)
         InsightsUiState(
             range = range,
             readings = insights.readings,
@@ -161,18 +182,19 @@ class InsightsViewModel(
         members.observeActive(),
         selectedMemberIdsFlow,
         rangeStore.range,
-    ) { active, selected, range ->
+        todayFlow,
+    ) { active, selected, range, today ->
         // Selected members in stable active order; ignore ids that have left the
         // active set (archived/deleted) so a stale selection never shows a ghost.
-        active.filter { it.id in selected } to range
-    }.flatMapLatest { (ordered, range) ->
+        Triple(active.filter { it.id in selected }, range, today)
+    }.flatMapLatest { (ordered, range, today) ->
         if (ordered.isEmpty()) {
             flowOf(emptyList())
         } else {
             // One readings stream per selected member, combined positionally so the
             // result preserves the stable active order (= colour-collision order).
             combine(ordered.map { repo.observeAll(it.id.toString()) }) { perMember ->
-                buildSeries(ordered, perMember.toList(), range)
+                buildSeries(ordered, perMember.toList(), range, today = today)
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -230,7 +252,22 @@ class InsightsViewModel(
     fun setCompareMode(enabled: Boolean) {
         compareModeFlow.value = enabled
         if (enabled && selectedMemberIdsFlow.value.isEmpty()) {
-            selectedMemberIdsFlow.value = activeMembersState.value.map { it.id }.toSet()
+            val active = activeMembersState.value
+            if (active.isNotEmpty()) {
+                selectedMemberIdsFlow.value = active.map { it.id }.toSet()
+            } else {
+                // activeMembersState hasn't emitted yet (WhileSubscribed cold start),
+                // so seeding now would lock in an EMPTY selection and show nothing.
+                // Defer to the first non-empty emission; re-check the guards then so we
+                // don't clobber a selection the user made in the meantime or a compare
+                // toggle that was switched back off.
+                viewModelScope.launch {
+                    val seed = activeMembersState.first { it.isNotEmpty() }
+                    if (compareModeFlow.value && selectedMemberIdsFlow.value.isEmpty()) {
+                        selectedMemberIdsFlow.value = seed.map { it.id }.toSet()
+                    }
+                }
+            }
         }
     }
 

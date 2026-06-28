@@ -129,7 +129,16 @@ class NutritionConfirmViewModel(
                     fatG = c.fatG,
                 )
             }
-            if (items.isEmpty()) { onSaved(); return@launch }
+            if (items.isEmpty()) {
+                // Nothing matched the catalog (every recognised food is unknown,
+                // or the user excluded each match). Don't masquerade as a
+                // successful save with nothing logged — persist a
+                // description-only row from the raw recognised names so the meal
+                // is still recorded (macros/sodium unknown; the user can edit it
+                // later). If there is genuinely nothing to describe, stay put.
+                saveUnmatchedFallback(meal, excluded, onSaved)
+                return@launch
+            }
             val log = FoodLog(
                 timestamp = Instant.now(),
                 mealType = currentMealType(),
@@ -152,5 +161,34 @@ class NutritionConfirmViewModel(
             repo.upsert(log)
             onSaved()
         }.invokeOnCompletion { _isSaving.value = false }
+    }
+
+    /**
+     * Save a description-only meal when no recognised item matched the catalog.
+     * Keeps the per-item names (no nutrition numbers — nothing was in the DB) so
+     * the user still has a real record of what they ate instead of a save that
+     * silently logged nothing. Stays on screen if there are no usable names.
+     */
+    private suspend fun saveUnmatchedFallback(
+        meal: RecognizedMeal,
+        excluded: Set<Int>,
+        onSaved: () -> Unit,
+    ) {
+        val kept = meal.items
+            .filterIndexed { idx, _ -> idx !in excluded }
+            .filter { it.name.isNotBlank() }
+        if (kept.isEmpty()) return
+        val log = FoodLog(
+            timestamp = Instant.now(),
+            mealType = currentMealType(),
+            inputMethod = NutritionInputMethod.Photo,
+            description = kept.joinToString("、") { it.name },
+            photoFilename = meal.photoFilename,
+            items = kept.map { FoodItem(name = it.name, nameEn = it.nameEn) },
+            confidence = meal.overallConfidence ?: 0.5,
+            analysisBackend = meal.backendTag,
+        )
+        repo.upsert(log)
+        onSaved()
     }
 }

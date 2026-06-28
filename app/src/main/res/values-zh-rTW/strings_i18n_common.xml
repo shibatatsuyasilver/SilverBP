@@ -10,4 +10,5 @@
     <string name="capture_err_cloud_http">雲端辨識失敗 (HTTP %1$d),請重試或先手動輸入</string>
     <string name="capture_err_generic">辨識失敗:%1$s</string>
     <string name="capture_err_load_photo">無法載入照片</string>
+    <string name="capture_err_invalid_reading">讀數超出合理範圍,請重拍或手動輸入</string>
 </resources>

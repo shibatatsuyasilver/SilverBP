@@ -87,6 +87,22 @@ class HealthConnectGlucoseBridge(private val context: Context) : GlucoseHealthCo
         }.onFailure { Log.w(TAG, "[HC] glucose write failed", it) }.getOrNull()
     }
 
+    /**
+     * Best-effort removal of a deleted reading's HC mirror, keyed on the same
+     * `clientRecordId` (the reading id) that [write] stamped. Never throws.
+     */
+    override suspend fun delete(readingId: String) {
+        val c = client() ?: return
+        if (!hasWritePermission()) return
+        runCatching {
+            c.deleteRecords(
+                BloodGlucoseRecord::class,
+                recordIdsList = emptyList(),
+                clientRecordIdsList = listOf(readingId),
+            )
+        }.onFailure { Log.w(TAG, "[HC] glucose delete failed", it) }
+    }
+
     // Home meters measure capillary (whole-blood) samples; the timing context
     // maps to HC's relation-to-meal taxonomy. Bedtime/random have no dedicated
     // HC value, so they fall through to GENERAL (the "no specific relation"

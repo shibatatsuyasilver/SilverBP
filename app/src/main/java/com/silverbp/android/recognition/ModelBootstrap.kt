@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -46,7 +47,12 @@ object ModelBootstrap {
                 }
                 RecognitionBackend.Local -> {
                     val variant = ModelCatalog.byId(settings.selectedModelId)
-                    if (downloader.isDownloaded(variant)) {
+                    // A present file might be truncated / corrupted / swapped; re-verify
+                    // its bytes against the catalog-pinned sha256 before preload so a bad
+                    // model is re-fetched instead of failing opaquely in the native engine.
+                    // The `isDownloaded` short-circuit gates the hash so it only runs when
+                    // a file is actually present.
+                    if (downloader.isDownloaded(variant) && verifyChecksum(downloader, variant)) {
                         // Only sweep legacy orphans once the new file is in place,
                         // so a power-cut mid-rename can't strand the user.
                         cleanupLegacyModelFiles(context.applicationContext)
@@ -65,6 +71,34 @@ object ModelBootstrap {
                 }
             }
         }
+    }
+
+    /**
+     * Re-verify a present model file against its catalog-pinned sha256 before we
+     * hand it to [preload]. A truncated / corrupted / swapped file otherwise loads
+     * and fails opaquely deep in the native engine. On mismatch we delete the file
+     * (and any `.part`) and return false so [start] treats the variant as
+     * not-downloaded and the normal download path re-fetches it.
+     *
+     * Returns true when the file is trustworthy: either the hash matches, or the
+     * variant pins no sha256 (skip — keeps the prior "exists & non-empty" gate, no
+     * behavior change). Reuses [ModelDownloader.sha256]; the one-time, large-file
+     * hashing runs on [Dispatchers.IO] so it never touches the main thread. Callers
+     * must gate this behind [ModelDownloader.isDownloaded] (a file must be present).
+     */
+    private suspend fun verifyChecksum(downloader: ModelDownloader, variant: ModelVariant): Boolean {
+        val expected = variant.sha256 ?: return true  // no pin → no behavior change
+        val actual = withContext(Dispatchers.IO) {
+            runCatching { downloader.sha256(downloader.targetFile(variant)) }.getOrNull()
+        }
+        if (actual != null && actual.equals(expected, ignoreCase = true)) return true
+        val deleted = downloader.deleteVariant(variant)
+        android.util.Log.w(
+            "ModelBootstrap",
+            "[ModelLoad] checksum mismatch id=${variant.id} expected=$expected " +
+                "actual=$actual deleted=$deleted — will re-download",
+        )
+        return false
     }
 
     /**
@@ -172,7 +206,12 @@ object ModelBootstrap {
         scope.launch {
             ServiceLocator.userSettings.setSelectedModelId(variant.id)
             GemmaBpService.tearDown()
-            if (downloader.isDownloaded(variant)) {
+            // #11: an already-downloaded file is preloaded here without a re-download,
+            // so re-verify its bytes against the catalog-pinned sha256 first — same
+            // gate as [start]. A truncated / corrupted / swapped file is deleted by
+            // verifyChecksum and falls through to Idle (re-download path), instead of
+            // failing opaquely in the native engine.
+            if (downloader.isDownloaded(variant) && verifyChecksum(downloader, variant)) {
                 preload(context.applicationContext, variant)
             } else {
                 ServiceLocator.modelLoadStatus.set(ModelLoadPhase.Idle)
@@ -191,7 +230,7 @@ object ModelBootstrap {
             val variantId = ServiceLocator.userSettings.flow.first().selectedModelId
             val variant = ModelCatalog.byId(variantId)
             GemmaBpService.tearDown()
-            if (downloader.isDownloaded(variant)) {
+            if (downloader.isDownloaded(variant) && verifyChecksum(downloader, variant)) {
                 preload(context.applicationContext, variant)
             } else {
                 ServiceLocator.modelLoadStatus.set(ModelLoadPhase.Idle)

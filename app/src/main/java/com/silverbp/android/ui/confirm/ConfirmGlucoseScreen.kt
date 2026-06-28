@@ -105,6 +105,7 @@ fun ConfirmGlucoseScreen(
     val activeMembers by vm.activeMembers.collectAsStateWithLifecycle()
     val liveCategory by vm.liveCategory.collectAsStateWithLifecycle()
     val lowWarning by vm.lowWarning.collectAsStateWithLifecycle()
+    val needsUnitConfirmation by vm.needsUnitConfirmation.collectAsStateWithLifecycle()
     val gateRequested by vm.gateRequested.collectAsStateWithLifecycle()
 
     val paywall = LocalPaywallController.current
@@ -140,7 +141,7 @@ fun ConfirmGlucoseScreen(
                         }
                     }
                     TextButton(
-                        enabled = draft.isValid && !saving,
+                        enabled = draft.isValid && !saving && !needsUnitConfirmation,
                         onClick = { vm.save(onSaved) },
                     ) {
                         Text(stringResource(R.string.glucose_save), fontWeight = FontWeight.SemiBold)
@@ -174,6 +175,17 @@ fun ConfirmGlucoseScreen(
                 unit = draft.displayUnit,
                 category = liveCategory,
             )
+
+            // #16 — unit ambiguity gate: the meter didn't clearly show a unit (or the
+            // read confidence was low), so the parser inferred/defaulted it. Make the
+            // senior user explicitly confirm mg/dL vs mmol/L — a wrong unit is an ~18×
+            // error — before Save re-enables.
+            if (needsUnitConfirmation) {
+                UnitConfirmWarning(
+                    unit = draft.displayUnit,
+                    onConfirm = { vm.confirmUnit() },
+                )
+            }
 
             StandardCard(title = stringResource(R.string.glucose_value_label)) {
                 ValueRow(
@@ -236,7 +248,7 @@ fun ConfirmGlucoseScreen(
             ExpressivePrimaryButton(
                 text = stringResource(R.string.glucose_save),
                 onClick = { vm.save(onSaved) },
-                enabled = draft.isValid && !saving,
+                enabled = draft.isValid && !saving && !needsUnitConfirmation,
                 icon = Icons.Filled.Check,
                 fillWidth = true,
             )
@@ -331,6 +343,52 @@ private fun GlucoseValueHero(
                 color = HeroForegroundDim,
                 modifier = Modifier.padding(bottom = 10.dp),
             )
+        }
+    }
+}
+
+/**
+ * #16 — ambiguity warning shown when the captured unit was inferred/defaulted or the
+ * read confidence was low. Spells out the unit currently assumed and offers an explicit
+ * "this is correct" acknowledgement; switching the unit below also clears the gate.
+ */
+@Composable
+private fun UnitConfirmWarning(unit: GlucoseUnit, onConfirm: () -> Unit) {
+    val unitLabel = stringResource(
+        when (unit) {
+            GlucoseUnit.Mgdl -> R.string.glucose_unit_mgdl
+            GlucoseUnit.Mmol -> R.string.glucose_unit_mmol
+        },
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            stringResource(R.string.glucose_unit_confirm_title),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Text(
+            stringResource(R.string.glucose_unit_confirm_body, unitLabel),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    stringResource(R.string.glucose_unit_confirm_action, unitLabel),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }

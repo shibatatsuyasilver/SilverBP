@@ -6,6 +6,7 @@ import com.silverbp.android.core.db.MemberEntity
 import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toEntity
 import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -28,6 +29,15 @@ import java.util.UUID
 class MemberRepository(
     private val dao: MemberDao,
     private val localSync: LocalSyncWriter? = null,
+    /**
+     * Runs a block inside a single DB transaction so the multi-row member
+     * mutations below (owner reassignment, archive/sort-order + HLC stamp)
+     * commit or roll back together. Defaults to a pass-through so the in-memory
+     * test constructors keep compiling; production wires
+     * `database.withTransaction { block() }` (see ServiceLocator) — mirrors
+     * [com.silverbp.android.coach.MedicationRepository].
+     */
+    private val inTransaction: suspend (suspend () -> Unit) -> Unit = { block -> block() },
 ) {
 
     @Volatile private var cachedOwnerId: String? = null
@@ -83,29 +93,54 @@ class MemberRepository(
         // never left at "0" — the LWW gate treats "0" as "no local trace" and lets
         // a stale peer overwrite it. Mirrors the other repositories' write path.
         val hlc = localSync?.nextHlc()
-        if (member.isOwner) {
-            val current = dao.getOwner()
-            if (current != null && current.id != memberId) {
-                dao.upsert(
-                    current.copy(
-                        isOwner = false,
-                        updatedAt = System.currentTimeMillis(),
-                        hlcUpdatedAt = hlc ?: current.hlcUpdatedAt,
-                    ),
-                )
+        // Demoting the previous owner and writing this member must commit
+        // together: if the entity write failed after the demote, the table would
+        // be left with no owner at all, breaking the single-owner invariant.
+        inTransaction {
+            if (member.isOwner) {
+                val current = dao.getOwner()
+                if (current != null && current.id != memberId) {
+                    dao.upsert(
+                        current.copy(
+                            isOwner = false,
+                            updatedAt = System.currentTimeMillis(),
+                            hlcUpdatedAt = hlc ?: current.hlcUpdatedAt,
+                        ),
+                    )
+                }
+                cachedOwnerId = memberId
             }
-            cachedOwnerId = memberId
+            val entity = member.toEntity()
+            dao.upsert(entity.copy(hlcUpdatedAt = hlc ?: entity.hlcUpdatedAt))
         }
-        val entity = member.toEntity()
-        dao.upsert(entity.copy(hlcUpdatedAt = hlc ?: entity.hlcUpdatedAt))
     }
 
-    suspend fun archive(id: UUID) = dao.archive(id.toString(), System.currentTimeMillis())
+    suspend fun archive(id: UUID) {
+        // Archive + HLC stamp must commit together: a failed stamp would otherwise
+        // leave the member archived locally but un-propagatable over incremental
+        // sync (the row keeps its old HLC — QA #3).
+        inTransaction {
+            dao.archive(id.toString(), System.currentTimeMillis())
+            // Bump the HLC so the archive propagates over incremental sync — without
+            // it the member row keeps its old HLC and a paired device never sees the
+            // archive (QA #3).
+            localSync?.stamp(SyncEntityType.MEMBER, id.toString())
+        }
+    }
 
-    suspend fun unarchive(id: UUID) = dao.unarchive(id.toString(), System.currentTimeMillis())
+    suspend fun unarchive(id: UUID) {
+        inTransaction {
+            dao.unarchive(id.toString(), System.currentTimeMillis())
+            localSync?.stamp(SyncEntityType.MEMBER, id.toString())
+        }
+    }
 
-    suspend fun updateSortOrder(id: UUID, sortOrder: Int) =
-        dao.updateSortOrder(id.toString(), sortOrder, System.currentTimeMillis())
+    suspend fun updateSortOrder(id: UUID, sortOrder: Int) {
+        inTransaction {
+            dao.updateSortOrder(id.toString(), sortOrder, System.currentTimeMillis())
+            localSync?.stamp(SyncEntityType.MEMBER, id.toString())
+        }
+    }
 
     suspend fun count(): Int = dao.count()
 

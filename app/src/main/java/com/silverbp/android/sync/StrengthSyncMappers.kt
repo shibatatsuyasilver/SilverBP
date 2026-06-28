@@ -8,6 +8,7 @@ import com.silverbp.android.core.db.StrengthWorkoutSessionEntity
 import com.silverbp.android.core.db.SyncDao
 import com.silverbp.android.core.db.TombstoneEntity
 import com.silverbp.android.sync.engine.Hlc
+import com.silverbp.android.sync.engine.OrphanRecordException
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
 import com.silverbp.android.sync.engine.SyncValue
@@ -186,9 +187,12 @@ class SetLogSyncMapper(
         if (record.isTombstone) return
         val p = record.payload
         val workoutSessionId = (p[1] as? SyncValue.Text)?.value ?: return
-        // FK to strength_workout_session — drop orphan sets (parent will arrive
-        // in a subsequent round and the peer can re-emit then).
-        if (dao.sessionById(workoutSessionId) == null) return
+        // FK to strength_workout_session — defer orphan sets. Throwing (vs
+        // silently dropping) holds the peer watermark so the set is re-shipped
+        // once the parent session has landed, instead of being lost (QA #5).
+        if (dao.sessionById(workoutSessionId) == null) {
+            throw OrphanRecordException("set_log ${record.pk}: parent session $workoutSessionId not present yet")
+        }
         val entity = SetLogEntity(
             id = record.pk,
             workoutSessionId = workoutSessionId,

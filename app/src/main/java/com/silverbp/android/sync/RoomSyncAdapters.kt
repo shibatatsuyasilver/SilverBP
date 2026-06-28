@@ -19,10 +19,12 @@ import com.silverbp.android.core.db.StrengthWorkoutDao
 import com.silverbp.android.core.db.SyncDao
 import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.engine.HlcClock
+import com.silverbp.android.sync.engine.OrphanRecordException
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
 import com.silverbp.android.sync.protocol.SyncRecordSink
 import com.silverbp.android.sync.protocol.SyncRecordSource
+import com.silverbp.android.sync.protocol.UnknownRecordTypeException
 import kotlinx.coroutines.flow.first
 
 internal data class SyncCandidate(
@@ -39,6 +41,14 @@ internal fun selectRecordsSince(
     return candidates
         .asSequence()
         .filter { it.record.hlc > peerLastHlcSeen }
+        // SELECT by HLC ascending (NOT dependencyRank) so the limit cut stays
+        // watermark-safe: the peer advances its scalar HLC watermark to the max
+        // HLC it receives, so we must never skip a lower-HLC record while sending
+        // a higher-HLC one — that would strand the skipped record forever.
+        // Parent-before-child APPLY order is still guaranteed downstream by
+        // toDependencyOrderedRecords(); a child whose parent falls beyond this
+        // batch's limit is handled by the orphan-defer path (held watermark,
+        // re-sent next round), not by reordering the selection here.
         .sortedWith(
             compareBy<SyncCandidate> { it.record.hlc.packed }
                 .thenBy { it.dependencyRank }
@@ -811,8 +821,14 @@ class CombinedRoomSyncSink(
             SyncEntityType.GLUCOSE_READING -> glucoseMapper?.apply(record)
             SyncEntityType.WEIGHT_LOG -> weightMapper?.apply(record)
             else -> {
-                // Forward-compat: silently drop record types this build
-                // doesn't yet understand (e.g. future BLOB_META).
+                // A record type this build has no sink mapper for yet (e.g. a
+                // future BLOB_META synced from a newer peer). Signal the session
+                // so it HOLDS the watermark and keeps the record eligible for a
+                // future version that understands it — instead of silently
+                // dropping it and letting the watermark skip it forever.
+                throw UnknownRecordTypeException(
+                    "no sink mapper for record type ${record.type} (tag ${record.type.tag})",
+                )
             }
         }
     }
@@ -839,6 +855,18 @@ class CombinedRoomSyncSink(
         perTypeCount.merge(record.type, 1, Int::plus)
         try {
             gate.apply(record)
+        } catch (deferred: OrphanRecordException) {
+            // Expected, not a failure: a child arrived before its FK parent.
+            // Rethrow quietly so the session defers it (and holds the watermark)
+            // without logging it as an error.
+            throw deferred
+        } catch (unknown: UnknownRecordTypeException) {
+            // Expected, not a failure: a record type this build doesn't map yet.
+            // Rethrow quietly so the session holds the watermark (keeping the
+            // record eligible for a future version) without logging it as an
+            // error. A malformed KNOWN type still falls through to the generic
+            // catch below and aborts the session.
+            throw unknown
         } catch (t: Throwable) {
             Log.e(
                 "CombinedSyncSink",

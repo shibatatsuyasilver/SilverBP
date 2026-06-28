@@ -75,6 +75,7 @@ object Routes {
     const val STRENGTH_SESSION = "strength/session"
     const val STRENGTH_SUMMARY = "strength/summary"
     const val EXERCISE_DETAIL_PATTERN = "exercise/detail/{exerciseId}"
+    const val EXERCISE_HISTORY = "exercise/history"
     const val ARG_EXERCISE_ID = "exerciseId"
 
     const val MEDALS = "achievements/medals"

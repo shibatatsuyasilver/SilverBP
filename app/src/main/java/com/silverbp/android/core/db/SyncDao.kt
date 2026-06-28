@@ -46,6 +46,17 @@ interface SyncDao {
     @Query("DELETE FROM tombstone WHERE hlc < :pruneBeforeHlc")
     suspend fun gcTombstones(pruneBeforeHlc: String): Int
 
+    /**
+     * Highest HLC still recoverable from durable DB state. Folded into the
+     * cold-start clock seed (via HlcClock.observe) so a prefs-losing restore
+     * can't regress the clock below tombstones that survive in the DB (QA P0-4).
+     * Cheap: `hlc` is indexed, so MAX is an index seek. Implemented as a default
+     * over [rawHlc] (not a new abstract @Query) so the existing test fakes need
+     * no extra override.
+     */
+    suspend fun maxTombstoneHlc(): String? =
+        rawHlc(SimpleSQLiteQuery("SELECT MAX(hlc) FROM tombstone"))
+
     // ----- Paired devices -----
 
     @Upsert
@@ -56,6 +67,10 @@ interface SyncDao {
 
     @Query("SELECT * FROM sync_device WHERE deviceId = :deviceId LIMIT 1")
     suspend fun device(deviceId: String): SyncDeviceEntity?
+
+    /** All paired peers (one-shot) — used by the background sync worker. */
+    @Query("SELECT * FROM sync_device")
+    suspend fun allDevices(): List<SyncDeviceEntity>
 
     @Query("UPDATE sync_device SET lastSeenAt = :nowMs, lastHlcSeen = :hlc WHERE deviceId = :deviceId")
     suspend fun touchDevice(deviceId: String, nowMs: Long, hlc: String)

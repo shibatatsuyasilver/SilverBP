@@ -15,4 +15,5 @@
     <string name="capture_err_cloud_http">Cloud recognition failed (HTTP %1$d). Retry, or enter manually.</string>
     <string name="capture_err_generic">Recognition failed: %1$s</string>
     <string name="capture_err_load_photo">Couldn\'t load photo.</string>
+    <string name="capture_err_invalid_reading">That reading looks out of range. Retake the photo, or enter it manually.</string>
 </resources>

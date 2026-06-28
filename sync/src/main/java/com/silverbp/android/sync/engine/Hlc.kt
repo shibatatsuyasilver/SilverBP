@@ -60,8 +60,11 @@ value class Hlc(val packed: String) : Comparable<Hlc> {
  * Generator for HLCs. Holds the (last seen physical, last logical) pair and
  * the local node id; thread-safe via an internal monitor.
  *
- * Use one [HlcClock] per device process; persist [lastSeen] across restarts so
- * we never go backwards even if the wall clock skews.
+ * Use one [HlcClock] per device process. To survive process restarts / wall
+ * clock skew without ever going backwards, seed [initial] from the persisted
+ * high-water on construction and pass a [persist] callback — it is invoked with
+ * every newly issued / observed HLC so the durable high-water always covers any
+ * HLC that could have reached a local row, tombstone, or peer (QA P0-4).
  *
  * Implementation note: we deliberately use a synchronized block rather than
  * `AtomicReference<Hlc>` because [Hlc] is a Kotlin value class — every boxing
@@ -71,6 +74,7 @@ class HlcClock(
     private val nodeId: Long,
     private val now: () -> Long = System::currentTimeMillis,
     initial: Hlc = Hlc.ZERO,
+    private val persist: (Hlc) -> Unit = {},
 ) {
     private val lock = Any()
     private var state: Hlc = initial
@@ -82,44 +86,54 @@ class HlcClock(
      * Issue an HLC for a local write. Always strictly greater than any HLC
      * previously issued or observed on this clock.
      */
-    fun next(): Hlc = synchronized(lock) {
-        val prev = state
-        val nowMs = now()
-        val nextPhys: Long
-        val nextLog: Int
-        if (nowMs > prev.physicalMs) {
-            nextPhys = nowMs
-            nextLog = 0
-        } else {
-            nextPhys = prev.physicalMs
-            nextLog = prev.logical + 1
-            check(nextLog <= 0xFFFF) {
-                "HLC logical counter exhausted at $nextPhys ms — clock skew?"
+    fun next(): Hlc {
+        val issued = synchronized(lock) {
+            val prev = state
+            val nowMs = now()
+            val nextPhys: Long
+            val nextLog: Int
+            if (nowMs > prev.physicalMs) {
+                nextPhys = nowMs
+                nextLog = 0
+            } else {
+                nextPhys = prev.physicalMs
+                nextLog = prev.logical + 1
+                check(nextLog <= 0xFFFF) {
+                    "HLC logical counter exhausted at $nextPhys ms — clock skew?"
+                }
             }
+            Hlc.of(nextPhys, nextLog, nodeId).also { state = it }
         }
-        Hlc.of(nextPhys, nextLog, nodeId).also { state = it }
+        // Persist outside the lock — the callback may touch disk and must not
+        // block other threads issuing/observing HLCs.
+        persist(issued)
+        return issued
     }
 
     /**
      * Observe an HLC from a peer. Bumps our internal max so subsequent local
      * writes are strictly after the peer's. Returns the new high-water mark.
      */
-    fun observe(peer: Hlc): Hlc = synchronized(lock) {
-        val prev = state
-        val nowMs = now()
-        val maxPhys = maxOf(nowMs, prev.physicalMs, peer.physicalMs)
-        val nextLog: Int = if (maxPhys > prev.physicalMs && maxPhys > peer.physicalMs) {
-            0
-        } else {
-            var seed = -1
-            if (maxPhys == prev.physicalMs) seed = maxOf(seed, prev.logical)
-            if (maxPhys == peer.physicalMs) seed = maxOf(seed, peer.logical)
-            val bumped = seed + 1
-            check(bumped <= 0xFFFF) {
-                "HLC logical counter exhausted at $maxPhys ms — clock skew?"
+    fun observe(peer: Hlc): Hlc {
+        val updated = synchronized(lock) {
+            val prev = state
+            val nowMs = now()
+            val maxPhys = maxOf(nowMs, prev.physicalMs, peer.physicalMs)
+            val nextLog: Int = if (maxPhys > prev.physicalMs && maxPhys > peer.physicalMs) {
+                0
+            } else {
+                var seed = -1
+                if (maxPhys == prev.physicalMs) seed = maxOf(seed, prev.logical)
+                if (maxPhys == peer.physicalMs) seed = maxOf(seed, peer.logical)
+                val bumped = seed + 1
+                check(bumped <= 0xFFFF) {
+                    "HLC logical counter exhausted at $maxPhys ms — clock skew?"
+                }
+                bumped
             }
-            bumped
+            Hlc.of(maxPhys, nextLog, nodeId).also { state = it }
         }
-        Hlc.of(maxPhys, nextLog, nodeId).also { state = it }
+        persist(updated)
+        return updated
     }
 }

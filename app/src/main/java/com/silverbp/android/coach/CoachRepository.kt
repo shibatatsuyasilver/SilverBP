@@ -16,6 +16,7 @@ import com.silverbp.android.core.db.toDomain
 import com.silverbp.android.core.db.toPlanEntity
 import com.silverbp.android.core.db.toTaskEntity
 import com.silverbp.android.sync.LocalSyncWriter
+import com.silverbp.android.sync.engine.SyncEntityType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -28,6 +29,12 @@ import java.time.ZoneId
 /**
  * Façade over the four Coach DAOs. Lives in the coach package so callers
  * never reach directly into Room types — keeps domain code free of `*Entity`.
+ *
+ * (v1.0) Plans/tasks/sleep/diet are owner-only by design per roadmap section
+ * 3-2 — they operate on the device owner's own sensor / Health Connect /
+ * coaching data and are intentionally NOT member-scoped (no memberId). Do not
+ * member-scope without a product decision. Medication (doses/schedules) IS
+ * member-scoped and is handled separately.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CoachRepository(
@@ -81,16 +88,20 @@ class CoachRepository(
 
     suspend fun setTaskCompleted(taskId: String, completedAtMillis: Long?) {
         plans.setCompleted(taskId, completedAtMillis)
+        // Bump the HLC so the completion propagates over incremental sync (QA #3).
+        localSync?.stamp(SyncEntityType.COACH_TASK, taskId)
     }
 
     /** Move a task to a different day-of-week. Pass null to clear the override. */
     suspend fun moveTask(taskId: String, newDayOffset: Int?) {
         plans.moveTask(taskId, newDayOffset)
+        localSync?.stamp(SyncEntityType.COACH_TASK, taskId)
     }
 
     /** Mark a task skipped/un-skipped. Skipped tasks stay in the adherence denominator. */
     suspend fun markSkipped(taskId: String, skipped: Boolean) {
         plans.markSkipped(taskId, skipped)
+        localSync?.stamp(SyncEntityType.COACH_TASK, taskId)
     }
 
     suspend fun adherenceForCurrentPlan(nowMillis: Long): List<Adherence> {

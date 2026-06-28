@@ -73,6 +73,22 @@ class HealthConnectBpBridge(private val context: Context) {
         }.onFailure { Log.w(TAG, "[HC] BP write failed", it) }.getOrNull()
     }
 
+    /**
+     * Best-effort removal of a deleted reading's HC mirror, keyed on the same
+     * `clientRecordId` (the reading id) that [write] stamped. Never throws.
+     */
+    suspend fun delete(readingId: String) {
+        val c = client() ?: return
+        if (!hasWritePermission()) return
+        runCatching {
+            c.deleteRecords(
+                BloodPressureRecord::class,
+                recordIdsList = emptyList(),
+                clientRecordIdsList = listOf(readingId),
+            )
+        }.onFailure { Log.w(TAG, "[HC] BP delete failed", it) }
+    }
+
     private fun bodyPosition(p: Posture): Int = when (p) {
         Posture.Sitting -> BloodPressureRecord.BODY_POSITION_SITTING_DOWN
         Posture.Supine -> BloodPressureRecord.BODY_POSITION_LYING_DOWN

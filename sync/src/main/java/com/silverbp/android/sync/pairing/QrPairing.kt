@@ -7,9 +7,11 @@ package com.silverbp.android.sync.pairing
  *
  * URL form: `silverbp://pair?v=1&pk=<base64>&svc=<bonjourName>&did=<deviceId>`
  *
- * `pk` is the initiator's ephemeral X25519 public key (32 bytes, base64).
- * After pairing the long-term key is stored in EncryptedSharedPreferences;
- * this ephemeral key is one-shot to prevent replay.
+ * `pk` is the initiator's static/long-term X25519 public key (32 bytes,
+ * base64) — the pinned identity key, not an ephemeral per-session key.
+ * After pairing it is stored in EncryptedSharedPreferences so future syncs
+ * over the same Wi-Fi can be authenticated against this pinned key; the
+ * 6-digit SAS confirmation guards the initial exchange against MITM.
  *
  * Phase 1 stub — concrete encoder + scanner UI in Phase 1.2.
  */

@@ -35,6 +35,8 @@ enum class ExerciseRange(val days: Long?) {
 data class ExerciseHomeUiState(
     val selectedKind: ActivityKind = ActivityKind.Walking,
     val recent: List<ExerciseSession> = emptyList(),
+    /** Total cardio session count — drives the "view all" entry; [recent] is take(3). */
+    val allCount: Int = 0,
     val range: ExerciseRange = ExerciseRange.Last30,
     // (date, perKindMeters), zero-filled across the active range. Per-kind
     // metres come from the day's [ActivityKind] → distance map; kinds with no
@@ -143,6 +145,7 @@ class ExerciseHomeViewModel(
         ExerciseHomeUiState(
             selectedKind = kind,
             recent = all.take(3),
+            allCount = all.size,
             range = range,
             dailyDistanceByKind = dailyByKind,
             paceSeriesByKind = paceByKind,

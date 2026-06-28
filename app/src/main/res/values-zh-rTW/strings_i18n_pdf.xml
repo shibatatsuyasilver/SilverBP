@@ -33,6 +33,6 @@
     <string name="pdf_disclaimer_title">注意事項</string>
     <string name="pdf_disclaimer_1">本 App 僅作為個人健康紀錄輔助工具,並非醫療裝置 (Medical Device)。任何讀數異常或健康疑慮,請諮詢醫療專業人員。</string>
     <string name="pdf_disclaimer_2">指標說明:平均為算術平均;SD 為樣本標準差,反映讀數離散度;ARV (Average Real Variability) 為連續讀數差絕對值的平均,可較佳反映時序變異 (Mena et al., J Hypertens 2005;Wei et al., JAHA 2018)。</string>
-    <string name="pdf_disclaimer_3">居家血壓 (HBPM) 高血壓門檻參考:台灣 2022 與 ACC/AHA 2017 為 ≥130/80 mmHg;ESH 2023 為 ≥140/90 mmHg,治療目標 &lt;130/80。</string>
+    <string name="pdf_disclaimer_3">居家血壓 (HBPM) 高血壓門檻參考:台灣 2022 與 ACC/AHA 2017 為 ≥130/80 mmHg;ESH 2023 為 ≥140/90 mmHg,參考值 &lt;130/80。</string>
     <string name="pdf_disclaimer_4">Powered by Gemma 3n vision model (Apache License 2.0)。</string>
 </resources>

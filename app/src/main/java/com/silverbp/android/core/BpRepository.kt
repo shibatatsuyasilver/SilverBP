@@ -107,10 +107,20 @@ class BpRepository(
 
     suspend fun delete(id: UUID) {
         val pk = id.toString()
+        val existing = dao.findById(pk)
         if (localSync != null) {
             localSync.delete(SyncEntityType.BP_READING, pk)
         } else {
             dao.delete(pk)
+        }
+        // Best-effort removal of the Health Connect mirror (same gating as the
+        // upsert mirror); only attempted when the reading was actually mirrored.
+        // Non-owner rows always carry hcRecordId == null, so this is inherently
+        // owner-only — no extra member check needed.
+        if (existing?.hcRecordId != null && healthConnect != null &&
+            runCatching { healthConnectEnabled() }.getOrDefault(false)
+        ) {
+            healthConnect.delete(pk)
         }
     }
 

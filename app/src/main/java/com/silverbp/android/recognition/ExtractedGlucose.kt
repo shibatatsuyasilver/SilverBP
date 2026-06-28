@@ -34,4 +34,13 @@ data class ExtractedGlucose(
     @SerialName("timestamp_on_device") val timestampOnDevice: String? = null,
     /** Overall read confidence 0–1, after the unit/range cross-check. */
     val confidence: Double? = null,
+    /**
+     * True when [GlucoseResponseParser] had to INFER the unit from [value]'s range
+     * (or leave it for a downstream mg/dL default) rather than reading it explicitly
+     * off the meter (#16). The confirm screen treats an inferred unit as ambiguous
+     * and makes the user explicitly confirm mg/dL vs mmol/L before saving — a wrong
+     * unit is an ~18× error (1 mmol/L = 18.016 mg/dL). Set in Kotlin, not part of the
+     * model's JSON, so it carries no @SerialName and defaults false (unit was read).
+     */
+    val unitInferred: Boolean = false,
 )

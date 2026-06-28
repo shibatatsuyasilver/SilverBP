@@ -4,11 +4,16 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.BuildConfig
 import com.silverbp.android.R
+import com.silverbp.android.core.db.SyncDeviceEntity
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.sync.PeerSyncRunner
 import com.silverbp.android.sync.CombinedRoomSyncSink
+import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.CombinedRoomSyncSource
 import com.silverbp.android.sync.SyncCoordinator
+import com.silverbp.android.sync.pairing.PairingKeyStore
 import com.silverbp.android.sync.pairing.PairingService
 import com.silverbp.android.sync.pairing.QrPairingPayload
 import com.silverbp.android.sync.transport.NsdDiscovery
@@ -18,6 +23,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
@@ -33,6 +40,7 @@ class PairingViewModel(
     private val context: Context,
     private val coordinator: SyncCoordinator,
     private val pairingService: PairingService,
+    private val pairingKeyStore: PairingKeyStore,
     private val localDeviceId: String,
 ) : ViewModel() {
 
@@ -55,11 +63,16 @@ class PairingViewModel(
     private val _state = MutableStateFlow<State>(State.Picker)
     val state: StateFlow<State> = _state.asStateFlow()
 
+    /** Already-paired peers — drives the "sync now" / unpair list on the picker. */
+    val pairedDevices: StateFlow<List<com.silverbp.android.core.db.SyncDeviceEntity>> =
+        ServiceLocator.database.syncDao().devicesFlow()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private var activeJob: Job? = null
     private var discovery: NsdDiscovery? = null
 
     fun onShowQrTapped() {
-        Log.i(TAG, "onShowQrTapped invoked, deviceId=$localDeviceId")
+        dlog("onShowQrTapped invoked, deviceId=$localDeviceId")
         cancelActive()
         val payload = QrPairingPayload(
             publicKey = coordinator.staticPublicKey,
@@ -75,16 +88,16 @@ class PairingViewModel(
                 val nsd = NsdDiscovery(context)
                 discovery = nsd
                 val fp = sha256Fingerprint(coordinator.staticPublicKey)
-                Log.i(TAG, "Show: startAdvertising deviceId=$localDeviceId fp=$fp")
+                dlog("Show: startAdvertising deviceId=$localDeviceId fp=$fp")
                 withContext(Dispatchers.IO) {
                     nsd.startAdvertising(localDeviceId, fp)
                 }
-                Log.i(TAG, "Show: NSD registered; awaiting incoming TCP connection")
+                dlog("Show: NSD registered; awaiting incoming TCP connection")
                 _state.update {
                     State.ShowingQr(payload.toUrl(), context.getString(R.string.pairing_status_waiting_scan))
                 }
                 val socket = withContext(Dispatchers.IO) { nsd.acceptIncoming() }
-                Log.i(TAG, "Show: incoming connection from ${socket.inetAddress}:${socket.port}")
+                dlog("Show: incoming connection from ${socket.inetAddress}:${socket.port}")
                 _state.update { State.ShowingQr(payload.toUrl(), context.getString(R.string.pairing_status_handshake)) }
                 val channel = StreamFrameChannel(
                     socket.getInputStream(),
@@ -93,11 +106,11 @@ class PairingViewModel(
                 val outcome = withContext(Dispatchers.IO) {
                     pairingService.runHandshakeAsQrShower(channel)
                 }
-                Log.i(TAG, "Show: handshake done, sas=${outcome.sas} peerDeviceId=${outcome.peerDeviceId}")
+                dlog("Show: handshake done, peerDeviceId=${outcome.peerDeviceId}")
                 _state.value = State.ConfirmingSas(outcome, asJoiner = false)
             } catch (t: Throwable) {
                 if (isActiveCancelled(t)) {
-                    Log.i(TAG, "Show: coroutine cancelled (expected on navigation away)")
+                    dlog("Show: coroutine cancelled (expected on navigation away)")
                 } else {
                     Log.e(TAG, "Show: pairing failed", t)
                     _state.value = State.Error(context.getString(R.string.pairing_err_failed, t.message ?: t.javaClass.simpleName))
@@ -120,20 +133,20 @@ class PairingViewModel(
             Log.w(TAG, "onScanned ignored — state=${_state.value}")
             return
         }
-        Log.i(TAG, "onScanned url=$url")
+        dlog("onScanned: QR scanned")
         cancelActive()
         activeJob = viewModelScope.launch {
             try {
                 val qr = QrPairingPayload.parse(url)
-                Log.i(TAG, "Scan: QR parsed deviceId=${qr.deviceId} svc=${qr.bonjourServiceName}")
+                dlog("Scan: QR parsed deviceId=${qr.deviceId} svc=${qr.bonjourServiceName}")
                 val nsd = NsdDiscovery(context)
                 discovery = nsd
                 nsd.startBrowsing()
-                Log.i(TAG, "Scan: browsing started; awaiting peer")
+                dlog("Scan: browsing started; awaiting peer")
                 val peer = withContext(Dispatchers.IO) { nsd.waitForPeer() }
-                Log.i(TAG, "Scan: peer found name=${peer.bonjourName} host=${peer.host} port=${peer.port}")
+                dlog("Scan: peer found name=${peer.bonjourName} host=${peer.host} port=${peer.port}")
                 val socket = withContext(Dispatchers.IO) { nsd.connect(peer) }
-                Log.i(TAG, "Scan: TCP connected; running Noise handshake as joiner")
+                dlog("Scan: TCP connected; running Noise handshake as joiner")
                 val channel = StreamFrameChannel(
                     socket.getInputStream(),
                     socket.getOutputStream(),
@@ -145,11 +158,11 @@ class PairingViewModel(
                         scannedQR = qr,
                     )
                 }
-                Log.i(TAG, "Scan: handshake done, sas=${outcome.sas} peerDeviceId=${outcome.peerDeviceId}")
+                dlog("Scan: handshake done, peerDeviceId=${outcome.peerDeviceId}")
                 _state.value = State.ConfirmingSas(outcome, asJoiner = true)
             } catch (t: Throwable) {
                 if (isActiveCancelled(t)) {
-                    Log.i(TAG, "Scan: coroutine cancelled")
+                    dlog("Scan: coroutine cancelled")
                 } else {
                     Log.e(TAG, "Scan: pairing failed", t)
                     _state.value = State.Error(context.getString(R.string.pairing_err_failed, t.message ?: t.javaClass.simpleName))
@@ -181,73 +194,29 @@ class PairingViewModel(
         _state.value = State.Syncing(current.outcome.peerDeviceId)
         viewModelScope.launch {
             try {
-                Log.i(TAG, "InitialSync: starting round with ${current.outcome.peerDeviceId}")
+                dlog("InitialSync: starting round with ${current.outcome.peerDeviceId}")
                 val db = ServiceLocator.database
-                val source = CombinedRoomSyncSource(
-                    bpDao = db.bpDao(),
-                    exerciseDao = db.exerciseDao(),
-                    medicationDao = db.medicationDao(),
-                    medicationScheduleDao = db.medicationScheduleDao(),
-                    medicationDoseDao = db.medicationDoseDao(),
-                    achievementDao = db.achievementDao(),
-                    coachPlanDao = db.coachPlanDao(),
-                    sleepDao = db.sleepDao(),
-                    dietDao = db.dietDao(),
-                    bpMapper = ServiceLocator.bpReadingSyncMapper,
-                    exerciseSessionMapper = ServiceLocator.exerciseSessionSyncMapper,
-                    routePointMapper = ServiceLocator.routePointSyncMapper,
-                    medicationMapper = ServiceLocator.medicationSyncMapper,
-                    medicationScheduleMapper = ServiceLocator.medicationScheduleSyncMapper,
-                    medicationDoseMapper = ServiceLocator.medicationDoseSyncMapper,
-                    dailyStepLogMapper = ServiceLocator.dailyStepLogSyncMapper,
-                    achievementMapper = ServiceLocator.achievementSyncMapper,
-                    coachPlanMapper = ServiceLocator.coachPlanSyncMapper,
-                    coachTaskMapper = ServiceLocator.coachTaskSyncMapper,
-                    sleepLogMapper = ServiceLocator.sleepLogSyncMapper,
-                    dietCheckMapper = ServiceLocator.dietCheckSyncMapper,
-                    clock = coordinator.clock,
-                    exerciseLibraryDao = db.exerciseLibraryDao(),
-                    strengthWorkoutDao = db.strengthWorkoutDao(),
-                    exerciseCatalogItemMapper = ServiceLocator.exerciseCatalogItemSyncMapper,
-                    strengthWorkoutSessionMapper = ServiceLocator.strengthWorkoutSessionSyncMapper,
-                    setLogMapper = ServiceLocator.setLogSyncMapper,
-                    bpWorkoutAssociationDao = db.bpWorkoutAssociationDao(),
-                    bpWorkoutAssociationMapper = ServiceLocator.bpWorkoutAssociationSyncMapper,
-                    foodLogDao = db.foodLogDao(),
-                    foodLogMapper = ServiceLocator.foodLogSyncMapper,
-                    memberDao = db.memberDao(),
-                    memberMapper = ServiceLocator.memberSyncMapper,
-                    glucoseDao = db.glucoseDao(),
-                    glucoseMapper = ServiceLocator.glucoseReadingSyncMapper,
-                    weightDao = db.weightDao(),
-                    weightMapper = ServiceLocator.weightReadingSyncMapper,
-                    syncDao = db.syncDao(),
-                    localSyncDao = db.localSyncMutationDao(),
+                val syncDao = db.syncDao()
+                val peerId = current.outcome.peerDeviceId
+                // Register/refresh the peer so its incremental watermark can be
+                // persisted and reused across rounds. Always upsert so a re-pair
+                // of the SAME deviceId with a NEW key refreshes pubKey/name/lastSeen
+                // — otherwise a rotated key would be ignored and the handshake would
+                // verify against a stale pubkey. Preserve any existing watermark so
+                // repeat syncs still ship only new records (not reset on re-pair). (QA #4)
+                val existingDevice = syncDao.device(peerId)
+                syncDao.upsertDevice(
+                    SyncDeviceEntity(
+                        deviceId = peerId,
+                        name = peerId,
+                        pubKey = current.outcome.peerStaticPub,
+                        lastSeenAt = System.currentTimeMillis(),
+                        lastHlcSeen = existingDevice?.lastHlcSeen ?: Hlc.ZERO.packed,
+                    ),
                 )
-                val sink = CombinedRoomSyncSink(
-                    bpMapper = ServiceLocator.bpReadingSyncMapper,
-                    exerciseSessionMapper = ServiceLocator.exerciseSessionSyncMapper,
-                    routePointMapper = ServiceLocator.routePointSyncMapper,
-                    medicationMapper = ServiceLocator.medicationSyncMapper,
-                    medicationScheduleMapper = ServiceLocator.medicationScheduleSyncMapper,
-                    medicationDoseMapper = ServiceLocator.medicationDoseSyncMapper,
-                    dailyStepLogMapper = ServiceLocator.dailyStepLogSyncMapper,
-                    achievementMapper = ServiceLocator.achievementSyncMapper,
-                    coachPlanMapper = ServiceLocator.coachPlanSyncMapper,
-                    coachTaskMapper = ServiceLocator.coachTaskSyncMapper,
-                    sleepLogMapper = ServiceLocator.sleepLogSyncMapper,
-                    dietCheckMapper = ServiceLocator.dietCheckSyncMapper,
-                    exerciseCatalogItemMapper = ServiceLocator.exerciseCatalogItemSyncMapper,
-                    strengthWorkoutSessionMapper = ServiceLocator.strengthWorkoutSessionSyncMapper,
-                    setLogMapper = ServiceLocator.setLogSyncMapper,
-                    bpWorkoutAssociationMapper = ServiceLocator.bpWorkoutAssociationSyncMapper,
-                    foodLogMapper = ServiceLocator.foodLogSyncMapper,
-                    memberMapper = ServiceLocator.memberSyncMapper,
-                    glucoseMapper = ServiceLocator.glucoseReadingSyncMapper,
-                    weightMapper = ServiceLocator.weightReadingSyncMapper,
-                    // B6 LWW gate over LAN sync (compares record.hlc vs local).
-                    syncDao = db.syncDao(),
-                )
+                // Shared wiring with background re-sync — see [LanSyncAdapters].
+                val source = com.silverbp.android.sync.LanSyncAdapters.buildSource(db, coordinator.clock)
+                val sink = com.silverbp.android.sync.LanSyncAdapters.buildSink(db)
                 // Snapshot row counts across the synced tables. We surface the
                 // BP delta in the Done state because the UI string still says
                 // "<n> 筆血壓", but the log captures the full picture so QA
@@ -261,13 +230,21 @@ class PairingViewModel(
                         clock = coordinator.clock,
                         source = source,
                         sink = sink,
+                        // Seed from + persist this peer's incremental watermark so
+                        // repeat syncs ship only new records; orphan-deferral in
+                        // SyncSession keeps advancing it safe. (QA #4 / P1-18)
+                        getLocalLastHlcSeen = {
+                            syncDao.device(peerId)?.lastHlcSeen?.let(::Hlc) ?: Hlc.ZERO
+                        },
+                        updateLocalLastHlcSeen = { hlc ->
+                            syncDao.touchDevice(peerId, System.currentTimeMillis(), hlc.packed)
+                        },
                     )
                 }
                 val bpAfter = db.bpDao().count()
                 val exerciseAfter = db.exerciseDao().count()
                 val doseAfter = db.medicationDoseDao().count()
-                Log.i(
-                    TAG,
+                dlog(
                     "InitialSync: done; bp $bpBefore→$bpAfter, " +
                         "exercise $exerciseBefore→$exerciseAfter, " +
                         "dose $doseBefore→$doseAfter, " +
@@ -281,6 +258,39 @@ class PairingViewModel(
                 Log.e(TAG, "InitialSync: failed", t)
                 _state.value = State.Error(context.getString(R.string.pairing_err_sync_after, t.message ?: t.javaClass.simpleName))
             }
+        }
+    }
+
+    /**
+     * Re-sync with an already-paired peer — no QR / SAS. Both devices tap this
+     * around the same time so they rendezvous (deterministic role in
+     * [PeerSyncRunner]). Reuses the trusted stored key; reuses the same tested
+     * SyncSession/LWW/orphan path as pairing, so it can only converge data.
+     */
+    fun syncNow(device: SyncDeviceEntity) {
+        cancelActive()
+        _state.value = State.Syncing(device.deviceId)
+        activeJob = viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { PeerSyncRunner(context, localDeviceId).syncWithPeer(device) }
+                    .getOrDefault(false)
+            }
+            _state.value = if (ok) {
+                State.Done(device.deviceId, syncedCount = 0)
+            } else {
+                State.Error(context.getString(R.string.pairing_err_sync_after, "—"))
+            }
+        }
+    }
+
+    /** Remove a paired peer so it no longer syncs or appears in the list. */
+    fun forgetPeer(device: SyncDeviceEntity) {
+        viewModelScope.launch {
+            ServiceLocator.database.syncDao().forgetDevice(device.deviceId)
+            // Also drop the peer's trust material (shared root key) from the
+            // keystore — leaving it behind would let a stale secret linger after
+            // "forget" and silently authenticate a future re-pair. (QA)
+            withContext(Dispatchers.IO) { pairingKeyStore.forget(device.deviceId) }
         }
     }
 
@@ -302,6 +312,16 @@ class PairingViewModel(
 
     private fun isActiveCancelled(t: Throwable): Boolean =
         t is kotlinx.coroutines.CancellationException
+
+    /**
+     * Debug-only pairing diagnostics. Pairing traces carry sensitive material —
+     * SAS codes, the QR URL (which embeds the peer's static pubkey + device id),
+     * and LAN host/port — that must never reach a release logcat (QA #7). Release
+     * builds drop these entirely; failures still surface via Log.e (no secrets).
+     */
+    private fun dlog(msg: String) {
+        if (BuildConfig.DEBUG) Log.i(TAG, msg)
+    }
 
     companion object {
         private const val TAG = "PairingVM"
@@ -331,6 +351,7 @@ class PairingViewModel(
                 context = context.applicationContext,
                 coordinator = coordinator,
                 pairingService = pairingService,
+                pairingKeyStore = ServiceLocator.pairingKeyStore,
                 localDeviceId = ServiceLocator.syncDeviceId,
             ) as T
         }

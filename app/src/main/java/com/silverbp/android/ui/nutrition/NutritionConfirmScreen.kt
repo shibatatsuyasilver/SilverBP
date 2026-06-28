@@ -107,14 +107,17 @@ private fun RecognizedMealContent(
     fun portionFor(idx: Int, item: ExtractedFoodItem): Portion =
         portions[idx] ?: Portion.fromHint(item.portionHint)
 
-    // Live totals (recomposes as portions/exclusions change). Skips excluded and
-    // unmatched items.
-    var kcal = 0.0; var sodLo = 0.0; var sodHi = 0.0; var matched = 0
+    // Live totals (recomposes as portions/exclusions change). Totals sum only
+    // matched items; [included] counts every non-excluded item (matched or not)
+    // so Save stays enabled even when nothing matched — that path logs a
+    // description-only fallback rather than appearing to save nothing.
+    var kcal = 0.0; var sodLo = 0.0; var sodHi = 0.0; var included = 0
     meal.items.forEachIndexed { idx, ex ->
         if (isExcluded(idx)) return@forEachIndexed
+        included++
         val rec = NutritionDatabase.match(ex.name, ex.nameEn) ?: return@forEachIndexed
         val c = rec.compute(portionFor(idx, ex))
-        kcal += c.kcal; sodLo += c.sodiumLowMg; sodHi += c.sodiumHighMg; matched++
+        kcal += c.kcal; sodLo += c.sodiumLowMg; sodHi += c.sodiumHighMg
     }
 
     fun saveMeal() {
@@ -135,7 +138,7 @@ private fun RecognizedMealContent(
                 },
                 actions = {
                     TextButton(
-                        enabled = matched > 0 && !isSaving,
+                        enabled = included > 0 && !isSaving,
                         onClick = { saveMeal() },
                     ) {
                         Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold)
@@ -213,7 +216,7 @@ private fun RecognizedMealContent(
             ExpressivePrimaryButton(
                 text = stringResource(R.string.save),
                 onClick = { saveMeal() },
-                enabled = matched > 0 && !isSaving,
+                enabled = included > 0 && !isSaving,
                 icon = Icons.Filled.Check,
                 fillWidth = true,
             )

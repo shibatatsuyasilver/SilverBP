@@ -543,7 +543,8 @@ SilverBP 是一款專為長輩與家人設計的血壓管理 App。介面字大�
 
 【拍照記血壓,不用打字】
 拿手機對準血壓計螢幕拍一張,App 自動辨識收縮壓、舒張壓與脈搏並填入。
-辨識可選「在手機本機完成」或「雲端辨識」,看不清楚也能手動修改後再儲存。
+辨識可選「在手機本機完成」(免設定、免網路)或「雲端辨識」(需自備你自己的免費
+Google Gemini API 金鑰,可在 Google AI Studio 免費申請);看不清楚也能手動修改後再儲存。
 
 【血壓趨勢與報告】
 所有紀錄自動整理成趨勢圖,可依 7 天、30 天或自訂區間查看。
@@ -578,6 +579,10 @@ SilverBP 是一款專為長輩與家人設計的血壓管理 App。介面字大�
 Google Drive,並用回復碼或指紋/臉部解鎖保護隱私。Gemini 雲端 AI、Drive 備份、
 Health Connect 皆為選用功能,不開也能正常使用核心記錄。
 
+【選用的 Premium 進階】
+核心記錄永久免費,而且整個 App 沒有廣告。若選購 Premium,可額外解鎖:新增與管理
+多位家人成員、PDF 報告完整明細、AI 教練更完整的對話脈絡與週報文字敘述,以及無限筆血糖記錄。
+
 ⚠️ 本應用程式僅供健康記錄與個人參考,非醫療器材,不提供醫療診斷或治療建議。
 如有身體不適或數值異常,請諮詢專業醫療人員。
 ```
@@ -594,8 +599,9 @@ health coach, it keeps every day's health records easy to manage.
 
 Log BP by photo — no typing
 Point your phone at the monitor's screen and SilverBP reads the systolic,
-diastolic and pulse for you. Recognition can run on-device or in the cloud,
-and you can always correct a value before saving.
+diastolic and pulse for you. On-device recognition needs no setup; cloud
+recognition uses your own free Google Gemini API key (get one at no cost from
+Google AI Studio). You can always correct a value before saving.
 
 Trends & reports
 Readings turn into trend charts (7-day, 30-day or custom ranges). Generate a
@@ -632,6 +638,12 @@ By default everything stays on your phone. You can optionally enable AES-256
 at-rest encryption, or back up — encrypted — to your own Google Drive and
 protect it with a recovery code or fingerprint/face unlock. Gemini cloud AI,
 Drive backup and Health Connect are all optional; core logging works without them.
+
+Optional Premium
+Core logging is free forever, and the whole app is ad-free. Premium adds:
+multiple family-member profiles, full PDF report details, an expanded AI coach
+context (richer chat plus written weekly-report summaries), and unlimited
+blood-glucose logging.
 
 Not a medical device; for personal health reference only. It does not provide
 medical diagnosis or treatment advice. If you feel unwell or see abnormal

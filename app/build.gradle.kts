@@ -37,8 +37,8 @@ android {
         applicationId = "com.silverbp.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.7"
+        versionCode = 15
+        versionName = "2.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         androidResources.localeFilters += listOf("en", "zh-rTW")

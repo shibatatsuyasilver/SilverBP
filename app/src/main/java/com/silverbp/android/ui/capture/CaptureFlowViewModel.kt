@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
+import java.time.format.DateTimeParseException
 
 private const val TAG = "CaptureFlow"
 
@@ -77,7 +78,7 @@ class CaptureFlowViewModel(
                         systolic = r.systolic ?: 0,
                         diastolic = r.diastolic ?: 0,
                         pulse = r.pulse,
-                        timestamp = Instant.now(),
+                        timestamp = parseDeviceTimestamp(r.timestampOnDevice) ?: Instant.now(),
                         confidence = r.confidence ?: 0.8,
                         irregularHeartbeat = r.irregularHeartbeat ?: false,
                         photo = downsized,
@@ -97,6 +98,11 @@ class CaptureFlowViewModel(
                 _phase.value = CapturePhase.Idle
                 Log.i(TAG, "[Capture] phase -> confirming")
                 onSuccess()
+            } catch (e: BpExtractionError.InvalidReading) {
+                Log.i(TAG, "[Capture] invalidReading ${e.reason}")
+                _phase.value = CapturePhase.Error(context.getString(R.string.capture_err_invalid_reading))
+                // still allow downstream manual entry with photo attached
+                CaptureSessionHolder.put(BpReadingDraft(timestamp = Instant.now(), photo = downsized, source = Source.Manual))
             } catch (e: BpExtractionError.LowConfidence) {
                 Log.i(TAG, "[Capture] lowConfidence ${e.confidence}")
                 _phase.value = CapturePhase.Error(context.getString(R.string.capture_err_low_confidence, (e.confidence * 100).toInt()))
@@ -133,6 +139,18 @@ class CaptureFlowViewModel(
             }
             processCapturedImage(bmp, onSuccess)
         }
+    }
+
+    /** Parse the model's "YYYY-MM-DDTHH:mm" device stamp to an Instant (local zone); null on any failure. */
+    private fun parseDeviceTimestamp(raw: String?): Instant? {
+        val t = raw?.takeIf { it.isNotBlank() } ?: return null
+        return runCatching {
+            java.time.LocalDateTime.parse(t)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant()
+        }.recoverCatching {
+            if (it is DateTimeParseException) null else throw it
+        }.getOrNull()
     }
 
     private fun downsample(src: Bitmap, maxDim: Int): Bitmap {

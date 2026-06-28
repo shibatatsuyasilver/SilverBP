@@ -17,6 +17,11 @@ import kotlinx.coroutines.flow.map
  *
  * [upsert] is the canonical save path: it writes the session + all set logs in
  * one Room transaction via [StrengthWorkoutDao.insertSessionWithSets].
+ *
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
  */
 class StrengthWorkoutRepository(
     private val dao: StrengthWorkoutDao,
@@ -59,7 +64,10 @@ class StrengthWorkoutRepository(
         val now = System.currentTimeMillis()
         val writer = syncWriter
         val sessionHlc = writer?.nextHlc()
-        val sessionEntity = session.toEntity(createdAt = now, updatedAt = now).copy(
+        // Preserve the original creation time when editing an existing session;
+        // only stamp createdAt = now for a brand-new row. updatedAt is always now.
+        val createdAt = dao.sessionById(session.id)?.createdAt ?: now
+        val sessionEntity = session.toEntity(createdAt = createdAt, updatedAt = now).copy(
             hlcUpdatedAt = sessionHlc ?: "0",
         )
         val setEntities = session.items.flatMap { (_, sets) ->

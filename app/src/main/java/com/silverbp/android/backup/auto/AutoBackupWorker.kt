@@ -68,9 +68,14 @@ class AutoBackupWorker(
             // returns newest-first, so anything past index [KEEP_LAST-1] is
             // stale.
             runCatching {
-                val all = ServiceLocator.googleDriveBackupClient.listBackups(token)
-                all.drop(KEEP_LAST).forEach { stale ->
-                    ServiceLocator.googleDriveBackupClient.deleteBackup(stale, token)
+                val client = ServiceLocator.googleDriveBackupClient
+                // Only count + prune backups THIS app created (carrying our
+                // appProperties tag). listBackups also surfaces cross-platform
+                // backups (e.g. iOS, untagged) for the restore picker; those must
+                // never count toward our retention cap nor be deleted.
+                val ours = client.listBackups(token).filter { client.isDeletableBackup(it) }
+                ours.drop(KEEP_LAST).forEach { stale ->
+                    client.deleteBackup(stale, token)
                 }
             }.onFailure { Log.w(TAG, "retention prune failed (non-fatal)", it) }
 

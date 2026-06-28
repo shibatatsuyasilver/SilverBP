@@ -6,10 +6,12 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.silverbp.android.R
 import com.silverbp.android.capture.WeightCaptureSessionHolder
 import com.silverbp.android.core.WeightSource
 import com.silverbp.android.core.WeightUnit
 import com.silverbp.android.di.ServiceLocator
+import com.silverbp.android.recognition.BpExtractionError
 import com.silverbp.android.recognition.ExtractedWeight
 import com.silverbp.android.recognition.WeightRecognizerFactory
 import com.silverbp.android.recognition.decodeUriWithExif
@@ -84,13 +86,50 @@ class WeightCaptureViewModel(
                     _capturePhase.value = WeightCapturePhase.Idle
                     onReady()
                 }
+            } catch (e: BpExtractionError.NetworkError) {
+                Log.w(TAG, "[Capture] weight network error")
+                stageManualOnError(photoName, appContext.getString(R.string.capture_err_no_network))
+            } catch (e: BpExtractionError.ApiError) {
+                Log.w(TAG, "[Capture] weight api error ${e.code}")
+                val msg = when (e.code) {
+                    429 -> appContext.getString(R.string.capture_err_quota)
+                    401, 403 -> appContext.getString(R.string.capture_err_invalid_key)
+                    else -> appContext.getString(R.string.capture_err_cloud_http, e.code)
+                }
+                stageManualOnError(photoName, msg)
+            } catch (e: BpExtractionError.LowConfidence) {
+                Log.i(TAG, "[Capture] weight lowConfidence ${e.confidence}")
+                stageManualOnError(
+                    photoName,
+                    appContext.getString(R.string.capture_err_low_confidence, (e.confidence * 100).toInt()),
+                )
+            } catch (e: BpExtractionError) {
+                // InvalidJson / InvalidReading (out of range) / MissingFields /
+                // ModelNotLoaded — the read was unusable; keep the photo and drop to
+                // manual entry.
+                Log.w(TAG, "[Capture] weight read unusable: ${e.message}")
+                stageManualOnError(photoName, appContext.getString(R.string.weight_analyze_failed))
             } catch (t: Throwable) {
                 Log.w(TAG, "[Capture] weight analysis failed: ${t.message}", t)
-                // Analysis failed — still let the user log it manually with the photo.
-                WeightCaptureSessionHolder.put(manualDraft(photoName))
-                _capturePhase.value = WeightCapturePhase.Error(t.message ?: "analysis failed")
+                stageManualOnError(
+                    photoName,
+                    appContext.getString(
+                        R.string.capture_err_generic,
+                        t.message ?: appContext.getString(R.string.err_unknown),
+                    ),
+                )
             }
         }
+    }
+
+    /**
+     * Analysis failed — still stage a photo-carrying manual draft so the confirm
+     * screen opens with the photo, and surface [message] (mapped to a specific
+     * R.string.capture_err_*) on the capture overlay.
+     */
+    private fun stageManualOnError(photoName: String?, message: String) {
+        WeightCaptureSessionHolder.put(manualDraft(photoName))
+        _capturePhase.value = WeightCapturePhase.Error(message)
     }
 
     /** Decode a gallery Uri then run [analyzeBitmap]. */
@@ -99,7 +138,8 @@ class WeightCaptureViewModel(
             _capturePhase.value = WeightCapturePhase.Analyzing
             val bmp = withContext(Dispatchers.IO) { decodeUriWithExif(appContext, uri) }
             if (bmp == null) {
-                _capturePhase.value = WeightCapturePhase.Error("cannot load image")
+                _capturePhase.value =
+                    WeightCapturePhase.Error(appContext.getString(R.string.capture_err_load_photo))
                 return@launch
             }
             analyzeBitmap(bmp, onReady)
@@ -108,7 +148,11 @@ class WeightCaptureViewModel(
 
     // ---- draft mapping ----
 
-    /** A blank camera draft (manual values) that just carries the photo. */
+    /**
+     * A blank camera draft (manual values) that just carries the photo. The user
+     * types the value by hand here, so confidence is a full 1.0 (human-verified,
+     * not an OCR guess) and no low-confidence badge is shown downstream.
+     */
     private fun manualDraft(photoName: String?): WeightDraft = WeightDraft(
         source = WeightSource.Camera,
         photoFilename = photoName,
@@ -128,7 +172,10 @@ class WeightCaptureViewModel(
             valueText = value?.let { WeightDraft.formatValue(it, unit) } ?: "",
             displayUnit = unit,
             source = WeightSource.Camera,
-            confidence = e.confidence ?: 1.0,
+            // Carry the parser's ACTUAL confidence so a shaky read surfaces a
+            // low-confidence badge on confirm; never claim a fake 1.0. A model that
+            // omits the field falls back to 0.8 (mirrors the BP capture path).
+            confidence = e.confidence ?: 0.8,
             photoFilename = photoName,
         )
     }

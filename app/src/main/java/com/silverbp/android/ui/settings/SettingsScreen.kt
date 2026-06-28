@@ -407,10 +407,13 @@ fun SettingsScreen(
                 LocationPermissionRow()
             }
 
-            // Cross-device sync — opens the QR-pairing flow for adding a paired
-            // iPhone/Android peer over LAN. End-to-end Noise XK + SAS confirm.
-            // v1.0 隱藏配對入口：持續同步與 LWW 合併尚未完成，正式版先不開放，
-            // 僅在開發版 (BuildConfig.DEBUG) 顯示以便繼續開發。
+            // Cross-device sync — opens the QR-pairing flow plus the paired-device
+            // "sync now" list for an iPhone/Android peer over LAN (Noise XK + SAS).
+            // Still DEBUG-only: the data-safety hardening (HLC persistence,
+            // orphan-safe watermark, mutation HLC stamping) AND background re-sync
+            // are done, but the LAN rendezvous still needs two-physical-device
+            // validation and the iOS peer parity isn't shipped — so it stays out of
+            // release. Sideload a debug build on both devices to test.
             if (BuildConfig.DEBUG) {
                 StandardCard(title = stringResource(R.string.settings_sync_section)) {
                     SettingsNavRow(

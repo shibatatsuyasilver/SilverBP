@@ -1,10 +1,12 @@
 package com.silverbp.android.health
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.health.connect.client.HealthConnectClient
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -79,7 +81,10 @@ class WeightSyncWorker(
 
         var anyFailure = false
 
-        // 1. Write retry — only when the write permission is granted.
+        // 1. Write retry — gated ONLY on the WRITE permission, deliberately NOT
+        // on the Android 15+ background-read grant: mirroring locally-created
+        // rows UP to Health Connect must keep working for a user who granted
+        // WRITE but not the background-read permission.
         if (bridge.hasWritePermission()) {
             // findUnmirrored() is owner-scoped in the repository (only the owner's
             // weight is ever mirrored); non-owner rows are hcRecordId-null by
@@ -104,10 +109,14 @@ class WeightSyncWorker(
         }
 
         // 2. Import foreign WeightRecords — only when the read permission is
-        // granted. Capture the window start BEFORE the read and persist it only
+        // granted AND, on Android 15+, the background-read permission is too: a
+        // WorkManager job silently reads NOTHING without it, which would wrongly
+        // advance the cursor past unseen records. This background-read gate is
+        // the ONLY one that applies to the import half (never to the write retry
+        // above). Capture the window start BEFORE the read and persist it only
         // on success, so a transient failure (or a not-yet-granted permission)
         // never advances the cursor past unseen records.
-        if (bridge.hasReadPermission()) {
+        if (bridge.hasReadPermission() && canRunBackgroundHealthConnectReads()) {
             val since = readLastImport()
             val windowStart = Instant.now()
             val imported = runCatching {
@@ -124,12 +133,32 @@ class WeightSyncWorker(
                 Log.i(TAG, "[WeightSync] imported $imported reading(s)")
             }
         } else {
-            Log.i(TAG, "[WeightSync] weight read permission not granted; skipping import")
+            Log.i(TAG, "[WeightSync] weight read or background-read permission not granted; skipping import")
         }
 
         // Leftover write failures (and a failed import) retry with WorkManager
         // backoff; already-mirrored rows are stamped so they won't be re-attempted.
         return if (anyFailure) Result.retry() else Result.success()
+    }
+
+    /**
+     * Mirror of `canRunBackgroundHealthConnectReads` in the Settings Health
+     * Connect reconcile: Android 15+ (API 35) requires the background-read
+     * permission for a WorkManager job to read Health Connect at all — without
+     * it the read silently returns an empty set, which would wrongly advance the
+     * import cursor past unseen records. Below API 35 no extra grant is needed.
+     * Gates ONLY the import half; the write retry never depends on it.
+     */
+    private suspend fun canRunBackgroundHealthConnectReads(): Boolean {
+        if (Build.VERSION.SDK_INT < ANDROID_15_API) return true
+        val granted = runCatching {
+            if (HealthConnectClient.getSdkStatus(applicationContext) != HealthConnectClient.SDK_AVAILABLE) {
+                return false
+            }
+            HealthConnectClient.getOrCreate(applicationContext)
+                .permissionController.getGrantedPermissions()
+        }.getOrDefault(emptySet())
+        return granted.containsAll(ServiceLocator.healthConnectBridge.backgroundReadPermissions)
     }
 
     /**
@@ -157,6 +186,9 @@ class WeightSyncWorker(
     companion object {
         const val UNIQUE_NAME = "silverbp.health.weight-sync"
         private const val TAG = "WeightSyncWorker"
+
+        /** Android 15 (API 35); at/above this a background HC read needs the extra grant. */
+        private const val ANDROID_15_API = 35
 
         /** First-run look-back so a fresh install picks up recent scale data. */
         private const val INITIAL_BACKFILL_DAYS = 14L

@@ -8,7 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
 import com.silverbp.android.coach.CoachNotifier
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseNotification
@@ -19,7 +18,6 @@ import com.silverbp.android.ui.nav.DeepLinkBus
 import com.silverbp.android.ui.nav.Routes
 import com.silverbp.android.ui.theme.SilverBpTheme
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 // FragmentActivity (a ComponentActivity subclass) is required by
 // androidx.biometric.BiometricPrompt for the app-lock gate.
@@ -79,12 +77,13 @@ class MainActivity : FragmentActivity() {
     }
 
     /**
-     * Defer emission to the lifecycle scope so the AppNavHost LaunchedEffect
-     * collector has subscribed to [DeepLinkBus] by the time we emit —
-     * otherwise on cold start the SharedFlow(replay=0) drops the event.
+     * Forward the route to [DeepLinkBus]. The bus now retains the last route
+     * (replay = 1, issue #26), so emitting here from `onCreate` — before the
+     * NavHost collector has subscribed on cold start — is safe: the late
+     * subscriber still replays it. No lifecycle-scope deferral needed.
      */
     private fun emitDeepLink(route: String) {
-        lifecycleScope.launch { DeepLinkBus.emit(route) }
+        DeepLinkBus.emit(route)
     }
 
     override fun onDestroy() {

@@ -21,10 +21,17 @@ import java.util.UUID
  * stamps the returned record id back onto the session row. After a successful
  * write, [onSessionPersisted] fires so achievement evaluation can re-run
  * without the repo holding a hard dependency on the achievements module.
+ *
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
  */
 class ExerciseRepository(
     private val dao: ExerciseDao,
     private val healthConnect: HealthConnectExerciseBridge,
+    /** Coarse on/off for the Health Connect mirror; defaults off for tests. */
+    private val healthConnectEnabled: suspend () -> Boolean = { false },
     private val localSync: LocalSyncWriter? = null,
     private val onSessionPersisted: () -> Unit = {},
 ) {
@@ -74,7 +81,14 @@ class ExerciseRepository(
             },
         )
 
-        val hcId = healthConnect.write(initial, points)
+        // Best-effort one-way mirror to Health Connect, gated on the master
+        // toggle (the bridge independently re-checks the write permission). The
+        // enabled-check is wrapped so a settings read can't throw out of here.
+        val hcId = if (runCatching { healthConnectEnabled() }.getOrDefault(false)) {
+            healthConnect.write(initial, points)
+        } else {
+            null
+        }
         val saved = if (hcId != null && hcId != initial.hcRecordId) {
             val withHc = initial.copy(hcRecordId = hcId, updatedAt = Instant.now())
             dao.updateSession(
@@ -92,10 +106,18 @@ class ExerciseRepository(
 
     suspend fun delete(id: UUID) {
         val pk = id.toString()
+        val existing = dao.findById(pk)
         if (localSync != null) {
             localSync.delete(SyncEntityType.EXERCISE_SESSION, pk)
         } else {
             dao.delete(pk)
+        }
+        // Best-effort removal of the Health Connect mirror (same gating as the
+        // upsert mirror); only attempted when the session was actually mirrored.
+        if (existing?.hcRecordId != null &&
+            runCatching { healthConnectEnabled() }.getOrDefault(false)
+        ) {
+            healthConnect.delete(pk)
         }
         onSessionPersisted()
     }

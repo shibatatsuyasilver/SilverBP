@@ -195,7 +195,7 @@ fun GlucoseCaptureScreen(
         }
 
         // Phase overlay.
-        when (capture) {
+        when (val p = capture) {
             GlucoseCapturePhase.Analyzing -> Box(
                 modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center,
@@ -211,8 +211,11 @@ fun GlucoseCaptureScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Render the VM's granular error (#10) — the cloud HTTP / quota /
+                    // network / invalid-reading copy computed in GlucoseCaptureViewModel,
+                    // mirroring how CaptureScreen surfaces CaptureFlowViewModel's message.
                     Text(
-                        stringResource(R.string.glucose_analyze_failed),
+                        p.message,
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )

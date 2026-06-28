@@ -29,3 +29,24 @@ jobs:
 
       - name: Run unit tests and lint
         run: ./gradlew :app:testDebugUnitTest :sync:test :app:lintDebug
+
+      - name: Lint sync module
+        run: ./gradlew :sync:lintDebug
+
+      # Release-path coverage. assembleRelease/bundleRelease are intentionally
+      # NOT run here: app/build.gradle.kts throws GradleException for those tasks
+      # when KEYSTORE_* / MAPS_API_KEY are absent (no signing secrets in CI), so
+      # they cannot run without secrets. lintRelease still exercises the full
+      # release variant (manifest merge, minify/shrink config, release lint)
+      # without tripping that guard, giving us a secret-free release-path check.
+      - name: Lint release variant (release-path check, no signing secrets)
+        run: ./gradlew :app:lintRelease
+
+      # Room schema export validation: regenerate the schema JSONs (KSP runs as
+      # part of compileDebugKotlin) and fail if the committed app/schemas drifted.
+      - name: Verify Room schema export is committed
+        run: |
+          ./gradlew :app:compileDebugKotlin
+          git add -A app/schemas
+          git diff --cached --exit-code -- app/schemas \
+            || (echo "::error::Room schema export is out of date or a new schema JSON is uncommitted — run ./gradlew :app:compileDebugKotlin and commit app/schemas." && exit 1)

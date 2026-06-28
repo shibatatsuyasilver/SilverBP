@@ -44,13 +44,16 @@ fun RecentSessionsCard(
     sessions: List<ExerciseSession>,
     onSessionClick: (ExerciseSession) -> Unit,
     modifier: Modifier = Modifier,
+    titleRes: Int? = R.string.exercise_recent_sessions,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                stringResource(R.string.exercise_recent_sessions),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            if (titleRes != null) {
+                Text(
+                    stringResource(titleRes),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
             if (sessions.isEmpty()) {
                 Text(
                     stringResource(R.string.exercise_history_empty),

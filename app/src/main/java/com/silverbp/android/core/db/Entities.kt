@@ -110,12 +110,36 @@ data class TagEntity(
     val name: String,
 )
 
-@Entity(tableName = "reading_tag", primaryKeys = ["readingId", "tagId"])
+@Entity(
+    tableName = "reading_tag",
+    primaryKeys = ["readingId", "tagId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = BpReadingEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["readingId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = TagEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tagId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("readingId"), Index("tagId")],
+)
 data class ReadingTagCrossRef(
     val readingId: String,
     val tagId: String,
 )
 
+/**
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
+ */
 @Entity(
     tableName = "exercise_session",
     indices = [Index("startedAt"), Index("activityKind")],

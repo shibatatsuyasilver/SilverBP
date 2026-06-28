@@ -97,6 +97,7 @@ fun PairingScreen(
         factory = PairingViewModel.Factory(context),
     )
     val state by vm.state.collectAsState()
+    val pairedDevices by vm.pairedDevices.collectAsState()
 
     Scaffold(
         topBar = {
@@ -122,6 +123,9 @@ fun PairingScreen(
                 is PairingViewModel.State.Picker -> PickerStage(
                     onShowQr = vm::onShowQrTapped,
                     onScan = vm::onScanQrTapped,
+                    pairedDevices = pairedDevices,
+                    onSyncNow = vm::syncNow,
+                    onForget = vm::forgetPeer,
                 )
                 is PairingViewModel.State.ShowingQr -> ShowQrStage(
                     qrUrl = s.qrUrl,
@@ -156,6 +160,9 @@ fun PairingScreen(
 private fun PickerStage(
     onShowQr: () -> Unit,
     onScan: () -> Unit,
+    pairedDevices: List<com.silverbp.android.core.db.SyncDeviceEntity> = emptyList(),
+    onSyncNow: (com.silverbp.android.core.db.SyncDeviceEntity) -> Unit = {},
+    onForget: (com.silverbp.android.core.db.SyncDeviceEntity) -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -212,6 +219,36 @@ private fun PickerStage(
             icon = Icons.Default.QrCodeScanner,
             fillWidth = true,
         )
+        if (pairedDevices.isNotEmpty()) {
+            Spacer(Modifier.height(AppSpacing.sectionGap))
+            StandardCard(title = stringResource(R.string.settings_sync_paired_devices)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    pairedDevices.forEach { device ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = AppSpacing.itemGap),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = device.name.ifBlank { device.deviceId },
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            ExpressiveSecondaryButton(
+                                text = stringResource(R.string.settings_sync_forget),
+                                onClick = { onForget(device) },
+                            )
+                            Spacer(Modifier.width(AppSpacing.itemGap))
+                            ExpressivePrimaryButton(
+                                text = stringResource(R.string.settings_sync_now),
+                                onClick = { onSyncNow(device) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -22,6 +22,7 @@ import com.silverbp.android.core.db.SleepLogEntity
 import com.silverbp.android.core.db.SyncDao
 import com.silverbp.android.core.db.TombstoneEntity
 import com.silverbp.android.sync.engine.Hlc
+import com.silverbp.android.sync.engine.OrphanRecordException
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
 import com.silverbp.android.sync.engine.SyncValue
@@ -214,9 +215,12 @@ class RoutePointSyncMapper(
         if (record.isTombstone) return
         val p = record.payload
         val sessionId = (p[1] as? SyncValue.Text)?.value ?: return
-        // Skip if the parent session isn't present locally (FK would fail);
-        // ExerciseSession sync should run first.
-        if (dao.findById(sessionId) == null) return
+        // Defer if the parent session isn't present locally yet (FK would fail);
+        // ExerciseSession sync should run first. Throwing (vs silently dropping)
+        // keeps the peer watermark from advancing past this orphan (QA #5).
+        if (dao.findById(sessionId) == null) {
+            throw OrphanRecordException("route_point ${record.pk}: parent session $sessionId not present yet")
+        }
         val entity = RoutePointEntity(
             id = record.pk,
             sessionId = sessionId,
@@ -587,9 +591,12 @@ class CoachTaskSyncMapper(
         if (record.isTombstone) return
         val p = record.payload
         val planId = (p[1] as? SyncValue.Text)?.value ?: return
-        // FK to coach_plan — drop orphan tasks (parent will arrive in a
-        // subsequent round and the peer can re-emit then).
-        if (dao.findPlanById(planId) == null) return
+        // FK to coach_plan — defer orphan tasks. Throwing (vs silently dropping)
+        // holds the peer watermark so the task is re-shipped once the parent
+        // plan has landed, instead of being lost (QA #5).
+        if (dao.findPlanById(planId) == null) {
+            throw OrphanRecordException("coach_task ${record.pk}: parent plan $planId not present yet")
+        }
         val entity = CoachTaskEntity(
             id = record.pk,
             planId = planId,

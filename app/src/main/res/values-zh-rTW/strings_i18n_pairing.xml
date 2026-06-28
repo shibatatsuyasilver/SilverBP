@@ -31,4 +31,9 @@
     <string name="pairing_done">完成</string>
     <string name="pairing_retry">重試</string>
     <string name="pairing_qr_cd">配對 QR 碼</string>
+
+    <!-- 已配對裝置 / 立即同步清單 (PairingScreen picker) -->
+    <string name="settings_sync_paired_devices">已配對裝置</string>
+    <string name="settings_sync_now">立即同步</string>
+    <string name="settings_sync_forget">解除</string>
 </resources>

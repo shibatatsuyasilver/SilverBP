@@ -163,6 +163,8 @@ class PairingService(
         clock: HlcClock,
         source: SyncRecordSource,
         sink: SyncRecordSink,
+        getLocalLastHlcSeen: suspend () -> Hlc,
+        updateLocalLastHlcSeen: suspend (Hlc) -> Unit,
     ): Hlc {
         val transport = pendingTransport
             ?: error("runInitialSyncRound: no pending transport — call runHandshakeAsX first")
@@ -173,8 +175,8 @@ class PairingService(
                 clock = clock,
                 source = source,
                 sink = sink,
-                getLocalLastHlcSeen = { Hlc.ZERO },
-                updateLocalLastHlcSeen = { },
+                getLocalLastHlcSeen = getLocalLastHlcSeen,
+                updateLocalLastHlcSeen = updateLocalLastHlcSeen,
             ).run()
         } finally {
             // Tear down so a follow-up pairing starts fresh.

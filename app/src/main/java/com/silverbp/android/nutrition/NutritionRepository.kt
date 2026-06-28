@@ -22,6 +22,11 @@ import java.util.UUID
  * On upsert it also (best-effort) mirrors to Health Connect and rolls today's
  * sodium into the Coach [DietCheckEntity], so high-sodium days surface in
  * coaching. Both side effects degrade silently when disabled/unavailable.
+ *
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
  */
 class NutritionRepository(
     private val dao: FoodLogDao,

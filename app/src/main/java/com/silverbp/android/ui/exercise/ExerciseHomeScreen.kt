@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,6 +91,7 @@ fun ExerciseHomeScreen(
     onStartStrengthSession: () -> Unit,
     onCaptureMachine: () -> Unit,
     onOpenDetail: (String) -> Unit,
+    onOpenHistory: () -> Unit = {},
     onOpenMedals: () -> Unit,
     onOpenSummary: () -> Unit,
     onMeasureBp: () -> Unit = {},
@@ -170,6 +172,7 @@ fun ExerciseHomeScreen(
                     HubSection.History -> HistorySection(
                         state = state,
                         onOpenDetail = onOpenDetail,
+                        onOpenHistory = onOpenHistory,
                     )
                 }
             }
@@ -442,6 +445,7 @@ private fun CardioKindTile(
 private fun HistorySection(
     state: ExerciseHomeUiState,
     onOpenDetail: (String) -> Unit,
+    onOpenHistory: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -459,6 +463,14 @@ private fun HistorySection(
             sessions = state.recent,
             onSessionClick = { onOpenDetail(it.id.toString()) },
         )
+        if (state.allCount > state.recent.size) {
+            TextButton(
+                onClick = onOpenHistory,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(stringResource(R.string.exercise_history_view_all, state.allCount))
+            }
+        }
 
         Text(
             stringResource(R.string.hub_history_strength),

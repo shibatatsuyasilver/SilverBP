@@ -33,6 +33,6 @@
     <string name="pdf_disclaimer_title">Notes</string>
     <string name="pdf_disclaimer_1">This app is only a personal health-record aid, not a medical device. For any abnormal reading or health concern, please consult a healthcare professional.</string>
     <string name="pdf_disclaimer_2">Metric notes: Mean is the arithmetic mean; SD is the sample standard deviation, reflecting reading dispersion; ARV (Average Real Variability) is the mean of absolute differences between consecutive readings and better captures temporal variability (Mena et al., J Hypertens 2005; Wei et al., JAHA 2018).</string>
-    <string name="pdf_disclaimer_3">Home blood-pressure (HBPM) hypertension thresholds: Taiwan 2022 and ACC/AHA 2017 are ≥130/80 mmHg; ESH 2023 is ≥140/90 mmHg, with a treatment target of &lt;130/80.</string>
+    <string name="pdf_disclaimer_3">Home blood-pressure (HBPM) hypertension thresholds: Taiwan 2022 and ACC/AHA 2017 are ≥130/80 mmHg; ESH 2023 is ≥140/90 mmHg, with a reference value of &lt;130/80.</string>
     <string name="pdf_disclaimer_4">Powered by Gemma 3n vision model (Apache License 2.0).</string>
 </resources>

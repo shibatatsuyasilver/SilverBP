@@ -94,7 +94,7 @@ class ModelDownloader(
         emit(Progress(read, total, 1f))
     }.flowOn(Dispatchers.IO)
 
-    private fun sha256(file: File): String {
+    internal fun sha256(file: File): String {
         val md = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { ins ->
             val buf = ByteArray(64 * 1024)

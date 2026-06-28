@@ -106,6 +106,24 @@ class HealthConnectWeightBridge(
     }
 
     /**
+     * Best-effort removal of a deleted reading's HC mirror, keyed on the same
+     * `clientRecordId` (the reading id) that [write] stamped. Never throws.
+     * Only our own mirror carries that client id, so this never touches
+     * foreign records imported via [importSince].
+     */
+    override suspend fun delete(readingId: String) {
+        val c = client() ?: return
+        if (!hasWritePermission()) return
+        runCatching {
+            c.deleteRecords(
+                WeightRecord::class,
+                recordIdsList = emptyList(),
+                clientRecordIdsList = listOf(readingId),
+            )
+        }.onFailure { Log.w(TAG, "[HC] weight delete failed", it) }
+    }
+
+    /**
      * Import externally-measured weight (smart scales, other apps) recorded at
      * or after [since], mapped to [WeightReading]s with
      * [WeightSource.HealthConnect]. Mirrors the READ pattern in

@@ -274,7 +274,12 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
             }
             // 逐檔 runCatching — 單檔失敗不擋下一檔,盡量刪乾淨.
             withContext(Dispatchers.IO) {
+                // Only delete backups THIS app created (carrying our tag). A
+                // cross-platform backup (e.g. the user's iPhone backup, untagged)
+                // now also appears in listBackups but must be left untouched on
+                // disconnect — so filter to our own before deleting.
                 drive.listBackups(token)
+                    .filter { drive.isDeletableBackup(it) }
                     .map { file -> runCatching { drive.deleteBackup(file, token) }.isSuccess }
                     .all { it }
             }
@@ -357,13 +362,19 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
             }
-            // See note on import() — BackupManager.import rethrows, would
-            // otherwise crash the process. PhaseRow surfaces the failure.
+            // BackupManager.import sets Phase.Failure (→ PhaseRow) before it
+            // rethrows. But a failure BEFORE import — most importantly
+            // drive.downloadFile() throwing — would otherwise be swallowed here
+            // with no Phase update and no message, so the restore silently does
+            // nothing. Surface + log it so it's visible and diagnosable.
             runCatching {
                 withContext(Dispatchers.IO) {
                     val bytes = drive.downloadFile(fileId, token)
                     backupManager.import(ByteArrayInputStream(bytes), passphrase, mode)
                 }
+            }.onFailure { t ->
+                android.util.Log.e("BackupViewModel", "Drive restore failed", t)
+                emitError(t.localizedMessage ?: ctx.getString(R.string.backup_read_failed))
             }
         }
     }

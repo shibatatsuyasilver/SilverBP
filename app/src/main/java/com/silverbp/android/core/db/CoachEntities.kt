@@ -11,6 +11,12 @@ import androidx.room.PrimaryKey
  * sync via [CoachMappers].
  */
 
+/**
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
+ */
 @Entity(
     tableName = "coach_plan",
     indices = [Index("weekStart")],
@@ -26,6 +32,12 @@ data class CoachPlanEntity(
     val hlcUpdatedAt: String = "0",
 )
 
+/**
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
+ */
 @Entity(
     tableName = "coach_task",
     foreignKeys = [
@@ -55,6 +67,12 @@ data class CoachTaskEntity(
     val hlcUpdatedAt: String = "0",
 )
 
+/**
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
+ */
 @Entity(tableName = "sleep_log")
 data class SleepLogEntity(
     /** Day start at local midnight, epoch-millis. Doubles as the natural primary key. */
@@ -80,6 +98,14 @@ data class DietCheckEntity(
 
 @Entity(
     tableName = "medication_dose",
+    foreignKeys = [
+        ForeignKey(
+            entity = MedicationEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["medicationId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
     indices = [Index("dayStart"), Index("medicationId")],
 )
 data class MedicationDoseEntity(

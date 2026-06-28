@@ -21,6 +21,9 @@ import java.util.UUID
 interface GlucoseHealthConnectBridge {
     /** Write one reading; returns the HC record id on success, null on any failure. */
     suspend fun write(reading: GlucoseReading): String?
+
+    /** Remove a reading's HC mirror by its client record id; no-op on any failure. */
+    suspend fun delete(readingId: String)
 }
 
 /**
@@ -117,10 +120,20 @@ class GlucoseRepository(
 
     suspend fun delete(id: UUID) {
         val pk = id.toString()
+        val existing = dao.findById(pk)
         if (localSync != null) {
             localSync.delete(SyncEntityType.GLUCOSE_READING, pk)
         } else {
             dao.delete(pk)
+        }
+        // Best-effort removal of the Health Connect mirror (same gating as the
+        // upsert mirror); only attempted when the reading was actually mirrored.
+        // Non-owner rows always carry hcRecordId == null, so this is inherently
+        // owner-only — no extra member check needed.
+        if (existing?.hcRecordId != null && healthConnect != null &&
+            runCatching { healthConnectEnabled() }.getOrDefault(false)
+        ) {
+            healthConnect.delete(pk)
         }
     }
 

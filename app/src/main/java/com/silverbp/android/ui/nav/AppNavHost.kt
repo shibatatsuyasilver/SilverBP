@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -66,12 +67,14 @@ import com.silverbp.android.ui.confirm.ConfirmReadingScreen
 import com.silverbp.android.ui.confirm.ConfirmWeightScreen
 import com.silverbp.android.ui.data.DataHubScreen
 import com.silverbp.android.ui.exercise.ExerciseDetailScreen
+import com.silverbp.android.ui.exercise.ExerciseHistoryScreen
 import com.silverbp.android.ui.exercise.ExerciseHomeScreen
 import com.silverbp.android.ui.exercise.ExerciseSessionScreen
 import com.silverbp.android.ui.exercise.ExerciseSummaryScreen
 import com.silverbp.android.ui.exercise.LocalStrengthMeasureBp
 import com.silverbp.android.ui.exercise.machine.MachineCaptureScreen
 import com.silverbp.android.ui.exercise.machine.MachineConfirmScreen
+import com.silverbp.android.ui.history.DateRange
 import com.silverbp.android.ui.member.MemberManagementScreen
 import com.silverbp.android.ui.nutrition.BarcodeScanScreen
 import com.silverbp.android.ui.nutrition.NutritionConfirmScreen
@@ -143,10 +146,25 @@ fun AppNavHost() {
         }
     }
 
+    // Gate precedence (issue #32): deep-link handling and the live-session
+    // redirect below must yield to the onboarding / model-choice / Google-link
+    // gates above so a gate is never bypassed or trapped. A gate is "pending"
+    // while settings are still loading (rootSettings == null) or any gate wants
+    // to navigate. While pending we neither collect deep links nor honour the
+    // redirect; DeepLinkBus.replay = 1 retains a deep link that arrived during a
+    // gate so the collector picks it up the moment gates clear.
+    val gatePending: Boolean = rootSettings == null ||
+        needsOnboarding == true ||
+        needsModelChoice == true ||
+        needsGoogleSignIn == true
+
     // Notification tap → navigate root-level sub-routes here; tab routes are
     // handled inside HomeWithTabs (inner nav). DeepLinkBus is a SharedFlow so
-    // both layers receive each event.
-    LaunchedEffect(Unit) {
+    // both layers receive each event. Keyed on gatePending: while a gate is
+    // pending we don't subscribe at all (so the retained route stays buffered);
+    // once gates clear the collector starts and the replayed route fires.
+    LaunchedEffect(gatePending) {
+        if (gatePending) return@LaunchedEffect
         DeepLinkBus.routes.collect { route ->
             when (route) {
                 Routes.COACH_WEEKLY_REPORT,
@@ -159,6 +177,9 @@ fun AppNavHost() {
                     // even if the user was deep in another modal.
                     rootNav.popBackStack(Routes.HOME, inclusive = false)
                     rootNav.navigate(route)
+                    // Clear the retained route so a config-change re-subscribe
+                    // doesn't replay and re-navigate to it.
+                    DeepLinkBus.consume()
                 }
             }
         }
@@ -172,10 +193,16 @@ fun AppNavHost() {
     // since finished onboarding, so no gate check is needed. Cold start after a
     // kill is a no-op here (the store is empty until the notification deep-link
     // self-heals it), so this never fights the HOME start destination.
+    // Hold the latest gatePending for the long-lived lifecycle observer below
+    // (it's registered once on Unit, so a plain capture would go stale).
+    val gatePendingForRedirect = rememberUpdatedState(gatePending)
     DisposableEffect(Unit) {
         val owner = ProcessLifecycleOwner.get()
         val observer = LifecycleEventObserver { _, event ->
             if (event != Lifecycle.Event.ON_START) return@LifecycleEventObserver
+            // Issue #32: never fight a pending gate — defer the redirect until
+            // onboarding / model / Google-link gates are satisfied.
+            if (gatePendingForRedirect.value) return@LifecycleEventObserver
             val live = ServiceLocator.exerciseLiveStore.flow.value ?: return@LifecycleEventObserver
             if (live.runState != RunState.Finished &&
                 rootNav.currentDestination?.route != Routes.EXERCISE_SESSION
@@ -189,7 +216,7 @@ fun AppNavHost() {
     }
 
     NavHost(navController = rootNav, startDestination = Routes.HOME) {
-        composable(Routes.HOME) { HomeWithTabs(rootNav) }
+        composable(Routes.HOME) { HomeWithTabs(rootNav, gatePending) }
         composable(Routes.ONBOARDING) {
             OnboardingNicknameScreen(
                 onCompleted = {
@@ -357,6 +384,12 @@ fun AppNavHost() {
                 onDeleted = { rootNav.popBackStack() },
             )
         }
+        composable(Routes.EXERCISE_HISTORY) {
+            ExerciseHistoryScreen(
+                onBack = { rootNav.popBackStack() },
+                onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
+            )
+        }
         composable(Routes.MEDALS) {
             MedalsScreen(onBack = { rootNav.popBackStack() })
         }
@@ -476,7 +509,7 @@ fun AppNavHost() {
 }
 
 @Composable
-private fun HomeWithTabs(rootNav: NavHostController) {
+private fun HomeWithTabs(rootNav: NavHostController, gatePending: Boolean) {
     val tabsNav = rememberNavController()
     val backstack by tabsNav.currentBackStackEntryAsState()
     val currentRoute = backstack?.destination?.route ?: TabDestination.Today.route
@@ -489,8 +522,11 @@ private fun HomeWithTabs(rootNav: NavHostController) {
     }
 
     // Notification tap → switch to Coach tab. Sub-routes are handled by the
-    // outer NavHost; here we only honour the tab route.
-    LaunchedEffect(Unit) {
+    // outer NavHost; here we only honour the tab route. Keyed on gatePending so
+    // the tab-switch deep link also yields to the onboarding gates (issue #32);
+    // DeepLinkBus.replay = 1 keeps the route until gates clear.
+    LaunchedEffect(gatePending) {
+        if (gatePending) return@LaunchedEffect
         DeepLinkBus.routes.collect { route ->
             if (route == TabDestination.Coach.route) {
                 tabsNav.navigate(TabDestination.Coach.route) {
@@ -498,6 +534,9 @@ private fun HomeWithTabs(rootNav: NavHostController) {
                     launchSingleTop = true
                     restoreState = true
                 }
+                // Clear the retained route so a config-change re-subscribe
+                // doesn't replay and re-switch tabs.
+                DeepLinkBus.consume()
             }
         }
     }
@@ -582,6 +621,10 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
         // is right there. Unified history isn't type-filterable (it's one combined
         // list), so both section affordances land on the same place.
         val openHistory: () -> Unit = {
+            // Issue #30: a "今天 N 筆" tap should open the Data tab already scoped
+            // to today, so set the shared 紀錄/分析 range to Today before switching
+            // tabs (the UnifiedHistory + 分析 view-models read this store live).
+            ServiceLocator.dataRangeFilterStore.set(DateRange.Today)
             tabsNav.navigate(TabDestination.Data.route) {
                 popUpTo(TabDestination.Today.route) { saveState = true }
                 launchSingleTop = true
@@ -641,6 +684,7 @@ private fun NavGraphBuilder.tabsGraph(rootNav: NavHostController, tabsNav: NavHo
                 onStartStrengthSession = { rootNav.navigate(Routes.STRENGTH_SESSION) },
                 onCaptureMachine = { rootNav.navigate(Routes.MACHINE_CAPTURE) },
                 onOpenDetail = { id -> rootNav.navigate(Routes.exerciseDetail(id)) },
+                onOpenHistory = { rootNav.navigate(Routes.EXERCISE_HISTORY) },
                 onOpenMedals = { rootNav.navigate(Routes.MEDALS) },
                 // Finished 檢查點的還原路徑:跳過運動畫面,直接進摘要頁儲存。
                 onOpenSummary = { rootNav.navigate(Routes.EXERCISE_SUMMARY) },

@@ -143,16 +143,39 @@ class HealthConnectExerciseBridge(private val context: Context) {
                 // 1.1.0 stable made the raw Metadata constructor internal:
                 // recording method is now chosen via a factory. clientRecordId
                 // = our session id makes Health Connect upsert (not duplicate)
-                // when the same session is edited and re-saved.
+                // when the same session is edited and re-saved. HC only replaces
+                // an existing clientRecordId when the version increases, so
+                // clientRecordVersion = updatedAt (re-stamped on every upsert)
+                // makes edits update the mirror instead of being dropped as a
+                // stale duplicate.
                 metadata = Metadata.activelyRecorded(
                     device = Device(type = Device.TYPE_PHONE),
                     clientRecordId = session.id.toString(),
+                    clientRecordVersion = session.updatedAt.toEpochMilli(),
                 ),
             )
             c.insertRecords(listOf(record)).recordIdsList.firstOrNull()
         }.onFailure { t ->
             Log.w(TAG, "[HealthConnect] write failed", t)
         }.getOrNull()
+    }
+
+    /**
+     * Best-effort removal of a deleted session's HC mirror, keyed by the
+     * [clientRecordId] we wrote (= the session id). Never throws.
+     */
+    suspend fun delete(sessionId: String) {
+        val c = client() ?: return
+        if (!hasPermissions()) return
+        runCatching {
+            c.deleteRecords(
+                ExerciseSessionRecord::class,
+                recordIdsList = emptyList(),
+                clientRecordIdsList = listOf(sessionId),
+            )
+        }.onFailure { t ->
+            Log.w(TAG, "[HealthConnect] delete failed", t)
+        }
     }
 
     private companion object { const val TAG = "HCExerciseBridge" }

@@ -112,10 +112,13 @@ private fun scheduleHealthConnectWork(context: Context, granted: Set<String>) {
         GlucoseSyncWorker.enqueue(context)
     }
     val weight = ServiceLocator.healthConnectWeightBridge
-    // WeightSyncWorker includes smart-scale import, so keep that mixed worker
-    // behind the optional background-read grant on Android 15+.
-    if (canRunBackgroundHealthConnectReads(granted) &&
-        (granted.containsAll(weight.writePermissions) || granted.containsAll(weight.readPermissions))
+    // WeightSyncWorker mixes two independent jobs, so its enqueue gate is the
+    // OR of the two: the write-retry half (push locally-created rows to HC)
+    // runs whenever WRITE is granted and must NOT depend on background-read;
+    // the smart-scale import half (read from HC) stays behind the optional
+    // background-read grant on Android 15+. Worker-side gates split the same way.
+    if (granted.containsAll(weight.writePermissions) ||
+        (canRunBackgroundHealthConnectReads(granted) && granted.containsAll(weight.readPermissions))
     ) {
         WeightSyncWorker.enqueue(context)
     }

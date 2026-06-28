@@ -15,12 +15,15 @@ import com.silverbp.android.core.member.MemberRepository
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -96,6 +99,20 @@ class UnifiedHistoryViewModel(
 
     private val glucoseUnitFlow = settings.flow.map { GlucoseUnit.fromRaw(it.glucoseUnit) }
 
+    // Emits the current local date and re-emits at each local midnight, so a screen
+    // left open across midnight recomputes its date range (e.g. DateRange.Today)
+    // without waiting for a data change. Cold — runs only while a stateIn flow that
+    // combines it is subscribed (WhileSubscribed below), so it is lifecycle-friendly.
+    private val todayFlow: Flow<LocalDate> = flow {
+        while (true) {
+            val zone = ZoneId.systemDefault()
+            val now = LocalDate.now(zone)
+            emit(now)
+            val nextMidnight = now.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            delay((nextMidnight - System.currentTimeMillis()).coerceAtLeast(1L))
+        }
+    }
+
     val state: StateFlow<UnifiedHistoryUiState> = combine(
         combine(
             currentMember.flow.flatMapLatest { bpRepo.observeAll(it) },
@@ -105,9 +122,10 @@ class UnifiedHistoryViewModel(
         rangeStore.range,
         sortFlow,
         guidelineFlow,
-        glucoseUnitFlow,
-    ) { (allBp, allGlucose, allWeight), range, sort, guideline, glucoseUnit ->
-        val today = LocalDate.now()
+        // Pair the display unit with the midnight-ticking date so "today" recomputes
+        // when the day rolls over (keeps the outer combine at five source flows).
+        combine(glucoseUnitFlow, todayFlow) { unit, today -> unit to today },
+    ) { (allBp, allGlucose, allWeight), range, sort, guideline, (glucoseUnit, today) ->
         val zone = ZoneId.systemDefault()
 
         val bpByDate = allBp

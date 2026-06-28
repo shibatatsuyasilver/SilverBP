@@ -1,7 +1,9 @@
 package com.silverbp.android.coach
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import androidx.health.connect.client.HealthConnectClient
 import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -33,8 +35,13 @@ class NutritionBackfillWorker(
         if (!s.enableCoach || !s.dietTrackingEnabled) return Result.success()
 
         val bridge = HealthConnectBridge(applicationContext)
-        if (!bridge.hasNutritionReadPermission()) {
-            Log.i(TAG, "[NutritionBackfill] permission not granted; skipping")
+        // Execution-time gate (mirrors WeightSyncWorker's import half): an
+        // already-scheduled job — enqueued before this gate existed, or persisting
+        // across an OS upgrade to Android 15+ — must NOT read Health Connect without
+        // both the per-type read grant AND, on Android 15+, the background-read
+        // grant. Benign no-op (success, never retry) so it doesn't loop.
+        if (!bridge.hasNutritionReadPermission() || !canRunBackgroundHealthConnectReads()) {
+            Log.i(TAG, "[NutritionBackfill] read or background-read permission not granted; skipping")
             return Result.success()
         }
 
@@ -68,10 +75,31 @@ class NutritionBackfillWorker(
         }
     }
 
+    /**
+     * Mirror of WeightSyncWorker's background-read gate: Android 15+ (API 35)
+     * requires the background-read permission for a WorkManager job to read
+     * Health Connect at all — without it the read silently returns nothing.
+     * Below API 35 no extra grant is needed.
+     */
+    private suspend fun canRunBackgroundHealthConnectReads(): Boolean {
+        if (Build.VERSION.SDK_INT < ANDROID_15_API) return true
+        val granted = runCatching {
+            if (HealthConnectClient.getSdkStatus(applicationContext) != HealthConnectClient.SDK_AVAILABLE) {
+                return false
+            }
+            HealthConnectClient.getOrCreate(applicationContext)
+                .permissionController.getGrantedPermissions()
+        }.getOrDefault(emptySet())
+        return granted.containsAll(ServiceLocator.healthConnectBridge.backgroundReadPermissions)
+    }
+
     companion object {
         const val UNIQUE_NAME = "silverbp.coach.nutrition-backfill"
         private const val BACKFILL_DAYS = 14
         private const val TAG = "NutritionBackfillWorker"
+
+        /** Android 15 (API 35); at/above this a background HC read needs the extra grant. */
+        private const val ANDROID_15_API = 35
 
         fun enqueue(context: Context) {
             val req = OneTimeWorkRequestBuilder<NutritionBackfillWorker>().build()

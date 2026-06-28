@@ -13,6 +13,11 @@ import androidx.room.PrimaryKey
  * independent. `hlcUpdatedAt` carries cross-device LWW; `hcRecordId` is the
  * device-local Health Connect mirror id (never synced — a fresh device
  * re-mirrors and gets its own id, mirroring BpReadingEntity).
+ *
+ * (v1.0) Owner-only by design per roadmap section 3-2 — these operate on the
+ * device owner's own sensor / Health Connect / coaching data and are
+ * intentionally NOT member-scoped (no memberId). Do not member-scope without a
+ * product decision.
  */
 @Entity(tableName = "food_log", indices = [Index("timestamp")])
 data class FoodLogEntity(

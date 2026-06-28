@@ -42,7 +42,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         GlucoseReadingEntity::class,
         WeightLogEntity::class,
     ],
-    version = 21,
+    version = 22,
     exportSchema = true,
 )
 abstract class SilverBpDatabase : RoomDatabase() {
@@ -114,6 +114,7 @@ abstract class SilverBpDatabase : RoomDatabase() {
                 MIGRATION_18_19,
                 MIGRATION_19_20,
                 MIGRATION_20_21,
+                MIGRATION_21_22,
             )
 
             // At-rest encryption is opt-in. The marker lives in the Keystore-
@@ -1053,5 +1054,107 @@ internal val MIGRATION_20_21: Migration = object : Migration(20, 21) {
             "ALTER TABLE `medication_dose` ADD COLUMN `scheduledMinute` INTEGER NOT NULL DEFAULT 0",
         )
         db.execSQL("ALTER TABLE `medication_dose` ADD COLUMN `scheduleId` TEXT")
+    }
+}
+
+/**
+ * v21 → v22: add the missing referential-integrity foreign keys (data-safety
+ * fix). `medication_dose` gains an FK to `medication` (child `medicationId`);
+ * `reading_tag` gains FKs to both `bp_reading` (child `readingId`) and `tag`
+ * (child `tagId`) — all ON DELETE CASCADE. Previously neither table declared any
+ * FK, so deleting a medication / reading / tag left orphan child rows behind.
+ *
+ * SQLite can't ALTER a table to add a constraint, so each table is rebuilt with
+ * the standard recreate recipe: CREATE `x_new` (… + FK clause) → INSERT … SELECT
+ * FROM `x` → DROP TABLE `x` → ALTER `x_new` RENAME TO `x` → recreate indices.
+ * The copy step DROPS pre-existing orphan rows (the `WHERE EXISTS(parent)`
+ * guard): this repairs corruption already on disk AND keeps the new constraint
+ * from being violated by historical orphans during the rebuild.
+ *
+ * Column order / NOT NULL mirror Room's render of the entity fields (see the v21
+ * schema): `scheduledMinute` and `hlcUpdatedAt` are plain NOT NULL with no SQL
+ * default on a full table re-create, as elsewhere. Room runs each migration in
+ * its own transaction with FK enforcement already deferred, so no PRAGMA
+ * foreign_keys toggling is needed (no existing migration does it).
+ *
+ * SQL must match Room's generated schema byte-for-byte; see
+ * `app/schemas/.../SilverBpDatabase/22.json` after building.
+ */
+internal val MIGRATION_21_22: Migration = object : Migration(21, 22) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // medication_dose → FK medicationId REFERENCES medication(id) CASCADE.
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_dose_new` (
+              `id` TEXT NOT NULL,
+              `dayStart` INTEGER NOT NULL,
+              `medicationId` TEXT NOT NULL,
+              `scheduledHour` INTEGER NOT NULL,
+              `scheduledMinute` INTEGER NOT NULL,
+              `scheduleId` TEXT,
+              `taken` INTEGER NOT NULL,
+              `updatedAt` INTEGER NOT NULL,
+              `hlcUpdatedAt` TEXT NOT NULL,
+              PRIMARY KEY(`id`),
+              FOREIGN KEY(`medicationId`) REFERENCES `medication`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        // Keep only doses whose parent medication still exists (drop orphans).
+        db.execSQL(
+            """
+            INSERT INTO `medication_dose_new` (`id`, `dayStart`, `medicationId`, `scheduledHour`,
+              `scheduledMinute`, `scheduleId`, `taken`, `updatedAt`, `hlcUpdatedAt`)
+            SELECT `id`, `dayStart`, `medicationId`, `scheduledHour`, `scheduledMinute`,
+              `scheduleId`, `taken`, `updatedAt`, `hlcUpdatedAt`
+            FROM `medication_dose`
+            WHERE EXISTS(SELECT 1 FROM `medication` WHERE `medication`.`id` = `medication_dose`.`medicationId`)
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `medication_dose`")
+        db.execSQL("ALTER TABLE `medication_dose_new` RENAME TO `medication_dose`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_dose_dayStart` " +
+                "ON `medication_dose` (`dayStart`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_dose_medicationId` " +
+                "ON `medication_dose` (`medicationId`)"
+        )
+
+        // reading_tag → FK readingId REFERENCES bp_reading(id) + tagId REFERENCES tag(id), both CASCADE.
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `reading_tag_new` (
+              `readingId` TEXT NOT NULL,
+              `tagId` TEXT NOT NULL,
+              PRIMARY KEY(`readingId`, `tagId`),
+              FOREIGN KEY(`readingId`) REFERENCES `bp_reading`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE,
+              FOREIGN KEY(`tagId`) REFERENCES `tag`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        // Keep only cross-refs whose reading AND tag parents both still exist.
+        db.execSQL(
+            """
+            INSERT INTO `reading_tag_new` (`readingId`, `tagId`)
+            SELECT `readingId`, `tagId` FROM `reading_tag`
+            WHERE EXISTS(SELECT 1 FROM `bp_reading` WHERE `bp_reading`.`id` = `reading_tag`.`readingId`)
+              AND EXISTS(SELECT 1 FROM `tag` WHERE `tag`.`id` = `reading_tag`.`tagId`)
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `reading_tag`")
+        db.execSQL("ALTER TABLE `reading_tag_new` RENAME TO `reading_tag`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reading_tag_readingId` " +
+                "ON `reading_tag` (`readingId`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reading_tag_tagId` " +
+                "ON `reading_tag` (`tagId`)"
+        )
     }
 }

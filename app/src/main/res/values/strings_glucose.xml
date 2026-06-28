@@ -80,5 +80,8 @@
     <string name="glucose_readings_logged">%1$d glucose readings logged</string>
     <string name="glucose_trend_title">Glucose trend</string>
     <string name="glucose_context_distribution_title">By timing</string>
+    <string name="glucose_unit_confirm_title">Confirm the unit</string>
+    <string name="glucose_unit_confirm_body">We couldn\'t read the unit clearly. Confirm this reading is in %1$s, or switch the unit below before saving — a wrong unit changes the value about 18×.</string>
+    <string name="glucose_unit_confirm_action">%1$s is correct</string>
 
 </resources>

@@ -26,6 +26,15 @@ object GlucoseResponseParser {
     /** Confidence ceiling when the claimed unit conflicts with the numeric range. */
     private const val CONFLICT_MAX_CONFIDENCE = 0.4
 
+    // Plausible meter ranges per unit (#17). Generous on purpose — a pre-save sanity
+    // gate that only rejects physiologically impossible values; the confirm screen
+    // applies the tighter editable-field range. A value outside its (resolved) unit's
+    // range is almost always a misread digit/decimal and must not reach save.
+    private const val MGDL_VALID_MIN = 10.0
+    private const val MGDL_VALID_MAX = 1000.0
+    private const val MMOL_VALID_MIN = 0.5
+    private const val MMOL_VALID_MAX = 55.0
+
     fun parse(raw: String): ExtractedGlucose {
         val cleaned = stripFences(raw)
         val lo = cleaned.indexOf('{')
@@ -40,7 +49,25 @@ object GlucoseResponseParser {
         // manual entry (mirrors NutritionResponseParser's empty check). A glucose
         // read is useless without a value.
         val value = parsed.value ?: throw BpExtractionError.MissingFields
-        return crossCheckUnit(parsed, value)
+        val checked = crossCheckUnit(parsed, value)
+        // #17: reject implausible values against the resolved unit before they reach
+        // the confirm screen — the caller then routes to manual entry with the photo.
+        validateRange(checked.unit, value)
+        return checked
+    }
+
+    /**
+     * #17 — guard the parsed [value] against [unit]'s plausible meter range, throwing
+     * [BpExtractionError.InvalidReading] when it is impossible. A null/unknown unit is
+     * treated as mg/dL (the downstream default); ambiguous values sit safely inside
+     * both ranges so this never fires on the overlap.
+     */
+    private fun validateRange(unit: String?, value: Double) {
+        val inRange = when (unit?.lowercase()) {
+            "mmol" -> value in MMOL_VALID_MIN..MMOL_VALID_MAX
+            else -> value in MGDL_VALID_MIN..MGDL_VALID_MAX
+        }
+        if (!inRange) throw BpExtractionError.InvalidReading("glucoseRange")
     }
 
     /**
@@ -75,7 +102,11 @@ object GlucoseResponseParser {
                 }
                 // Inferring (rather than reading) a unit is slightly less certain.
                 val conf = if (inferred != null) minOf(baseConfidence, 0.9) else baseConfidence
-                parsed.copy(unit = inferred, confidence = conf)
+                // #16: the unit was NOT read off the meter — it was inferred from the
+                // value's range, or will be defaulted to mg/dL downstream when the
+                // range is ambiguous. Flag it so the confirm screen forces an explicit
+                // unit confirmation before save.
+                parsed.copy(unit = inferred, confidence = conf, unitInferred = true)
             }
         }
     }

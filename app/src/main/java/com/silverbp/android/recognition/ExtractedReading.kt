@@ -17,6 +17,14 @@ sealed class BpExtractionError(message: String) : RuntimeException(message) {
     data object InvalidJson : BpExtractionError("invalidJSON")
     data object MissingFields : BpExtractionError("missingFields")
     data class LowConfidence(val confidence: Double) : BpExtractionError("lowConfidence:$confidence")
+
+    /**
+     * Parsed values are physiologically implausible (e.g. systolic ≤ diastolic,
+     * or a number well outside the device's measurable range). Shared across the
+     * BP / glucose / weight parsers as a pre-save sanity gate. [reason] is an
+     * internal short tag for logging — UI maps it to a localized message.
+     */
+    data class InvalidReading(val reason: String) : BpExtractionError("invalidReading:$reason")
     data object ModelNotLoaded : BpExtractionError("modelNotLoaded")
 
     /** No connectivity / DNS failure / timeout reaching the cloud API. */
