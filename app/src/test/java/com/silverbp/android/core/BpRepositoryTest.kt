@@ -1,10 +1,12 @@
 package com.silverbp.android.core
 
+import android.content.ContextWrapper
 import com.silverbp.android.core.db.BpDao
 import com.silverbp.android.core.db.BpReadingEntity
 import com.silverbp.android.core.db.MemberDao
 import com.silverbp.android.core.db.MemberEntity
 import com.silverbp.android.core.member.MemberRepository
+import com.silverbp.android.health.HealthConnectBpBridge
 import com.silverbp.android.sync.LocalSyncWriter
 import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.engine.SyncEntityType
@@ -107,6 +109,79 @@ class BpRepositoryTest {
         assertEquals(SyncEntityType.BP_READING to id.toString(), localSync.deleted.single())
     }
 
+    /**
+     * #14 delete→HC-mirror path (observable half). The refactored [BpRepository.delete]
+     * now loads `existing` first and, only when the row was actually mirrored AND a
+     * bridge is wired AND the master toggle is on, asks the bridge to remove the HC
+     * record. Here the row carries a non-null hcRecordId but no bridge is wired
+     * (`healthConnect == null`, the production default for these tests), so the
+     * HC-delete branch must short-circuit safely while the tombstone is still written.
+     *
+     * NOTE: the "bridge.delete IS invoked when enabled / NOT when disabled" half of
+     * #14 is not asserted here because [com.silverbp.android.health.HealthConnectBpBridge]
+     * is a final concrete class taking a non-null Context — it can't be faked or
+     * constructed in a pure JVM test (no mocking framework / Robolectric / all-open;
+     * unlike the [com.silverbp.android.core.GlucoseHealthConnectBridge] interface). It
+     * would become testable if the BP bridge were extracted to an interface like the
+     * glucose/weight bridges.
+     */
+    @Test
+    fun deleting_mirrored_reading_still_tombstones_when_no_bridge_wired() = runTest {
+        val bpDao = FakeBpDao()
+        val localSync = FakeLocalSyncWriter(Hlc.of(1_730_000_010_000L, 0, 0xABCDL).packed)
+        val repo = BpRepository(bpDao, ownerRepo(), localSync = localSync)
+        val id = UUID.randomUUID()
+        // Row already mirrored to Health Connect (carries an hcRecordId).
+        bpDao.seed(reading(id, ownerId, "abc").toEntityWith(ownerId, "abc"))
+
+        repo.delete(id)
+
+        assertEquals(SyncEntityType.BP_READING to id.toString(), localSync.deleted.single())
+    }
+
+    @Test
+    fun deleting_mirrored_reading_without_sync_writer_removes_row() = runTest {
+        val bpDao = FakeBpDao()
+        // No localSync and no bridge: delete() must fall back to dao.delete and the
+        // HC-delete branch must stay skipped even though the row was mirrored.
+        val repo = BpRepository(bpDao, ownerRepo())
+        val id = UUID.randomUUID()
+        bpDao.seed(reading(id, ownerId, "abc").toEntityWith(ownerId, "abc"))
+
+        repo.delete(id)
+
+        assertNull(bpDao.findById(id.toString()))
+    }
+
+    /**
+     * #14 delete→HC-mirror branch executed end-to-end. Wiring the REAL
+     * [HealthConnectBpBridge] (around a null-base context) takes the
+     * `existing.hcRecordId != null && bridge != null && enabled` path so the
+     * actual `healthConnect.delete(pk)` line runs — it can't reach Health
+     * Connect from a JVM test (client() == null), so it no-ops without throwing
+     * while the local tombstone is still written. (Asserting the HC record was
+     * really removed would need the bridge to be an interface so a recording
+     * fake could be injected.)
+     */
+    @Test
+    fun deleting_mirrored_reading_with_bridge_enabled_runs_hc_delete_branch() = runTest {
+        val bpDao = FakeBpDao()
+        val localSync = FakeLocalSyncWriter(Hlc.of(1_730_000_010_000L, 0, 0xABCDL).packed)
+        val repo = BpRepository(
+            bpDao,
+            ownerRepo(),
+            healthConnect = HealthConnectBpBridge(NoopContext()),
+            healthConnectEnabled = { true },
+            localSync = localSync,
+        )
+        val id = UUID.randomUUID()
+        bpDao.seed(reading(id, ownerId, "abc").toEntityWith(ownerId, "abc"))
+
+        repo.delete(id)
+
+        assertEquals(SyncEntityType.BP_READING to id.toString(), localSync.deleted.single())
+    }
+
     @Test
     fun upsert_rejects_out_of_range_values_before_persisting() = runTest {
         val bpDao = FakeBpDao()
@@ -151,6 +226,13 @@ class BpRepositoryTest {
     }
 
     // --- in-memory fakes ---
+
+    /**
+     * Null-base context: the real [HealthConnectBpBridge.client] resolves to
+     * null under the stubbed android.jar, so write/delete no-op without
+     * touching Health Connect. Same proven trick as `ModelDownloaderTest`.
+     */
+    private class NoopContext : ContextWrapper(null)
 
     private class FakeBpDao : BpDao {
         private val rows = mutableMapOf<String, BpReadingEntity>()
@@ -202,5 +284,6 @@ class BpRepositoryTest {
         override suspend fun delete(type: SyncEntityType, pk: String) {
             deleted += type to pk
         }
+        override suspend fun stamp(type: SyncEntityType, pk: String) {}
     }
 }

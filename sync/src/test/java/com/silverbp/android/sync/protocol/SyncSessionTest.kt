@@ -2,6 +2,7 @@ package com.silverbp.android.sync.protocol
 
 import com.silverbp.android.sync.engine.Hlc
 import com.silverbp.android.sync.engine.HlcClock
+import com.silverbp.android.sync.engine.OrphanRecordException
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.engine.SyncRecord
 import com.silverbp.android.sync.engine.SyncValue
@@ -178,6 +179,242 @@ class SyncSessionTest {
         assertEquals(1, sourceCalls)
         assertEquals(2, storeB.size)
         assertEquals(setOf("x-3", "x-4"), storeB.map { it.pk }.toSet())
+    }
+
+    @Test
+    fun deferred_orphan_holds_the_watermark_so_it_is_resent() = runTest {
+        val (deviceAChannel, deviceBChannel) = MemoryPipe.create()
+        val responderStatic = NoiseXk.generateKeyPair()
+        val initiatorStatic = NoiseXk.generateKeyPair()
+        val transports = coroutineScope {
+            val a = async {
+                runInitiator(
+                    handshake = NoiseXkHandshake(
+                        role = NoiseXkHandshake.Role.INITIATOR,
+                        localStatic = initiatorStatic,
+                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.publicKey),
+                    ),
+                    channel = deviceAChannel,
+                )
+            }
+            val b = async {
+                runResponder(
+                    handshake = NoiseXkHandshake(
+                        role = NoiseXkHandshake.Role.RESPONDER,
+                        localStatic = responderStatic,
+                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
+                    ),
+                    channel = deviceBChannel,
+                )
+            }
+            a.await() to b.await()
+        }
+        val (tA, tB) = transports
+
+        // A ships a parent and an orphan child; B applies the parent but its sink
+        // rejects the orphan (parent-not-present-yet) by throwing.
+        val parent = bpRecord(pk = "parent", physicalMs = 1_700_000_000_000L, nodeId = 1L)
+        val orphan = bpRecord(pk = "orphan", physicalMs = 1_700_000_000_900L, nodeId = 1L)
+        val storeA = mutableListOf(parent, orphan)
+
+        val bStore = mutableListOf<SyncRecord>()
+        var bCommitted: Hlc? = null
+
+        val sessionA = SyncSession(
+            transport = tA,
+            localDeviceId = "a",
+            clock = HlcClock(nodeId = 1L),
+            source = SyncRecordSource { peerHlc, _ -> storeA.filter { it.hlc > peerHlc } },
+            sink = SyncRecordSink { },
+            getLocalLastHlcSeen = { Hlc.ZERO },
+            updateLocalLastHlcSeen = { },
+        )
+        val sessionB = SyncSession(
+            transport = tB,
+            localDeviceId = "b",
+            clock = HlcClock(nodeId = 2L),
+            source = SyncRecordSource { _, _ -> emptyList() },
+            sink = SyncRecordSink { rec ->
+                if (rec.pk == "orphan") throw OrphanRecordException("parent of ${rec.pk} not present yet")
+                bStore.add(rec)
+            },
+            getLocalLastHlcSeen = { Hlc.ZERO },
+            updateLocalLastHlcSeen = { hlc -> bCommitted = hlc },
+        )
+
+        coroutineScope {
+            val ja = async { sessionA.run() }
+            val jb = async { sessionB.run() }
+            ja.await()
+            jb.await()
+        }
+
+        // The orphan was deferred (not stored)…
+        assertEquals(setOf("parent"), bStore.map { it.pk }.toSet())
+        // …and the watermark was HELD at the pre-round value, not advanced past
+        // the orphan — so the peer re-ships it next round (QA #5).
+        assertEquals(Hlc.ZERO, bCommitted)
+    }
+
+    @Test
+    fun unknown_record_type_holds_the_watermark_so_it_is_resent() = runTest {
+        val (deviceAChannel, deviceBChannel) = MemoryPipe.create()
+        val responderStatic = NoiseXk.generateKeyPair()
+        val initiatorStatic = NoiseXk.generateKeyPair()
+        val transports = coroutineScope {
+            val a = async {
+                runInitiator(
+                    handshake = NoiseXkHandshake(
+                        role = NoiseXkHandshake.Role.INITIATOR,
+                        localStatic = initiatorStatic,
+                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.publicKey),
+                    ),
+                    channel = deviceAChannel,
+                )
+            }
+            val b = async {
+                runResponder(
+                    handshake = NoiseXkHandshake(
+                        role = NoiseXkHandshake.Role.RESPONDER,
+                        localStatic = responderStatic,
+                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
+                    ),
+                    channel = deviceBChannel,
+                )
+            }
+            a.await() to b.await()
+        }
+        val (tA, tB) = transports
+
+        // A ships a known record and a record whose entity *type* this build can't
+        // map yet (a newer peer added it, e.g. a future `blob_meta`). B applies the
+        // known one but its sink raises UnknownRecordTypeException for the unmapped
+        // record, exactly like an unrecognised type would at the mapper boundary.
+        val known = bpRecord(pk = "known", physicalMs = 1_700_000_000_000L, nodeId = 1L)
+        val unknownType = bpRecord(pk = "future_blob_meta", physicalMs = 1_700_000_000_900L, nodeId = 1L)
+        val storeA = mutableListOf(known, unknownType)
+
+        val bStore = mutableListOf<SyncRecord>()
+        var bCommitted: Hlc? = null
+
+        val sessionA = SyncSession(
+            transport = tA,
+            localDeviceId = "a",
+            clock = HlcClock(nodeId = 1L),
+            source = SyncRecordSource { peerHlc, _ -> storeA.filter { it.hlc > peerHlc } },
+            sink = SyncRecordSink { },
+            getLocalLastHlcSeen = { Hlc.ZERO },
+            updateLocalLastHlcSeen = { },
+        )
+        val sessionB = SyncSession(
+            transport = tB,
+            localDeviceId = "b",
+            clock = HlcClock(nodeId = 2L),
+            source = SyncRecordSource { _, _ -> emptyList() },
+            sink = SyncRecordSink { rec ->
+                if (rec.pk == "future_blob_meta") {
+                    throw UnknownRecordTypeException("entity type for ${rec.pk} not mapped by this build")
+                }
+                bStore.add(rec)
+            },
+            getLocalLastHlcSeen = { Hlc.ZERO },
+            updateLocalLastHlcSeen = { hlc -> bCommitted = hlc },
+        )
+
+        coroutineScope {
+            val ja = async { sessionA.run() }
+            val jb = async { sessionB.run() }
+            ja.await()
+            jb.await()
+        }
+
+        // The unmapped-type record was deferred (not stored)…
+        assertEquals(setOf("known"), bStore.map { it.pk }.toSet())
+        // …and the watermark was HELD at the pre-round value, not advanced past the
+        // unknown-type record — so the peer re-ships it every round until a build
+        // that understands the type lands (Wave-1 #5), instead of skipping it forever.
+        assertEquals(Hlc.ZERO, bCommitted)
+    }
+
+    @Test
+    fun malformed_known_record_aborts_the_round_and_propagates() = runTest {
+        val (deviceAChannel, deviceBChannel) = MemoryPipe.create()
+        val responderStatic = NoiseXk.generateKeyPair()
+        val initiatorStatic = NoiseXk.generateKeyPair()
+        val transports = coroutineScope {
+            val a = async {
+                runInitiator(
+                    handshake = NoiseXkHandshake(
+                        role = NoiseXkHandshake.Role.INITIATOR,
+                        localStatic = initiatorStatic,
+                        remoteStatic = NoiseXk.publicKeyBytes(responderStatic.publicKey),
+                    ),
+                    channel = deviceAChannel,
+                )
+            }
+            val b = async {
+                runResponder(
+                    handshake = NoiseXkHandshake(
+                        role = NoiseXkHandshake.Role.RESPONDER,
+                        localStatic = responderStatic,
+                        remoteStatic = NoiseXk.publicKeyBytes(initiatorStatic.publicKey),
+                    ),
+                    channel = deviceBChannel,
+                )
+            }
+            a.await() to b.await()
+        }
+        val (tA, tB) = transports
+
+        // Unlike the orphan / unknown-type deferrals above, a *known* record that
+        // the sink chokes on with a generic exception must NOT be swallowed: it
+        // aborts the round and propagates, and the watermark is never committed.
+        val known = bpRecord(pk = "known", physicalMs = 1_700_000_000_000L, nodeId = 1L)
+        val malformed = bpRecord(pk = "malformed", physicalMs = 1_700_000_000_900L, nodeId = 1L)
+        val storeA = mutableListOf(known, malformed)
+
+        var bCommitted: Hlc? = null
+
+        val sessionA = SyncSession(
+            transport = tA,
+            localDeviceId = "a",
+            clock = HlcClock(nodeId = 1L),
+            source = SyncRecordSource { peerHlc, _ -> storeA.filter { it.hlc > peerHlc } },
+            sink = SyncRecordSink { },
+            getLocalLastHlcSeen = { Hlc.ZERO },
+            updateLocalLastHlcSeen = { },
+        )
+        val sessionB = SyncSession(
+            transport = tB,
+            localDeviceId = "b",
+            clock = HlcClock(nodeId = 2L),
+            source = SyncRecordSource { _, _ -> emptyList() },
+            sink = SyncRecordSink { rec ->
+                if (rec.pk == "malformed") {
+                    throw IllegalArgumentException("malformed payload for ${rec.pk}")
+                }
+            },
+            getLocalLastHlcSeen = { Hlc.ZERO },
+            updateLocalLastHlcSeen = { hlc -> bCommitted = hlc },
+        )
+
+        var thrown: Throwable? = null
+        try {
+            coroutineScope {
+                val ja = async { sessionA.run() }
+                val jb = async { sessionB.run() }
+                ja.await()
+                jb.await()
+            }
+        } catch (t: Throwable) {
+            thrown = t
+        }
+
+        // The generic failure propagated out of the round (it was not deferred)…
+        assertTrue(thrown != null)
+        // …and the watermark was never committed because the apply aborted partway,
+        // so nothing advanced past the bad record.
+        assertEquals(null, bCommitted)
     }
 
     // ---- helpers ----

@@ -199,6 +199,7 @@ class LwwGateIntegrationTest {
     }
 
     private class FakeSyncDao : SyncDao {
+        override suspend fun allDevices(): List<com.silverbp.android.core.db.SyncDeviceEntity> = emptyList()
         /** Controllable live-row hlc returned by [localRowHlc]. */
         var liveHlc: String? = null
         private val tombstones = mutableMapOf<Pair<String, String>, TombstoneEntity>()

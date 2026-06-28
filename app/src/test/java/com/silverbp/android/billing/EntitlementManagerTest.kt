@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -172,7 +173,86 @@ class EntitlementManagerTest {
         assertEquals(null, store.written)
     }
 
+    // -------- product filter + refresh contract + pending (#23/#24/#25) --------
+
+    @Test fun `a sub for a different product never grants Premium (forPremiumProduct filter, #23)`() {
+        // The Play SUBS query returns EVERY active sub on the account; an unrelated
+        // product (a different SKU / a shared Play account) must never grant OUR
+        // Premium. forPremiumProduct() is the single choke point that drops it.
+        val foreign = purchase("some_other_subscription", Purchase.PurchaseState.PURCHASED)
+        assertTrue(listOf(foreign).forPremiumProduct().isEmpty())
+        assertEquals(Entitlement.Free, activeEntitlementFromPurchases(listOf(foreign)))
+        // Control: our product PURCHASED still grants Premium even bundled with the
+        // foreign sub, proving the filter keeps ours and only drops the unrelated one.
+        val ours = purchase(PREMIUM_PRODUCT_ID, Purchase.PurchaseState.PURCHASED)
+        assertEquals(Entitlement.Premium, activeEntitlementFromPurchases(listOf(foreign, ours)))
+    }
+
+    @Test fun `refresh with only a foreign-product sub confirms a query yet resolves Free (#23)`() = runTest {
+        // End-to-end through the gateway's DEFAULT queryActiveEntitlement(): a
+        // PURCHASED sub for the wrong product is a CONFIRMED query (refresh==true)
+        // but maps to Free, so the manager does not promote to Premium.
+        val store = FakeStore(cached = "Free")
+        val gateway = FakePurchaseGateway(listOf(purchase("some_other_subscription", Purchase.PurchaseState.PURCHASED)))
+        val mgr = EntitlementManager(gateway, store, scope = TestScope(StandardTestDispatcher(testScheduler)))
+        val queried = mgr.refresh()
+        advanceUntilIdle()
+        assertTrue(queried) // Play WAS reached (a real, confirmed result)
+        assertEquals(Entitlement.Free, mgr.entitlement.value)
+    }
+
+    @Test fun `refresh returns false when Play is unavailable or throws, true on a confirmed query (#24)`() = runTest {
+        // Finding #24: "restore purchases" gates its success/empty message on this
+        // boolean so a STALE cache can never masquerade as a fresh restore. A false
+        // means "couldn't check" (→ Unavailable in PaywallViewModel), NOT "no sub".
+        fun mgr(g: BillingGateway) = EntitlementManager(
+            g, FakeStore(cached = "Premium"), scope = TestScope(StandardTestDispatcher(testScheduler)),
+        )
+        assertFalse(mgr(FakeGateway(live = null)).refresh())        // could-not-query (null)
+        assertFalse(mgr(FakeGateway(throwOnQuery = true)).refresh()) // thrown error → null path
+        assertTrue(mgr(FakeGateway(live = Entitlement.Free)).refresh())    // confirmed empty
+        assertTrue(mgr(FakeGateway(live = Entitlement.Premium)).refresh()) // confirmed premium
+    }
+
+    @Test fun `queryHasPendingPremiumPurchase surfaces a PENDING premium sub distinctly (#25)`() = runTest {
+        // Finding #25: a PENDING (slow card / cash / family-approval) purchase grants
+        // nothing yet, but is surfaced as "payment pending" rather than the
+        // misleading "no subscription found".
+        val pendingOurs = FakePurchaseGateway(listOf(purchase(PREMIUM_PRODUCT_ID, Purchase.PurchaseState.PENDING)))
+        assertTrue(pendingOurs.queryHasPendingPremiumPurchase())
+        assertEquals(Entitlement.Free, pendingOurs.queryActiveEntitlement()) // pending != active Premium
+
+        // A PURCHASED sub is active, not pending.
+        val purchasedOurs = FakePurchaseGateway(listOf(purchase(PREMIUM_PRODUCT_ID, Purchase.PurchaseState.PURCHASED)))
+        assertFalse(purchasedOurs.queryHasPendingPremiumPurchase())
+        assertEquals(Entitlement.Premium, purchasedOurs.queryActiveEntitlement())
+
+        // A PENDING sub for a DIFFERENT product is filtered out — no spurious note.
+        val pendingForeign = FakePurchaseGateway(listOf(purchase("some_other_subscription", Purchase.PurchaseState.PENDING)))
+        assertFalse(pendingForeign.queryHasPendingPremiumPurchase())
+
+        // "Could not query" (null) yields false, never a spurious pending note.
+        assertFalse(FakePurchaseGateway(null).queryHasPendingPremiumPurchase())
+    }
+
     // ---------------------------------------------------------------- fakes ----
+
+    /**
+     * Build a real [Purchase] from raw Play JSON so the [forPremiumProduct] /
+     * [activeEntitlementFromPurchases] choke point (and the default gateway
+     * methods) run for real on the JVM (org.json is the genuine impl in unit
+     * tests). [getProducts] reads "productId"; [getPurchaseState] returns PENDING
+     * only when the raw "purchaseState" int is 4, else PURCHASED — so we translate
+     * the requested [Purchase.PurchaseState] constant into that raw encoding.
+     */
+    private fun purchase(productId: String, state: Int): Purchase {
+        val raw = JSONObject()
+            .put("productId", productId)
+            .put("purchaseState", if (state == Purchase.PurchaseState.PENDING) 4 else 0)
+            .toString()
+        return Purchase(raw, "signature")
+    }
+
 
     /** In-memory [EntitlementStore]. [stateBased] resolution via the gateway is
      *  tested separately; here we just record cache writes + replay one snapshot. */
@@ -212,6 +292,19 @@ class EntitlementManagerTest {
             if (throwOnQuery) throw IllegalStateException("Play unavailable")
             return live
         }
+        override suspend fun queryProductDetails(): List<ProductDetails> = emptyList()
+        override fun launchBillingFlow(activity: Activity, productDetails: ProductDetails, offerToken: String) = false
+    }
+
+    /**
+     * Gateway backed by a raw [Purchase] list so the interface's DEFAULT
+     * [BillingGateway.queryActiveEntitlement] / [BillingGateway.queryHasPendingPremiumPurchase]
+     * (the real [forPremiumProduct] choke point) execute unchanged. `subs == null`
+     * models "could not query" (Play unavailable / non-OK).
+     */
+    private class FakePurchaseGateway(private val subs: List<Purchase>?) : BillingGateway {
+        override val purchaseUpdates: Flow<List<Purchase>> = flow { }
+        override suspend fun queryActiveSubscriptions(): List<Purchase>? = subs
         override suspend fun queryProductDetails(): List<ProductDetails> = emptyList()
         override fun launchBillingFlow(activity: Activity, productDetails: ProductDetails, offerToken: String) = false
     }

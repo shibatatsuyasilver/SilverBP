@@ -117,6 +117,7 @@ class BpWorkoutAssociationSyncMapperTest {
     }
 
     private class FakeSyncDao : SyncDao {
+        override suspend fun allDevices(): List<com.silverbp.android.core.db.SyncDeviceEntity> = emptyList()
         private val tombstones = mutableMapOf<Pair<String, String>, TombstoneEntity>()
         private val devices = mutableMapOf<String, SyncDeviceEntity>()
         private val outbox = mutableListOf<SyncOutboxEntity>()

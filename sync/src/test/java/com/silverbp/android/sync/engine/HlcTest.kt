@@ -82,4 +82,28 @@ class HlcTest {
         assertEquals(Hlc("0".repeat(32)), z)
         assertEquals("0".repeat(32), z.packed)
     }
+
+    @Test
+    fun seeded_clock_never_issues_below_persisted_high_water() {
+        // Simulate a restart where the wall clock reads an *earlier* time than
+        // the persisted high-water (skew / reboot). The seeded clock must still
+        // issue strictly above the seed, never backwards (QA P0-4).
+        val highWater = Hlc.of(1_700_000_000_500L, 9, 1L)
+        val clock = HlcClock(nodeId = 1L, now = { 1_700_000_000_000L }, initial = highWater)
+        val issued = clock.next()
+        assertTrue("seeded clock must not go backwards after restart", highWater < issued)
+    }
+
+    @Test
+    fun persist_callback_receives_every_issued_and_observed_hlc() {
+        val fakeNow = 1_700_000_000_000L
+        val saved = ArrayList<Hlc>()
+        val clock = HlcClock(nodeId = 1L, now = { fakeNow }, persist = { saved += it })
+        val a = clock.next()
+        val b = clock.observe(Hlc.of(1_700_000_000_500L, 3, 99L))
+        val c = clock.next()
+        // Every tick persisted exactly the value it returned, in order, so the
+        // durable high-water always covers the latest HLC issued/observed.
+        assertEquals(listOf(a, b, c), saved)
+    }
 }

@@ -29,6 +29,7 @@ class RoomMigrationTest {
         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
         MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
+        MIGRATION_21_22,
     )
 
     private data class MigrationEdge(
@@ -60,6 +61,7 @@ class RoomMigrationTest {
         MigrationEdge(18, 19, arrayOf(MIGRATION_18_19)),
         MigrationEdge(19, 20, arrayOf(MIGRATION_19_20)),
         MigrationEdge(20, 21, arrayOf(MIGRATION_20_21)),
+        MigrationEdge(21, 22, arrayOf(MIGRATION_21_22)),
     )
 
     @get:Rule
@@ -68,14 +70,14 @@ class RoomMigrationTest {
         SilverBpDatabase::class.java,
     )
 
-    /** The whole chain applies cleanly and matches the latest (v21) schema. */
+    /** The whole chain applies cleanly and matches the latest (v22) schema. */
     @Test
-    fun migrateAll_1_to_21() {
+    fun migrateAll_1_to_22() {
         helper.createDatabase(dbName, 1).close()
-        helper.runMigrationsAndValidate(dbName, 21, true, *allMigrations).close()
+        helper.runMigrationsAndValidate(dbName, 22, true, *allMigrations).close()
     }
 
-    /** Every schema-backed adjacent edge through v21 validates, except missing v14. */
+    /** Every schema-backed adjacent edge through v22 validates, except missing v14. */
     @Test
     fun migrate_schemaBackedEdges_through21_matchSchemas() {
         for (edge in schemaBackedEdges) {
@@ -97,6 +99,44 @@ class RoomMigrationTest {
     fun migrate_20_to_21_matchesSchema() {
         helper.createDatabase(dbName, 20).close()
         helper.runMigrationsAndValidate(dbName, 21, true, MIGRATION_20_21).close()
+    }
+
+    /**
+     * v21 → v22 adds the medication_dose → medication FK and drops orphan doses
+     * (rows whose medicationId has no parent) while preserving valid ones.
+     */
+    @Test
+    fun migrate_21_to_22_dropsOrphanMedicationDoses_keepsValid() {
+        helper.createDatabase(dbName, 21).apply {
+            execSQL(
+                "INSERT INTO medication (id, name, dose, kind, hlcUpdatedAt, memberId) " +
+                    "VALUES ('m1', 'Amlodipine', '5mg', 'medication', '0', 'owner')",
+            )
+            // Valid dose: its medicationId points at the seeded medication.
+            execSQL(
+                "INSERT INTO medication_dose (id, dayStart, medicationId, scheduledHour, " +
+                    "scheduledMinute, scheduleId, taken, updatedAt, hlcUpdatedAt) " +
+                    "VALUES ('d_valid', 1000, 'm1', 8, 0, NULL, 1, 1000, '0')",
+            )
+            // Orphan dose: medicationId has no matching medication row.
+            execSQL(
+                "INSERT INTO medication_dose (id, dayStart, medicationId, scheduledHour, " +
+                    "scheduledMinute, scheduleId, taken, updatedAt, hlcUpdatedAt) " +
+                    "VALUES ('d_orphan', 1000, 'm_missing', 8, 0, NULL, 1, 1000, '0')",
+            )
+            close()
+        }
+
+        helper.runMigrationsAndValidate(dbName, 22, true, MIGRATION_21_22).use { db ->
+            db.query("SELECT id FROM medication_dose WHERE id = 'd_valid'").use { c ->
+                assertTrue("valid dose should survive the migration", c.moveToFirst())
+                assertEquals("d_valid", c.getString(0))
+            }
+            db.query("SELECT COUNT(*) FROM medication_dose WHERE id = 'd_orphan'").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals("orphan dose should be dropped by the migration", 0, c.getInt(0))
+            }
+        }
     }
 
     /** v12 → v13 adds hcRecordId (defaulting NULL) and preserves existing rows. */

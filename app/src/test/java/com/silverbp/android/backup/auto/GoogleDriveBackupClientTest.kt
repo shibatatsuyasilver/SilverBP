@@ -38,7 +38,7 @@ class GoogleDriveBackupClientTest {
     }
 
     @Test
-    fun `listBackups returns only positively identified SilverBP backups`() = runBlocking {
+    fun `listBackups returns name-matched backups including untagged cross-platform files`() = runBlocking {
         var query = ""
         var fields = ""
         val client = driveClient { request ->
@@ -50,7 +50,7 @@ class GoogleDriveBackupClientTest {
                 {
                   "files": [
                     {
-                      "id": "good",
+                      "id": "android",
                       "name": "SilverBP-Backup-2026-06-19-1200.sbpbk",
                       "createdTime": "2026-06-19T12:00:00.000Z",
                       "size": "42",
@@ -64,7 +64,7 @@ class GoogleDriveBackupClientTest {
                       "appProperties": { "silverbpBackup": "v1" }
                     },
                     {
-                      "id": "unmarked",
+                      "id": "ios",
                       "name": "SilverBP-Backup-2026-06-19-1201.sbpbk",
                       "createdTime": "2026-06-19T12:02:00.000Z",
                       "size": "42"
@@ -77,11 +77,36 @@ class GoogleDriveBackupClientTest {
 
         val files = client.listBackups("token")
 
+        // Query filters by name prefix only — no longer requires our appProperties
+        // tag, so an iOS-created (untagged) backup is visible in the restore picker.
         assertTrue(query.contains("name contains 'SilverBP-Backup-'"))
-        assertTrue(query.contains("appProperties has"))
+        assertFalse(query.contains("appProperties has"))
+        // We still fetch appProperties so the strict delete check can read the tag.
         assertTrue(fields.contains("appProperties"))
-        assertEquals(1, files.size)
-        assertEquals("good", files.single().id)
+        // Both the tagged Android backup and the untagged iOS backup are listed;
+        // the wrong-name file is excluded.
+        assertEquals(setOf("android", "ios"), files.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `isDeletableBackup is strict - only our tagged files may be deleted`() {
+        val client = driveClient { fail("no HTTP expected"); error("unreachable") }
+        val tagged = GoogleDriveBackupClient.DriveBackupFile(
+            id = "android",
+            name = "SilverBP-Backup-2026-06-19-1200.sbpbk",
+            createdTime = "",
+            sizeBytes = 42L,
+            appProperties = mapOf("silverbpBackup" to "v1"),
+        )
+        val untaggedIos = GoogleDriveBackupClient.DriveBackupFile(
+            id = "ios",
+            name = "SilverBP-Backup-2026-06-19-1201.sbpbk",
+            createdTime = "",
+            sizeBytes = 42L,
+        )
+        assertTrue(client.isDeletableBackup(tagged))
+        // An iOS backup is restorable (listed) but never deletable/prunable by us.
+        assertFalse(client.isDeletableBackup(untaggedIos))
     }
 
     @Test

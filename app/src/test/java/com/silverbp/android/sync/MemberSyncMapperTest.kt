@@ -193,6 +193,7 @@ class MemberSyncMapperTest {
     }
 
     private class FakeSyncDao : SyncDao {
+        override suspend fun allDevices(): List<com.silverbp.android.core.db.SyncDeviceEntity> = emptyList()
         private val tombstones = mutableMapOf<Pair<String, String>, TombstoneEntity>()
         override suspend fun upsertTombstone(tombstone: TombstoneEntity) {
             tombstones[tombstone.entityType to tombstone.pk] = tombstone

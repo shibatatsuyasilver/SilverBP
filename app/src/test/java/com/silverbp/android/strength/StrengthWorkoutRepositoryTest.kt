@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -108,6 +109,47 @@ class StrengthWorkoutRepositoryTest {
         assertTrue(dao.tombstones.all { it.hlc == deleteHlc })
     }
 
+    @Test
+    fun upsert_edit_of_existing_session_preserves_createdAt_and_bumps_updatedAt() = runTest {
+        // Finding #28: re-saving an existing session (user re-edits note / sets)
+        // must KEEP the original creation time; only updatedAt advances to now.
+        val dao = FakeStrengthDao().apply {
+            insertSession(StrengthWorkoutSessionEntity("session-001", 1L, 2L, "", null, 111L, 222L))
+        }
+        val writer = FakeLocalSyncWriter(
+            Hlc.of(1_000L, 0, 1L).packed,
+            Hlc.of(1_001L, 0, 1L).packed,
+        )
+        val repo = StrengthWorkoutRepository(dao, FakeLibraryDao(), writer)
+        val before = System.currentTimeMillis()
+
+        repo.upsert(session(SetLog("set-001", "catalog-001", setNumber = 1, reps = 10)))
+
+        val saved = dao.sessionById("session-001")!!
+        assertEquals(111L, saved.createdAt) // original creation time preserved
+        assertNotEquals(222L, saved.updatedAt) // updatedAt re-stamped to now
+        assertTrue(saved.updatedAt >= before)
+    }
+
+    @Test
+    fun upsert_new_session_stamps_createdAt_now() = runTest {
+        // A brand-new session has no prior row, so createdAt is stamped = now (the
+        // same now as updatedAt, both taken once at the top of upsert).
+        val dao = FakeStrengthDao()
+        val writer = FakeLocalSyncWriter(
+            Hlc.of(1_000L, 0, 1L).packed,
+            Hlc.of(1_001L, 0, 1L).packed,
+        )
+        val repo = StrengthWorkoutRepository(dao, FakeLibraryDao(), writer)
+        val before = System.currentTimeMillis()
+
+        repo.upsert(session(SetLog("set-001", "catalog-001", setNumber = 1, reps = 10)))
+
+        val saved = dao.sessionById("session-001")!!
+        assertTrue(saved.createdAt >= before) // brand-new → createdAt = now
+        assertEquals(saved.createdAt, saved.updatedAt) // both stamped from the same now
+    }
+
     private class FakeStrengthDao : StrengthWorkoutDao {
         private val sessions = mutableMapOf<String, StrengthWorkoutSessionEntity>()
         private val sets = mutableMapOf<String, SetLogEntity>()
@@ -158,5 +200,6 @@ class StrengthWorkoutRepositoryTest {
         private val hlcs = ArrayDeque(values.toList())
         override fun nextHlc(): String = hlcs.removeFirst()
         override suspend fun delete(type: SyncEntityType, pk: String) = error("unused")
+        override suspend fun stamp(type: SyncEntityType, pk: String) {}
     }
 }

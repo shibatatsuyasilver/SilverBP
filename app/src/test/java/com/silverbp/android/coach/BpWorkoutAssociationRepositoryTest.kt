@@ -41,5 +41,6 @@ class BpWorkoutAssociationRepositoryTest {
     private class FakeLocalSyncWriter(private val hlc: String) : LocalSyncWriter {
         override fun nextHlc(): String = hlc
         override suspend fun delete(type: SyncEntityType, pk: String) = error("unused")
+        override suspend fun stamp(type: SyncEntityType, pk: String) {}
     }
 }

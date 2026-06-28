@@ -292,5 +292,6 @@ class MedicationRepositoryTest {
         override suspend fun delete(type: SyncEntityType, pk: String) {
             error("MedicationRepository uses explicit transaction-scoped tombstones")
         }
+        override suspend fun stamp(type: SyncEntityType, pk: String) {}
     }
 }

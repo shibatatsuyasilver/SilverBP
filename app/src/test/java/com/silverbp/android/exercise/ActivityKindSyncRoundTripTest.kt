@@ -131,6 +131,7 @@ class ActivityKindSyncRoundTripTest {
     }
 
     private class FakeSyncDao : SyncDao {
+        override suspend fun allDevices(): List<com.silverbp.android.core.db.SyncDeviceEntity> = emptyList()
         override suspend fun upsertTombstone(tombstone: TombstoneEntity) {}
         override suspend fun rawHlc(query: androidx.sqlite.db.SupportSQLiteQuery): String? = null
         override suspend fun tombstoneFor(entityType: String, pk: String): TombstoneEntity? = null

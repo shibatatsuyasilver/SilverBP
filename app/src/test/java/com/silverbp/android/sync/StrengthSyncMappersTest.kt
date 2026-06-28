@@ -10,6 +10,7 @@ import com.silverbp.android.core.db.SyncDeviceEntity
 import com.silverbp.android.core.db.SyncOutboxEntity
 import com.silverbp.android.core.db.TombstoneEntity
 import com.silverbp.android.sync.engine.Hlc
+import com.silverbp.android.sync.engine.OrphanRecordException
 import com.silverbp.android.sync.engine.LwwMerger
 import com.silverbp.android.sync.engine.SyncEntityType
 import com.silverbp.android.sync.transport.SyncRecordCodec
@@ -182,11 +183,20 @@ class StrengthSyncMappersTest {
     }
 
     @Test
-    fun set_orphan_without_parent_session_is_dropped() = runTest {
+    fun set_orphan_without_parent_session_is_deferred() = runTest {
         val dao = FakeStrengthDao() // no parent session inserted
         val mapper = SetLogSyncMapper(dao)
         val rec = mapper.encode(setFixture(), Hlc.of(1L, 0, 1L))
-        mapper.apply(rec)
+        // Parent session absent → the set is DEFERRED (throws), not silently
+        // dropped, so the session holds the peer watermark and re-ships it once
+        // the parent lands (QA #5 / P1-18). Nothing is written locally meanwhile.
+        var deferred = false
+        try {
+            mapper.apply(rec)
+        } catch (e: OrphanRecordException) {
+            deferred = true
+        }
+        assertTrue("orphan set must be deferred (thrown), not silently dropped", deferred)
         assertTrue(dao.setsForSession(setFixture().workoutSessionId).isEmpty())
     }
 
@@ -280,6 +290,7 @@ class StrengthSyncMappersTest {
     }
 
     private class FakeSyncDao : SyncDao {
+        override suspend fun allDevices(): List<com.silverbp.android.core.db.SyncDeviceEntity> = emptyList()
         private val tombstones = mutableMapOf<Pair<String, String>, TombstoneEntity>()
         private val devices = mutableMapOf<String, SyncDeviceEntity>()
         private val outbox = mutableListOf<SyncOutboxEntity>()

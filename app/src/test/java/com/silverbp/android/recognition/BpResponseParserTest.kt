@@ -45,4 +45,67 @@ class BpResponseParserTest {
             BpResponseParser.parse("not json at all")
         }
     }
+
+    // --- Physiological sanity gate (#17, #16) -------------------------------
+
+    @Test fun `accepts normal reading`() {
+        val r = BpResponseParser.parse("""{"systolic":120,"diastolic":80,"pulse":70,"confidence":0.95}""")
+        assertEquals(120, r.systolic)
+        assertEquals(80, r.diastolic)
+        assertEquals(70, r.pulse)
+    }
+
+    @Test fun `rejects systolic below range`() {
+        // systolic must be in 40..300
+        val e = assertThrows(BpExtractionError.InvalidReading::class.java) {
+            BpResponseParser.parse("""{"systolic":39,"diastolic":30,"confidence":0.95}""")
+        }
+        assertEquals("systolicRange", e.reason)
+    }
+
+    @Test fun `rejects systolic above range`() {
+        // systolic must be in 40..300
+        val e = assertThrows(BpExtractionError.InvalidReading::class.java) {
+            BpResponseParser.parse("""{"systolic":301,"diastolic":80,"confidence":0.95}""")
+        }
+        assertEquals("systolicRange", e.reason)
+    }
+
+    @Test fun `rejects diastolic below range`() {
+        // diastolic must be in 30..200
+        val e = assertThrows(BpExtractionError.InvalidReading::class.java) {
+            BpResponseParser.parse("""{"systolic":120,"diastolic":29,"confidence":0.95}""")
+        }
+        assertEquals("diastolicRange", e.reason)
+    }
+
+    @Test fun `rejects diastolic above range`() {
+        // diastolic must be in 30..200 (checked before the systolic<=diastolic gate)
+        val e = assertThrows(BpExtractionError.InvalidReading::class.java) {
+            BpResponseParser.parse("""{"systolic":150,"diastolic":201,"confidence":0.95}""")
+        }
+        assertEquals("diastolicRange", e.reason)
+    }
+
+    @Test fun `rejects systolic not above diastolic`() {
+        val e = assertThrows(BpExtractionError.InvalidReading::class.java) {
+            BpResponseParser.parse("""{"systolic":80,"diastolic":120,"confidence":0.95}""")
+        }
+        assertEquals("systolicNotAboveDiastolic", e.reason)
+    }
+
+    @Test fun `rejects systolic equal to diastolic`() {
+        val e = assertThrows(BpExtractionError.InvalidReading::class.java) {
+            BpResponseParser.parse("""{"systolic":100,"diastolic":100,"confidence":0.95}""")
+        }
+        assertEquals("systolicNotAboveDiastolic", e.reason)
+    }
+
+    @Test fun `rejects pulse out of range`() {
+        // pulse, when present, must be in 20..300
+        val e = assertThrows(BpExtractionError.InvalidReading::class.java) {
+            BpResponseParser.parse("""{"systolic":120,"diastolic":80,"pulse":301,"confidence":0.95}""")
+        }
+        assertEquals("pulseRange", e.reason)
+    }
 }
