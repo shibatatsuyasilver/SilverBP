@@ -70,9 +70,43 @@ class SilverBpApplication : Application() {
         appScope.launch { reconcileAutoBackup() }
         appScope.launch { reconcileSync() }
 
+        // Debug-only: dump per-session route-point coverage so a "restored
+        // session has no route map" report can be triaged from logcat (the
+        // health DB is SQLCipher ciphertext and can't be inspected externally).
+        if (BuildConfig.DEBUG) appScope.launch { diagnoseExerciseRoutes() }
+
         // Watcher fires anomaly notifications in real time as the user logs
         // new readings; lives for the app process's lifetime.
         ServiceLocator.bpAnomalyWatcher.start(appScope)
+    }
+
+    /**
+     * Debug triage for missing exercise route maps. For every GPS-trackable
+     * session, log its distance/steps and how many route_point rows it has.
+     * Read it as: `distance>0` but `points<2` ⇒ a real point loss to chase;
+     * `distance==0` ⇒ the source/environment never produced a fix (e.g. an
+     * emulator with no GPS, or an indoor recording). Filter logcat by the
+     * `[RouteDiag]` tag.
+     */
+    private suspend fun diagnoseExerciseRoutes() {
+        runCatching {
+            val dao = ServiceLocator.database.exerciseDao()
+            val sessions = dao.observeAll().first()
+            var suspect = 0
+            for (s in sessions) {
+                val kind = com.silverbp.android.exercise.ActivityKind.fromRaw(s.activityKind)
+                if (!kind.isGpsTrackable) continue
+                val points = dao.pointsFor(s.id).size
+                val flag = if (s.distanceMeters > 0.0 && points < 2) " <-- LOST?" else ""
+                if (flag.isNotEmpty()) suspect++
+                android.util.Log.i(
+                    "RouteDiag",
+                    "session=${s.id} kind=${s.activityKind} dist=${s.distanceMeters} " +
+                        "steps=${s.stepCount} points=$points$flag",
+                )
+            }
+            android.util.Log.i("RouteDiag", "done: ${sessions.size} sessions, $suspect suspected route losses")
+        }.onFailure { android.util.Log.w("RouteDiag", "diagnostic failed: ${it.message}") }
     }
 
     /**

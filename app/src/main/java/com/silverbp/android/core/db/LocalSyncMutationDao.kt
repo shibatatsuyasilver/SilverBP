@@ -60,6 +60,62 @@ interface LocalSyncMutationDao {
         upsertTombstone(TombstoneEntity(entityType = entityType, pk = id, hlc = hlc, deletedAt = deletedAt))
     }
 
+    // --- "Merge a stray member into the owner" cleanup (extra-member repair) ---
+    // Reassign every member-scoped row from a stray member to the owner, bumping
+    // hlcUpdatedAt so the reassignment wins LWW on paired devices. Only the four
+    // tables that carry a memberId column are affected; medication_schedule /
+    // medication_dose follow their medication via FK ownership.
+
+    @Query("UPDATE bp_reading SET memberId = :to, hlcUpdatedAt = :hlc WHERE memberId = :from")
+    suspend fun reassignBpReadingMember(from: String, to: String, hlc: String)
+
+    @Query("UPDATE glucose_reading SET memberId = :to, hlcUpdatedAt = :hlc WHERE memberId = :from")
+    suspend fun reassignGlucoseReadingMember(from: String, to: String, hlc: String)
+
+    @Query("UPDATE weight_log SET memberId = :to, hlcUpdatedAt = :hlc WHERE memberId = :from")
+    suspend fun reassignWeightLogMember(from: String, to: String, hlc: String)
+
+    @Query("UPDATE medication SET memberId = :to, hlcUpdatedAt = :hlc WHERE memberId = :from")
+    suspend fun reassignMedicationMember(from: String, to: String, hlc: String)
+
+    @Query("DELETE FROM member WHERE id = :id")
+    suspend fun deleteMember(id: String)
+
+    /** Total member-scoped record count for [memberId] — drives the merge confirm dialog. */
+    @Query(
+        "SELECT " +
+            "(SELECT COUNT(*) FROM bp_reading WHERE memberId = :memberId) + " +
+            "(SELECT COUNT(*) FROM glucose_reading WHERE memberId = :memberId) + " +
+            "(SELECT COUNT(*) FROM weight_log WHERE memberId = :memberId) + " +
+            "(SELECT COUNT(*) FROM medication WHERE memberId = :memberId)"
+    )
+    suspend fun countMemberData(memberId: String): Int
+
+    /**
+     * Fold a stray member's data into the owner and delete the stray, atomically.
+     * Reassign all member-scoped rows to [ownerId] (bumping HLC via [reassignHlc]),
+     * hard-delete the stray member row, and write a MEMBER tombstone so the delete
+     * propagates to paired devices and the row never resurrects.
+     */
+    @Transaction
+    suspend fun mergeMemberIntoOwner(
+        strayId: String,
+        ownerId: String,
+        memberEntityType: String,
+        reassignHlc: String,
+        deleteHlc: String,
+        deletedAt: Long,
+    ) {
+        reassignBpReadingMember(strayId, ownerId, reassignHlc)
+        reassignGlucoseReadingMember(strayId, ownerId, reassignHlc)
+        reassignWeightLogMember(strayId, ownerId, reassignHlc)
+        reassignMedicationMember(strayId, ownerId, reassignHlc)
+        deleteMember(strayId)
+        upsertTombstone(
+            TombstoneEntity(entityType = memberEntityType, pk = strayId, hlc = deleteHlc, deletedAt = deletedAt),
+        )
+    }
+
     @Query("UPDATE bp_reading SET hlcUpdatedAt = :hlc WHERE id = :id")
     suspend fun stampBpReadingHlc(id: String, hlc: String)
 

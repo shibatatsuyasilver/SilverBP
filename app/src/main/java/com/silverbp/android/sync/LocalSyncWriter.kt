@@ -17,6 +17,18 @@ interface LocalSyncWriter {
      * pass incremental sync".
      */
     suspend fun stamp(type: SyncEntityType, pk: String)
+
+    /**
+     * Fold a stray member's data into [ownerId] and delete the stray, atomically
+     * (extra-member-after-merge-restore repair). Reassigns BP/glucose/weight/
+     * medication rows to the owner with fresh HLCs and writes a MEMBER tombstone.
+     * Defaulted to a no-op so the in-memory test writers keep compiling; the
+     * production [RoomLocalSyncWriter] implements it.
+     */
+    suspend fun mergeMemberIntoOwner(strayId: String, ownerId: String) {}
+
+    /** Total member-scoped record count for [memberId] (drives the merge confirm dialog). */
+    suspend fun countMemberData(memberId: String): Int = 0
 }
 
 class RoomLocalSyncWriter(
@@ -52,4 +64,17 @@ class RoomLocalSyncWriter(
             else -> error("Local HLC stamp is not wired for ${type.tableName}")
         }
     }
+
+    override suspend fun mergeMemberIntoOwner(strayId: String, ownerId: String) {
+        dao.mergeMemberIntoOwner(
+            strayId = strayId,
+            ownerId = ownerId,
+            memberEntityType = SyncEntityType.MEMBER.tableName,
+            reassignHlc = nextHlc(),
+            deleteHlc = nextHlc(),
+            deletedAt = nowMs(),
+        )
+    }
+
+    override suspend fun countMemberData(memberId: String): Int = dao.countMemberData(memberId)
 }

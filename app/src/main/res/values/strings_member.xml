@@ -44,6 +44,13 @@
     <string name="member_delete_confirm_action">Remove</string>
     <string name="member_delete_confirm_cancel">Cancel</string>
 
+    <!-- "This member is actually me" → merge their data into the owner and delete them.
+         Repairs an extra member created by an older buggy merge restore. -->
+    <string name="member_merge_into_owner_action">This is me</string>
+    <string name="member_merge_confirm_title">Merge into your records?</string>
+    <string name="member_merge_confirm_body">Move this member\'s %1$d records (blood pressure, glucose, weight, medication) into your own records and delete this member. This can\'t be undone.</string>
+    <string name="member_merge_confirm_action">Merge &amp; delete</string>
+
     <!-- Record-attribution control on the confirm screen -->
     <string name="member_reading_owner_label">Recorded for</string>
 

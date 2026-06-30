@@ -118,6 +118,62 @@ class MemberRepositoryTest {
         assertNotNull(dao.getOwner())     // and an actual row exists for it
     }
 
+    @Test
+    fun mergeIntoOwner_delegates_stray_and_owner_to_writer() = runTest {
+        val ownerUuid = "11111111-1111-1111-1111-111111111111"
+        val strayUuid = "22222222-2222-2222-2222-222222222222"
+        val dao = FakeMemberDao().apply {
+            upsert(owner(ownerUuid))
+            upsert(owner(strayUuid).copy(id = strayUuid, isOwner = false))
+        }
+        val sync = RecordingSyncWriter()
+        val repo = MemberRepository(dao, localSync = sync)
+
+        repo.mergeIntoOwner(java.util.UUID.fromString(strayUuid))
+
+        assertEquals(strayUuid to ownerUuid, sync.merged)
+    }
+
+    @Test
+    fun mergeIntoOwner_is_noop_when_target_is_the_owner() = runTest {
+        val ownerUuid = "33333333-3333-3333-3333-333333333333"
+        val dao = FakeMemberDao().apply { upsert(owner(ownerUuid)) }
+        val sync = RecordingSyncWriter()
+        val repo = MemberRepository(dao, localSync = sync)
+
+        repo.mergeIntoOwner(java.util.UUID.fromString(ownerUuid))
+
+        assertEquals(null, sync.merged)
+    }
+
+    @Test
+    fun memberDataCount_delegates_to_sync_writer() = runTest {
+        val dao = FakeMemberDao().apply { upsert(owner("owner-A")) }
+        val sync = RecordingSyncWriter(dataCount = 7)
+        val repo = MemberRepository(dao, localSync = sync)
+
+        val memberId = java.util.UUID.fromString("44444444-4444-4444-4444-444444444444")
+        assertEquals(7, repo.memberDataCount(memberId))
+        assertEquals(memberId.toString(), sync.countedMember)
+    }
+
+    private class RecordingSyncWriter(
+        private val dataCount: Int = 0,
+    ) : com.silverbp.android.sync.LocalSyncWriter {
+        var merged: Pair<String, String>? = null
+        var countedMember: String? = null
+        override fun nextHlc(): String = "hlc"
+        override suspend fun delete(type: com.silverbp.android.sync.engine.SyncEntityType, pk: String) {}
+        override suspend fun stamp(type: com.silverbp.android.sync.engine.SyncEntityType, pk: String) {}
+        override suspend fun mergeMemberIntoOwner(strayId: String, ownerId: String) {
+            merged = strayId to ownerId
+        }
+        override suspend fun countMemberData(memberId: String): Int {
+            countedMember = memberId
+            return dataCount
+        }
+    }
+
     // --- in-memory fake (same shape as MemberSyncMapperTest's) ---
 
     private class FakeMemberDao : MemberDao {

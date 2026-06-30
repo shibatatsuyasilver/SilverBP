@@ -43,6 +43,12 @@
     <string name="member_delete_confirm_action">移除</string>
     <string name="member_delete_confirm_cancel">取消</string>
 
+    <!-- 「這位成員其實是我本人」→ 把資料併入擁有者並刪除該成員,修復舊版錯誤合併還原多出的成員 -->
+    <string name="member_merge_into_owner_action">這是我本人</string>
+    <string name="member_merge_confirm_title">合併到您的紀錄?</string>
+    <string name="member_merge_confirm_body">將此成員的 %1$d 筆紀錄(血壓、血糖、體重、用藥)併入您本人的紀錄並刪除此成員.此動作無法復原.</string>
+    <string name="member_merge_confirm_action">合併並刪除</string>
+
     <!-- 記錄畫面的歸屬選擇 -->
     <string name="member_reading_owner_label">記錄對象</string>
 

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -112,6 +113,10 @@ fun MemberManagementScreen(onClose: () -> Unit) {
     var editing by remember { mutableStateOf<Member?>(null) }
     var showEditor by remember { mutableStateOf(false) }
     var pendingArchive by remember { mutableStateOf<Member?>(null) }
+    // "This member is actually me" merge-into-owner repair: the target plus the
+    // number of records that would move (shown in the confirm dialog).
+    var pendingMerge by remember { mutableStateOf<Member?>(null) }
+    var pendingMergeCount by remember { mutableStateOf(0) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Scaffold(
@@ -183,6 +188,12 @@ fun MemberManagementScreen(onClose: () -> Unit) {
                         showEditor = true
                     },
                     onArchive = { pendingArchive = member },
+                    onMergeIntoOwner = {
+                        scope.launch {
+                            pendingMergeCount = repo.memberDataCount(member.id)
+                            pendingMerge = member
+                        }
+                    },
                 )
             }
 
@@ -235,6 +246,25 @@ fun MemberManagementScreen(onClose: () -> Unit) {
             },
         )
     }
+
+    pendingMerge?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingMerge = null },
+            title = { Text(stringResource(R.string.member_merge_confirm_title)) },
+            text = { Text(stringResource(R.string.member_merge_confirm_body, pendingMergeCount)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingMerge = null
+                    scope.launch { repo.mergeIntoOwner(target.id) }
+                }) { Text(stringResource(R.string.member_merge_confirm_action)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingMerge = null }) {
+                    Text(stringResource(R.string.member_delete_confirm_cancel))
+                }
+            },
+        )
+    }
 }
 
 /**
@@ -270,6 +300,7 @@ private fun MemberRow(
     onMoveDown: () -> Unit,
     onEdit: () -> Unit,
     onArchive: () -> Unit,
+    onMergeIntoOwner: () -> Unit,
 ) {
     StandardCard(
         contentPadding = AppSpacing.itemGap,
@@ -318,8 +349,16 @@ private fun MemberRow(
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
-            // Owner can never be archived (single-owner invariant).
+            // Owner can never be archived (single-owner invariant). Non-owner
+            // rows also offer "this is me" — folds their data into the owner and
+            // deletes them, to repair an extra member from an older buggy restore.
             if (!member.isOwner) {
+                IconButton(onClick = onMergeIntoOwner) {
+                    Icon(
+                        Icons.Filled.MergeType,
+                        contentDescription = stringResource(R.string.member_merge_into_owner_action),
+                    )
+                }
                 IconButton(onClick = onArchive) {
                     Icon(
                         Icons.Filled.Archive,

@@ -88,6 +88,65 @@ class BackupCodecTest {
         }
     }
 
+    // Regression for "restored exercise sessions have no route map": a
+    // route_point record must survive the backup payload CBOR round-trip with
+    // all of its geometry intact (sessionId, lat/lon, timestamp, nullable
+    // altitude/speed). This path was previously untested end-to-end — the
+    // exercise round-trip test used a fake DAO that returned no points.
+    private fun sampleRoutePoint(
+        pk: String,
+        sessionId: String,
+        lat: Double,
+        lon: Double,
+        altitude: Double? = 12.5,
+        speed: Double? = 1.4,
+    ) = SyncRecord(
+        type = SyncEntityType.ROUTE_POINT,
+        pk = pk,
+        hlc = sampleHlc(),
+        deletedAt = null,
+        payload = buildMap {
+            put(1, SyncValue.Text(sessionId))
+            put(2, SyncValue.Int64(1_730_000_000_000L))
+            put(3, SyncValue.Double(lat))
+            put(4, SyncValue.Double(lon))
+            put(5, SyncValue.Double(6.0))
+            put(6, altitude?.let { SyncValue.Double(it) } ?: SyncValue.Null)
+            put(7, speed?.let { SyncValue.Double(it) } ?: SyncValue.Null)
+        },
+    )
+
+    @Test
+    fun `route_point records survive payload round-trip with full geometry`() {
+        val sessionId = "sess-1"
+        val session = SyncRecord(
+            type = SyncEntityType.EXERCISE_SESSION,
+            pk = sessionId,
+            hlc = sampleHlc(),
+            deletedAt = null,
+            payload = mapOf(1 to SyncValue.Text("walking"), 2 to SyncValue.Int64(1_730_000_000_000L)),
+        )
+        val records = listOf(
+            session,
+            sampleRoutePoint("rp-1", sessionId, lat = 25.0339, lon = 121.5645),
+            sampleRoutePoint("rp-2", sessionId, lat = 25.0341, lon = 121.5650, altitude = null, speed = null),
+        )
+
+        val decoded = BackupCodec.decodePayload(BackupCodec.encodePayload(sampleManifest(), records))
+
+        assertEquals(0, decoded.skippedUnknownRecordCount)
+        assertEquals(records.size, decoded.knownRecordCount)
+        val routes = decoded.records.filter { it.type == SyncEntityType.ROUTE_POINT }
+        assertEquals("both route_point rows must survive decode", 2, routes.size)
+        // Order preserved so session lands before its points on import.
+        assertEquals(SyncEntityType.EXERCISE_SESSION, decoded.records.first().type)
+        for ((orig, dec) in records.zip(decoded.records)) {
+            assertEquals(orig.type, dec.type)
+            assertEquals(orig.pk, dec.pk)
+            assertEquals("payload must round-trip byte-for-byte for ${orig.pk}", orig.payload, dec.payload)
+        }
+    }
+
     @Test
     fun `payload tolerates zero records (manifest-only)`() {
         val bytes = BackupCodec.encodePayload(sampleManifest(), emptyList())

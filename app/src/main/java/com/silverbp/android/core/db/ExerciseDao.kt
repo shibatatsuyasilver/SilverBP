@@ -74,6 +74,12 @@ interface ExerciseDao {
      * Replace a session and its full point list in one transaction. Existing
      * points are deleted first so re-saving the same session id (e.g. user
      * re-edits the note) does not duplicate route rows.
+     *
+     * Clearing is gated on a non-empty [points] list: an indoor/machine session
+     * legitimately saves with no points, and any caller that re-saves a session
+     * with an empty list (a future regression, a partial edit path) must NOT
+     * wipe an already-recorded GPS route. To intentionally clear a route, call
+     * [clearPoints] explicitly.
      */
     @Transaction
     suspend fun upsertWithPoints(
@@ -82,7 +88,9 @@ interface ExerciseDao {
     ) {
         val existed = findById(session.id) != null
         if (existed) updateSession(session) else insertSession(session)
-        clearPoints(session.id)
-        if (points.isNotEmpty()) insertPoints(points)
+        if (points.isNotEmpty()) {
+            clearPoints(session.id)
+            insertPoints(points)
+        }
     }
 }

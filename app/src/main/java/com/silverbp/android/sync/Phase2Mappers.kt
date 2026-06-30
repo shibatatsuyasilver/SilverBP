@@ -1,5 +1,6 @@
 package com.silverbp.android.sync
 
+import android.util.Log
 import com.silverbp.android.core.db.AchievementDao
 import com.silverbp.android.core.db.AchievementEntity
 import com.silverbp.android.core.db.CoachPlanDao
@@ -214,7 +215,13 @@ class RoutePointSyncMapper(
         // session). Tombstones for route_point alone are rare — skip for now.
         if (record.isTombstone) return
         val p = record.payload
-        val sessionId = (p[1] as? SyncValue.Text)?.value ?: return
+        val sessionId = (p[1] as? SyncValue.Text)?.value ?: run {
+            // A route_point with no sessionId can't attach to any session. This
+            // used to drop silently; log it so a malformed/old record is an
+            // observable loss, not a session quietly missing its route map.
+            Log.w("RoutePointSync", "route_point ${record.pk} dropped: missing sessionId")
+            return
+        }
         // Defer if the parent session isn't present locally yet (FK would fail);
         // ExerciseSession sync should run first. Throwing (vs silently dropping)
         // keeps the peer watermark from advancing past this orphan (QA #5).

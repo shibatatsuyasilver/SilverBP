@@ -144,6 +144,30 @@ class MemberRepository(
 
     suspend fun count(): Int = dao.count()
 
+    /** Number of BP/glucose/weight/medication rows owned by [memberId]. */
+    suspend fun memberDataCount(memberId: UUID): Int =
+        localSync?.countMemberData(memberId.toString()) ?: 0
+
+    /**
+     * Fold a stray member into the owner: reassign all of its BP/glucose/weight/
+     * medication data to the owner, then hard-delete the stray (with a tombstone
+     * so paired devices drop it too). This repairs the "extra member holding
+     * imported data" left by an older buggy merge restore. No-op when [strayId]
+     * is the owner. The reassignment + delete commit atomically (DAO @Transaction).
+     */
+    suspend fun mergeIntoOwner(strayId: UUID) {
+        val stray = strayId.toString()
+        val owner = ownerId()
+        if (stray == owner) return
+        val sync = localSync
+        if (sync != null) {
+            sync.mergeMemberIntoOwner(stray, owner)
+        } else {
+            // No sync writer (in-memory test wiring): best-effort plain delete.
+            inTransaction { dao.deleteById(stray) }
+        }
+    }
+
     /** Create a synthetic owner when none exists (migration didn't run). */
     private suspend fun ensureOwner(): MemberEntity {
         val now = System.currentTimeMillis()

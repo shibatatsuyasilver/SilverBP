@@ -280,32 +280,21 @@ class BackupManager(
                 // 另一台裝置——讓他的血壓/用藥/血糖/體重顯示成自己的資料,而不是掛在
                 // 一個被降級的獨立成員下。非擁有者成員仍原樣匯入為獨立成員。
                 // (Replace 是整包覆蓋,iPhone 擁有者本就該成為擁有者,故不 remap。)
-                val ownerRemap: Pair<String, String>? = if (mode == ImportMode.Merge) {
-                    val backupOwnerId = records.firstOrNull {
-                        it.type == SyncEntityType.MEMBER &&
-                            (it.payload[MEMBER_IS_OWNER_TAG] as? SyncValue.Bool)?.value == true
-                    }?.pk
-                    val localOwnerId = ensureOwnerId()
-                    if (!backupOwnerId.isNullOrBlank() && localOwnerId.isNotBlank() &&
-                        backupOwnerId != localOwnerId
-                    ) {
-                        backupOwnerId to localOwnerId
-                    } else {
-                        null
-                    }
-                } else {
-                    null
-                }
+                // 收集備份裡「所有」isOwner=true 的成員 id,全部折疊到本機擁有者。
+                // 正常單機只會有一個 isOwner=true;出現多個只可能是來源把兩台「擁有
+                // 者」裝置合過,或來源被舊版降級污染——它們都是同一人的擁有者身分,該
+                // 收斂為一。家人成員是 isOwner=false,永不折疊。
+                val localOwnerId = if (mode == ImportMode.Merge) ensureOwnerId() else ""
+                val ownerRemapIds: Set<String> =
+                    if (mode == ImportMode.Merge) ownerFoldIds(records, localOwnerId) else emptySet()
                 for (record in records) {
-                    // 跳過備份擁有者那筆 MEMBER record——它就是本機擁有者,重匯只會
-                    // 產生一個沒有資料的降級成員。
-                    if (ownerRemap != null && record.type == SyncEntityType.MEMBER &&
-                        record.pk == ownerRemap.first
-                    ) {
+                    // 跳過所有對應到本機擁有者的備份擁有者 MEMBER record——重匯它們只會
+                    // 各產生一個沒有資料的降級成員。
+                    if (record.type == SyncEntityType.MEMBER && record.pk in ownerRemapIds) {
                         continue
                     }
                     val toApply =
-                        if (ownerRemap != null) remapMemberId(record, ownerRemap.first, ownerRemap.second)
+                        if (ownerRemapIds.isNotEmpty()) remapMemberId(record, ownerRemapIds, localOwnerId)
                         else record
                     try {
                         sink.apply(toApply)
@@ -419,19 +408,6 @@ class BackupManager(
         db.execSQL("DELETE FROM tombstone")
     }
 
-    /**
-     * Rewrites a member-scoped record's `memberId` field from [from] to [to] —
-     * used to fold the backup owner's records into the local owner on a Merge
-     * restore. Only the four types that carry a memberId on the wire are
-     * affected; everything else (and any record whose memberId isn't [from])
-     * passes through unchanged.
-     */
-    private fun remapMemberId(record: SyncRecord, from: String, to: String): SyncRecord {
-        val tag = MEMBER_ID_TAGS[record.type] ?: return record
-        if ((record.payload[tag] as? SyncValue.Text)?.value != from) return record
-        return record.copy(payload = record.payload + (tag to SyncValue.Text(to)))
-    }
-
     companion object {
         private const val TAG = "BackupManager"
 
@@ -449,5 +425,39 @@ class BackupManager(
             SyncEntityType.WEIGHT_LOG to 10,
             SyncEntityType.MEDICATION to 4,
         )
+
+        /**
+         * Every `isOwner=true` member id in [records] that should fold onto
+         * [localOwnerId] on a Merge restore. A well-formed device has exactly one
+         * owner; multiple owner rows (a source that merged two owner devices, or
+         * a pre-fix demote-pollution) are all the same person's owner identity
+         * and collapse to one. Family members (`isOwner=false`) are never folded.
+         * Returns empty when [localOwnerId] is blank (nothing to fold onto).
+         */
+        internal fun ownerFoldIds(records: List<SyncRecord>, localOwnerId: String): Set<String> {
+            if (localOwnerId.isBlank()) return emptySet()
+            return records.asSequence()
+                .filter {
+                    it.type == SyncEntityType.MEMBER &&
+                        (it.payload[MEMBER_IS_OWNER_TAG] as? SyncValue.Bool)?.value == true
+                }
+                .map { it.pk }
+                .filter { it.isNotBlank() && it != localOwnerId }
+                .toSet()
+        }
+
+        /**
+         * Rewrites a member-scoped record's `memberId` field from any id in
+         * [from] to [to] — used to fold the backup owner's records into the local
+         * owner on a Merge restore. Only the four types that carry a memberId on
+         * the wire are affected; everything else (and any record whose memberId
+         * isn't in [from]) passes through unchanged.
+         */
+        internal fun remapMemberId(record: SyncRecord, from: Set<String>, to: String): SyncRecord {
+            val tag = MEMBER_ID_TAGS[record.type] ?: return record
+            val current = (record.payload[tag] as? SyncValue.Text)?.value ?: return record
+            if (current !in from) return record
+            return record.copy(payload = record.payload + (tag to SyncValue.Text(to)))
+        }
     }
 }
