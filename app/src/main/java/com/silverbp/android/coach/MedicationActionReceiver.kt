@@ -30,29 +30,20 @@ class MedicationActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_MARK_TAKEN) return
-        val medicationId = intent.getStringExtra(EXTRA_MEDICATION_ID) ?: return
-        val scheduleId = intent.getStringExtra(EXTRA_SCHEDULE_ID) ?: return
-        val dayStart = intent.getLongExtra(EXTRA_DAY_START, -1L)
-        val scheduledHour = intent.getIntExtra(EXTRA_SCHEDULED_HOUR, -1)
-        val scheduledMinute = intent.getIntExtra(EXTRA_SCHEDULED_MINUTE, 0)
+        val dose = markTakenDose(
+            medicationId = intent.getStringExtra(EXTRA_MEDICATION_ID),
+            scheduleId = intent.getStringExtra(EXTRA_SCHEDULE_ID),
+            dayStart = intent.getLongExtra(EXTRA_DAY_START, -1L),
+            scheduledHour = intent.getIntExtra(EXTRA_SCHEDULED_HOUR, -1),
+            scheduledMinute = intent.getIntExtra(EXTRA_SCHEDULED_MINUTE, 0),
+            nowMs = System.currentTimeMillis(),
+        ) ?: return
         val notifId = intent.getIntExtra(EXTRA_NOTIF_ID, -1)
-        if (dayStart < 0 || scheduledHour < 0) return
 
         val pending = goAsync()
-        scope.launch {
+        ioScope.launch {
             try {
-                ServiceLocator.coachRepository.upsertDose(
-                    MedicationDoseEntity(
-                        id = doseId(dayStart, scheduleId),
-                        dayStart = dayStart,
-                        medicationId = medicationId,
-                        scheduledHour = scheduledHour,
-                        scheduledMinute = scheduledMinute,
-                        scheduleId = scheduleId,
-                        taken = true,
-                        updatedAt = System.currentTimeMillis(),
-                    )
-                )
+                ServiceLocator.coachRepository.upsertDose(dose)
                 if (notifId >= 0) {
                     NotificationManagerCompat.from(context).cancel(notifId)
                 }
@@ -78,7 +69,39 @@ class MedicationActionReceiver : BroadcastReceiver() {
         fun doseId(dayStart: Long, scheduleId: String): String =
             "med-$dayStart-$scheduleId"
 
-        // Receiver is process-scoped; goAsync() blocks process death until pending.finish().
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        /**
+         * Extras→entity conversion shared by the notification action button
+         * (this receiver) and the notification body tap (MainActivity).
+         * Takes primitives rather than an Intent so it stays JVM-testable.
+         * Returns null when required fields are missing/invalid — callers
+         * fall back to navigation-only, which is how notifications posted
+         * before the body-tap extras existed keep working.
+         */
+        fun markTakenDose(
+            medicationId: String?,
+            scheduleId: String?,
+            dayStart: Long,
+            scheduledHour: Int,
+            scheduledMinute: Int,
+            nowMs: Long,
+        ): MedicationDoseEntity? {
+            if (medicationId.isNullOrBlank() || scheduleId.isNullOrBlank()) return null
+            if (dayStart < 0 || scheduledHour < 0) return null
+            return MedicationDoseEntity(
+                id = doseId(dayStart, scheduleId),
+                dayStart = dayStart,
+                medicationId = medicationId,
+                scheduledHour = scheduledHour,
+                scheduledMinute = scheduledMinute,
+                scheduleId = scheduleId,
+                taken = true,
+                updatedAt = nowMs,
+            )
+        }
+
+        // Process-scoped so an in-flight dose write survives quick Activity
+        // death; goAsync() blocks process death until pending.finish().
+        // Shared with MainActivity's notification body-tap handler.
+        internal val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 }

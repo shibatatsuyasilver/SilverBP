@@ -2,6 +2,7 @@ package com.silverbp.android
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
@@ -9,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.silverbp.android.coach.CoachNotifier
+import com.silverbp.android.coach.MedicationActionReceiver
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.exercise.ExerciseNotification
 import com.silverbp.android.recognition.ModelBootstrap
@@ -18,6 +20,7 @@ import com.silverbp.android.ui.nav.DeepLinkBus
 import com.silverbp.android.ui.nav.Routes
 import com.silverbp.android.ui.theme.SilverBpTheme
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 // FragmentActivity (a ComponentActivity subclass) is required by
 // androidx.biometric.BiometricPrompt for the app-lock gate.
@@ -26,6 +29,11 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleStopAndReview(intent)
+        // savedInstanceState == null gates the dose write to the first launch:
+        // recreation after process death re-delivers the ORIGINAL intent with
+        // extras intact (removeExtra only mutates the app-side copy), and
+        // FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY is not set on that path.
+        if (savedInstanceState == null) handleMedicationBodyTap(intent)
         forwardDeepLink(intent)
         setContent {
             // Observe only the theme mode here (a second cheap subscription to the
@@ -53,6 +61,7 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleStopAndReview(intent)
+        handleMedicationBodyTap(intent)
         forwardDeepLink(intent)
     }
 
@@ -69,6 +78,53 @@ class MainActivity : FragmentActivity() {
         intent.removeExtra(ExerciseNotification.EXTRA_STOP_AND_REVIEW)
         ServiceLocator.exerciseController.stop()
         emitDeepLink(Routes.EXERCISE_SUMMARY)
+    }
+
+    /**
+     * The medication reminder's body tap carries the same extras as its
+     * "mark taken" action, so tapping the body also records the dose before
+     * navigating (navigation itself still flows through [forwardDeepLink]
+     * via [CoachNotifier.EXTRA_COACH_ROUTE]). Notifications posted before
+     * these extras existed yield null from `markTakenDose` and fall through
+     * to navigation-only.
+     *
+     * Fire-once guards, each covering a distinct re-delivery path:
+     *  - `savedInstanceState == null` at the onCreate call site — recreation
+     *    after process death re-delivers the original intent with extras
+     *    intact (system-side ActivityRecord is untouched by removeExtra).
+     *  - LAUNCHED_FROM_HISTORY — a trimmed task's base intent relaunched
+     *    from Recents arrives with null saved state, so the flag is the
+     *    only signal there.
+     *  - removeExtra — same-process re-runs on the retained Intent object.
+     * Worst case on a miss, the deterministic doseId makes the upsert
+     * idempotent, but it could still overwrite a dose the user un-toggled.
+     */
+    private fun handleMedicationBodyTap(intent: Intent?) {
+        intent ?: return
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val dose = MedicationActionReceiver.markTakenDose(
+            medicationId = intent.getStringExtra(MedicationActionReceiver.EXTRA_MEDICATION_ID),
+            scheduleId = intent.getStringExtra(MedicationActionReceiver.EXTRA_SCHEDULE_ID),
+            dayStart = intent.getLongExtra(MedicationActionReceiver.EXTRA_DAY_START, -1L),
+            scheduledHour = intent.getIntExtra(MedicationActionReceiver.EXTRA_SCHEDULED_HOUR, -1),
+            scheduledMinute = intent.getIntExtra(MedicationActionReceiver.EXTRA_SCHEDULED_MINUTE, 0),
+            nowMs = System.currentTimeMillis(),
+        ) ?: return
+        intent.removeExtra(MedicationActionReceiver.EXTRA_MEDICATION_ID)
+        intent.removeExtra(MedicationActionReceiver.EXTRA_SCHEDULE_ID)
+        intent.removeExtra(MedicationActionReceiver.EXTRA_DAY_START)
+        intent.removeExtra(MedicationActionReceiver.EXTRA_SCHEDULED_HOUR)
+        intent.removeExtra(MedicationActionReceiver.EXTRA_SCHEDULED_MINUTE)
+        // The receiver's process-scoped IO scope, not lifecycleScope: the
+        // write must survive a quick activity teardown (e.g. app-lock gate
+        // recreating the activity right after launch).
+        MedicationActionReceiver.ioScope.launch {
+            try {
+                ServiceLocator.coachRepository.upsertDose(dose)
+            } catch (t: Throwable) {
+                Log.w("MainActivity", "[MedBodyTap] mark-taken failed", t)
+            }
+        }
     }
 
     private fun forwardDeepLink(intent: Intent?) {

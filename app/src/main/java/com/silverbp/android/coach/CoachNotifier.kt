@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.silverbp.android.MainActivity
@@ -186,15 +187,26 @@ object CoachNotifier {
                 timeStr,
             )
         }
-        // Hash → 0..255 keeps multiple concurrent reminders distinct without
+        // Hash → 0..999 keeps multiple concurrent reminders distinct without
         // exhausting notification ID space; collisions are acceptable (one
         // reminder visually replaces another in the rare overlap case).
         val notifId = NOTIF_ID_MED_BASE +
             (schedule.id.hashCode().rem(1000).absoluteValue)
         val zone = ZoneId.systemDefault()
         val dayStart = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+        // PendingIntents are keyed by (requestCode + Intent.filterEquals), and
+        // notifId can collide across schedules. A per-(schedule, day) data URI
+        // keeps FLAG_UPDATE_CURRENT from overwriting one schedule's extras
+        // with another's — and today's dayStart with tomorrow's after midnight.
+        val uniqueData = Uri.Builder()
+            .scheme("silverbp")
+            .authority("med-reminder")
+            .appendPath(schedule.id)
+            .appendPath(dayStart.toString())
+            .build()
         val takenIntent = Intent(context, MedicationActionReceiver::class.java).apply {
             action = MedicationActionReceiver.ACTION_MARK_TAKEN
+            data = uniqueData
             putExtra(MedicationActionReceiver.EXTRA_MEDICATION_ID, med.id)
             putExtra(MedicationActionReceiver.EXTRA_SCHEDULE_ID, schedule.id)
             putExtra(MedicationActionReceiver.EXTRA_DAY_START, dayStart)
@@ -208,6 +220,26 @@ object CoachNotifier {
             takenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        // Unlike the other coach notifications (plain deepLink), the body tap
+        // carries the same extras as the "mark taken" action so MainActivity
+        // records the dose before navigating to the log screen.
+        val contentIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            data = uniqueData
+            putExtra(EXTRA_COACH_ROUTE, Routes.COACH_LOG_MEDICATION)
+            putExtra(MedicationActionReceiver.EXTRA_MEDICATION_ID, med.id)
+            putExtra(MedicationActionReceiver.EXTRA_SCHEDULE_ID, schedule.id)
+            putExtra(MedicationActionReceiver.EXTRA_DAY_START, dayStart)
+            putExtra(MedicationActionReceiver.EXTRA_SCHEDULED_HOUR, schedule.hour)
+            putExtra(MedicationActionReceiver.EXTRA_SCHEDULED_MINUTE, schedule.minute)
+            putExtra(MedicationActionReceiver.EXTRA_NOTIF_ID, notifId)
+        }
+        val contentPi = PendingIntent.getActivity(
+            context,
+            notifId,
+            contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val notif = NotificationCompat.Builder(context, CHANNEL_MED_REMINDER)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
@@ -215,7 +247,7 @@ object CoachNotifier {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setContentIntent(deepLink(context, Routes.COACH_LOG_MEDICATION, notifId))
+            .setContentIntent(contentPi)
             .addAction(
                 android.R.drawable.checkbox_on_background,
                 context.getString(R.string.medication_action_taken),
