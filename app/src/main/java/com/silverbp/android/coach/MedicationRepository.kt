@@ -112,7 +112,28 @@ class MedicationRepository(
                 hlc = localSync?.nextHlc(),
             )
         }
+        reconcileOrphans()
         legacyBackfillChecked = true
+    }
+
+    /**
+     * Re-home medications whose [MedicationEntity.memberId] resolves to no member
+     * row back to the local owner, so a cross-device import that stranded a
+     * medication under a foreign/absent member doesn't leave it invisible to the
+     * member-scoped manage screen (and thus undeletable). A genuine family
+     * member's medication (its member row exists) is left untouched.
+     *
+     * Unlike [ensureLegacyBackfilled] this is NOT gated by the once-per-process
+     * flag, so callers can force a fresh sweep right after an import even when the
+     * lazy backfill has already run earlier this session.
+     */
+    suspend fun reconcileOrphans() {
+        if (medications.countOrphanedMemberIds() > 0) {
+            medications.rehomeOrphanedMedications(
+                ownerId = ownerMemberId(),
+                hlc = localSync?.nextHlc(),
+            )
+        }
     }
 
     private suspend fun deleteSchedulesWithOptionalTombstones(

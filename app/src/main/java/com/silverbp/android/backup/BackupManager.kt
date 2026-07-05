@@ -59,6 +59,16 @@ class BackupManager(
      * for the legacy test constructor.
      */
     private val invalidateOwnerCache: () -> Unit = {},
+    /**
+     * Re-homes medications whose memberId resolves to no member row back to the
+     * local owner (see [com.silverbp.android.coach.MedicationRepository.reconcileOrphans]).
+     * Called once right after a successful import: a Merge that couldn't remap a
+     * source device's owner (or a non-owner member whose row failed to import) can
+     * leave a medication stranded under an absent member — invisible to the
+     * member-scoped manage screen and undeletable. No-op default for the legacy
+     * test constructor.
+     */
+    private val reconcileOrphanMedications: suspend () -> Unit = {},
 ) {
 
     sealed class Phase {
@@ -338,6 +348,14 @@ class BackupManager(
             if (skippedCount > 0) {
                 Log.w(TAG, "import applied $appliedCount, skipped $skippedCount of ${records.size}")
             }
+
+            // Post-commit repair: a Merge import can strand a medication under a
+            // member that doesn't exist locally (owner-remap miss, or a member row
+            // that failed to import). Re-home those orphans to the local owner so
+            // they're visible/deletable in the member-scoped manage screen. Runs
+            // outside the import transaction — a repair failure must not roll back
+            // an otherwise-successful import.
+            reconcileOrphanMedications()
 
             _importPhase.value = Phase.Success(
                 byteCount = parsed.payloadCiphertext.size.toLong(),

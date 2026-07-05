@@ -146,6 +146,37 @@ class MedicationRepositoryTest {
         assertTrue(tombstones.all { it.hlc == hlc && it.deletedAt == 123L })
     }
 
+    @Test
+    fun reconcile_orphans_rehomes_memberless_medications_and_leaves_valid_members() = runTest {
+        // "ghost-member" is not in the member set → orphan (e.g. an imported med
+        // whose owning member row never made it across). owner/member-a are valid.
+        val medicationDao = FakeMedicationDao(memberIds = setOf(ownerId, memberId)).apply {
+            upsert(medication(id = "orphan", name = "Orphan", memberId = "ghost-member"))
+            upsert(medication(id = "owner-med", name = "Owner", memberId = ownerId))
+            upsert(medication(id = "member-med", name = "Member", memberId = memberId))
+        }
+        val scheduleDao = FakeScheduleDao(medicationDao)
+        val hlc = Hlc.of(1_730_000_000_010L, 0, 0xB1L).packed
+        val repo = repo(
+            medicationDao = medicationDao,
+            scheduleDao = scheduleDao,
+            current = ownerId,
+            sync = FakeLocalSyncWriter(hlc),
+        )
+
+        repo.reconcileOrphans()
+
+        // Orphan is re-homed to the owner and re-stamped, so it now shows in the
+        // owner's member-scoped list and can be deleted from the manage screen.
+        assertEquals(ownerId, medicationDao.rows["orphan"]!!.memberId)
+        assertEquals(hlc, medicationDao.rows["orphan"]!!.hlcUpdatedAt)
+        assertTrue(repo.observeForMember(ownerId).first().any { it.id == "orphan" })
+        // A legitimate member's medication is left exactly where it is.
+        assertEquals(memberId, medicationDao.rows["member-med"]!!.memberId)
+        assertEquals("0", medicationDao.rows["member-med"]!!.hlcUpdatedAt)
+        assertEquals(ownerId, medicationDao.rows["owner-med"]!!.memberId)
+    }
+
     private fun repo(
         medicationDao: FakeMedicationDao,
         scheduleDao: FakeScheduleDao,
@@ -193,7 +224,15 @@ class MedicationRepositoryTest {
         hlcUpdatedAt = hlc,
     )
 
-    private class FakeMedicationDao : MedicationDao {
+    /**
+     * @param memberIds the set of member ids that "exist" (models the `member`
+     *   table for the orphan queries). `null` means every non-blank memberId is
+     *   treated as valid, so `countOrphanedMemberIds` returns 0 — the default the
+     *   pre-existing tests rely on to keep the lazy backfill a no-op.
+     */
+    private class FakeMedicationDao(
+        private val memberIds: Set<String>? = null,
+    ) : MedicationDao {
         val rows = linkedMapOf<String, MedicationEntity>()
 
         override fun observeAll(): Flow<List<MedicationEntity>> =
@@ -214,6 +253,26 @@ class MedicationRepositoryTest {
             var count = 0
             for ((id, row) in rows.toList()) {
                 if (row.memberId.isBlank()) {
+                    rows[id] = row.copy(
+                        memberId = ownerId,
+                        hlcUpdatedAt = hlc ?: row.hlcUpdatedAt,
+                    )
+                    count++
+                }
+            }
+            return count
+        }
+
+        override suspend fun countOrphanedMemberIds(): Int {
+            val valid = memberIds ?: return 0
+            return rows.values.count { it.memberId.isNotBlank() && it.memberId !in valid }
+        }
+
+        override suspend fun rehomeOrphanedMedications(ownerId: String, hlc: String?): Int {
+            val valid = memberIds ?: return 0
+            var count = 0
+            for ((id, row) in rows.toList()) {
+                if (row.memberId.isNotBlank() && row.memberId !in valid) {
                     rows[id] = row.copy(
                         memberId = ownerId,
                         hlcUpdatedAt = hlc ?: row.hlcUpdatedAt,

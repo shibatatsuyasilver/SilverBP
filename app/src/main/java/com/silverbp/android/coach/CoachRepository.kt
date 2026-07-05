@@ -174,20 +174,28 @@ class CoachRepository(
      * out — listing them would only produce 0/0 noise. Users can still see
      * them in the manage screen.
      *
-     * Reactive: observes [MedicationDao.observeAll] +
-     * [MedicationScheduleDao.observeAll] + [MedicationDoseDao.observeForRange]
+     * Scoped to [memberId] — the Coach home summary shows only the currently
+     * selected member's medications, matching the medication manage/log screens
+     * ([MedicationDao.observeForMember]). Using the household-wide
+     * [MedicationDao.observeAll] here would surface another member's (or an
+     * imported foreign-member) medication as an extra tile that the member-scoped
+     * manage screen can neither show nor delete.
+     *
+     * Reactive: observes [MedicationDao.observeForMember] +
+     * [MedicationScheduleDao.observeForMember] + [MedicationDoseDao.observeForRange]
      * so the Coach screen refreshes the moment the user toggles a Switch or
      * taps the notification "Mark as taken" action.
      */
     fun observeMedicationWeeklyProgressPerMed(
         weekStartDate: LocalDate,
         zone: ZoneId,
+        memberId: String,
     ): Flow<List<MedicationPerMedProgress>> {
         val weekStartMillis = weekStartDate.atStartOfDay(zone).toInstant().toEpochMilli()
         val weekEndMillis = weekStartDate.plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
         return combine(
-            medications.observeAll(),
-            medicationSchedules.observeAll(),
+            medications.observeForMember(memberId),
+            medicationSchedules.observeForMember(memberId),
             doses.observeForRange(weekStartMillis, weekEndMillis),
         ) { meds, scheduleRows, doseRows ->
             val schedulesByMed = scheduleRows.groupBy { it.medicationId }
@@ -220,11 +228,12 @@ class CoachRepository(
     fun observeWeeklyLifestyleLogs(
         weekStartDate: LocalDate,
         zone: ZoneId,
+        memberId: String,
     ): Flow<WeeklyLifestyleLogs> {
         val weekStartMillis = weekStartDate.atStartOfDay(zone).toInstant().toEpochMilli()
         val weekEndMillis = weekStartDate.plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
         return combine(
-            observeMedicationWeeklyProgressPerMed(weekStartDate, zone),
+            observeMedicationWeeklyProgressPerMed(weekStartDate, zone, memberId),
             diets.observeRange(weekStartMillis, weekEndMillis),
             sleeps.observeRange(weekStartMillis, weekEndMillis),
         ) { perMed, dietRows, sleepRows ->

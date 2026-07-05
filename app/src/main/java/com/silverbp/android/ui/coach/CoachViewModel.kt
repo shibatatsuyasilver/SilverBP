@@ -14,6 +14,7 @@ import com.silverbp.android.coach.WeeklyLifestyleLogs
 import com.silverbp.android.coach.TodayTaskOverlay
 import com.silverbp.android.core.db.DietCheckEntity
 import com.silverbp.android.core.db.SleepLogEntity
+import com.silverbp.android.core.member.CurrentMemberStore
 import com.silverbp.android.di.ServiceLocator
 import com.silverbp.android.health.classifySodium
 import com.silverbp.android.exercise.ActivityKind
@@ -22,11 +23,13 @@ import com.silverbp.android.exercise.ExerciseSession
 import com.silverbp.android.settings.UserSettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -96,6 +99,7 @@ class CoachViewModel(
     private val taskGenerator: TodayExerciseTaskGenerator = ServiceLocator.todayExerciseTaskGenerator,
     private val exerciseRepo: ExerciseRepository = ServiceLocator.exerciseRepository,
     private val userSettings: UserSettingsRepository = ServiceLocator.userSettings,
+    private val currentMemberStore: CurrentMemberStore = ServiceLocator.currentMemberStore,
     private val clock: Clock = Clock.systemDefaultZone(),
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
@@ -184,13 +188,23 @@ class CoachViewModel(
         }
     }
 
+    // Coach summary follows the currently-selected member (like Today/History),
+    // so its medication tiles match the member-scoped manage/log screens. Without
+    // this, an imported foreign-member medication would surface here as an extra
+    // tile that the member-scoped manage screen can neither list nor delete.
+    private val lifestyleLogsFlow: Flow<WeeklyLifestyleLogs> =
+        currentMemberStore.flow.flatMapLatest { memberId ->
+            coachRepo.observeWeeklyLifestyleLogs(
+                weekStartDate = currentWeekStart(),
+                zone = zone,
+                memberId = memberId,
+            )
+        }
+
     val state: StateFlow<CoachUiState> = combine(
         coachRepo.observeCurrentPlan(nowMillis),
         exerciseRepo.observeRange(weekStart(), weekEnd()),
-        coachRepo.observeWeeklyLifestyleLogs(
-            weekStartDate = currentWeekStart(),
-            zone = zone,
-        ),
+        lifestyleLogsFlow,
         _narration,
         _overlay,
     ) { plan, weekSessions, lifestyleLogs, narration, overlay ->

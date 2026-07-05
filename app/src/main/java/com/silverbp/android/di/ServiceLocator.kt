@@ -666,6 +666,9 @@ object ServiceLocator {
             // Replace 模式清空 member 表後,丟掉 MemberRepository 記憶體中的
             // owner id 快取,否則冷啟動暖好的舊 id 會繼續被回傳(findings 1 & 4)。
             invalidateOwnerCache = { memberRepository.invalidateOwnerCache() },
+            // 匯入後把「memberId 對應不到任何成員」的孤兒用藥歸回本機擁有者,
+            // 避免匯入把用藥卡在看不到、也刪不掉的外來成員底下。
+            reconcileOrphanMedications = { medicationRepository.reconcileOrphans() },
         )
     }
 }

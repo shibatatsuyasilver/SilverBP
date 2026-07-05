@@ -100,6 +100,29 @@ interface MedicationDao {
     )
     suspend fun backfillBlankMemberIds(ownerId: String, hlc: String?): Int
 
+    /**
+     * Medications whose [MedicationEntity.memberId] points at no existing member
+     * row — orphans stranded by a cross-device import (e.g. a backup Merge where
+     * owner-remap didn't fire, so the row kept the source device's owner id and no
+     * matching member was imported). Blank memberIds are handled separately by
+     * [backfillBlankMemberIds]; they're excluded here.
+     */
+    @Query("SELECT COUNT(*) FROM medication WHERE memberId != '' AND memberId NOT IN (SELECT id FROM member)")
+    suspend fun countOrphanedMemberIds(): Int
+
+    /**
+     * Re-home orphaned medications (see [countOrphanedMemberIds]) to the local
+     * [ownerId] so they become visible and deletable in the member-scoped manage
+     * screen instead of being silently stranded. A genuine family member's
+     * medication (its member row exists) is left untouched.
+     */
+    @Query(
+        "UPDATE medication SET memberId = :ownerId, " +
+            "hlcUpdatedAt = CASE WHEN :hlc IS NULL THEN hlcUpdatedAt ELSE :hlc END " +
+            "WHERE memberId != '' AND memberId NOT IN (SELECT id FROM member)"
+    )
+    suspend fun rehomeOrphanedMedications(ownerId: String, hlc: String?): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(m: MedicationEntity)
 
